@@ -29,10 +29,15 @@ sprachSelect.addEventListener("change", () => {
   }
 });
 
-// Smart Default: Haushaltsjahr = aktuelles Jahr
+// Smart Defaults beim Laden
+const heuteISO = new Date().toISOString().slice(0, 10);
 const haushaltsjahrInput = form.querySelector<HTMLInputElement>('[name="haushaltsjahr"]');
 if (haushaltsjahrInput && !haushaltsjahrInput.value) {
   haushaltsjahrInput.value = String(new Date().getFullYear());
+}
+const datumInput = form.querySelector<HTMLInputElement>('[name="antragsdatum"]');
+if (datumInput && !datumInput.value) {
+  datumInput.value = heuteISO;
 }
 
 function setFieldError(name: string, message: string | undefined): void {
@@ -137,9 +142,17 @@ function aktualisiereFortschritt(): void {
     const conditional = el.closest(".field-conditional");
     if (conditional && !conditional.classList.contains("visible")) return;
     gesamt += 1;
-    const val = el.type === "file"
-      ? ((el as HTMLInputElement).files?.length ?? 0) > 0
-      : el.value.trim().length > 0;
+    const wert = el.value.trim();
+    let val: boolean;
+    if (el.type === "file") {
+      val = ((el as HTMLInputElement).files?.length ?? 0) > 0;
+    } else if (el.type === "number") {
+      // Eine 0 (z.B. Default Miete) zählt nicht als „ausgefüllt"
+      const n = Number(wert);
+      val = wert.length > 0 && Number.isFinite(n) && n > 0;
+    } else {
+      val = wert.length > 0;
+    }
     if (val) gefuellt += 1;
   });
   // Pflicht-Anlagen separat (sind kein required=)

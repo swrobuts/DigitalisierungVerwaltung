@@ -314,9 +314,11 @@ textarea[aria-invalid="true"] {
 }
 
 .pflicht {
-  color: var(--wuerzburg-orange);
-  font-weight: 700;
-  margin-left: 0.1rem;
+  color: var(--wuerzburg-rot);
+  font-weight: 400;
+  margin-left: 0.05rem;
+  font-size: 0.85em;
+  vertical-align: top;
 }
 
 /* ===== Conditional Fields (per JS toggled) ===== */

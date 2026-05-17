@@ -28,11 +28,16 @@ export function applyTranslations(): void {
   if (typeof document === "undefined") return;
   document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => {
     const key = el.dataset.i18n;
-    if (key) el.textContent = t(key);
+    if (!key) return;
+    const value = t(key);
+    // Wenn t() den Roh-Key zurückgibt (nirgends übersetzt), HTML-Fallback lassen.
+    if (value !== key) el.textContent = value;
   });
   document.querySelectorAll<HTMLOptionElement>("option[data-i18n]").forEach((opt) => {
     const key = opt.dataset.i18n;
-    if (key) opt.textContent = t(key);
+    if (!key) return;
+    const value = t(key);
+    if (value !== key) opt.textContent = value;
   });
 }
 
