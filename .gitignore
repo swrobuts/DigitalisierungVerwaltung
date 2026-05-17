@@ -1,0 +1,10 @@
+node_modules/
+dist/
+build/
+.vite/
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.env
+.env.local
