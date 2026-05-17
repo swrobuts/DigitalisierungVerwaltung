@@ -49,15 +49,29 @@ DigitalisierungVerwaltung/
 │  ├─ fallbeispiel.md                  # APL 2 Altentagesstätte erklärt
 │  ├─ rechtsgrundlage.md               # Förderrichtlinie AHP destilliert
 │  └─ superpowers/specs/               # Diesen Spec + spätere
-├─ materialien/                        # Original-PDFs (Antrag, Anlage, Richtlinie)
-├─ folien/                             # IntroDigitalisierungVerwaltung.pptx + spätere
-├─ ue1-webformular/
-├─ ue2-persistenz/
-├─ ue3-ontologie/
-├─ ue4-rag-pageindex/
-├─ ue5-agent/
-└─ .github/workflows/                  # Lint, Tests, Deploy-Hooks
+├─ materialien/                        # Original-PDFs — geteilt über alle 5 UEs
+│  ├─ antrag-apl2.pdf
+│  ├─ anlage-antrag-apl2.pdf
+│  └─ foerderrichtlinie-ahp-2025-03-27.pdf
+├─ ue1/
+│  ├─ folien/                          # UE-spezifische PPT
+│  └─ webformular/                     # UE-Demo (Vite/TS-Projekt)
+├─ ue2/
+│  ├─ folien/
+│  └─ persistenz/
+├─ ue3/
+│  ├─ folien/
+│  └─ ontologie/
+├─ ue4/
+│  ├─ folien/
+│  └─ rag-pageindex/
+├─ ue5/
+│  ├─ folien/
+│  └─ agent/
+└─ .github/workflows/                  # Lint, Tests, Deploy-Hooks pro UE
 ```
+
+**Strukturprinzip:** Pro UE ein Top-Level-Ordner `ueN/`. `materialien/` bleibt Top-Level, weil alle 5 UEs denselben Fall (APL 2) bearbeiten — der Antrag wird aus jeder UE referenziert via `../../materialien/`.
 
 ## 5. Doku-Konvention pro UE (gilt für jeden `ueN-…`-Ordner)
 
@@ -90,7 +104,7 @@ Studierende können …
 | 11:45–12:10 | **Hands-on-Slot** | Studis ändern Regel/Feld/Pflichtstatus (siehe unten) |
 | 12:10–12:15 | Wrap-up | Cliffhanger UE2: „Was passiert nach dem Absenden?" |
 
-### Was gebaut wird in `ue1-webformular/src/`
+### Was gebaut wird in `ue1/webformular/src/`
 
 Stack: **Vite + Vanilla TS** (kein React-Overhead, minimale Schwelle).
 
@@ -117,7 +131,7 @@ Studis wählen eine von drei niederschwelligen Aufgaben:
 
 ### Vorbereitung
 - **Studis vor UE1**: Förderrichtlinie 15 Min überfliegen, PDFs öffnen
-- **Dozent vor UE1**: `ue1-webformular/` ist **vorab fertig committed**. Live nur Walkthrough, nicht „from scratch"
+- **Dozent vor UE1**: `ue1/webformular/` ist **vorab fertig committed**. Live nur Walkthrough, nicht „from scratch"
 
 ## 7. UEs 2–5 (Skizze, Detail-Specs später)
 
@@ -174,6 +188,12 @@ Pro UE wird **vor der Veranstaltung** ein eigener Mini-Spec + Implementation-Pla
 ### Mehrsprachigkeit & Integration (Querschnitt ab UE1)
 
 Verwaltungs-Webformulare in DE-Städten richten sich an eine sprachlich vielfältige Bevölkerung. Als didaktischer Integrations-Aspekt werden die UE-Demos **mehrsprachig** angelegt: ab UE1 Deutsch + Italienisch + Türkisch + Spanisch — zunächst nur Labels, um die Architektur zu zeigen, ohne die Komplexität juristischer Volltext-Übersetzungen aufzumachen. Übersetzungen in den Demos sind als „Demo-Übersetzungen, in Produktion durch Fachübersetzer zu prüfen" gekennzeichnet. Spätere UEs können auf das gleiche i18n-Pattern aufsetzen.
+
+### Corporate Identity Stadt Würzburg (Querschnitt ab UE1)
+
+Die Demos sind optisch an der CI der Stadt Würzburg orientiert: Würzburg-Rot (`#BE1E28` als plausibler Wert, exakter CI-Hex nicht öffentlich), heraldisches Gold (`#F2A900`), Schrift Spectral als Free-Analogon zum proprietären Linotype Finnegan. **Logo / Signet wird NICHT eingebunden** — dessen Nutzung erfordert Genehmigung der Pressestelle (`pressestelle@stadt.wuerzburg.de`). Stattdessen Wortmarke „Stadt Würzburg" + klarer Disclaimer im Footer („kein offizielles Angebot der Stadt Würzburg").
+
+**Schrems-II-Hinweis:** Google Fonts werden in den Demos via CDN eingebunden — das ist nur für Lehr-Demo akzeptabel. In Produktion wären Self-Hosting der Fonts und ein Verzicht auf jede US-Drittanbieter-Verbindung Pflicht. In jeder UE-Doku (`02-vorteile-voraussetzungen.md`) wird das explizit als rechtliche Voraussetzung markiert.
 
 ## 9. Vorgehen / Schrittweise Umsetzung
 

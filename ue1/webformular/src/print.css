@@ -6,9 +6,20 @@
     padding: 1cm;
     box-shadow: none;
   }
-  .actions, .demo-hinweis, .sprach-nav, button { display: none !important; }
+  .actions, .demo-hinweis, .sprach-nav, .stadt-footer, button { display: none !important; }
+  /* Stadt-Header schlank fürs Druckblatt: nur Wortmarke, ohne rotes Banner */
+  .stadt-header {
+    background: white !important;
+    color: #000 !important;
+    padding: 0.5cm 1cm 0 1cm;
+    box-shadow: none;
+    border-bottom: 2px solid #000;
+  }
+  .stadt-wortmarke, .stadt-wortmarke .wuerzburg-gold { color: #000 !important; }
+  .stadt-tagline { color: #000; }
   fieldset {
     border: 1px solid #000;
+    border-top: 1px solid #000;
     page-break-inside: avoid;
   }
   input, select, textarea {
@@ -17,5 +28,5 @@
     border-radius: 0;
     padding: 0.1rem 0.2rem;
   }
-  legend { color: #000; }
+  h1, legend { color: #000 !important; }
 }

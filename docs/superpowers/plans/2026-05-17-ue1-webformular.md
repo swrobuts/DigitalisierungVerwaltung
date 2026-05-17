@@ -27,7 +27,7 @@ DigitalisierungVerwaltung/
 │  └─ foerderrichtlinie-ahp-2025-03-27.pdf
 ├─ folien/                                 # NEU
 │  └─ ue1-intro-digitalisierung-verwaltung.pptx
-└─ ue1-webformular/
+└─ ue1/webformular/
    ├─ package.json
    ├─ tsconfig.json
    ├─ vite.config.ts
@@ -107,13 +107,13 @@ git -C "$REPO" commit -m "chore(repo): .gitignore + Materialien/Folien in eigene
 ## Task 2: Vite+TS+Vitest-Skeleton
 
 **Files:**
-- Create: `ue1-webformular/package.json`, `tsconfig.json`, `vite.config.ts`, `vitest.config.ts`, `src/main.ts`, `index.html`
+- Create: `ue1/webformular/package.json`, `tsconfig.json`, `vite.config.ts`, `vitest.config.ts`, `src/main.ts`, `index.html`
 
 - [ ] **Step 1: Ordner**
 
 ```bash
 REPO="/Users/robert/Library/CloudStorage/OneDrive-Persönlich/Vorlesungen/Übergreifend/Fallstudien/DigitalisierungVerwaltung"
-mkdir -p "$REPO/ue1-webformular/src" "$REPO/ue1-webformular/tests"
+mkdir -p "$REPO/ue1/webformular/src" "$REPO/ue1/webformular/tests"
 ```
 
 - [ ] **Step 2: `package.json`**
@@ -167,7 +167,7 @@ mkdir -p "$REPO/ue1-webformular/src" "$REPO/ue1-webformular/tests"
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/DigitalisierungVerwaltung/ue1-webformular/",
+  base: "/DigitalisierungVerwaltung/ue1/webformular/",
   build: { outDir: "dist", emptyOutDir: true },
 });
 ```
@@ -226,9 +226,9 @@ Expected: „No test files found" (kein Fehler).
 - [ ] **Step 10: Commit**
 
 ```bash
-git -C "$REPO" add ue1-webformular/package.json ue1-webformular/tsconfig.json \
-  ue1-webformular/vite.config.ts ue1-webformular/vitest.config.ts \
-  ue1-webformular/index.html ue1-webformular/src/main.ts ue1-webformular/package-lock.json
+git -C "$REPO" add ue1/webformular/package.json ue1/webformular/tsconfig.json \
+  ue1/webformular/vite.config.ts ue1/webformular/vitest.config.ts \
+  ue1/webformular/index.html ue1/webformular/src/main.ts ue1/webformular/package-lock.json
 git -C "$REPO" commit -m "feat(ue1): Vite+TS+Vitest-Skeleton für Webformular"
 ```
 
@@ -237,7 +237,7 @@ git -C "$REPO" commit -m "feat(ue1): Vite+TS+Vitest-Skeleton für Webformular"
 ## Task 3: Domain-Model — `types.ts`
 
 **Files:**
-- Create: `ue1-webformular/src/types.ts`
+- Create: `ue1/webformular/src/types.ts`
 
 - [ ] **Step 1: Typen**
 
@@ -287,7 +287,7 @@ export type ValidationErrors = Partial<Record<keyof APL2Antrag | AnlagenTyp, str
 - [ ] **Step 2: Commit**
 
 ```bash
-git -C "$REPO" add ue1-webformular/src/types.ts
+git -C "$REPO" add ue1/webformular/src/types.ts
 git -C "$REPO" commit -m "feat(ue1): Domain-Typen (APL2Antrag, Sprache, Anlage)"
 ```
 
@@ -296,7 +296,7 @@ git -C "$REPO" commit -m "feat(ue1): Domain-Typen (APL2Antrag, Sprache, Anlage)"
 ## Task 4: Validation-Utilities mit TDD
 
 **Files:**
-- Create: `ue1-webformular/tests/validation.test.ts`, `ue1-webformular/src/validation.ts`
+- Create: `ue1/webformular/tests/validation.test.ts`, `ue1/webformular/src/validation.ts`
 
 - [ ] **Step 1: Failing Tests für `isValidIBAN`**
 
@@ -455,7 +455,7 @@ Expected: ~14 passed.
 - [ ] **Step 9: Commit**
 
 ```bash
-git -C "$REPO" add ue1-webformular/src/validation.ts ue1-webformular/tests/validation.test.ts
+git -C "$REPO" add ue1/webformular/src/validation.ts ue1/webformular/tests/validation.test.ts
 git -C "$REPO" commit -m "feat(ue1): Validation-Utils (IBAN, E-Mail, Datum, Euro) mit Vitest"
 ```
 
@@ -464,7 +464,7 @@ git -C "$REPO" commit -m "feat(ue1): Validation-Utils (IBAN, E-Mail, Datum, Euro
 ## Task 5: Cross-Field-Regeln mit TDD
 
 **Files:**
-- Create: `ue1-webformular/tests/cross-field.test.ts`, `ue1-webformular/src/cross-field.ts`
+- Create: `ue1/webformular/tests/cross-field.test.ts`, `ue1/webformular/src/cross-field.ts`
 
 - [ ] **Step 1: Failing Tests**
 
@@ -593,7 +593,7 @@ cd "$REPO/ue1-webformular" && npx vitest run
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C "$REPO" add ue1-webformular/src/cross-field.ts ue1-webformular/tests/cross-field.test.ts
+git -C "$REPO" add ue1/webformular/src/cross-field.ts ue1/webformular/tests/cross-field.test.ts
 git -C "$REPO" commit -m "feat(ue1): Cross-Field-Regeln (Räume/Miete/Anlagen) mit Vitest"
 ```
 
@@ -602,7 +602,7 @@ git -C "$REPO" commit -m "feat(ue1): Cross-Field-Regeln (Räume/Miete/Anlagen) m
 ## Task 6: i18n-Modul (Übersetzungen DE/IT/TR/ES)
 
 **Files:**
-- Create: `ue1-webformular/src/i18n.ts`, `ue1-webformular/src/translations.ts`, `ue1-webformular/tests/i18n.test.ts`
+- Create: `ue1/webformular/src/i18n.ts`, `ue1/webformular/src/translations.ts`, `ue1/webformular/tests/i18n.test.ts`
 
 Begründung: Mehrsprachigkeit ist als Integrations-Aspekt zentral. Nur Labels werden übersetzt (keine Fehlermeldungen, keine Hilfetexte) — das hält den Aufwand klein und macht die Architektur sichtbar. Übersetzungen mit Hinweis „Demo, Fachübersetzung erforderlich".
 
@@ -906,8 +906,8 @@ Expected: alle i18n-Tests grün.
 - [ ] **Step 6: Commit**
 
 ```bash
-git -C "$REPO" add ue1-webformular/src/i18n.ts ue1-webformular/src/translations.ts \
-  ue1-webformular/tests/i18n.test.ts
+git -C "$REPO" add ue1/webformular/src/i18n.ts ue1/webformular/src/translations.ts \
+  ue1/webformular/tests/i18n.test.ts
 git -C "$REPO" commit -m "feat(ue1): i18n-Modul mit DE/IT/TR/ES-Labels (Demo-Übersetzungen)"
 ```
 
@@ -916,12 +916,12 @@ git -C "$REPO" commit -m "feat(ue1): i18n-Modul mit DE/IT/TR/ES-Labels (Demo-Üb
 ## Task 7: HTML-Markup mit i18n-Keys + Sprachumschalter
 
 **Files:**
-- Modify: `ue1-webformular/index.html`
-- Create: `ue1-webformular/src/styles.css`
+- Modify: `ue1/webformular/index.html`
+- Create: `ue1/webformular/src/styles.css`
 
 - [ ] **Step 1: HTML mit `data-i18n`**
 
-Datei `ue1-webformular/index.html` (ersetzen):
+Datei `ue1/webformular/index.html` (ersetzen):
 ```html
 <!doctype html>
 <html lang="de">
@@ -1210,7 +1210,7 @@ button:hover { filter: brightness(0.95); }
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C "$REPO" add ue1-webformular/index.html ue1-webformular/src/styles.css
+git -C "$REPO" add ue1/webformular/index.html ue1/webformular/src/styles.css
 git -C "$REPO" commit -m "feat(ue1): HTML-Formular mit i18n-Keys + Sprachumschalter + Styles"
 ```
 
@@ -1219,7 +1219,7 @@ git -C "$REPO" commit -m "feat(ue1): HTML-Formular mit i18n-Keys + Sprachumschal
 ## Task 8: DOM-Wiring + i18n-Init in `main.ts`
 
 **Files:**
-- Modify: `ue1-webformular/src/main.ts`
+- Modify: `ue1/webformular/src/main.ts`
 
 - [ ] **Step 1: `main.ts` ersetzen**
 
@@ -1346,7 +1346,7 @@ btnDrucken.addEventListener("click", () => window.print());
 - [ ] **Step 2: Commit (Module fehlen noch, wird in 9+10 geschlossen)**
 
 ```bash
-git -C "$REPO" add ue1-webformular/src/main.ts
+git -C "$REPO" add ue1/webformular/src/main.ts
 git -C "$REPO" commit -m "feat(ue1): DOM-Wiring + Live-Validation + i18n-Init"
 ```
 
@@ -1355,7 +1355,7 @@ git -C "$REPO" commit -m "feat(ue1): DOM-Wiring + Live-Validation + i18n-Init"
 ## Task 9: Anlagen-Upload-Modul
 
 **Files:**
-- Create: `ue1-webformular/src/attachments.ts`
+- Create: `ue1/webformular/src/attachments.ts`
 
 - [ ] **Step 1: Implementation**
 
@@ -1405,7 +1405,7 @@ function setUploadError(typ: AnlagenTyp, message: string): void {
 - [ ] **Step 2: Commit**
 
 ```bash
-git -C "$REPO" add ue1-webformular/src/attachments.ts
+git -C "$REPO" add ue1/webformular/src/attachments.ts
 git -C "$REPO" commit -m "feat(ue1): Anlagen-Upload mit MIME/Größen-Check"
 ```
 
@@ -1414,7 +1414,7 @@ git -C "$REPO" commit -m "feat(ue1): Anlagen-Upload mit MIME/Größen-Check"
 ## Task 10: Submit-Handler & Bestätigungsseite
 
 **Files:**
-- Create: `ue1-webformular/src/submit.ts`
+- Create: `ue1/webformular/src/submit.ts`
 
 - [ ] **Step 1: Implementation**
 
@@ -1475,7 +1475,7 @@ function escapeHTML(s: string): string {
 ```bash
 cd "$REPO/ue1-webformular" && npm run dev
 ```
-Manuell prüfen unter `http://localhost:5173/DigitalisierungVerwaltung/ue1-webformular/`:
+Manuell prüfen unter `http://localhost:5173/DigitalisierungVerwaltung/ue1/webformular/`:
 - Sprachumschalter oben rechts, 4 Sprachen wählbar
 - Sprache wechseln → alle Labels (Legends, Felder, Buttons, Optionen) ändern sich
 - Sprache neu laden → bleibt erhalten (localStorage)
@@ -1490,7 +1490,7 @@ Ctrl-C.
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C "$REPO" add ue1-webformular/src/submit.ts
+git -C "$REPO" add ue1/webformular/src/submit.ts
 git -C "$REPO" commit -m "feat(ue1): Submit-Handler + Bestätigung (Antragsnummer clientseitig)"
 ```
 
@@ -1499,7 +1499,7 @@ git -C "$REPO" commit -m "feat(ue1): Submit-Handler + Bestätigung (Antragsnumme
 ## Task 11: Print-Stylesheet
 
 **Files:**
-- Create: `ue1-webformular/src/print.css`
+- Create: `ue1/webformular/src/print.css`
 
 - [ ] **Step 1: Print-CSS**
 
@@ -1538,7 +1538,7 @@ cd "$REPO/ue1-webformular" && npm run dev
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C "$REPO" add ue1-webformular/src/print.css
+git -C "$REPO" add ue1/webformular/src/print.css
 git -C "$REPO" commit -m "feat(ue1): Print-CSS für Akten-Ausdruck"
 ```
 
@@ -1547,7 +1547,7 @@ git -C "$REPO" commit -m "feat(ue1): Print-CSS für Akten-Ausdruck"
 ## Task 12: Doku-Files für UE1
 
 **Files:**
-- Create: `ue1-webformular/README.md`, `01-konzept.md`, `02-vorteile-voraussetzungen.md`, `03-walkthrough.md`
+- Create: `ue1/webformular/README.md`, `01-konzept.md`, `02-vorteile-voraussetzungen.md`, `03-walkthrough.md`
 
 - [ ] **Step 1: `README.md`**
 
@@ -1565,7 +1565,7 @@ cd DigitalisierungVerwaltung/ue1-webformular
 npm install
 npm run dev
 ```
-Browser: http://localhost:5173/DigitalisierungVerwaltung/ue1-webformular/
+Browser: http://localhost:5173/DigitalisierungVerwaltung/ue1/webformular/
 
 ### Variante B: StackBlitz (ohne Installation)
 👉 https://stackblitz.com/github/swrobuts/DigitalisierungVerwaltung/tree/main/ue1-webformular
@@ -1581,7 +1581,7 @@ npm test
 - [03-walkthrough.md](./03-walkthrough.md) — Code-Walkthrough + Mitmach-Aufgabe
 
 ## Demo (öffentlich)
-https://swrobuts.github.io/DigitalisierungVerwaltung/ue1-webformular/
+https://swrobuts.github.io/DigitalisierungVerwaltung/ue1/webformular/
 
 ## Original-Materialien
 - [Antrag APL 2 (PDF)](../materialien/antrag-apl2.pdf)
@@ -1743,8 +1743,8 @@ Im HTML zusätzlich „Mobil-Telefon" einfügen. In `types.ts` ergänzen, in `va
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C "$REPO" add ue1-webformular/README.md ue1-webformular/01-konzept.md \
-  ue1-webformular/02-vorteile-voraussetzungen.md ue1-webformular/03-walkthrough.md
+git -C "$REPO" add ue1/webformular/README.md ue1/webformular/01-konzept.md \
+  ue1/webformular/02-vorteile-voraussetzungen.md ue1/webformular/03-walkthrough.md
 git -C "$REPO" commit -m "docs(ue1): README + Konzept + Vorteile/Voraussetzungen + Walkthrough (mehrsprachig)"
 ```
 
@@ -1765,7 +1765,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "ue1-webformular/**"
+      - "ue1/webformular/**"
       - ".github/workflows/deploy-ue1.yml"
   workflow_dispatch:
 
@@ -1790,13 +1790,13 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: ue1-webformular/package-lock.json
+          cache-dependency-path: ue1/webformular/package-lock.json
       - run: npm ci
       - run: npm test
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ue1-webformular/dist
+          path: ue1/webformular/dist
 
   deploy:
     needs: build
@@ -1860,7 +1860,7 @@ git -C "$REPO" push origin main
 
 - [ ] **Step 6: Pages-Deployment prüfen**
 
-Nach ~2 Min: https://swrobuts.github.io/DigitalisierungVerwaltung/ue1-webformular/ aufrufen, Smoke-Test wiederholen.
+Nach ~2 Min: https://swrobuts.github.io/DigitalisierungVerwaltung/ue1/webformular/ aufrufen, Smoke-Test wiederholen.
 
 ---
 

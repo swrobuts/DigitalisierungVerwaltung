@@ -3,15 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>APL 2 — Antrag Altentagesstätte (Demo UE1)</title>
+    <title>Stadt Würzburg — APL 2 Antrag (Demo UE1)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=Inter:wght@400;500;600&display=swap" />
     <link rel="stylesheet" href="/src/styles.css" />
     <link rel="stylesheet" href="/src/print.css" media="print" />
   </head>
   <body>
-    <main id="app">
-      <header>
+    <header class="stadt-header">
+      <div class="stadt-header-inner">
+        <div>
+          <div class="stadt-wortmarke">Stadt <span class="wuerzburg-gold">Würzburg</span></div>
+          <div class="stadt-tagline">Beratungsstelle für Senioren · Online-Antrag</div>
+        </div>
         <nav class="sprach-nav">
-          <span data-i18n="ui.sprache">Sprache</span>:
+          <label for="sprach-select"><span data-i18n="ui.sprache">Sprache</span>:</label>
           <select id="sprach-select" aria-label="Sprache wählen">
             <option value="de">DE · Deutsch</option>
             <option value="it">IT · Italiano</option>
@@ -19,11 +26,17 @@
             <option value="es">ES · Español</option>
           </select>
         </nav>
+      </div>
+    </header>
+
+    <main id="app">
+      <header>
         <h1 data-i18n="form.title">Antrag auf Gewährung eines Zuschusses</h1>
         <p class="subtitle" data-i18n="form.subtitle">ALTENHILFEPLAN Nr. 2 — Altentagesstätten · Betriebs- &amp; Personalkostenzuschüsse</p>
         <p class="addressee" data-i18n="form.addressee">Beratungsstelle für Senioren · Karmelitenstraße 43 · 97070 Würzburg</p>
-        <p class="demo-hinweis" role="note" data-i18n="ui.demohinweis">
-          Demo-Webformular für die Lehre. Eingaben verlassen Ihren Browser nicht.
+        <p class="demo-hinweis" role="note">
+          <strong>Lehr-Demo:</strong> <span data-i18n="ui.demohinweis">Demo-Webformular für die Lehre. Eingaben verlassen Ihren Browser nicht.</span><br>
+          Kein offizielles Angebot der Stadt Würzburg. Optische Anlehnung an deren Corporate Identity.
         </p>
       </header>
 
@@ -145,6 +158,13 @@
 
       <section id="bestaetigung" hidden></section>
     </main>
+
+    <footer class="stadt-footer">
+      Lehr-Demo aus dem Modul „Innovationsmanagement" der THWS · 2026 ·
+      <a href="https://github.com/swrobuts/DigitalisierungVerwaltung" target="_blank" rel="noopener">Quellcode auf GitHub</a> ·
+      Kein offizielles Angebot der Stadt Würzburg
+    </footer>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

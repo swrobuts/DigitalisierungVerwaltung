@@ -10,6 +10,7 @@
 | Anlagen vergessen | typisch | Webform meckert vor Submit |
 | Sprachbarriere | nur deutsch | DE + IT + TR + ES (Integrations-Aspekt) |
 | Barrierearmut | schwer (Scan-PDFs oft nicht screenreader-tauglich) | mit ARIA umsetzbar |
+| Wiedererkennung | nur PDF-Briefkopf | optisch an der CI der Stadt Würzburg orientiert |
 
 ## Was diese Stufe nicht löst
 
@@ -36,7 +37,14 @@
 - **Pflege der Übersetzungen** — bei jeder Änderung des Originals müssen alle Sprachen nachgezogen werden
 
 ### Rechtlich
-- Da keine Daten gespeichert werden, **keine DSGVO-Pflichten** im engeren Sinn
+- Da keine Daten gespeichert werden, **keine DSGVO-Pflichten** im engeren Sinn für die Formulareingaben
+- **Schrems II / Google Fonts:** Das Demo bindet Spectral + Inter über `fonts.googleapis.com` ein. Jeder Seitenaufruf erzeugt einen Request an Google in den USA — in einer offiziellen Verwaltungs-Anwendung ist das nach BayLfD und mehreren OLG-Urteilen unzulässig. In Produktion müssten die Fonts **self-hosted** sein.
 - Hinweis im Formular nötig, dass die Daten lokal bleiben (Demo-Banner)
 - Bei späteren Stufen (Submit ans Amt) greift die volle DSGVO-Mechanik
 - Bei mehrsprachigen amtlichen Texten: Verbindlichkeitsfrage klären (in DE bleibt der deutsche Wortlaut maßgeblich)
+
+### CI-rechtlich (Stadt Würzburg)
+- Das Demo nutzt **nicht** das offizielle Stadtlogo / Signet — dessen Nutzung erfordert eine Genehmigung der Pressestelle (`pressestelle@stadt.wuerzburg.de`)
+- Stattdessen: Wortmarke „Stadt Würzburg" + heraldisches Würzburg-Rot (`#BE1E28` als plausibler Wert, exakter CI-Hex ist nicht öffentlich)
+- Schrift Spectral (statt der proprietären `Linotype Finnegan`)
+- Der Disclaimer im Formular und im Footer macht klar: **kein offizielles Angebot der Stadt Würzburg**
