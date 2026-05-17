@@ -33,9 +33,13 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Wrap dist in /ue1-webformular/ for Pages routing
+        run: |
+          mkdir -p ../_site/ue1-webformular
+          cp -r dist/* ../_site/ue1-webformular/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ue1-webformular/dist
+          path: _site
 
   deploy:
     needs: build
