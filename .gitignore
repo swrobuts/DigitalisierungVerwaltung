@@ -1,10 +1,29 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
 build/
 .vite/
+*.tsbuildinfo
+
+# Testing
+coverage/
+
+# Editor / OS
 .DS_Store
 .idea/
 .vscode/
 *.swp
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local env (Vite-Convention: .env.*.local nie committen)
 .env
 .env.local
+.env.*.local
+
+# Cache (verschiedene Tools)
+.cache/
