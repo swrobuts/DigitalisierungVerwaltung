@@ -1,5 +1,12 @@
 import type { APL2Antrag, ValidationErrors, AnlagenTyp } from "./types";
 
+const ANLAGEN_LABEL: Record<AnlagenTyp, string> = {
+  "programm-altentagesstaette": "Programm der Altentagesstätte",
+  "anlage-1-kostennachweis": "Anlage 1 — Kostennachweis",
+  "personalkostenbelege": "Personalkostenbelege",
+  "mietvertrag": "Kopie Mietvertrag",
+};
+
 const PFLICHT_ANLAGEN: AnlagenTyp[] = [
   "programm-altentagesstaette",
   "anlage-1-kostennachweis",
@@ -28,7 +35,7 @@ export function validateCrossField(antrag: APL2Antrag): ValidationErrors {
   for (const typ of PFLICHT_ANLAGEN) {
     const dabei = antrag.anlagen.some((a) => a.typ === typ);
     if (!dabei) {
-      errors[typ] = `Pflicht-Anlage fehlt: ${typ}`;
+      errors[typ] = `Pflichtanlage fehlt: ${ANLAGEN_LABEL[typ]}`;
     }
   }
 
