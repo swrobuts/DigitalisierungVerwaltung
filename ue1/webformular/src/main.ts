@@ -10,8 +10,13 @@ const form = document.getElementById("antrag-form") as HTMLFormElement;
 const bestaetigung = document.getElementById("bestaetigung") as HTMLElement;
 const btnDrucken = document.getElementById("btn-drucken") as HTMLButtonElement;
 const sprachSelect = document.getElementById("sprach-select") as HTMLSelectElement;
+const ibanStatus = document.getElementById("iban-status") as SVGElement | null;
+const feldBic = document.getElementById("field-bic") as HTMLElement | null;
+const feldMietvertrag = document.getElementById("field-mietvertrag") as HTMLElement | null;
+const fortschrittFill = document.getElementById("fortschritt-fill") as HTMLElement | null;
+const fortschrittText = document.getElementById("fortschritt-text") as HTMLElement | null;
 
-// i18n: gespeicherte Sprache aus localStorage, dann anwenden
+// i18n
 ladeGespeicherteSprache();
 sprachSelect.value = getSprache();
 applyTranslations();
@@ -23,6 +28,12 @@ sprachSelect.addEventListener("change", () => {
     setSprache(wert);
   }
 });
+
+// Smart Default: Haushaltsjahr = aktuelles Jahr
+const haushaltsjahrInput = form.querySelector<HTMLInputElement>('[name="haushaltsjahr"]');
+if (haushaltsjahrInput && !haushaltsjahrInput.value) {
+  haushaltsjahrInput.value = String(new Date().getFullYear());
+}
 
 function setFieldError(name: string, message: string | undefined): void {
   const target = form.querySelector<HTMLElement>(`[data-error-for="${name}"]`);
@@ -92,10 +103,70 @@ function fehlerAnzeigen(errors: ValidationErrors): void {
   }
 }
 
-form.addEventListener("input", () => {
+/* Interaktive Komfort-Funktionen */
+
+function aktualisiereIbanStatus(antrag: APL2Antrag): void {
+  if (!ibanStatus) return;
+  const ok = antrag.iban.length > 0 && isValidIBAN(antrag.iban);
+  ibanStatus.classList.toggle("ok", ok);
+}
+
+function aktualisiereConditionalFields(antrag: APL2Antrag): void {
+  // BIC nur sichtbar bei Nicht-DE-IBAN
+  if (feldBic) {
+    const ibanClean = antrag.iban.replace(/\s+/g, "").toUpperCase();
+    const istNichtDe = ibanClean.length >= 2 && !ibanClean.startsWith("DE");
+    feldBic.classList.toggle("visible", istNichtDe);
+  }
+  // Mietvertrag nur sichtbar bei Miete > 0
+  if (feldMietvertrag) {
+    feldMietvertrag.classList.toggle("visible", antrag.monatlicheMieteEuro > 0);
+  }
+}
+
+function aktualisiereFortschritt(): void {
+  if (!fortschrittFill || !fortschrittText) return;
+  // Zähle "ausgefüllt" für alle sichtbaren Pflichtfelder
+  const pflichtFelder = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
+    "input[required], select[required], textarea[required]",
+  );
+  let gesamt = 0;
+  let gefuellt = 0;
+  pflichtFelder.forEach((el) => {
+    // Übergeh Felder, deren Container .field-conditional ist und NICHT .visible
+    const conditional = el.closest(".field-conditional");
+    if (conditional && !conditional.classList.contains("visible")) return;
+    gesamt += 1;
+    const val = el.type === "file"
+      ? ((el as HTMLInputElement).files?.length ?? 0) > 0
+      : el.value.trim().length > 0;
+    if (val) gefuellt += 1;
+  });
+  // Pflicht-Anlagen separat (sind kein required=)
+  const pflichtAnlagen = ["programm-altentagesstaette", "anlage-1-kostennachweis", "personalkostenbelege"];
+  pflichtAnlagen.forEach((typ) => {
+    gesamt += 1;
+    const input = form.querySelector<HTMLInputElement>(`input[name="${typ}"]`);
+    if ((input?.files?.length ?? 0) > 0) gefuellt += 1;
+  });
+
+  const prozent = gesamt === 0 ? 0 : Math.round((gefuellt / gesamt) * 100);
+  fortschrittFill.style.width = `${prozent}%`;
+  fortschrittText.textContent = `${gefuellt} / ${gesamt}`;
+}
+
+function liveUpdate(): void {
   const antrag = leseAntragAusFormular();
+  aktualisiereIbanStatus(antrag);
+  aktualisiereConditionalFields(antrag);
+  aktualisiereFortschritt();
   fehlerAnzeigen(feldweiseValidieren(antrag));
-});
+}
+
+form.addEventListener("input", liveUpdate);
+form.addEventListener("change", liveUpdate);
+// Initial einmal triggern, damit Default-Werte (Haushaltsjahr, Miete=0) wirken
+liveUpdate();
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();

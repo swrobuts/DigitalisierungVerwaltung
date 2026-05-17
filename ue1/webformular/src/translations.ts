@@ -45,6 +45,10 @@ export const translations: Record<Sprache, Record<string, string>> = {
     "form.option.bittewaehlen": "— bitte wählen —",
     "form.option.ja": "ja",
     "form.option.nein": "nein",
+    "ui.breadcrumb.current": "Antrag Altenhilfeplan Nr. 2",
+    "ui.fortschritt.label": "Fortschritt",
+    "form.hint.bic": "Erscheint nur, wenn die IBAN nicht mit DE beginnt.",
+    "form.hint.mietvertrag": "Erscheint nur, wenn eine monatliche Miete > 0 angegeben ist.",
   },
   it: {
     "form.title": "Domanda di concessione di un contributo",
@@ -85,6 +89,10 @@ export const translations: Record<Sprache, Record<string, string>> = {
     "form.option.bittewaehlen": "— selezionare —",
     "form.option.ja": "sì",
     "form.option.nein": "no",
+    "ui.breadcrumb.current": "Domanda Piano di assistenza agli anziani n. 2",
+    "ui.fortschritt.label": "Avanzamento",
+    "form.hint.bic": "Compare solo se l'IBAN non inizia con DE.",
+    "form.hint.mietvertrag": "Compare solo se è indicato un affitto mensile > 0.",
   },
   tr: {
     "form.title": "Hibe başvurusu",
@@ -125,6 +133,10 @@ export const translations: Record<Sprache, Record<string, string>> = {
     "form.option.bittewaehlen": "— seçiniz —",
     "form.option.ja": "evet",
     "form.option.nein": "hayır",
+    "ui.breadcrumb.current": "Yaşlılara Yardım Planı No. 2 başvurusu",
+    "ui.fortschritt.label": "İlerleme",
+    "form.hint.bic": "Yalnızca IBAN DE ile başlamıyorsa görünür.",
+    "form.hint.mietvertrag": "Yalnızca aylık kira > 0 girilmişse görünür.",
   },
   es: {
     "form.title": "Solicitud de concesión de una subvención",
@@ -165,5 +177,9 @@ export const translations: Record<Sprache, Record<string, string>> = {
     "form.option.bittewaehlen": "— seleccionar —",
     "form.option.ja": "sí",
     "form.option.nein": "no",
+    "ui.breadcrumb.current": "Solicitud Plan de ayuda a personas mayores n.º 2",
+    "ui.fortschritt.label": "Progreso",
+    "form.hint.bic": "Aparece solo si el IBAN no empieza por DE.",
+    "form.hint.mietvertrag": "Aparece solo si se ha indicado un alquiler mensual > 0.",
   },
 };

@@ -2,7 +2,12 @@
   body { background: white; }
   body::before { display: none; }
 
-  .actions, .demo-hinweis, .sprach-nav, .stadt-footer, button { display: none !important; }
+  .actions, .sprach-nav, .stadt-subnav, .fortschritt-bar,
+  .input-status-icon, .stadt-footer, button { display: none !important; }
+
+  /* Conditional fields beim Druck nur wenn aktiv sichtbar */
+  .field-conditional:not(.visible) { display: none !important; }
+  .field-conditional.visible { display: block !important; }
 
   .stadt-header {
     border-bottom: 2px solid #000;
