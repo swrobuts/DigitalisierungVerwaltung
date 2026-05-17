@@ -3,10 +3,147 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>APL 2 — Antrag Altentagesstätte (Demo)</title>
+    <title>APL 2 — Antrag Altentagesstätte (Demo UE1)</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/print.css" media="print" />
   </head>
   <body>
-    <main id="app"><h1>APL 2 — Antrag (Skeleton)</h1></main>
+    <main id="app">
+      <header>
+        <nav class="sprach-nav">
+          <span data-i18n="ui.sprache">Sprache</span>:
+          <select id="sprach-select" aria-label="Sprache wählen">
+            <option value="de">DE · Deutsch</option>
+            <option value="it">IT · Italiano</option>
+            <option value="tr">TR · Türkçe</option>
+            <option value="es">ES · Español</option>
+          </select>
+        </nav>
+        <h1 data-i18n="form.title">Antrag auf Gewährung eines Zuschusses</h1>
+        <p class="subtitle" data-i18n="form.subtitle">ALTENHILFEPLAN Nr. 2 — Altentagesstätten · Betriebs- &amp; Personalkostenzuschüsse</p>
+        <p class="addressee" data-i18n="form.addressee">Beratungsstelle für Senioren · Karmelitenstraße 43 · 97070 Würzburg</p>
+        <p class="demo-hinweis" role="note" data-i18n="ui.demohinweis">
+          Demo-Webformular für die Lehre. Eingaben verlassen Ihren Browser nicht.
+        </p>
+      </header>
+
+      <form id="antrag-form" novalidate>
+        <fieldset>
+          <legend data-i18n="form.legend.haushaltsjahr">Haushaltsjahr</legend>
+          <label>
+            <span data-i18n="form.label.haushaltsjahr">Haushaltsjahr</span>
+            <input type="number" name="haushaltsjahr" min="2024" max="2030" required />
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend data-i18n="form.legend.traeger">Träger & Einrichtung</legend>
+          <label><span data-i18n="form.label.name">Name der Einrichtung</span>
+            <input type="text" name="name" required />
+          </label>
+          <label><span data-i18n="form.label.traeger">Träger</span>
+            <input type="text" name="traeger" required />
+          </label>
+          <label><span data-i18n="form.label.anschrift">Anschrift (Straße, PLZ, Ort)</span>
+            <textarea name="anschrift" rows="2" required></textarea>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend data-i18n="form.legend.bank">Bankverbindung</legend>
+          <label><span data-i18n="form.label.bankverbindung">Bank</span>
+            <input type="text" name="bankverbindung" required />
+          </label>
+          <label><span data-i18n="form.label.iban">IBAN</span>
+            <input type="text" name="iban" required autocomplete="off" />
+            <span class="field-error" data-error-for="iban"></span>
+          </label>
+          <label><span data-i18n="form.label.bic">BIC (nur bei Nicht-DE-IBAN)</span>
+            <input type="text" name="bic" autocomplete="off" />
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend data-i18n="form.legend.kontakt">Kontakt</legend>
+          <label><span data-i18n="form.label.ansprechpartner">Ansprechpartner/in</span>
+            <input type="text" name="ansprechpartner" required />
+          </label>
+          <label><span data-i18n="form.label.telefon">Telefon / Handy</span>
+            <input type="tel" name="telefon" required />
+          </label>
+          <label><span data-i18n="form.label.email">E-Mail</span>
+            <input type="email" name="email" required />
+            <span class="field-error" data-error-for="email"></span>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend data-i18n="form.legend.kosten">Kosten Vorjahr</legend>
+          <label><span data-i18n="form.label.betriebskosten">Nachgewiesene Betriebskosten (Euro)</span>
+            <input type="number" name="betriebskostenVorjahrEuro" min="0" step="0.01" required />
+          </label>
+          <label><span data-i18n="form.label.personalkosten">Nachgewiesene Personalkosten (Euro)</span>
+            <input type="number" name="personalkostenVorjahrEuro" min="0" step="0.01" required />
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend data-i18n="form.legend.raeume">Räumlichkeiten</legend>
+          <label><span data-i18n="form.label.raeumeVorhanden">Eigene Räumlichkeiten des Trägers vorhanden?</span>
+            <select name="raeumeVorhanden" required>
+              <option value="" data-i18n="form.option.bittewaehlen">— bitte wählen —</option>
+              <option value="ja" data-i18n="form.option.ja">ja</option>
+              <option value="nein" data-i18n="form.option.nein">nein</option>
+            </select>
+          </label>
+          <label><span data-i18n="form.label.raeumeUnentgeltlich">Unentgeltlich bereitgestellte Räume anderer Träger?</span>
+            <select name="raeumeUnentgeltlich" required>
+              <option value="" data-i18n="form.option.bittewaehlen">— bitte wählen —</option>
+              <option value="ja" data-i18n="form.option.ja">ja</option>
+              <option value="nein" data-i18n="form.option.nein">nein</option>
+            </select>
+          </label>
+          <label><span data-i18n="form.label.miete">Monatliche Mietzahlungen (Euro, 0 wenn keine)</span>
+            <input type="number" name="monatlicheMieteEuro" min="0" step="0.01" value="0" required />
+            <span class="field-error" data-error-for="monatlicheMieteEuro"></span>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend data-i18n="form.legend.anlagen">Anlagen (PDF, max. 10 MB pro Datei)</legend>
+          <label><span data-i18n="form.label.anlage.programm">Programm der Altentagesstätte</span> <span class="pflicht">*</span>
+            <input type="file" name="programm-altentagesstaette" accept="application/pdf" />
+            <span class="field-error" data-error-for="programm-altentagesstaette"></span>
+          </label>
+          <label><span data-i18n="form.label.anlage.kostennachweis">Anlage 1 — Kostennachweis</span> <span class="pflicht">*</span>
+            <input type="file" name="anlage-1-kostennachweis" accept="application/pdf" />
+            <span class="field-error" data-error-for="anlage-1-kostennachweis"></span>
+          </label>
+          <label><span data-i18n="form.label.anlage.personalbelege">Personalkostenbelege</span> <span class="pflicht">*</span>
+            <input type="file" name="personalkostenbelege" accept="application/pdf" />
+            <span class="field-error" data-error-for="personalkostenbelege"></span>
+          </label>
+          <label><span data-i18n="form.label.anlage.mietvertrag">Kopie Mietvertrag (Pflicht, wenn Miete &gt; 0)</span>
+            <input type="file" name="mietvertrag" accept="application/pdf" />
+            <span class="field-error" data-error-for="mietvertrag"></span>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend data-i18n="form.legend.datum">Antragsdatum</legend>
+          <label><span data-i18n="form.label.datum">Würzburg, Datum</span>
+            <input type="date" name="antragsdatum" required />
+          </label>
+        </fieldset>
+
+        <div class="actions">
+          <button type="button" id="btn-drucken" data-i18n="form.button.drucken">Druckansicht für Akte</button>
+          <button type="submit" id="btn-absenden" data-i18n="form.button.absenden">Antrag absenden</button>
+        </div>
+      </form>
+
+      <section id="bestaetigung" hidden></section>
+    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
