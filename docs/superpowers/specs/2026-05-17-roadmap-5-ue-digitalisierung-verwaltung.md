@@ -191,9 +191,16 @@ Verwaltungs-Webformulare in DE-Städten richten sich an eine sprachlich vielfäl
 
 ### Corporate Identity Stadt Würzburg (Querschnitt ab UE1)
 
-Die Demos sind optisch an der CI der Stadt Würzburg orientiert: Würzburg-Rot (`#BE1E28` als plausibler Wert, exakter CI-Hex nicht öffentlich), heraldisches Gold (`#F2A900`), Schrift Spectral als Free-Analogon zum proprietären Linotype Finnegan. **Logo / Signet wird NICHT eingebunden** — dessen Nutzung erfordert Genehmigung der Pressestelle (`pressestelle@stadt.wuerzburg.de`). Stattdessen Wortmarke „Stadt Würzburg" + klarer Disclaimer im Footer („kein offizielles Angebot der Stadt Würzburg").
+Die Demos sind optisch an der CI der Stadt Würzburg orientiert — **faktenbasiert aus wuerzburg.de extrahiert** (2026-05-17 aus `/index.css`):
 
-**Schrems-II-Hinweis:** Google Fonts werden in den Demos via CDN eingebunden — das ist nur für Lehr-Demo akzeptabel. In Produktion wären Self-Hosting der Fonts und ein Verzicht auf jede US-Drittanbieter-Verbindung Pflicht. In jeder UE-Doku (`02-vorteile-voraussetzungen.md`) wird das explizit als rechtliche Voraussetzung markiert.
+- **Würzburg-Rot `#AD0E36`** (Selektor `#menucontainer .topmenulink.parent` u.a.)
+- **Akzent-Orange `#FF680E`** (Selektor `.arrow:hover`)
+- **Schrift Open Sans** — wie die Stadt selbst (selfhosted via `cdn.regiogate.net`)
+- **Header-Layout:** weißer Header mit Wappen + Wortmarke + Navi, kein farbiges Banner. Schmaler roter Akzent-Streifen oben (4px) als CI-Marker
+
+**Stadt-Signet wird NICHT eingebunden** — dessen Nutzung erfordert Genehmigung der Pressestelle (`pressestelle@stadt.wuerzburg.de`). Stattdessen das **historische Stadtwappen** als gemeinfreies SVG aus Wikimedia Commons (`File:DEU_Würzburg_COA.svg`) + Wortmarke „Stadt Würzburg" + klarer Disclaimer im Footer („kein offizielles Angebot der Stadt Würzburg").
+
+**Schrems-II-Hinweis:** Open Sans wird in den Demos via Google Fonts CDN geladen — nur für Lehr-Demo akzeptabel. In Produktion wären Self-Hosting der Fonts (wie wuerzburg.de es macht) und Verzicht auf US-Drittanbieter-Verbindungen Pflicht. In jeder UE-Doku (`02-vorteile-voraussetzungen.md`) wird das explizit als rechtliche Voraussetzung markiert.
 
 ## 9. Vorgehen / Schrittweise Umsetzung
 

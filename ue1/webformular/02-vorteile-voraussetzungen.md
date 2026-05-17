@@ -44,7 +44,11 @@
 - Bei mehrsprachigen amtlichen Texten: Verbindlichkeitsfrage klären (in DE bleibt der deutsche Wortlaut maßgeblich)
 
 ### CI-rechtlich (Stadt Würzburg)
-- Das Demo nutzt **nicht** das offizielle Stadtlogo / Signet — dessen Nutzung erfordert eine Genehmigung der Pressestelle (`pressestelle@stadt.wuerzburg.de`)
-- Stattdessen: Wortmarke „Stadt Würzburg" + heraldisches Würzburg-Rot (`#BE1E28` als plausibler Wert, exakter CI-Hex ist nicht öffentlich)
-- Schrift Spectral (statt der proprietären `Linotype Finnegan`)
+- Das Demo nutzt **nicht** das offizielle Stadtlogo / Signet (proprietär, dessen Nutzung erfordert Genehmigung der Pressestelle `pressestelle@stadt.wuerzburg.de`)
+- Stattdessen: **historisches Stadtwappen** als SVG aus Wikimedia Commons (gemeinfrei) + Wortmarke „Stadt Würzburg"
+- **Echte CI-Farben aus wuerzburg.de gemessen** (2026-05-17, aus `/index.css`):
+  - Würzburg-Rot `#AD0E36` (in `#menucontainer .topmenulink.parent`)
+  - Akzent-Orange `#FF680E` (in `.arrow:hover` für Slider-Pfeile)
+- **Schrift Open Sans** — wie die Stadt selbst (selfhosted via `cdn.regiogate.net/font-packages/open-sans_all`); in unserer Demo via Google Fonts (Schrems-II-Hinweis siehe oben)
+- Header-Layout angelehnt an die echte Stadt-Website: schmaler roter Akzent-Streifen oben, weißer Header mit Wappen + Wortmarke + Sprachumschalter (kein großes farbiges Banner)
 - Der Disclaimer im Formular und im Footer macht klar: **kein offizielles Angebot der Stadt Würzburg**

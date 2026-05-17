@@ -1,163 +1,217 @@
 /*
  * Optisch an der Corporate Identity der Stadt Würzburg orientiert.
- * Dies ist ein LEHR-DEMO und kein offizielles Angebot der Stadt Würzburg.
+ * Lehr-Demo — kein offizielles Angebot der Stadt Würzburg.
  *
- * CI-Annäherung:
- * - Hauptfarbe: Würzburg-Rot (#BE1E28) — heraldisch plausibel; exakte CI-Hex
- *   sind nicht öffentlich, Annäherung aus Heraldik + Logo-Screenshots
- * - Akzentfarbe: heraldisches Gold (#F2A900)
- * - Schrift: Spectral (Headlines) als Free-Analogon zu Linotype Finnegan +
- *   Inter (Body) — beide via Google Fonts
+ * Faktenbasis (extrahiert aus wuerzburg.de am 2026-05-17):
+ *   --wuerzburg-rot:    #AD0E36   (gemessen in /index.css, Selektoren
+ *                                  #menucontainer .topmenulink.parent etc.)
+ *   --wuerzburg-orange: #FF680E   (gemessen in /index.css, .arrow:hover)
+ *   --wuerzburg-grau:   #627F8D   (gemessen in /index.css, .status)
+ *   Schrift Body:       Open Sans (cdn.regiogate.net/font-packages/open-sans_all)
+ *   Header-Layout:      weißer Header mit Logo links + Navi; KEIN großes
+ *                       rotes Banner. Rot kommt als Akzent in Navigation/Links.
  *
- * Achtung Schrems II: Google Fonts lädt extern. In Produktion self-hosten.
- * Für die Lehr-Demo akzeptiert; siehe 02-vorteile-voraussetzungen.md.
+ * Wappen: gemeinfreies SVG aus Wikimedia Commons (DEU_Würzburg_COA.svg),
+ *         lokal in public/assets/wuerzburg-wappen.svg.
+ *
+ * Achtung Schrems II: Open Sans wird hier via Google Fonts geladen — für
+ * Lehr-Demo akzeptabel, in Produktion self-hosten (Würzburg macht das auch).
  */
 
 :root {
-  --wuerzburg-rot: #be1e28;
-  --wuerzburg-rot-dunkel: #a0192a;
-  --wuerzburg-gold: #f2a900;
-  --wuerzburg-text: #16191f;
+  --wuerzburg-rot: #ad0e36;
+  --wuerzburg-rot-dunkel: #8a0b2b;
+  --wuerzburg-orange: #ff680e;
+  --wuerzburg-grau: #627f8d;
+  --wuerzburg-text: #1a1a1a;
+  --wuerzburg-muted: #555;
   --error: #b00020;
   --ok: #006a4e;
-  --grey-line: #d0d0d0;
-  --grey-bg: #f7f7f7;
+  --grey-line: #d6d6d6;
+  --grey-bg: #f9f9f9;
 }
 
 * { box-sizing: border-box; }
 
 body {
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--grey-bg);
   color: var(--wuerzburg-text);
   margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
 }
 
-.stadt-header {
+/* Schmaler Akzent-Streifen am oberen Rand — typisches Verwaltungs-Marker */
+body::before {
+  content: "";
+  display: block;
+  height: 4px;
   background: var(--wuerzburg-rot);
-  color: white;
-  padding: 1.25rem 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Stadt-Header: weiß, sachlich, Wappen links + Wortmarke + Sprachumschalter rechts */
+.stadt-header {
+  background: white;
+  border-bottom: 1px solid var(--grey-line);
 }
 
 .stadt-header-inner {
-  max-width: 820px;
+  max-width: 920px;
   margin: 0 auto;
+  padding: 0.9rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 1.5rem;
   flex-wrap: wrap;
 }
 
-.stadt-wortmarke {
-  font-family: "Spectral", Georgia, serif;
-  font-weight: 600;
-  font-size: 1.6rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  line-height: 1;
+.stadt-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  text-decoration: none;
+  color: inherit;
 }
 
-.stadt-wortmarke .wuerzburg-gold {
-  color: var(--wuerzburg-gold);
+.stadt-wappen {
+  width: 42px;
+  height: 46px;
+  flex-shrink: 0;
+}
+
+.stadt-wortmarke {
+  font-family: "Open Sans", sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  color: var(--wuerzburg-text);
 }
 
 .stadt-tagline {
-  font-size: 0.85rem;
-  opacity: 0.9;
-  margin-top: 0.25rem;
-  letter-spacing: 0.02em;
+  font-size: 0.82rem;
+  color: var(--wuerzburg-muted);
+  font-weight: 400;
+  margin-top: 0.1rem;
 }
 
 .sprach-nav {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  color: var(--wuerzburg-muted);
 }
 
 .sprach-nav select {
   width: auto;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.9rem;
-  border: 1px solid white;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  border: 1px solid var(--grey-line);
+  background: white;
+  color: var(--wuerzburg-text);
+  border-radius: 2px;
+  cursor: pointer;
 }
 
-.sprach-nav select option {
-  color: var(--wuerzburg-text);
-  background: white;
+.sprach-nav select:focus {
+  outline: 2px solid var(--wuerzburg-rot);
+  outline-offset: 1px;
 }
 
 #app {
-  max-width: 820px;
-  margin: 2rem auto;
-  padding: 2rem;
+  max-width: 920px;
+  margin: 1.5rem auto;
+  padding: 2rem 2.5rem;
   background: white;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--grey-line);
+}
+
+#app > header {
+  border-bottom: 2px solid var(--wuerzburg-rot);
+  padding-bottom: 1rem;
+  margin-bottom: 1.75rem;
 }
 
 h1 {
-  font-family: "Spectral", Georgia, serif;
-  font-weight: 600;
-  color: var(--wuerzburg-rot);
-  margin-bottom: 0.25rem;
-  font-size: 1.6rem;
+  font-family: "Open Sans", sans-serif;
+  font-weight: 700;
+  color: var(--wuerzburg-text);
+  margin: 0 0 0.4rem;
+  font-size: 1.55rem;
+  letter-spacing: -0.01em;
 }
 
-.subtitle, .addressee {
-  margin: 0.25rem 0;
-  color: #555;
+.subtitle {
+  margin: 0 0 0.4rem;
+  color: var(--wuerzburg-muted);
   font-size: 0.95rem;
+}
+
+.addressee {
+  margin: 0;
+  color: var(--wuerzburg-grau);
+  font-size: 0.85rem;
 }
 
 .demo-hinweis {
   background: #fff8c5;
-  padding: 0.75rem 1rem;
-  border-left: 4px solid var(--wuerzburg-gold);
-  margin: 1rem 0 2rem;
-  font-size: 0.9rem;
+  padding: 0.55rem 0.85rem;
+  border-left: 3px solid var(--wuerzburg-orange);
+  margin: 1rem 0 0;
+  font-size: 0.85rem;
+  color: var(--wuerzburg-text);
 }
 
-.demo-hinweis strong {
-  color: var(--wuerzburg-rot-dunkel);
-}
+.demo-hinweis strong { color: var(--wuerzburg-rot); }
 
 fieldset {
   border: 1px solid var(--grey-line);
-  border-top: 3px solid var(--wuerzburg-rot);
   padding: 1rem 1.25rem 1.25rem;
-  margin-bottom: 1.5rem;
+  margin: 0 0 1.25rem;
   background: white;
 }
 
 legend {
-  font-family: "Spectral", Georgia, serif;
-  font-weight: 600;
+  font-family: "Open Sans", sans-serif;
+  font-weight: 700;
   color: var(--wuerzburg-rot);
-  padding: 0 0.4rem;
-  font-size: 1.05rem;
+  padding: 0 0.5rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
 }
 
 label {
   display: block;
-  margin-bottom: 0.85rem;
-  font-size: 0.95rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.92rem;
+  color: var(--wuerzburg-text);
+}
+
+label > span:first-child {
+  display: inline-block;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
 }
 
 input, select, textarea {
   display: block;
   width: 100%;
-  margin-top: 0.25rem;
   padding: 0.5rem 0.6rem;
-  font-size: 1rem;
-  border: 1px solid var(--grey-line);
-  border-radius: 4px;
+  font-size: 0.95rem;
   font-family: inherit;
+  border: 1px solid var(--grey-line);
+  border-radius: 2px;
   color: var(--wuerzburg-text);
+  background: white;
+}
+
+input:hover, select:hover, textarea:hover {
+  border-color: #999;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -178,31 +232,36 @@ textarea[aria-invalid="true"] {
 .field-error {
   display: block;
   color: var(--error);
-  font-size: 0.85rem;
-  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  margin-top: 0.25rem;
   min-height: 1em;
 }
 
-.pflicht { color: var(--error); font-weight: bold; }
+.pflicht {
+  color: var(--wuerzburg-orange);
+  font-weight: bold;
+  margin-left: 0.15rem;
+}
 
 .actions {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
   margin-top: 1.5rem;
-  padding-top: 1.5rem;
+  padding-top: 1.25rem;
   border-top: 1px solid var(--grey-line);
 }
 
 button {
   font-family: inherit;
-  font-size: 1rem;
-  padding: 0.65rem 1.4rem;
+  font-size: 0.95rem;
+  padding: 0.6rem 1.4rem;
   border: 1px solid var(--wuerzburg-rot);
   background: white;
   color: var(--wuerzburg-rot);
-  border-radius: 4px;
+  border-radius: 2px;
   cursor: pointer;
+  font-weight: 600;
   transition: background 0.1s, color 0.1s;
 }
 
@@ -217,37 +276,44 @@ button:hover {
   border-color: var(--wuerzburg-rot-dunkel);
 }
 
+button:focus {
+  outline: 2px solid var(--wuerzburg-orange);
+  outline-offset: 2px;
+}
+
 #bestaetigung {
   margin-top: 2rem;
   padding: 1.5rem;
   background: #e6f4ea;
   border-left: 4px solid var(--ok);
-  border-radius: 4px;
 }
 
 #bestaetigung h2 {
-  font-family: "Spectral", Georgia, serif;
+  font-family: "Open Sans", sans-serif;
+  font-weight: 700;
   color: var(--ok);
   margin-top: 0;
 }
 
 .antragsnummer {
   font-family: ui-monospace, "SF Mono", monospace;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 600;
   background: white;
   padding: 0.5rem 0.75rem;
   display: inline-block;
-  border-radius: 4px;
+  border: 1px solid var(--grey-line);
+  border-radius: 2px;
 }
 
 footer.stadt-footer {
-  max-width: 820px;
-  margin: 1rem auto 3rem;
-  padding: 1rem 2rem;
-  font-size: 0.8rem;
-  color: #666;
+  max-width: 920px;
+  margin: 1.5rem auto 3rem;
+  padding: 1rem 1.5rem;
+  font-size: 0.78rem;
+  color: var(--wuerzburg-muted);
   text-align: center;
+  border-top: 1px solid var(--grey-line);
 }
 
 footer.stadt-footer a {
