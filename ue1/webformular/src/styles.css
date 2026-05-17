@@ -166,8 +166,11 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--wuerzburg-rot);
 }
 
-input:invalid, input[aria-invalid="true"],
-select[aria-invalid="true"], textarea[aria-invalid="true"] {
+/* Nur explizit als invalid markierte Felder rot rahmen — nicht „leeres
+   Pflichtfeld = invalid", weil das sofort beim Laden greifen würde. */
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
   border-color: var(--error);
   outline-color: var(--error);
 }
