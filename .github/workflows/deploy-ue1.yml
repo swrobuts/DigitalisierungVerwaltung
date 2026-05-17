@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "ue1-webformular/**"
+      - "ue1/webformular/**"
       - ".github/workflows/deploy-ue1.yml"
   workflow_dispatch:
 
@@ -22,21 +22,21 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ue1-webformular
+        working-directory: ue1/webformular
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: ue1-webformular/package-lock.json
+          cache-dependency-path: ue1/webformular/package-lock.json
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - name: Wrap dist in /ue1-webformular/ for Pages routing
+      - name: Wrap dist in /ue1/webformular/ for Pages routing
         run: |
-          mkdir -p ../_site/ue1-webformular
-          cp -r dist/* ../_site/ue1-webformular/
+          mkdir -p ../../_site/ue1/webformular
+          cp -r dist/* ../../_site/ue1/webformular/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
