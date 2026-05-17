@@ -171,6 +171,10 @@ Pro UE wird **vor der Veranstaltung** ein eigener Mini-Spec + Implementation-Pla
 - Nur an einem Gerät arbeiten, sonst Repo lokal nach `~/GitHub/` umziehen
 - Bei sporadischen git-Fehlern: OneDrive kurz pausieren
 
+### Mehrsprachigkeit & Integration (Querschnitt ab UE1)
+
+Verwaltungs-Webformulare in DE-Städten richten sich an eine sprachlich vielfältige Bevölkerung. Als didaktischer Integrations-Aspekt werden die UE-Demos **mehrsprachig** angelegt: ab UE1 Deutsch + Italienisch + Türkisch + Spanisch — zunächst nur Labels, um die Architektur zu zeigen, ohne die Komplexität juristischer Volltext-Übersetzungen aufzumachen. Übersetzungen in den Demos sind als „Demo-Übersetzungen, in Produktion durch Fachübersetzer zu prüfen" gekennzeichnet. Spätere UEs können auf das gleiche i18n-Pattern aufsetzen.
+
 ## 9. Vorgehen / Schrittweise Umsetzung
 
 Strikte Sequenz mit Feedback-Gates:
