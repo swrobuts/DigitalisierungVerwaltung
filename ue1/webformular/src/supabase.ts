@@ -1,13 +1,17 @@
 import type { APL2Antrag, Anlage } from "./types";
 import { getSprache } from "./i18n";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error(
-    "VITE_SUPABASE_URL und VITE_SUPABASE_ANON_KEY müssen in .env stehen — siehe .env.example",
-  );
+// Lazy-read: Guard erst in submitAntrag() — so lässt sich toSnakeCase in Tests
+// ohne echte ENV-Vars importieren und testen.
+function getConfig(): { url: string; anonKey: string } {
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  if (!url || !anonKey) {
+    throw new Error(
+      "VITE_SUPABASE_URL und VITE_SUPABASE_ANON_KEY müssen in .env stehen — siehe .env.example",
+    );
+  }
+  return { url, anonKey };
 }
 
 export interface SubmitErfolg { antragsnummer: string; id: string; }
@@ -37,6 +41,7 @@ export function toSnakeCase(antrag: APL2Antrag): Record<string, unknown> {
 }
 
 export async function submitAntrag(antrag: APL2Antrag, anlagen: Anlage[]): Promise<SubmitErgebnis> {
+  const { url, anonKey } = getConfig();
   const fd = new FormData();
   fd.append("antrag", JSON.stringify(toSnakeCase(antrag)));
   for (const a of anlagen) {
@@ -44,11 +49,11 @@ export async function submitAntrag(antrag: APL2Antrag, anlagen: Anlage[]): Promi
   }
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-antrag`, {
+    const res = await fetch(`${url}/functions/v1/submit-antrag`, {
       method: "POST",
       headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
       },
       body: fd,
     });

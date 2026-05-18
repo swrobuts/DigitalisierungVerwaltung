@@ -1,12 +1,12 @@
 import { defineConfig } from "vitest/config";
 
-// environment="node": Alle Tests in dieser UE sind pure-Logik (Validation,
-// Cross-Field-Regeln, i18n-Tabellen). Sie touchen weder DOM noch BOM-APIs.
-// Wenn künftig DOM-touching Tests kommen, auf "jsdom" wechseln (+ jsdom als devDep).
+// environment="jsdom": Tests benötigen FormData/File-Objekte für die submit-Logik.
+// Für reine Logik-Tests reichte "node", aber FormData ist in Node v20 nicht
+// vorhanden (erst v22). jsdom bringt die DOM-APIs nativ mit.
 export default defineConfig({
   test: {
     globals: true,
-    environment: "node",
+    environment: "jsdom",
     include: ["tests/**/*.test.ts"],
   },
 });
