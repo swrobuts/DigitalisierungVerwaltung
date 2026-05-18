@@ -7,9 +7,13 @@
 
 ## 1. Vision
 
-UE1 erhält eine vollständige Persistenz-Schicht: Anträge werden in einer PostgreSQL-Datenbank gespeichert, Anlagen (PDF / Bilder) in einem Storage-Bucket. Eine dedizierte Self-hosted Supabase-Instanz auf `verwaltung.butscher.cloud` ist der Default; Studierende können die identische Code-Basis mit einer eigenen Supabase-Cloud-Instanz betreiben.
+UE1 erhält eine vollständige Persistenz-Schicht: Anträge werden in einer PostgreSQL-Datenbank gespeichert, Anlagen (PDF / Bilder) in einem Storage-Bucket. Wir nutzen die **bereits existierende Supabase-Instanz** auf Roberts VPS (LVE-Cockpit-Stack), legen aber ein dediziertes Schema `apl2` an. Eine neue Subdomain `verwaltung.butscher.cloud` routet via Traefik auf den bestehenden `supabase-kong`-Container. Studierende können die identische Code-Basis mit einer eigenen Supabase-Cloud-Instanz betreiben.
 
 Damit deckt UE1 jetzt die Stufen „Webformular + Persistenz" ab. UE2 wird auf den Sachbearbeiter-Workflow (Inbox, Status-Tracking, Magic-Link-Auth, Eingangsbestätigungs-Mail) verschoben.
+
+**Setup-Entscheidung (revidiert 2026-05-18):** Zuerst war eine dedizierte zweite Supabase-Instanz geplant. Inspektion des VPS ergab: bestehende Instanz hat alles, was wir brauchen (Postgres, Auth, Storage, Edge Runtime, Studio, Kong). Schema-Trennung in einer Instanz ist genauso isoliert wie zwei Stacks (Postgres ist genau dafür gebaut) und spart ~4 GB RAM + doppelten Pflegeaufwand.
+
+**Sicherheitskonsequenz** (kritisch): Bestehende Supabase ist aktuell rein intern (`http://supabase-kong:8000`). Wir exponieren sie nach außen. Damit wird RLS zur alleinigen Sicherheitsbarriere. **Vor dem Exponieren muss ein RLS-Audit der bestehenden Schemas (`lve`, `qs`, `public` etc.) stehen** — sonst öffnet der anon-Key Türen in fremde Daten. Phase 0 des Implementation-Plans behandelt das explizit als Gate.
 
 ## 2. Roadmap-Drift (zur Erinnerung)
 
@@ -61,11 +65,9 @@ DigitalisierungVerwaltung/
 │  │  └─ submit-antrag/
 │  │     ├─ index.ts                  # Deno Edge Function
 │  │     └─ deno.json
-│  ├─ docker-compose.yml              # Self-host-Stack (Postgres, PostgREST, Storage,
-│  │                                  #   GoTrue, Edge-Runtime, Studio)
-│  ├─ caddy-snippet.conf              # Caddy-Reverse-Proxy für verwaltung.butscher.cloud
-│  ├─ .env.supabase.example           # Supabase-Stack-ENV (DB-PW, JWT-Secret etc.)
-│  └─ README.md                       # Setup-Pfad VPS (Robert) + Cloud (Studis)
+│  ├─ traefik-router-snippet.yml      # Labels für verwaltung.butscher.cloud → supabase-kong
+│  ├─ kong-cors.yml                   # CORS-Plugin-Config (Origin allowlist für GH-Pages)
+│  └─ README.md                       # Setup-Pfad VPS (bestehende Instanz nutzen) + Cloud (Studis)
 ├─ ue1/
 │  ├─ folien/                         # (bestehend)
 │  └─ webformular/
@@ -286,21 +288,25 @@ export async function submitAntrag(antrag, files): Promise<{antragsnummer: strin
 
 ## 9. Setup-Pfade
 
-### Pfad A — Roberts VPS (verwaltung.butscher.cloud)
+### Pfad A — Roberts VPS (bestehende Supabase, neue Subdomain)
 
-**Voraussetzungen** (Robert):
-- SSH-Zugang für mich (per Subagent-SSH-Automation) einrichten: User, Hostname, Key — wird im Implementation-Plan Phase 0 detailliert geklärt
-- DNS A-Record `verwaltung.butscher.cloud` → VPS-IP
-- Disk-Space-Reserve (~5 GB für Postgres + Storage)
-- Bestätigte Liste aller laufenden Container/Caddy-Sites, um Port- und Cert-Konflikte mit LVE-Cockpit zu vermeiden
+**Voraussetzungen erfüllt:**
+- ✅ DNS A-Record `verwaltung.butscher.cloud` → 72.61.83.18 (gleiche IP wie LVE)
+- ✅ SSH-Zugang verifiziert: `ssh -i ~/.ssh/id_vps -p 22 root@bot.butscher.cloud`
+- ✅ Supabase-Stack läuft bereits: `supabase-db` (v15.8), `supabase-kong`, `supabase-auth`, `supabase-storage`, `supabase-edge-functions` (v1.70.3), Studio, Realtime, Meta, Analytics, Pooler
+- ✅ Traefik v3.6.10 mit Resolver `mytlschallenge`, Netzwerk `root_default`
+- ✅ Disk: 298 GB frei · RAM: 15 GB frei
 
-**Vorgehen (im Implementation-Plan Phase 0)**:
-1. Backup von bestehender Caddy-Config + Container-State (Snapshot)
-2. Caddy-Snippet einfügen (vor jedem Change Robert-OK)
-3. Docker-Compose hochziehen (`docker compose up -d`)
-4. Migrations einspielen (psql)
-5. Edge Function deployen
-6. Studio-Admin-User anlegen, Anon-Key + URL für `.env` ablesen
+**Vorgehen (im Implementation-Plan, Phase 0 = Gate, Phase 1 = Setup):**
+1. **Phase 0 (Bestätigungs-Gate)**: Audit der bestehenden Postgres-Schemas auf RLS-Coverage. Auflisten aller Tabellen ohne RLS, Robert entscheidet pro Tabelle (Risiko durch externes Exponieren tragbar oder nicht). Falls Risiko: Kong-Routing-Filter, der externe Requests nur an Schema `apl2` durchlässt (Plugin oder Header-Routing).
+2. Backup: `pg_dump` aller bestehenden Schemas + Snapshot der `docker-compose.yml`
+3. Schema-Migrations einspielen (`psql` in `supabase-db`-Container)
+4. Storage-Bucket `antragsbelege` via Studio/SQL erstellen
+5. Edge Function `submit-antrag` in bestehende `supabase-edge-functions`-Runtime deployen
+6. Traefik-Router-Block in `/root/docker-compose.yml` ergänzen → `verwaltung.butscher.cloud` → `supabase-kong:8000`
+7. Kong-CORS-Plugin für GH-Pages-Origin + localhost-Dev-Origin aktivieren
+8. `docker compose up -d` (nur die betroffenen Services neu)
+9. Anon-Key + URL aus bestehender Instanz ablesen, `.env.local` befüllen, Smoke-Test
 
 ### Pfad B — Studis (supabase.com Cloud)
 
@@ -321,15 +327,16 @@ export async function submitAntrag(antrag, files): Promise<{antragsnummer: strin
 
 `materialien/`-Konzept (geteilt über UEs) wird strukturell durch `supabase/` (auch geteilt) erweitert.
 
-## 11. Offene Punkte (entscheiden beim Spec-Review)
+## 11. Entscheidungen (Stand 2026-05-18, nach Spec-Review)
 
-| # | Punkt | Vorschlag |
-|---|-------|-----------|
-| O1 | Translations zur Laufzeit aus DB oder build-time gebundled? | UE1: gebundled (translations.ts). DB-Seed als Source of Truth. Live-Reload später. |
-| O2 | UE1-Live-Deployment auf GitHub Pages erhalten? | Ja, gleicher Workflow. ENV-Vars als GitHub-Secrets. `.env.example` als Vorlage |
-| O3 | Cron-Cleanup für verwaiste Storage-Files? | Erst in UE2 nötig — Edge Function macht ohnehin Rollback bei Fehler |
-| O4 | UE1-Doku (01/02/03-md) anpassen? | Ja: „Was diese Stufe nicht löst" um Persistenz/Mail kürzen, neue Voraussetzungen (Supabase, DSGVO) |
-| O5 | Roadmap-Spec (2026-05-17) updaten? | Ja, als letzter Schritt nach erfolgreicher Umsetzung — keine Spec-Spekulation vorher |
+| # | Punkt | Entscheidung |
+|---|-------|--------------|
+| O1 | Translations zur Laufzeit aus DB oder build-time gebundled? | **build-time gebundled.** DB-Seed bleibt Source of Truth, Live-Reload erst wenn nötig. |
+| O2 | UE1-Live-Deployment auf GitHub Pages erhalten? | **Ja.** ENV-Vars als GitHub-Secrets, im Vite-Build injiziert. |
+| O3 | Cron-Cleanup für verwaiste Storage-Files? | **Nein.** Edge Function macht selbst Rollback. |
+| O4 | UE1-Doku (01/02/03-md) anpassen? | **Ja.** „Was diese Stufe nicht löst" kürzer, neue Voraussetzungen (Supabase + DSGVO). |
+| O5 | Roadmap-Spec (2026-05-17) updaten? | **Ja, als letzter Schritt** nach erfolgreicher Umsetzung. |
+| O6 (neu) | RLS-Audit existierende Schemas vor Exponieren? | **Pflicht-Gate** in Plan-Phase 0. Bei nicht-RLS-Schemas Kong-Routing-Filter (whitelist `/rest/v1/apl2.*` für externes Routing). |
 
 ## 12. Nicht im Scope
 
@@ -343,7 +350,9 @@ export async function submitAntrag(antrag, files): Promise<{antragsnummer: strin
 
 ## 13. Akzeptanzkriterien
 
-- [ ] User entscheidet O1–O5
-- [ ] Spec ist committed
-- [ ] Nächster Schritt: Implementation-Plan via writing-plans, mit Phase 0 (SSH-Vorbereitung, Robert-Klärungen) als allererste Task
+- [x] User hat O1–O5 entschieden (alle Defaults); zusätzlich O6 (RLS-Audit-Gate)
+- [x] VPS-Infrastruktur sondiert (SSH, Container, Disk/RAM, Traefik, Subdomain)
+- [x] Architektur-Revision: bestehende Supabase statt neuer Stack
+- [x] Spec committed
+- [ ] Nächster Schritt: Implementation-Plan via writing-plans, mit Phase 0 (RLS-Audit-Gate + Backup) als erste Task
 - [ ] In Plan-Phase 0 wird vor jedem destruktiven VPS-Schritt Roberts OK eingeholt (kein LVE-Cockpit-Risiko)
