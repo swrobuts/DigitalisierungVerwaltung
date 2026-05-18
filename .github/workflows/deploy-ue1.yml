@@ -32,7 +32,11 @@ jobs:
           cache-dependency-path: ue1/webformular/package-lock.json
       - run: npm ci
       - run: npm test
-      - run: npm run build
+      - name: Build mit Supabase-Env (Secrets aus GitHub Repo-Settings)
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
       - name: Wrap dist in /ue1/webformular/ for Pages routing
         run: |
           mkdir -p ../../_site/ue1/webformular
