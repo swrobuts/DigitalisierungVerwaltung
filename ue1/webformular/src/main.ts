@@ -60,7 +60,10 @@ function leseAntragAusFormular(): APL2Antrag {
   return {
     haushaltsjahr: num("haushaltsjahr"),
     name: str("name"),
-    anschrift: str("anschrift"),
+    strasse:    str("strasse"),
+    hausnummer: str("hausnummer"),
+    plz:        str("plz"),
+    ort:        str("ort"),
     traeger: str("traeger"),
     bankverbindung: str("bankverbindung"),
     iban: str("iban"),
