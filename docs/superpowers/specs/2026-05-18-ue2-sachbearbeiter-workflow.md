@@ -397,14 +397,15 @@ Studis erweitern den Workflow um einen zusätzlichen Status **„eskaliert"** (z
 
 Bonus für die Schnellen: einen 5. Sprach-Branch im n8n-Workflow ergänzen.
 
-## 10. Offene Punkte (zu klären beim Spec-Review)
+## 10. Entscheidungen (Stand 2026-05-18 nachmittags, nach Spec-Review)
 
-| # | Punkt | Vorschlag |
-|---|-------|-----------|
-| O1 | **n8n-SMTP-Credential**: bestehende `CfjGjVrPcVvoNuWy` (SMTP account) reicht? | Ja, gleicher Mailer wie LVE-Cockpit-Login-Notifications |
-| O2 | **GoTrue Redirect-URLs**: Anpassung in `.env` + Auth-Restart akzeptabel? | Ja, additiv, keine Bestandsbruch |
-| O3 | **Roadmap-Spec-Update** am Ende? | Ja, analog zu UE1: nach erfolgreicher Umsetzung |
-| O4 | **n8n-Webhook-URL** ist sensitiv: ENV-Var statt im Repo? | Ja, via `alter database … set app.n8n_eingang_webhook` (außerhalb Migration) |
+| # | Punkt | Entscheidung |
+|---|-------|--------------|
+| O1 | n8n-SMTP-Credential | **Bestehende `CfjGjVrPcVvoNuWy` nutzen.** |
+| O2 | GoTrue Redirect-URLs | **Ja, `amt.butscher.cloud` in `ADDITIONAL_REDIRECT_URLS` ergänzen + Auth-Container restart.** |
+| O3 | Roadmap-Spec-Update | **Ja, am Ende nach erfolgreicher Umsetzung.** |
+| O4 | n8n-Webhook-URL ablegen | **`alter database postgres set app.n8n_eingang_webhook = …`** — sensitiv, nicht ins Repo. |
+| ✓ | DNS `amt.butscher.cloud` | **Erledigt** durch Robert: A-Record → 72.61.83.18 (verifiziert via `dig`). |
 
 ## 11. Nicht im Scope (gehört zu UE3+)
 
@@ -418,7 +419,8 @@ Bonus für die Schnellen: einen 5. Sprach-Branch im n8n-Workflow ergänzen.
 
 ## 12. Akzeptanzkriterien
 
-- [ ] User entscheidet O1–O4
-- [ ] Spec ist committed
-- [ ] Nächster Schritt: Implementation-Plan via writing-plans, mit Phase 0 (DNS, Backup, GoTrue-Config) als erster Task
+- [x] User hat O1–O4 entschieden (alle Default-Vorschläge übernommen)
+- [x] Spec ist committed
+- [x] DNS `amt.butscher.cloud` ist gesetzt
+- [ ] Nächster Schritt: Implementation-Plan via writing-plans, mit Phase 0 (Backup, GoTrue-Config) als erster Task
 - [ ] Vor jedem destruktiven VPS-Schritt Robert-OK einholen
