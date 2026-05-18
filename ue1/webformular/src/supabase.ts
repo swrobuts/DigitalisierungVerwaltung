@@ -22,7 +22,10 @@ export function toSnakeCase(antrag: APL2Antrag): Record<string, unknown> {
   return {
     haushaltsjahr: antrag.haushaltsjahr,
     name: antrag.name,
-    anschrift: antrag.anschrift,
+    strasse:    antrag.strasse,
+    hausnummer: antrag.hausnummer,
+    plz:        antrag.plz,
+    ort:        antrag.ort,
     traeger: antrag.traeger,
     bankverbindung: antrag.bankverbindung,
     iban: antrag.iban,
