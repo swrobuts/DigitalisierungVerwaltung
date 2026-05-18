@@ -32,7 +32,7 @@ Lernziel-Ebene (übergreifend): Studierende können Reifegrade der Verwaltungs­
 | UE | Stufe | Inhalt (Slice am APL-2-Antrag) | Stack | Studi-Rolle |
 |----|-------|--------------------------------|-------|-------------|
 | **1** | Intelligentes Webformular **mit Persistenz** | APL-2-Antrag als mehrsprachige Webform; atomare Submission via Edge Function in Schema `apl2` + Storage-Bucket | Vite + Vanilla TS + Supabase (Postgres + Storage + Edge Function) | Demo + Mini-Hands-on |
-| **2** | Sachbearbeiter-Workflow | Magic-Link-Auth via GoTrue, Inbox-View, Status-Update, Eingangsbestätigung per n8n-Mail. Liest aus `apl2.antraege`. | Vite + Supabase Auth + n8n | Demo + Mini-Hands-on |
+| **2** | Sachbearbeiter-Workflow | Magic-Link-Auth via GoTrue, Inbox-View, Status-Update (Workflow als Datenmodell mit Postgres-Trigger-Validierung), Audit-Trail, Eingangsbestätigung an Bürger per n8n-Mail (4 Sprachen). Eigene Subdomain `amt.butscher.cloud`. | React 19 + Tailwind 4 + Vite 6 + Supabase Auth + n8n | Demo + Mini-Hands-on (6. Status ergänzen) |
 | **3** | Ontologie-gestützte Plausibilitätsprüfung | Förderrichtlinie als JSON-Schema + Regel-DSL, Antrag wird gegen Norm geprüft, Fehler zitieren Paragraph | Node.js + AJV + JSON-Logic (optional SHACL/JSON-LD) | Hands-on: Regeln erweitern |
 | **4** | Wissens-Dialog (RAG, PageIndex-Stil) | Bürger fragt AHP-Förderrichtlinie im Dialog. Doku als thematischer Baum (PageIndex-Ansatz), Agent navigiert statt naivem Chunking | Python FastAPI + Claude API + PageIndex-artiger Doc-Baum | Hands-on: Doc-Baum bauen |
 | **5** | Agentische Antragsbearbeitung | LLM-Agent orchestriert Eingang → Vorprüfung (UE3-Regeln) → Wissens-Lookup (UE4) → Rückfrage / Bescheid-Entwurf. Human-in-the-loop | n8n + Claude API + Anbindung an `apl2`-DB | Hands-on in Gruppen |
@@ -46,6 +46,8 @@ allen Aspekten. Persistenz wurde von UE2 nach UE1 vorgezogen; UE2 wird zum
 Sachbearbeiter-Workflow-Schwerpunkt.
 
 Verweis auf Detail-Spec: `docs/superpowers/specs/2026-05-18-ue1-persistenz-supabase.md`.
+
+**Spec-Update 2026-05-18 (abends)**: UE2 implementiert in Stufe M („Workflow als Datenmodell"). Live auf `amt.butscher.cloud`. Detail-Spec: `docs/superpowers/specs/2026-05-18-ue2-sachbearbeiter-workflow.md`, Implementation-Plan: `docs/superpowers/plans/2026-05-18-ue2-sachbearbeiter.md`.
 
 ## 4. Repo-Struktur
 
