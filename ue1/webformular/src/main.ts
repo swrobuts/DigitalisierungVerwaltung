@@ -3,7 +3,8 @@ import { ALLE_SPRACHEN } from "./types";
 import { isValidIBAN, isValidEmail, isValidPastOrTodayISO, isPositiveEuro } from "./validation";
 import { validateCrossField } from "./cross-field";
 import { collectAnlagen } from "./attachments";
-import { erzeugeAntragsnummer, zeigeBestaetigung } from "./submit";
+import { zeigeBestaetigung } from "./submit";
+import { submitAntrag } from "./supabase";
 import { setSprache, getSprache, ladeGespeicherteSprache, applyTranslations } from "./i18n";
 
 const form = document.getElementById("antrag-form") as HTMLFormElement;
@@ -181,7 +182,28 @@ form.addEventListener("change", liveUpdate);
 // Initial einmal triggern, damit Default-Werte (Haushaltsjahr, Miete=0) wirken
 liveUpdate();
 
-form.addEventListener("submit", (event) => {
+const btnAbsenden = document.getElementById("btn-absenden") as HTMLButtonElement;
+btnAbsenden.dataset.label = btnAbsenden.textContent ?? "Antrag absenden";
+
+function setzeBusy(busy: boolean): void {
+  btnAbsenden.disabled = busy;
+  btnAbsenden.textContent = busy ? "Wird gesendet…" : (btnAbsenden.dataset.label ?? "Antrag absenden");
+}
+
+function zeigeServerFehler(message: string): void {
+  const div = document.createElement("div");
+  div.className = "field-error";
+  div.setAttribute("role", "alert");
+  div.style.padding = "0.7rem";
+  div.style.marginTop = "1rem";
+  div.style.background = "#ffe5e5";
+  div.style.borderLeft = "3px solid var(--error)";
+  div.textContent = `Übermittlung fehlgeschlagen: ${message}. Bitte später erneut versuchen.`;
+  form.appendChild(div);
+  setTimeout(() => div.remove(), 8000);
+}
+
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const antrag = leseAntragAusFormular();
   const errors = alleFehler(antrag);
@@ -192,8 +214,16 @@ form.addEventListener("submit", (event) => {
     firstError?.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
   }
-  const nummer = erzeugeAntragsnummer(antrag);
-  zeigeBestaetigung(bestaetigung, antrag, nummer);
+
+  setzeBusy(true);
+  const ergebnis = await submitAntrag(antrag, antrag.anlagen);
+  setzeBusy(false);
+
+  if ("error" in ergebnis) {
+    zeigeServerFehler(ergebnis.error);
+    return;
+  }
+  zeigeBestaetigung(bestaetigung, antrag, ergebnis.antragsnummer);
   form.hidden = true;
   bestaetigung.scrollIntoView({ behavior: "smooth", block: "start" });
 });
