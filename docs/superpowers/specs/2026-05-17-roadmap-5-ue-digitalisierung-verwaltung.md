@@ -31,13 +31,21 @@ Lernziel-Ebene (übergreifend): Studierende können Reifegrade der Verwaltungs­
 
 | UE | Stufe | Inhalt (Slice am APL-2-Antrag) | Stack | Studi-Rolle |
 |----|-------|--------------------------------|-------|-------------|
-| **1** | Intelligentes Webformular | APL-2-Antrag als HTML-Webform mit Pflichtfeld-Validierung, Anlagen-Upload, Druckansicht. Kein Backend. | Vite + Vanilla TS | Demo + Mini-Hands-on (Regel/Feld ändern) |
-| **2** | Persistenter Antrag + Eingangsbestätigung | Antrag in DB, Status-Link, Sachbearbeiter-View, Magic-Link-Auth | Vite + React/Vanilla + Supabase + n8n (Mail) | Demo + Mini-Hands-on |
+| **1** | Intelligentes Webformular **mit Persistenz** | APL-2-Antrag als mehrsprachige Webform; atomare Submission via Edge Function in Schema `apl2` + Storage-Bucket | Vite + Vanilla TS + Supabase (Postgres + Storage + Edge Function) | Demo + Mini-Hands-on |
+| **2** | Sachbearbeiter-Workflow | Magic-Link-Auth via GoTrue, Inbox-View, Status-Update, Eingangsbestätigung per n8n-Mail. Liest aus `apl2.antraege`. | Vite + Supabase Auth + n8n | Demo + Mini-Hands-on |
 | **3** | Ontologie-gestützte Plausibilitätsprüfung | Förderrichtlinie als JSON-Schema + Regel-DSL, Antrag wird gegen Norm geprüft, Fehler zitieren Paragraph | Node.js + AJV + JSON-Logic (optional SHACL/JSON-LD) | Hands-on: Regeln erweitern |
 | **4** | Wissens-Dialog (RAG, PageIndex-Stil) | Bürger fragt AHP-Förderrichtlinie im Dialog. Doku als thematischer Baum (PageIndex-Ansatz), Agent navigiert statt naivem Chunking | Python FastAPI + Claude API + PageIndex-artiger Doc-Baum | Hands-on: Doc-Baum bauen |
-| **5** | Agentische Antragsbearbeitung | LLM-Agent orchestriert Eingang → Vorprüfung (UE3-Regeln) → Wissens-Lookup (UE4) → Rückfrage / Bescheid-Entwurf. Human-in-the-loop | n8n + Claude API + Anbindung an UE2-DB | Hands-on in Gruppen |
+| **5** | Agentische Antragsbearbeitung | LLM-Agent orchestriert Eingang → Vorprüfung (UE3-Regeln) → Wissens-Lookup (UE4) → Rückfrage / Bescheid-Entwurf. Human-in-the-loop | n8n + Claude API + Anbindung an `apl2`-DB | Hands-on in Gruppen |
 
 **Bewusst eigenständig:** Jede UE-Demo ist isoliert lauffähig. Konzeptionelle Bezüge ja, Code-Bezüge nein. Daher Stack-Wechsel pro UE explizit erlaubt.
+
+**Spec-Update 2026-05-18**: Ursprünglich als 5 eigenständige Demos geplant. Mit der Einführung der
+geteilten Supabase-Instanz (Schema `apl2` Top-Level) entwickeln sich UE1–5 zu einem wachsenden
+Showcase. Konzeptionelle Eigenständigkeit pro UE bleibt — Code-Eigenständigkeit nicht mehr in
+allen Aspekten. Persistenz wurde von UE2 nach UE1 vorgezogen; UE2 wird zum
+Sachbearbeiter-Workflow-Schwerpunkt.
+
+Verweis auf Detail-Spec: `docs/superpowers/specs/2026-05-18-ue1-persistenz-supabase.md`.
 
 ## 4. Repo-Struktur
 
@@ -53,6 +61,12 @@ DigitalisierungVerwaltung/
 │  ├─ antrag-apl2.pdf
 │  ├─ anlage-antrag-apl2.pdf
 │  └─ foerderrichtlinie-ahp-2025-03-27.pdf
+├─ supabase/                          # NEU 2026-05-18 — geteilte DB + Edge Function (UE1+)
+│  ├─ migrations/                     # 5 SQL-Migrations (Schema, Storage, Seed, RLS, pgrst-GUC)
+│  ├─ functions/submit-antrag/        # Deno Edge Function (Insert + Upload + Rollback)
+│  ├─ traefik-router-snippet.yml      # Routing-Snippet mit PathPrefix-Filter
+│  ├─ kong-cors-config.md             # CORS-Doku
+│  └─ README.md                       # Setup-Pfade VPS + Cloud
 ├─ ue1/
 │  ├─ folien/                          # UE-spezifische PPT
 │  └─ webformular/                     # UE-Demo (Vite/TS-Projekt)
