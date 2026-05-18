@@ -80,9 +80,22 @@
               <span class="field-label"><span data-i18n="form.label.traeger">Träger</span> <span class="pflicht">*</span></span>
               <input type="text" name="traeger" required />
             </label>
-            <label class="full">
-              <span class="field-label"><span data-i18n="form.label.anschrift">Anschrift (Straße, PLZ, Ort)</span> <span class="pflicht">*</span></span>
-              <textarea name="anschrift" rows="3" required></textarea>
+            <label>
+              <span class="field-label"><span data-i18n="form.label.strasse">Straße</span> <span class="pflicht">*</span></span>
+              <input type="text" name="strasse" required />
+            </label>
+            <label>
+              <span class="field-label"><span data-i18n="form.label.hausnummer">Hausnummer</span> <span class="pflicht">*</span></span>
+              <input type="text" name="hausnummer" required />
+            </label>
+            <label>
+              <span class="field-label"><span data-i18n="form.label.plz">PLZ</span> <span class="pflicht">*</span></span>
+              <input type="text" name="plz" required pattern="\d{5}" inputmode="numeric" maxlength="5" placeholder="97070" />
+              <span class="field-error" data-error-for="plz"></span>
+            </label>
+            <label>
+              <span class="field-label"><span data-i18n="form.label.ort">Ort</span> <span class="pflicht">*</span></span>
+              <input type="text" name="ort" required />
             </label>
           </div>
         </fieldset>
