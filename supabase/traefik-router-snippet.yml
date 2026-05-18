@@ -1,0 +1,25 @@
+# Labels-Block für supabase-kong-Service in /root/supabase/docker/docker-compose.yml
+# (in den bestehenden labels:-Block einsortieren, nach den supabase-Router-Labels)
+#
+# WICHTIG: PathPrefix-Filter schützt LVE-Daten — nur die submit-antrag-Function
+# wird über verwaltung.butscher.cloud erreichbar. Alle anderen Pfade (rest/v1,
+# storage/v1, realtime/v1, auth/v1, etc.) fallen bewusst auf Traefik-404, weil
+# kein Router für diese Pfade+Host-Kombination existiert.
+#
+# Datei auf dem Server: /root/supabase/docker/docker-compose.yml
+# Compose-Projekt:       supabase   (working-dir: /root/supabase/docker)
+# Container-Name:        supabase-kong
+
+    labels:
+      # --- bestehende Labels (supabase-Router, nicht anfassen) ---
+      - "traefik.enable=true"
+      - "traefik.http.routers.supabase.rule=Host(`supabase.butscher.cloud`)"
+      - "traefik.http.routers.supabase.entrypoints=websecure"
+      - "traefik.http.routers.supabase.tls=true"
+      - "traefik.http.routers.supabase.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.supabase.loadbalancer.server.port=8000"
+      # --- neue Labels: verwaltung-Router (NUR /functions/v1/submit-antrag) ---
+      - "traefik.http.routers.verwaltung.rule=Host(`verwaltung.butscher.cloud`) && PathPrefix(`/functions/v1/submit-antrag`)"
+      - "traefik.http.routers.verwaltung.entrypoints=websecure"
+      - "traefik.http.routers.verwaltung.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.verwaltung.loadbalancer.server.port=8000"
