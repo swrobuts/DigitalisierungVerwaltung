@@ -1,12 +1,33 @@
+import { Routes, Route, Navigate } from "react-router-dom";
+import { Login } from "./pages/Login";
+import { AuthCallback } from "./pages/AuthCallback";
+import { Inbox } from "./pages/Inbox";
+import { AntragDetail } from "./pages/AntragDetail";
+import { AuthGuard } from "./components/AuthGuard";
+
 export default function App() {
   return (
-    <main className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-3xl font-semibold text-amt-blau">
-          Sachbearbeitung APL2
-        </h1>
-        <p className="mt-2 text-amt-grau">Skeleton — Router + Pages kommen in Task 3.9–3.12.</p>
-      </div>
-    </main>
+    <Routes>
+      <Route path="/" element={<Navigate to="/inbox" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route
+        path="/inbox"
+        element={
+          <AuthGuard>
+            <Inbox />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/antrag/:id"
+        element={
+          <AuthGuard>
+            <AntragDetail />
+          </AuthGuard>
+        }
+      />
+      <Route path="*" element={<Navigate to="/inbox" replace />} />
+    </Routes>
   );
 }

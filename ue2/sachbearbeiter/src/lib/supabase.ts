@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 const URL = import.meta.env.VITE_SUPABASE_URL;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -9,7 +9,7 @@ if (!URL || !KEY) {
   );
 }
 
-export const supabase: SupabaseClient = createClient(URL, KEY, {
+export const supabase = createClient(URL, KEY, {
   db: { schema: "apl2" },
   auth: {
     persistSession: true,
