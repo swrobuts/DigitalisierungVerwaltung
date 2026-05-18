@@ -35,6 +35,7 @@ export interface Anlage {
   dateiname: string;
   groesseBytes: number;
   mimeType: string;
+  file?: File;
 }
 
 export type ValidationErrors = Partial<Record<keyof APL2Antrag | AnlagenTyp, string>>;

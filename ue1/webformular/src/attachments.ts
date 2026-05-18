@@ -7,6 +7,7 @@ const ANLAGEN_TYPEN: AnlagenTyp[] = [
   "personalkostenbelege",
   "mietvertrag",
 ];
+const ANLAGEN_ALLOWED_MIME = ["application/pdf", "image/jpeg", "image/png"];
 
 export function collectAnlagen(form: HTMLFormElement): Anlage[] {
   const anlagen: Anlage[] = [];
@@ -18,8 +19,8 @@ export function collectAnlagen(form: HTMLFormElement): Anlage[] {
       setUploadError(typ, `Datei zu groß (${(file.size / 1024 / 1024).toFixed(1)} MB, max. 10 MB).`);
       continue;
     }
-    if (file.type !== "application/pdf") {
-      setUploadError(typ, "Nur PDF erlaubt.");
+    if (!ANLAGEN_ALLOWED_MIME.includes(file.type)) {
+      setUploadError(typ, "Nur PDF, JPEG oder PNG erlaubt.");
       continue;
     }
     setUploadError(typ, "");
@@ -28,6 +29,7 @@ export function collectAnlagen(form: HTMLFormElement): Anlage[] {
       dateiname: file.name,
       groesseBytes: file.size,
       mimeType: file.type,
+      file,
     });
   }
   return anlagen;
