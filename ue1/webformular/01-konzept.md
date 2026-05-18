@@ -34,7 +34,7 @@ flowchart LR
         B2[Tippt mit Live-Validierung]
         B3{Validierung OK?}
         B4[Druckansicht für Akte]
-        B5[Cliffhanger UE2:<br/>echtes Absenden]
+        B5[Antrag landet in DB + Storage<br/>Cliffhanger UE2:<br/>Sachbearbeiter-Inbox + Mail]
         B0 --> B1 --> B2 --> B3
         B3 -->|nein| B2
         B3 -->|ja| B4 --> B5
@@ -50,3 +50,11 @@ flowchart LR
 - **i18n**: Labels über `data-i18n`-Attribute, Übersetzungs-Tabelle in DE/IT/TR/ES, Sprache persistiert in `localStorage`
 - **Druck-Stylesheet** für die Papier-Akte (Zwischenstadium, das UE2 verdrängt)
 - Submit erzeugt **clientseitige Antragsnummer** und zeigt Bestätigung — die Daten verlassen den Browser nicht
+- **Persistenz**: Submit ruft die **Edge Function** `submit-antrag` (Deno) auf der Stadt-Supabase
+  (`verwaltung.butscher.cloud`) auf. Die Function validiert, capturet IP server-side, schreibt den
+  Antrag in `apl2.antraege`, lädt die Belege in den Storage-Bucket `antragsbelege` und schreibt
+  die Anlagen-Metadaten in `apl2.anlagen`. Bei Upload-Fehler erfolgt **full rollback** (DELETE
+  antrag + Storage-cleanup). Antragsnummer wird vom DB-Trigger erzeugt
+  (`APL2-<jahr>-<KUE>-<random6>`).
+- **Schutzschicht**: Traefik vor Kong filtert per `PathPrefix(`/functions/v1/submit-antrag`)` —
+  nur diese eine Route ist über `verwaltung.butscher.cloud` extern erreichbar, alles andere 404.

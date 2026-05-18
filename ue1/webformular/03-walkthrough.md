@@ -26,11 +26,28 @@ In `src/cross-field.ts` eine neue Regel:
 
 Tipp: Da `ValidationErrors` nur Fehler kennt, schreiben Sie es vorerst als „Hinweis: …"-Fehler.
 
+**Bonus**: Wenn die neue Cross-Field-Regel feuern soll, ist sie *nur* eine Client-Validierung.
+Server-seitig (Edge Function) gibt es derzeit keine Wiederholung der Cross-Field-Logik. Diskutieren
+Sie: Reicht Client-Validation, oder müsste die Function das auch prüfen?
+
 ### Aufgabe B — Sprachpaket ergänzen
 Ergänzen Sie in `src/translations.ts` eine fünfte Sprache (z.B. französisch, polnisch, ukrainisch). Tests in `tests/i18n.test.ts` müssen weiter grün sein (Vollständigkeit der Keys prüfen). Vergessen Sie nicht: `ALLE_SPRACHEN` in `types.ts` ergänzen, neue `<option>` im `index.html`.
 
 ### Aufgabe C — Neues Feld + Übersetzung
 Im HTML zusätzlich „Mobil-Telefon" einfügen. In `types.ts` ergänzen, in `validation.ts` `isValidPhone` mit zwei Tests, in `main.ts` einlesen. **Bonus**: das neue Label in allen 4 Sprachen übersetzen.
+
+### Aufgabe D — Antrag in der DB anschauen
+
+Loggen Sie sich am Supabase-Studio ein (URL bekommen Sie vom Dozenten). Navigieren Sie zur Tabelle
+`apl2.antraege` und schauen Sie sich Ihren eben gesendeten Antrag an:
+- Welche Antragsnummer hat er bekommen?
+- Welche IP-Adresse wurde server-side erfasst?
+- Welcher User-Agent (Browser)?
+- In welcher `submitted_language`?
+
+Dann öffnen Sie den Storage-Bucket `antragsbelege` und finden Sie Ihre hochgeladenen Belege unter
+dem Pfad `<antrag-uuid>/<typ>__<filename>`. Laden Sie eine herunter und prüfen Sie, dass es Ihre
+Original-Datei ist.
 
 ## Nach der Aufgabe
 

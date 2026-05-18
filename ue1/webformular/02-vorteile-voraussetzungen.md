@@ -14,9 +14,9 @@
 
 ## Was diese Stufe nicht löst
 
-- **Keine Persistenz** — Daten verschwinden beim Tab-Schließen
-- **Keine Eingangsbestätigung** beim Antragsteller
-- **Kein Status-Tracking** („Wo ist mein Antrag?")
+- **Keine Eingangsbestätigung per Mail** (UE2)
+- **Kein Status-Tracking** („Wo ist mein Antrag?" — UE2)
+- **Keine Sachbearbeiter-Sicht** (UE2)
 - **Kein medienbruchfreier Eingang ins Amt** — am Ende erfasst immer noch jemand das PDF im Amt
 - **Keine semantische Prüfung** gegen die Förderrichtlinie (UE3)
 - **Keine Auskunftsfähigkeit** zur Rechtsgrundlage (UE4)
@@ -29,6 +29,12 @@
 - Webhosting (statische Datei reicht — GitHub Pages, S3, Nginx)
 - Keine Datenbank, keine Serverlogik
 - Aktueller Browser (Chrome / Firefox / Safari / Edge)
+- Eine Supabase-Instanz mit dem Schema `apl2` und dem Storage-Bucket `antragsbelege` (siehe
+  [supabase/README.md](../../supabase/README.md))
+- Eine deployte Edge Function `submit-antrag` (Deno)
+- Bei externer Erreichbarkeit der Supabase: Traefik/Reverse-Proxy mit PathPrefix-Filter, damit
+  nur die submit-antrag-Function erreichbar ist (Schutz aller anderen Schemas in der Instanz)
+- Für die GH-Pages-Demo: GitHub-Secrets `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
 
 ### Organisatorisch
 - Niemand im Amt muss seinen Prozess ändern — Output bleibt ein PDF
@@ -38,6 +44,13 @@
 
 ### Rechtlich
 - Da keine Daten gespeichert werden, **keine DSGVO-Pflichten** im engeren Sinn für die Formulareingaben
+- **DSGVO ab jetzt voll relevant**: personenbezogene Daten werden gespeichert (Name, Anschrift,
+  E-Mail, IP). In Produktion: AVV mit Hosting-Provider, Löschkonzept (z.B. 5 Jahre nach Bescheid),
+  Verarbeitungsverzeichnis, Datenschutzhinweis im Formular
+- Anon-Key ist im Frontend-Bundle sichtbar — Sicherheit kommt ausschließlich aus RLS + Edge-
+  Function-Validation. Direktzugriff auf `apl2.antraege` für anon ist per RLS verboten.
+- Bei externer Exposure der Supabase-Instanz: alle anderen Schemas müssen ebenfalls RLS haben,
+  sonst öffnet der anon-Key Türen in fremde Daten
 - **Schrems II / Google Fonts:** Das Demo bindet Spectral + Inter über `fonts.googleapis.com` ein. Jeder Seitenaufruf erzeugt einen Request an Google in den USA — in einer offiziellen Verwaltungs-Anwendung ist das nach BayLfD und mehreren OLG-Urteilen unzulässig. In Produktion müssten die Fonts **self-hosted** sein.
 - Hinweis im Formular nötig, dass die Daten lokal bleiben (Demo-Banner)
 - Bei späteren Stufen (Submit ans Amt) greift die volle DSGVO-Mechanik
