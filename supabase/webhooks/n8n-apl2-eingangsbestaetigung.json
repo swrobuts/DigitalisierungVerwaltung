@@ -5,7 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "apl2-eingang",
-        "responseMode": "lastNode",
+        "responseMode": "onReceived",
         "options": {}
       },
       "id": "webhook-trigger",
@@ -17,93 +17,40 @@
     },
     {
       "parameters": {
-        "rules": {
-          "values": [
-            { "conditions": { "string": [{ "value1": "={{ $json.body.submitted_language }}", "value2": "de" }] }, "renameOutput": true, "outputKey": "de" },
-            { "conditions": { "string": [{ "value1": "={{ $json.body.submitted_language }}", "value2": "it" }] }, "renameOutput": true, "outputKey": "it" },
-            { "conditions": { "string": [{ "value1": "={{ $json.body.submitted_language }}", "value2": "tr" }] }, "renameOutput": true, "outputKey": "tr" },
-            { "conditions": { "string": [{ "value1": "={{ $json.body.submitted_language }}", "value2": "es" }] }, "renameOutput": true, "outputKey": "es" }
-          ]
+        "fromEmail": "no-reply@butscher.cloud",
+        "toEmail": "={{ $json.body.email }}",
+        "subject": "={{ ({de: 'Ihr Antrag ' + $json.body.antragsnummer + ' ist eingegangen', it: 'La sua domanda ' + $json.body.antragsnummer + ' è stata ricevuta', tr: 'Başvurunuz ' + $json.body.antragsnummer + ' alındı', es: 'Su solicitud ' + $json.body.antragsnummer + ' ha sido recibida'})[$json.body.submitted_language] || ('Ihr Antrag ' + $json.body.antragsnummer + ' ist eingegangen') }}",
+        "emailFormat": "html",
+        "html": "={{ ({de: '<p>Sehr geehrte Antragstellerin, sehr geehrter Antragsteller,</p><p>Ihr Antrag auf Gewährung eines Zuschusses nach dem ALTENHILFEPLAN Nr. 2 ist bei der Beratungsstelle für Senioren der Stadt Würzburg eingegangen.</p><p><strong>Antragsnummer:</strong> ' + $json.body.antragsnummer + '<br><strong>Eingegangen am:</strong> ' + $json.body.submitted_at + '</p><p>Wir prüfen Ihren Antrag und melden uns bei Rückfragen.</p><p>Mit freundlichen Grüßen<br>Beratungsstelle für Senioren · Stadt Würzburg</p><hr><p style=\"font-size:11px;color:#888\">Lehr-Demo der THWS — kein offizielles Angebot der Stadt Würzburg.</p>', it: '<p>Gentile richiedente,</p><p>la sua domanda di sovvenzione secondo il Piano di assistenza agli anziani n. 2 è stata ricevuta dal Centro di consulenza per anziani della Città di Würzburg.</p><p><strong>Numero domanda:</strong> ' + $json.body.antragsnummer + '<br><strong>Ricevuta il:</strong> ' + $json.body.submitted_at + '</p><p>Esamineremo la sua domanda e la contatteremo in caso di domande.</p><p>Cordiali saluti<br>Centro di consulenza per anziani · Città di Würzburg</p><hr><p style=\"font-size:11px;color:#888\">Demo didattica della THWS — non un offerta ufficiale della Città di Würzburg.</p>', tr: '<p>Sayın Başvuru Sahibi,</p><p>Würzburg Şehri Yaşlılar Danışma Merkezi ne 2 numaralı Yaşlılara Yardım Planı kapsamındaki hibe başvurunuz alınmıştır.</p><p><strong>Başvuru numarası:</strong> ' + $json.body.antragsnummer + '<br><strong>Alındığı tarih:</strong> ' + $json.body.submitted_at + '</p><p>Başvurunuzu inceleyip soru durumunda sizinle iletişime geçeceğiz.</p><p>Saygılarımla<br>Yaşlılar Danışma Merkezi · Würzburg Şehri</p><hr><p style=\"font-size:11px;color:#888\">THWS eğitim demosu — Würzburg Şehri nin resmi bir teklifi değildir.</p>', es: '<p>Estimada/o solicitante,</p><p>su solicitud de subvención según el Plan de ayuda a personas mayores n.º 2 ha sido recibida por el Centro de asesoramiento para personas mayores de la Ciudad de Würzburg.</p><p><strong>Número de solicitud:</strong> ' + $json.body.antragsnummer + '<br><strong>Recibida el:</strong> ' + $json.body.submitted_at + '</p><p>Examinaremos su solicitud y nos pondremos en contacto con usted si tenemos preguntas.</p><p>Atentamente<br>Centro de asesoramiento para personas mayores · Ciudad de Würzburg</p><hr><p style=\"font-size:11px;color:#888\">Demo didáctica de la THWS — no es una oferta oficial de la Ciudad de Würzburg.</p>'})[$json.body.submitted_language] || 'Antrag eingegangen' }}",
+        "options": {}
+      },
+      "id": "send-mail",
+      "name": "Send Eingangsbestätigung",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [460, 300],
+      "credentials": {
+        "smtp": {
+          "id": "CfjGjVrPcVvoNuWy",
+          "name": "SMTP account"
         }
-      },
-      "id": "language-switch",
-      "name": "Switch by Language",
-      "type": "n8n-nodes-base.switch",
-      "typeVersion": 2,
-      "position": [460, 300]
-    },
-    {
-      "parameters": {
-        "fromEmail": "no-reply@butscher.cloud",
-        "toEmail": "={{ $json.body.email }}",
-        "subject": "Ihr Antrag {{ $json.body.antragsnummer }} ist eingegangen",
-        "emailFormat": "html",
-        "html": "<p>Sehr geehrte Antragstellerin, sehr geehrter Antragsteller,</p><p>Ihr Antrag auf Gewährung eines Zuschusses nach dem ALTENHILFEPLAN Nr. 2 ist bei der Beratungsstelle für Senioren der Stadt Würzburg eingegangen.</p><p><strong>Antragsnummer:</strong> {{ $json.body.antragsnummer }}<br><strong>Eingegangen am:</strong> {{ $json.body.submitted_at }}</p><p>Wir prüfen Ihren Antrag und melden uns bei Rückfragen.</p><p>Mit freundlichen Grüßen<br>Beratungsstelle für Senioren · Stadt Würzburg</p><hr><p style=\"font-size:11px;color:#888\">Lehr-Demo der THWS — kein offizielles Angebot der Stadt Würzburg.</p>"
-      },
-      "id": "send-de",
-      "name": "Send DE",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [680, 200],
-      "credentials": { "smtp": { "id": "CfjGjVrPcVvoNuWy", "name": "SMTP account" } }
-    },
-    {
-      "parameters": {
-        "fromEmail": "no-reply@butscher.cloud",
-        "toEmail": "={{ $json.body.email }}",
-        "subject": "La sua domanda {{ $json.body.antragsnummer }} è stata ricevuta",
-        "emailFormat": "html",
-        "html": "<p>Gentile richiedente,</p><p>la sua domanda di sovvenzione secondo il Piano di assistenza agli anziani n. 2 è stata ricevuta dal Centro di consulenza per anziani della Città di Würzburg.</p><p><strong>Numero domanda:</strong> {{ $json.body.antragsnummer }}<br><strong>Ricevuta il:</strong> {{ $json.body.submitted_at }}</p><p>Esamineremo la sua domanda e la contatteremo in caso di domande.</p><p>Cordiali saluti<br>Centro di consulenza per anziani · Città di Würzburg</p><hr><p style=\"font-size:11px;color:#888\">Demo didattica della THWS — non un'offerta ufficiale della Città di Würzburg.</p>"
-      },
-      "id": "send-it",
-      "name": "Send IT",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [680, 300],
-      "credentials": { "smtp": { "id": "CfjGjVrPcVvoNuWy", "name": "SMTP account" } }
-    },
-    {
-      "parameters": {
-        "fromEmail": "no-reply@butscher.cloud",
-        "toEmail": "={{ $json.body.email }}",
-        "subject": "Başvurunuz {{ $json.body.antragsnummer }} alındı",
-        "emailFormat": "html",
-        "html": "<p>Sayın Başvuru Sahibi,</p><p>Würzburg Şehri Yaşlılar Danışma Merkezi'ne 2 numaralı Yaşlılara Yardım Planı kapsamındaki hibe başvurunuz alınmıştır.</p><p><strong>Başvuru numarası:</strong> {{ $json.body.antragsnummer }}<br><strong>Alındığı tarih:</strong> {{ $json.body.submitted_at }}</p><p>Başvurunuzu inceleyip soru durumunda sizinle iletişime geçeceğiz.</p><p>Saygılarımla<br>Yaşlılar Danışma Merkezi · Würzburg Şehri</p><hr><p style=\"font-size:11px;color:#888\">THWS eğitim demosu — Würzburg Şehri'nin resmi bir teklifi değildir.</p>"
-      },
-      "id": "send-tr",
-      "name": "Send TR",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [680, 400],
-      "credentials": { "smtp": { "id": "CfjGjVrPcVvoNuWy", "name": "SMTP account" } }
-    },
-    {
-      "parameters": {
-        "fromEmail": "no-reply@butscher.cloud",
-        "toEmail": "={{ $json.body.email }}",
-        "subject": "Su solicitud {{ $json.body.antragsnummer }} ha sido recibida",
-        "emailFormat": "html",
-        "html": "<p>Estimada/o solicitante,</p><p>su solicitud de subvención según el Plan de ayuda a personas mayores n.º 2 ha sido recibida por el Centro de asesoramiento para personas mayores de la Ciudad de Würzburg.</p><p><strong>Número de solicitud:</strong> {{ $json.body.antragsnummer }}<br><strong>Recibida el:</strong> {{ $json.body.submitted_at }}</p><p>Examinaremos su solicitud y nos pondremos en contacto con usted si tenemos preguntas.</p><p>Atentamente<br>Centro de asesoramiento para personas mayores · Ciudad de Würzburg</p><hr><p style=\"font-size:11px;color:#888\">Demo didáctica de la THWS — no es una oferta oficial de la Ciudad de Würzburg.</p>"
-      },
-      "id": "send-es",
-      "name": "Send ES",
-      "type": "n8n-nodes-base.emailSend",
-      "typeVersion": 2.1,
-      "position": [680, 500],
-      "credentials": { "smtp": { "id": "CfjGjVrPcVvoNuWy", "name": "SMTP account" } }
+      }
     }
   ],
   "connections": {
-    "Webhook": { "main": [[{ "node": "Switch by Language", "type": "main", "index": 0 }]] },
-    "Switch by Language": {
+    "Webhook": {
       "main": [
-        [{ "node": "Send DE", "type": "main", "index": 0 }],
-        [{ "node": "Send IT", "type": "main", "index": 0 }],
-        [{ "node": "Send TR", "type": "main", "index": 0 }],
-        [{ "node": "Send ES", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Send Eingangsbestätigung",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "active": true,
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }
