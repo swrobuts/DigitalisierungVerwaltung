@@ -5,7 +5,10 @@ import type { APL2Antrag } from "../src/types";
 const minimalValid: APL2Antrag = {
   haushaltsjahr: 2026,
   name: "Test-Altentagesstätte",
-  anschrift: "Musterstraße 1, 97070 Würzburg",
+  strasse:    "Musterstraße",
+  hausnummer: "1",
+  plz:        "97070",
+  ort:        "Würzburg",
   traeger: "Diakonie e.V.",
   bankverbindung: "Sparkasse Mainfranken",
   iban: "DE89 3704 0044 0532 0130 00",

@@ -11,7 +11,10 @@ import { setSprache } from "../src/i18n";
 const beispielAntrag: APL2Antrag = {
   haushaltsjahr: 2026,
   name: "Test-Einrichtung",
-  anschrift: "Musterstraße 1, 97070 Würzburg",
+  strasse:    "Musterstraße",
+  hausnummer: "1",
+  plz:        "97070",
+  ort:        "Würzburg",
   traeger: "Diakonie e.V.",
   bankverbindung: "Sparkasse Mainfranken",
   iban: "DE89 3704 0044 0532 0130 00",
@@ -34,6 +37,10 @@ describe("toSnakeCase", () => {
   it("mappt camelCase auf snake_case", () => {
     const s = toSnakeCase(beispielAntrag);
     expect(s.haushaltsjahr).toBe(2026);
+    expect(s.strasse).toBe("Musterstraße");
+    expect(s.hausnummer).toBe("1");
+    expect(s.plz).toBe("97070");
+    expect(s.ort).toBe("Würzburg");
     expect(s.betriebskosten_vorjahr_euro).toBe(10000);
     expect(s.personalkosten_vorjahr_euro).toBe(50000);
     expect(s.raeume_vorhanden).toBe("ja");
