@@ -19,6 +19,25 @@ export function Login() {
     if (!loading && allowed) navigate("/inbox", { replace: true });
   }, [loading, allowed, navigate]);
 
+  // Bis useUserRole entschieden hat, nichts rendern (verhindert Form-Flicker
+  // wenn alte Session noch geprüft wird).
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-slate-500">Prüfe Anmeldung …</p>
+      </div>
+    );
+  }
+
+  // Wenn allowed (während navigate-Effect läuft), kurz nichts anzeigen
+  if (allowed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-slate-500">Bereits angemeldet — leite weiter …</p>
+      </div>
+    );
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
