@@ -7,7 +7,10 @@ export const ALLE_SPRACHEN: Sprache[] = ["de", "it", "tr", "es"];
 export interface APL2Antrag {
   haushaltsjahr: number;
   name: string;
-  anschrift: string;
+  strasse:    string;
+  hausnummer: string;
+  plz:        string;
+  ort:        string;
   traeger: string;
   bankverbindung: string;
   iban: string;
