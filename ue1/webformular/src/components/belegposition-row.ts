@@ -1,20 +1,6 @@
 import type { BelegpositionEntry } from "../types";
-import { parseEuro } from "../format";
+import { parseEuro, formatEuro } from "../format";
 import { t } from "../i18n";
-
-/**
- * Lokale Anzeige-Formatierung: Cent-genau, deutsches Format (Komma, Tausenderpunkt).
- * Wir verwenden hier bewusst kein externes formatEuro (existiert in format.ts nicht),
- * sondern formatieren inline — die Row zeigt nur die nackte Zahl ohne "€"-Suffix
- * (das €-Zeichen rendert separat als <span>).
- */
-function formatBetragForInput(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return "";
-  return n.toLocaleString("de-DE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 async function sha256(blob: Blob): Promise<string> {
   const buf = await blob.arrayBuffer();
@@ -49,7 +35,9 @@ export function renderBelegpositionRow(opts: RowOptions): HTMLElement {
   // Betrag
   const betragInput = document.createElement("input");
   betragInput.placeholder = "0,00";
-  betragInput.value = formatBetragForInput(opts.position.betrag_euro);
+  betragInput.value = opts.position.betrag_euro > 0
+    ? formatEuro(opts.position.betrag_euro, false)
+    : "";
   betragInput.className =
     "w-32 rounded border border-slate-300 px-2 py-1 text-sm text-right";
   betragInput.addEventListener("input", () => {

@@ -18,3 +18,18 @@ export function parseEuro(input: string): number {
   const n = Number(cleaned);
   return Number.isNaN(n) ? NaN : n;
 }
+
+/**
+ * formatEuro: gibt Cent-genaue deutsche Anzeige zurück.
+ * - withCurrency=true: "1.234,56 €" (Anzeige in Summen, Übersicht)
+ * - withCurrency=false: "1.234,56" (in Input-Feldern, das € rendert die UI separat)
+ * Negative oder NaN → "" (leere Eingabe), 0 → je nach Flag "0,00 €" oder "0,00".
+ */
+export function formatEuro(n: number, withCurrency = true): string {
+  if (!Number.isFinite(n)) return "";
+  const num = n.toLocaleString("de-DE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return withCurrency ? `${num} €` : num;
+}
