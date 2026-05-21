@@ -55,26 +55,33 @@ export function renderStep4(stateSig: Signal<FormState>): HTMLElement {
     summe.className = "mt-2 text-right font-semibold text-sm";
     block.appendChild(summe);
 
+    // Keyed-Rendering: nur bei Änderung der ID-Liste (Add/Remove) die Rows neu bauen.
+    // So verliert der User beim Tippen in Bezeichnung/Betrag NICHT den Cursor-Fokus.
+    let lastIds = "";
     const update = () => {
-      list.innerHTML = "";
       const items = stateSig.value.belegpositionen.filter((b) => b.belegtyp === typ);
-      for (const pos of items) {
-        list.appendChild(renderBelegpositionRow({
-          position: pos,
-          onChange: (next) => {
-            stateSig.value = {
-              ...stateSig.value,
-              belegpositionen: stateSig.value.belegpositionen.map((b) =>
-                b.id === pos.id ? next : b),
-            };
-          },
-          onRemove: () => {
-            stateSig.value = {
-              ...stateSig.value,
-              belegpositionen: stateSig.value.belegpositionen.filter((b) => b.id !== pos.id),
-            };
-          },
-        }));
+      const ids = items.map((b) => b.id).join(",");
+      if (ids !== lastIds) {
+        list.innerHTML = "";
+        for (const pos of items) {
+          list.appendChild(renderBelegpositionRow({
+            position: pos,
+            onChange: (next) => {
+              stateSig.value = {
+                ...stateSig.value,
+                belegpositionen: stateSig.value.belegpositionen.map((b) =>
+                  b.id === pos.id ? next : b),
+              };
+            },
+            onRemove: () => {
+              stateSig.value = {
+                ...stateSig.value,
+                belegpositionen: stateSig.value.belegpositionen.filter((b) => b.id !== pos.id),
+              };
+            },
+          }));
+        }
+        lastIds = ids;
       }
       const sum = items.reduce((s, b) => s + b.betrag_euro, 0);
       summe.textContent = `${t(`summe.${typ}`)}: ${formatEuro(sum)}`;
