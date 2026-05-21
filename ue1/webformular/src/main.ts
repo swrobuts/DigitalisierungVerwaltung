@@ -80,15 +80,30 @@ main.appendChild(nav);
 
 const onSubmit = async () => {
   const result = await submitAntrag(state.value);
+  // Unsubscribe vom state, damit der renderActive-Callback nicht auf den
+  // gleich entfernten stepContainer schreibt (verhindert Detached-Node-Writes).
+  unsubscribe();
   main.innerHTML = "";
   const ok = document.createElement("div");
   ok.className = "bg-white p-6 rounded-lg border border-slate-200 text-center";
-  ok.innerHTML = `
-    <p class="text-3xl mb-3">✓</p>
-    <h2 class="text-lg font-semibold mb-2">Antrag eingegangen</h2>
-    <p>Ihre Antragsnummer: <strong>${result.antragsnummer}</strong></p>
-    <p class="text-sm text-slate-500 mt-2">Sie erhalten eine Eingangsbestätigung per E-Mail.</p>
-  `;
+  const tick = document.createElement("p");
+  tick.className = "text-3xl mb-3";
+  tick.textContent = "✓";
+  ok.appendChild(tick);
+  const h2 = document.createElement("h2");
+  h2.className = "text-lg font-semibold mb-2";
+  h2.textContent = "Antrag eingegangen";
+  ok.appendChild(h2);
+  const nr = document.createElement("p");
+  nr.textContent = "Ihre Antragsnummer: ";
+  const strong = document.createElement("strong");
+  strong.textContent = result.antragsnummer; // textContent statt innerHTML — defensiv
+  nr.appendChild(strong);
+  ok.appendChild(nr);
+  const hint = document.createElement("p");
+  hint.className = "text-sm text-slate-500 mt-2";
+  hint.textContent = "Sie erhalten eine Eingangsbestätigung per E-Mail.";
+  ok.appendChild(hint);
   main.appendChild(ok);
 };
 
@@ -114,5 +129,5 @@ const renderActive = () => {
   }
 };
 
-state.subscribe(renderActive);
+const unsubscribe = state.subscribe(renderActive);
 renderActive();

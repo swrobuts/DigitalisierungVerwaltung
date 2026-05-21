@@ -17,6 +17,11 @@ const ANON_KEY =
  * - Wirft bei Non-2xx-Response; Aufrufer entscheidet über UI-Behandlung.
  */
 export async function submitAntrag(state: FormState): Promise<{ antragsnummer: string; id: string }> {
+  if (!ANON_KEY) {
+    throw new Error(
+      "Fehlt: VITE_SUPABASE_ANON_KEY zur Build-Zeit. Kong wird ohne apikey 401 zurückgeben.",
+    );
+  }
   const form = new FormData();
 
   const antragPayload = {
@@ -64,7 +69,7 @@ export async function submitAntrag(state: FormState): Promise<{ antragsnummer: s
 
   const r = await fetch(FUNCTION_URL, {
     method: "POST",
-    headers: ANON_KEY ? { apikey: ANON_KEY } : {},
+    headers: { apikey: ANON_KEY },
     body: form,
   });
   if (!r.ok) {
