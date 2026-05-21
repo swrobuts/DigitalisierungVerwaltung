@@ -42,7 +42,7 @@ export function renderStepper(stateSig: Signal<FormState>): HTMLElement {
       li.appendChild(btn);
       const lbl = document.createElement("span");
       lbl.className = "mt-1 text-[10px] sm:text-xs text-slate-600 text-center";
-      lbl.textContent = t(STEP_LABEL_KEYS[i - 1]);
+      lbl.textContent = t(STEP_LABEL_KEYS[i - 1] ?? "");
       li.appendChild(lbl);
       bubbles.appendChild(li);
     }
