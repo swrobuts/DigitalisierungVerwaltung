@@ -52,16 +52,24 @@ export function renderStep4(stateSig: Signal<FormState>): HTMLElement {
     summe.className = "beleg-summe";
     block.appendChild(summe);
 
-    // Keyed-Rendering: nur bei Änderung der ID-Liste (Add/Remove) die Rows neu bauen.
-    // So verliert der User beim Tippen in Bezeichnung/Betrag NICHT den Cursor-Fokus.
-    let lastIds = "";
+    // Granulares Add/Remove: bestehende Rows werden NIE neu erzeugt.
+    // Das verhindert Verlust von DOM-State (Cursor-Position, IME-Composing-Buffer
+    // z.B. bei türkischer Eingabe, wo "input"-Event erst nach Commit feuert).
+    const rowMap = new Map<string, HTMLElement>();
     const update = () => {
       const items = stateSig.value.belegpositionen.filter((b) => b.belegtyp === typ);
-      const ids = items.map((b) => b.id).join(",");
-      if (ids !== lastIds) {
-        list.innerHTML = "";
-        for (const pos of items) {
-          list.appendChild(renderBelegpositionRow({
+      const currentIds = new Set(items.map((b) => b.id));
+      // 1. Entferne Rows, die nicht mehr im State sind
+      for (const [id, el] of rowMap.entries()) {
+        if (!currentIds.has(id)) {
+          el.remove();
+          rowMap.delete(id);
+        }
+      }
+      // 2. Append neue Rows in State-Reihenfolge
+      for (const pos of items) {
+        if (!rowMap.has(pos.id)) {
+          const el = renderBelegpositionRow({
             position: pos,
             onChange: (next) => {
               stateSig.value = {
@@ -76,10 +84,12 @@ export function renderStep4(stateSig: Signal<FormState>): HTMLElement {
                 belegpositionen: stateSig.value.belegpositionen.filter((b) => b.id !== pos.id),
               };
             },
-          }));
+          });
+          rowMap.set(pos.id, el);
+          list.appendChild(el);
         }
-        lastIds = ids;
       }
+      // 3. Live-Summe
       const sum = items.reduce((s, b) => s + b.betrag_euro, 0);
       summe.textContent = `${t(`summe.${typ}`)}: ${formatEuro(sum)}`;
     };
