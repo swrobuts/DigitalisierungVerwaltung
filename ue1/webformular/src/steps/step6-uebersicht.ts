@@ -9,6 +9,7 @@ export function renderStep6(
 ): HTMLElement {
   const root = document.createElement("section");
   root.className = "bg-white p-6 rounded-lg border border-slate-200";
+  root.dataset.section = "6";
 
   const h = document.createElement("h2");
   h.className = "text-lg font-semibold mb-4";
@@ -111,7 +112,11 @@ function sectionBlock(
   edit.className = "text-xs text-blue-700 hover:underline";
   edit.textContent = t("uebersicht.bearbeiten") + " →";
   edit.addEventListener("click", () => {
-    stateSig.value = { ...stateSig.value, step };
+    // Long-Form-Layout: zur Section scrollen statt Step-Wechsel.
+    const target = document.querySelector(`[data-section="${step}"]`);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   });
   header.appendChild(edit);
   wrap.appendChild(header);

@@ -7,6 +7,7 @@ import { t } from "../i18n";
 export function renderStep1(stateSig: Signal<FormState>): HTMLElement {
   const root = document.createElement("section");
   root.className = "bg-white p-6 rounded-lg border border-slate-200";
+  root.dataset.section = "1";
 
   const h = document.createElement("h2");
   h.className = "text-lg font-semibold mb-4";

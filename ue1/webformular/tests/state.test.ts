@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { initialState, isStepComplete } from "../src/state";
+import { initialState, isStepComplete, isFormComplete } from "../src/state";
 import type { FormState } from "../src/types";
 
 function makeState(overrides: Partial<FormState> = {}): FormState {
@@ -38,10 +38,10 @@ describe("isStepComplete", () => {
     });
     expect(isStepComplete(2, s)).toBe(false);
   });
-  it("Step 3 mit 0 Öffnungstagen ist nicht complete", () => {
-    expect(isStepComplete(3, initialState())).toBe(false);
-  });
-  it("Step 3 mit mind 1 Tag ist complete", () => {
+  it("Step 3 (Wochenplan) ist immer complete — optional laut AHP-PDF", () => {
+    // Leerer State: ok (optional)
+    expect(isStepComplete(3, initialState())).toBe(true);
+    // Mit ausgefülltem Tag: ebenfalls ok
     const s = makeState({
       oeffnungszeiten: [
         { wochentag: "mo", oeffnungszeit: "10:00-16:00", angebot: "Kaffee" },
@@ -82,5 +82,15 @@ describe("isStepComplete", () => {
     expect(isStepComplete(6, initialState())).toBe(false);
     const s = makeState({ bestaetigt: true });
     expect(isStepComplete(6, s)).toBe(true);
+  });
+});
+
+describe("isFormComplete", () => {
+  it("leerer State ist nicht complete (Step 1, 2, 4, 5, 6 fehlen)", () => {
+    expect(isFormComplete(initialState())).toBe(false);
+  });
+  it("nur Bestätigung reicht nicht — Pflicht-Sections müssen alle grün sein", () => {
+    const s = makeState({ bestaetigt: true });
+    expect(isFormComplete(s)).toBe(false);
   });
 });

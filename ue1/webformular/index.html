@@ -3,19 +3,60 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>APL 2 — Antrag</title>
+    <title>Stadt Würzburg — APL 2 Antrag (Demo UE1)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" />
   </head>
   <body>
-    <div id="app"></div>
+    <header class="stadt-header">
+      <div class="stadt-header-inner">
+        <a href="/" class="stadt-brand" aria-label="Stadt Würzburg — Startseite">
+          <img src="assets/wuerzburg-wappen.svg" alt="" class="stadt-wappen" />
+          <div>
+            <div class="stadt-wortmarke">Stadt Würzburg</div>
+            <div class="stadt-tagline">Beratungsstelle für Senioren</div>
+          </div>
+        </a>
+        <nav class="sprach-nav">
+          <label for="sprach-select"><span data-i18n="ui.sprache">Sprache</span>:</label>
+          <select id="sprach-select" aria-label="Sprache wählen">
+            <option value="de">DE · Deutsch</option>
+            <option value="it">IT · Italiano</option>
+            <option value="tr">TR · Türkçe</option>
+            <option value="es">ES · Español</option>
+          </select>
+        </nav>
+      </div>
+    </header>
+
+    <nav class="stadt-subnav" aria-label="Breadcrumb">
+      <div class="stadt-subnav-inner">
+        <a href="/">Startseite</a>
+        <span class="stadt-subnav-sep">›</span>
+        <a href="/">Rathaus &amp; Verwaltung</a>
+        <span class="stadt-subnav-sep">›</span>
+        <a href="/">Formularcenter</a>
+        <span class="stadt-subnav-sep">›</span>
+        <span data-i18n="ui.breadcrumb.current">Antrag Altenhilfeplan Nr. 2</span>
+      </div>
+    </nav>
+
+    <div class="fortschritt-bar" aria-hidden="true">
+      <span data-i18n="ui.fortschritt.label">Fortschritt</span>
+      <div class="fortschritt-track">
+        <div class="fortschritt-fill" id="fortschritt-fill"></div>
+      </div>
+      <span class="fortschritt-text" id="fortschritt-text">0&nbsp;/&nbsp;0</span>
+    </div>
+
+    <main id="app"></main>
 
     <footer class="stadt-footer">
       <div class="stadt-footer-inner">
         <div class="demo-hinweis-footer">
           <strong>Lehr-Demo der THWS</strong> — kein offizielles Angebot der Stadt Würzburg.
-          Eingaben verlassen den Browser nur nach explizitem Absenden.
+          <span data-i18n="ui.demohinweis">Eingaben verlassen Ihren Browser nicht.</span>
         </div><br>
         Modul „Innovationsmanagement" · BBA · 2026 ·
         <a href="https://github.com/swrobuts/DigitalisierungVerwaltung" target="_blank" rel="noopener">Quellcode auf GitHub</a>

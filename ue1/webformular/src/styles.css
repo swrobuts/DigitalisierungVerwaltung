@@ -1,17 +1,455 @@
 @import "tailwindcss";
 
 @theme {
-  --color-wue-rot: #AD0E36;
-  --color-wue-rot-dunkel: #8A0B2B;
-  --color-wue-akzent: #FF680E;
-  --color-wue-grau: #627F8D;
-  --color-step-active: #1e3a8a;
-  --color-step-done: #16a34a;
+  --color-wue-rot: #ad0e36;
+  --color-wue-rot-dunkel: #8a0b2b;
+  --color-wue-orange: #ff680e;
+  --color-wue-grau: #627f8d;
 }
 
-body {
-  font-family: "Open Sans", system-ui, -apple-system, sans-serif;
-  background: #f8fafc;
-  color: #0f172a;
-  margin: 0;
+/* ============================================================
+ * Würzburg-CI — komplette Übernahme aus UE1-v1 (5cfc6eb).
+ * Long-Form-Layout mit Stadt-Header, sticky Fortschrittsbar,
+ * Sub-Nav und Footer. CSS-Variablen bleiben — Bestandsklassen
+ * referenzieren sie.
+ * ============================================================ */
+
+/*
+ * Optisch an der Corporate Identity der Stadt Würzburg orientiert.
+ * Lehr-Demo — kein offizielles Angebot der Stadt Würzburg.
+ *
+ * Faktenbasis (extrahiert aus wuerzburg.de am 2026-05-17):
+ *   --wuerzburg-rot:    #AD0E36   (gemessen in /index.css)
+ *   --wuerzburg-orange: #FF680E   (gemessen in /index.css, .arrow:hover)
+ *   --wuerzburg-grau:   #627F8D
+ *   Schrift Body:       Open Sans (Stadt selfhosted via cdn.regiogate.net)
+ *   Header-Layout:      weißer Header, KEIN großes rotes Banner.
+ *
+ * Wappen: gemeinfreies SVG aus Wikimedia Commons.
+ * Schrems II: Open Sans hier via Google Fonts — in Produktion self-hosten.
+ */
+
+:root {
+  --wuerzburg-rot: #ad0e36;
+  --wuerzburg-rot-dunkel: #8a0b2b;
+  --wuerzburg-orange: #ff680e;
+  --wuerzburg-grau: #627f8d;
+  --wuerzburg-text: #1a1a1a;
+  --wuerzburg-muted: #6a6a6a;
+  --error: #b00020;
+  --ok: #006a4e;
+  --grey-line: #d6d6d6;
+  --grey-line-light: #e8e8e8;
+  --grey-bg: #f4f5f7;
+  --container-max: 960px;
+  --form-max: 720px;
 }
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--grey-bg);
+  color: var(--wuerzburg-text);
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Schmaler Akzent-Streifen oben — CI-Marker wie auf wuerzburg.de */
+body::before {
+  content: "";
+  display: block;
+  height: 4px;
+  background: var(--wuerzburg-rot);
+}
+
+/* ===== Stadt-Header (weiß, Wappen links, Sprache rechts) ===== */
+.stadt-header {
+  background: white;
+  border-bottom: 1px solid var(--grey-line);
+}
+
+.stadt-header-inner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.stadt-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.stadt-wappen {
+  width: 40px;
+  height: 44px;
+  flex-shrink: 0;
+}
+
+.stadt-wortmarke {
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  color: var(--wuerzburg-text);
+}
+
+.stadt-tagline {
+  font-size: 0.8rem;
+  color: var(--wuerzburg-muted);
+  margin-top: 0.1rem;
+}
+
+.sprach-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--wuerzburg-muted);
+}
+
+.sprach-nav select {
+  width: auto;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  border: 1px solid var(--grey-line);
+  background: white;
+  color: var(--wuerzburg-text);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.sprach-nav select:focus {
+  outline: 2px solid var(--wuerzburg-rot);
+  outline-offset: 1px;
+}
+
+/* ===== Sub-Navi / Breadcrumb-Streifen (visuelle Verbindung Header→Form) ===== */
+.stadt-subnav {
+  background: #fff;
+  border-bottom: 1px solid var(--grey-line-light);
+}
+.stadt-subnav-inner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0.55rem 1.5rem;
+  font-size: 0.82rem;
+  color: var(--wuerzburg-muted);
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.stadt-subnav a {
+  color: var(--wuerzburg-rot);
+  text-decoration: none;
+}
+.stadt-subnav a:hover { text-decoration: underline; }
+.stadt-subnav-sep { color: var(--grey-line); }
+
+/* ===== Antrags-Fortschritt (Progress) ===== */
+.fortschritt-bar {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0.9rem 1.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-size: 0.82rem;
+  color: var(--wuerzburg-muted);
+}
+.fortschritt-track {
+  flex: 1;
+  height: 6px;
+  background: var(--grey-line-light);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.fortschritt-fill {
+  height: 100%;
+  width: 0;
+  background: var(--wuerzburg-rot);
+  transition: width 0.3s ease-out;
+}
+.fortschritt-text {
+  font-weight: 600;
+  color: var(--wuerzburg-text);
+  font-variant-numeric: tabular-nums;
+  min-width: 4.2em;
+  text-align: right;
+}
+
+/* ===== Form-Container ===== */
+#app {
+  max-width: var(--container-max);
+  margin: 1rem auto 2rem;
+  padding: 1.75rem 2rem 2rem;
+  background: white;
+  border: 1px solid var(--grey-line);
+  border-radius: 3px;
+}
+
+#app > header {
+  border-bottom: 2px solid var(--wuerzburg-rot);
+  padding-bottom: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+h1 {
+  font-weight: 700;
+  color: var(--wuerzburg-text);
+  margin: 0 0 0.3rem;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--wuerzburg-muted);
+  font-size: 0.92rem;
+}
+
+/* ===== Fieldsets ===== */
+fieldset {
+  border: 1px solid var(--grey-line);
+  border-left: 3px solid var(--wuerzburg-rot);
+  padding: 1rem 1.25rem 1.1rem;
+  margin: 0 0 1.1rem;
+  background: white;
+}
+
+legend {
+  font-weight: 700;
+  color: var(--wuerzburg-rot);
+  padding: 0 0.5rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ===== Form-Layout: Grid für Felder ===== */
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.25rem;
+}
+
+.fields > .full { grid-column: 1 / -1; }
+
+@media (max-width: 640px) {
+  .fields { grid-template-columns: 1fr; }
+  .fields > .full { grid-column: auto; }
+}
+
+/* ===== Labels + Inputs ===== */
+label {
+  display: block;
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--wuerzburg-text);
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+  color: var(--wuerzburg-text);
+}
+
+.field-hint {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--wuerzburg-muted);
+  margin-top: 0.2rem;
+}
+
+input, select, textarea {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  border: 1px solid var(--grey-line);
+  border-radius: 2px;
+  color: var(--wuerzburg-text);
+  background: white;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input:hover, select:hover, textarea:hover { border-color: #999; }
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--wuerzburg-rot);
+  box-shadow: 0 0 0 3px rgba(173, 14, 54, 0.12);
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px rgba(176, 0, 32, 0.1);
+}
+
+/* IBAN-Live-Status (Häkchen rechts im Feld) */
+.input-with-status {
+  position: relative;
+}
+.input-with-status input { padding-right: 2.2rem; }
+.input-status-icon {
+  position: absolute;
+  right: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: none;
+  pointer-events: none;
+}
+.input-status-icon.ok {
+  display: block;
+  color: var(--ok);
+}
+
+.field-error {
+  display: block;
+  color: var(--error);
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  min-height: 1em;
+}
+
+.pflicht {
+  color: var(--wuerzburg-rot);
+  font-weight: 400;
+  margin-left: 0.05rem;
+  font-size: 0.85em;
+  vertical-align: top;
+}
+
+/* ===== Conditional Fields (per JS toggled) ===== */
+.field-conditional {
+  display: none;
+}
+.field-conditional.visible {
+  display: block;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Aktions-Leiste ===== */
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--grey-line);
+  flex-wrap: wrap;
+}
+
+button {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 0.65rem 1.5rem;
+  border: 1px solid var(--wuerzburg-rot);
+  background: white;
+  color: var(--wuerzburg-rot);
+  border-radius: 2px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.12s, color 0.12s, transform 0.05s;
+}
+
+button[type="submit"] {
+  background: var(--wuerzburg-rot);
+  color: white;
+}
+
+button:hover {
+  background: var(--wuerzburg-rot-dunkel);
+  color: white;
+  border-color: var(--wuerzburg-rot-dunkel);
+}
+
+button:active { transform: translateY(1px); }
+
+button:focus-visible {
+  outline: 2px solid var(--wuerzburg-orange);
+  outline-offset: 2px;
+}
+
+/* ===== Bestätigung ===== */
+#bestaetigung {
+  margin: 1rem auto 2rem;
+  max-width: var(--container-max);
+  padding: 1.5rem 2rem;
+  background: white;
+  border: 1px solid var(--grey-line);
+  border-left: 4px solid var(--ok);
+  border-radius: 3px;
+}
+
+#bestaetigung h2 {
+  font-weight: 700;
+  color: var(--ok);
+  margin: 0 0 0.5rem;
+  font-size: 1.3rem;
+}
+
+.antragsnummer {
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  background: #f4f5f7;
+  padding: 0.4rem 0.7rem;
+  display: inline-block;
+  border: 1px solid var(--grey-line);
+  border-radius: 2px;
+  color: var(--wuerzburg-text);
+}
+
+/* ===== Footer ===== */
+footer.stadt-footer {
+  background: white;
+  border-top: 1px solid var(--grey-line);
+  margin-top: 2rem;
+}
+.stadt-footer-inner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem;
+  font-size: 0.78rem;
+  color: var(--wuerzburg-muted);
+  text-align: center;
+  line-height: 1.7;
+}
+footer.stadt-footer a {
+  color: var(--wuerzburg-rot);
+  text-decoration: none;
+}
+footer.stadt-footer a:hover { text-decoration: underline; }
+.demo-hinweis-footer {
+  display: inline-block;
+  margin-bottom: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  background: #fff8c5;
+  border-left: 3px solid var(--wuerzburg-orange);
+  font-size: 0.78rem;
+  color: var(--wuerzburg-text);
+}
+.demo-hinweis-footer strong { color: var(--wuerzburg-rot); }

@@ -76,9 +76,9 @@ export function isStepComplete(step: number, s: FormState): boolean {
       return true;
     }
     case 3:
-      return s.oeffnungszeiten.some(
-        (o) => o.oeffnungszeit.trim().length > 0 && o.angebot.trim().length > 0,
-      );
+      // Wochenplan ist OPTIONAL — kein Pflicht-Block laut AHP-PDF.
+      // Im Long-Form-Layout zählt Step 3 deshalb nicht zur Pflicht-Quote.
+      return true;
     case 4: {
       if (s.raeume_vorhanden === null || s.raeume_unentgeltlich === null) return false;
       if (s.raeume_unentgeltlich === "ja") return true;
@@ -95,4 +95,19 @@ export function isStepComplete(step: number, s: FormState): boolean {
     default:
       return false;
   }
+}
+
+/**
+ * Form-Completion-Prüfung. True nur, wenn alle 6 Sections grün sind.
+ * Step 3 (Wochenplan) ist optional und liefert immer true (siehe oben).
+ */
+export function isFormComplete(s: FormState): boolean {
+  return (
+    isStepComplete(1, s) &&
+    isStepComplete(2, s) &&
+    isStepComplete(3, s) &&
+    isStepComplete(4, s) &&
+    isStepComplete(5, s) &&
+    isStepComplete(6, s)
+  );
 }
