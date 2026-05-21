@@ -10,6 +10,9 @@ export interface AntragRow {
   submitted_at: string;
   status: Status;
   submitted_language: string;
+  betriebskosten_vorjahr_euro: number;
+  personalkosten_vorjahr_euro: number;
+  miete_jahr_euro: number;
 }
 
 export function useAntraege(): {
@@ -27,7 +30,7 @@ export function useAntraege(): {
       const { data, error } = await supabase
         .from("antrag_mit_summen")
         .select(
-          "id, antragsnummer, name, traeger, submitted_at, status, submitted_language",
+          "id, antragsnummer, name, traeger, submitted_at, status, submitted_language, betriebskosten_vorjahr_euro, personalkosten_vorjahr_euro, miete_jahr_euro",
         )
         .order("submitted_at", { ascending: false });
       if (!mounted) return;

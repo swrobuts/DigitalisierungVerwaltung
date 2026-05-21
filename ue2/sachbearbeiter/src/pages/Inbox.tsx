@@ -4,8 +4,16 @@ import { useAntraege, type AntragRow } from "../hooks/useAntraege";
 import { useUserRole } from "../hooks/useUserRole";
 import { supabase } from "../lib/supabase";
 import { StatusBadge } from "../components/StatusBadge";
-import { formatDateTime } from "../lib/format";
+import { formatDateTime, formatEuro } from "../lib/format";
 import { STATUS_ORDER, STATUS_LABELS, type Status } from "../lib/workflow";
+
+function totalEuro(a: AntragRow): number {
+  return (
+    Number(a.betriebskosten_vorjahr_euro ?? 0) +
+    Number(a.personalkosten_vorjahr_euro ?? 0) +
+    Number(a.miete_jahr_euro ?? 0)
+  );
+}
 import {
   Table,
   TableBody,
@@ -18,17 +26,18 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 
-type SortKey = "antragsnummer" | "name" | "traeger" | "submitted_at" | "submitted_language" | "status";
+type SortKey = "antragsnummer" | "name" | "traeger" | "submitted_at" | "submitted_language" | "status" | "gesamt";
 type SortDir = "asc" | "desc";
 type GroupKey = "none" | "status" | "traeger" | "submitted_language";
 
-const COLUMNS: Array<{ key: SortKey; label: string; cls?: string }> = [
+const COLUMNS: Array<{ key: SortKey; label: string; align?: "right" }> = [
   { key: "antragsnummer", label: "Antragsnummer" },
   { key: "name", label: "Name" },
   { key: "traeger", label: "Träger" },
   { key: "submitted_at", label: "Eingegangen" },
   { key: "submitted_language", label: "Sprache" },
   { key: "status", label: "Status" },
+  { key: "gesamt", label: "Gesamt", align: "right" },
 ];
 
 const GROUP_OPTIONS: Array<{ key: GroupKey; label: string }> = [
@@ -39,14 +48,20 @@ const GROUP_OPTIONS: Array<{ key: GroupKey; label: string }> = [
 ];
 
 function compareVals(a: AntragRow, b: AntragRow, key: SortKey, dir: SortDir): number {
-  const av = a[key];
-  const bv = b[key];
-  // Status hat eine semantische Reihenfolge (eingegangen < in_pruefung < ...)
+  // Gesamt: numerisch (Beträge addieren)
+  if (key === "gesamt") {
+    const ta = totalEuro(a);
+    const tb = totalEuro(b);
+    return dir === "asc" ? ta - tb : tb - ta;
+  }
+  // Status: semantische Reihenfolge
   if (key === "status") {
-    const ai = STATUS_ORDER.indexOf(av as Status);
-    const bi = STATUS_ORDER.indexOf(bv as Status);
+    const ai = STATUS_ORDER.indexOf(a.status);
+    const bi = STATUS_ORDER.indexOf(b.status);
     return dir === "asc" ? ai - bi : bi - ai;
   }
+  const av = a[key as keyof AntragRow];
+  const bv = b[key as keyof AntragRow];
   const sa = String(av ?? "").toLowerCase();
   const sb = String(bv ?? "").toLowerCase();
   if (sa < sb) return dir === "asc" ? -1 : 1;
@@ -121,26 +136,39 @@ export function Inbox() {
     }
   }
 
-  // Gruppierungs-Marker einfügen
-  const rendered: Array<{ kind: "group"; label: string; count: number } | { kind: "row"; antrag: AntragRow }> = [];
+  // Gruppierungs-Marker einfügen (mit Summen-Aggregation pro Gruppe)
+  const rendered: Array<
+    | { kind: "group"; label: string; count: number; summe: number }
+    | { kind: "row"; antrag: AntragRow }
+  > = [];
   if (groupBy === "none") {
     sorted.forEach((a) => rendered.push({ kind: "row", antrag: a }));
   } else {
     let currentGroup = "";
-    let groupCounts = new Map<string, number>();
+    const groupCounts = new Map<string, number>();
+    const groupSums = new Map<string, number>();
     sorted.forEach((a) => {
       const g = String(a[groupBy as keyof AntragRow] ?? "");
       groupCounts.set(g, (groupCounts.get(g) ?? 0) + 1);
+      groupSums.set(g, (groupSums.get(g) ?? 0) + totalEuro(a));
     });
     sorted.forEach((a) => {
       const g = String(a[groupBy as keyof AntragRow] ?? "");
       if (g !== currentGroup) {
-        rendered.push({ kind: "group", label: groupLabel(groupBy, g), count: groupCounts.get(g) ?? 0 });
+        rendered.push({
+          kind: "group",
+          label: groupLabel(groupBy, g),
+          count: groupCounts.get(g) ?? 0,
+          summe: groupSums.get(g) ?? 0,
+        });
         currentGroup = g;
       }
       rendered.push({ kind: "row", antrag: a });
     });
   }
+
+  // Footer-Summe (über alle gefilterten Anträge, unabhängig von Gruppierung)
+  const gesamtSumme = filtered.reduce((s, a) => s + totalEuro(a), 0);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -220,7 +248,7 @@ export function Inbox() {
                     const active = sortKey === col.key;
                     const arrow = active ? (sortDir === "asc" ? "▲" : "▼") : "";
                     return (
-                      <TableHead key={col.key}>
+                      <TableHead key={col.key} className={col.align === "right" ? "text-right" : ""}>
                         <button
                           type="button"
                           onClick={() => handleSort(col.key)}
@@ -238,9 +266,13 @@ export function Inbox() {
                 {rendered.map((item, idx) =>
                   item.kind === "group" ? (
                     <TableRow key={`g-${idx}`}>
-                      <TableCell colSpan={7} className="bg-slate-100 font-semibold text-sm py-2">
+                      <TableCell colSpan={6} className="bg-slate-100 font-semibold text-sm py-2">
                         {item.label} <span className="text-slate-500 font-normal">({item.count})</span>
                       </TableCell>
+                      <TableCell className="bg-slate-100 font-semibold text-sm text-right">
+                        {formatEuro(item.summe)}
+                      </TableCell>
+                      <TableCell className="bg-slate-100"></TableCell>
                     </TableRow>
                   ) : (
                     <TableRow key={item.antrag.id}>
@@ -250,6 +282,7 @@ export function Inbox() {
                       <TableCell className="text-sm">{formatDateTime(item.antrag.submitted_at)}</TableCell>
                       <TableCell><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
                       <TableCell><StatusBadge status={item.antrag.status} /></TableCell>
+                      <TableCell className="text-right tabular-nums">{formatEuro(totalEuro(item.antrag))}</TableCell>
                       <TableCell>
                         <Link to={`/antrag/${item.antrag.id}`} className="text-blue-600 underline text-sm">Öffnen</Link>
                       </TableCell>
@@ -258,9 +291,20 @@ export function Inbox() {
                 )}
                 {rendered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-slate-500 py-8">
+                    <TableCell colSpan={8} className="text-center text-slate-500 py-8">
                       Keine Anträge gefunden.
                     </TableCell>
+                  </TableRow>
+                )}
+                {rendered.length > 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="border-t-2 border-slate-300 font-semibold text-sm pt-3">
+                      Gesamt über alle angezeigten Anträge
+                    </TableCell>
+                    <TableCell className="border-t-2 border-slate-300 font-bold text-sm text-right pt-3 tabular-nums">
+                      {formatEuro(gesamtSumme)}
+                    </TableCell>
+                    <TableCell className="border-t-2 border-slate-300"></TableCell>
                   </TableRow>
                 )}
               </TableBody>
