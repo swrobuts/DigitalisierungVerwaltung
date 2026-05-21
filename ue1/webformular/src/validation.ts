@@ -24,6 +24,13 @@ export function isValidEmail(input: string): boolean {
 }
 
 /**
+ * Deutsche PLZ: genau 5 Ziffern.
+ */
+export function isValidPLZ(input: string): boolean {
+  return /^\d{5}$/.test(input ?? "");
+}
+
+/**
  * Prüft, ob ein ISO-Datum (YYYY-MM-DD) heute oder in der Vergangenheit liegt.
  * Vorsicht: `new Date("2023-02-29T00:00:00")` rollt **stillschweigend** auf
  * den 1. März 2023 — wir müssen also nach dem Parsen prüfen, ob Y/M/D

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidIBAN, isValidEmail, isValidPastOrTodayISO, isPositiveEuro } from "../src/validation";
+import { isValidIBAN, isValidEmail, isValidPLZ, isValidPastOrTodayISO, isPositiveEuro } from "../src/validation";
 
 describe("isValidIBAN", () => {
   it("akzeptiert eine gültige DE-IBAN", () => {
@@ -62,6 +62,36 @@ describe("isValidPastOrTodayISO", () => {
   });
   it("lehnt nicht-existierende Kalenderdaten ab (31. April 2026)", () => {
     expect(isValidPastOrTodayISO("2026-04-31")).toBe(false);
+  });
+});
+
+describe("isValidIBAN (weitere Länder)", () => {
+  it("akzeptiert valide AT-IBAN", () => {
+    expect(isValidIBAN("AT611904300234573201")).toBe(true);
+  });
+  it("lehnt zu kurze IBAN ab", () => {
+    expect(isValidIBAN("DE89")).toBe(false);
+  });
+});
+
+describe("isValidEmail (weitere Fälle)", () => {
+  it("akzeptiert Adressen mit Dot/Plus/Subdomain", () => {
+    expect(isValidEmail("a.b+c@example.co.uk")).toBe(true);
+  });
+  it("lehnt Adressen ohne TLD ab", () => {
+    expect(isValidEmail("foo@bar")).toBe(false);
+  });
+});
+
+describe("isValidPLZ", () => {
+  it("akzeptiert 5-stellige Zahlen", () => {
+    expect(isValidPLZ("97070")).toBe(true);
+  });
+  it("lehnt kürzere ab", () => {
+    expect(isValidPLZ("9707")).toBe(false);
+  });
+  it("lehnt Buchstaben ab", () => {
+    expect(isValidPLZ("97A70")).toBe(false);
   });
 });
 
