@@ -36,21 +36,38 @@ export function renderBelegpositionRow(opts: RowOptions): HTMLElement {
   );
   row.appendChild(bez);
 
-  // Betrag mit €-Suffix
+  // Betrag mit €-Suffix.
+  // type="text" + inputmode="decimal" damit User "1.234,56" (deutsches Format)
+  // tippen kann. Filter blockt alles außer Ziffern, Komma, Punkt, Whitespace, €.
+  // parseEuro liefert NaN bei Unsinn → aria-invalid="true" → rote Border via CSS.
   const betragWrap = document.createElement("div");
   betragWrap.className = "beleg-betrag";
   const betragInput = document.createElement("input");
   betragInput.type = "text";
+  betragInput.inputMode = "decimal";
   betragInput.placeholder = "0,00";
   betragInput.value = opts.position.betrag_euro > 0
     ? formatEuro(opts.position.betrag_euro, false)
     : "";
   betragInput.addEventListener("input", () => {
+    // 1. Nicht-erlaubte Zeichen rausfiltern, Cursor-Position erhalten
+    const raw = betragInput.value;
+    const cleaned = raw.replace(/[^0-9.,\s€]/g, "");
+    if (cleaned !== raw) {
+      const caret = betragInput.selectionStart ?? cleaned.length;
+      betragInput.value = cleaned;
+      const newCaret = Math.max(0, caret - (raw.length - cleaned.length));
+      betragInput.setSelectionRange(newCaret, newCaret);
+    }
+    // 2. Parse + Validation
     const n = parseEuro(betragInput.value);
-    opts.onChange({
-      ...opts.position,
-      betrag_euro: Number.isNaN(n) ? 0 : n,
-    });
+    if (Number.isNaN(n)) {
+      betragInput.setAttribute("aria-invalid", "true");
+      opts.onChange({ ...opts.position, betrag_euro: 0 });
+    } else {
+      betragInput.removeAttribute("aria-invalid");
+      opts.onChange({ ...opts.position, betrag_euro: n });
+    }
   });
   betragWrap.appendChild(betragInput);
   const eur = document.createElement("span");
