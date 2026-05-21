@@ -27,3 +27,8 @@ npm-debug.log*
 
 # Cache (verschiedene Tools)
 .cache/
+
+# lokales Tooling + Lehrmaterialien (kein Repo-Content)
+.claude/
+ue1/folien/*.pptx
+*.pptx
