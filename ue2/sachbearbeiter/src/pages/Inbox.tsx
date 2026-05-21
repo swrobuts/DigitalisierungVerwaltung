@@ -265,26 +265,30 @@ export function Inbox() {
               <TableBody>
                 {rendered.map((item, idx) =>
                   item.kind === "group" ? (
-                    <TableRow key={`g-${idx}`} className="bg-slate-200/70">
-                      <TableCell colSpan={6} className="border-t-2 border-slate-300 font-bold text-sm uppercase tracking-wide text-slate-700 py-3">
-                        {item.label} <span className="text-slate-500 font-normal normal-case tracking-normal">· {item.count} {item.count === 1 ? "Antrag" : "Anträge"}</span>
+                    <TableRow key={`g-${idx}`} className="border-t border-slate-200 hover:bg-transparent">
+                      <TableCell colSpan={6} className="py-3 pl-4">
+                        <div className="flex items-center gap-3">
+                          <span className="inline-block w-[3px] h-5 bg-blue-700 rounded-sm" aria-hidden="true"></span>
+                          <span className="font-semibold text-[15px] text-slate-900">{item.label}</span>
+                          <span className="text-xs text-slate-500 font-normal">{item.count} {item.count === 1 ? "Antrag" : "Anträge"}</span>
+                        </div>
                       </TableCell>
-                      <TableCell className="border-t-2 border-slate-300 font-bold text-base text-right tabular-nums text-slate-900 py-3">
+                      <TableCell className="text-right tabular-nums font-semibold text-[15px] text-slate-900 py-3">
                         {formatEuro(item.summe)}
                       </TableCell>
-                      <TableCell className="border-t-2 border-slate-300"></TableCell>
+                      <TableCell></TableCell>
                     </TableRow>
                   ) : (
-                    <TableRow key={item.antrag.id} className="hover:bg-blue-50/40">
-                      <TableCell className="font-mono text-xs text-slate-600">{item.antrag.antragsnummer}</TableCell>
-                      <TableCell>{item.antrag.name}</TableCell>
+                    <TableRow key={item.antrag.id} className="hover:bg-blue-50/30">
+                      <TableCell className="font-mono text-xs text-slate-500">{item.antrag.antragsnummer}</TableCell>
+                      <TableCell className="text-slate-900">{item.antrag.name}</TableCell>
                       <TableCell className="text-slate-600">{item.antrag.traeger}</TableCell>
-                      <TableCell className="text-xs text-slate-600">{formatDateTime(item.antrag.submitted_at)}</TableCell>
+                      <TableCell className="text-xs text-slate-500">{formatDateTime(item.antrag.submitted_at)}</TableCell>
                       <TableCell><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
                       <TableCell><StatusBadge status={item.antrag.status} /></TableCell>
-                      <TableCell className="text-right tabular-nums text-slate-700">{formatEuro(totalEuro(item.antrag))}</TableCell>
+                      <TableCell className="text-right tabular-nums text-sm text-slate-700">{formatEuro(totalEuro(item.antrag))}</TableCell>
                       <TableCell>
-                        <Link to={`/antrag/${item.antrag.id}`} className="text-blue-600 underline text-sm">Öffnen</Link>
+                        <Link to={`/antrag/${item.antrag.id}`} className="text-blue-700 hover:text-blue-900 text-sm">Öffnen →</Link>
                       </TableCell>
                     </TableRow>
                   ),
@@ -297,11 +301,11 @@ export function Inbox() {
                   </TableRow>
                 )}
                 {rendered.length > 0 && (
-                  <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
-                    <TableCell colSpan={6} className="font-semibold text-sm py-3 uppercase tracking-wide">
-                      Gesamt über alle angezeigten Anträge
+                  <TableRow className="border-t-2 border-blue-700 bg-blue-50/30 hover:bg-blue-50/30">
+                    <TableCell colSpan={6} className="py-4 pl-4 text-sm text-slate-700">
+                      Gesamtsumme aller angezeigten Anträge
                     </TableCell>
-                    <TableCell className="font-bold text-base text-right tabular-nums py-3">
+                    <TableCell className="py-4 text-right tabular-nums text-lg font-bold text-slate-900">
                       {formatEuro(gesamtSumme)}
                     </TableCell>
                     <TableCell></TableCell>
