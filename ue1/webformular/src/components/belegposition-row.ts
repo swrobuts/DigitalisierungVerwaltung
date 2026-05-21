@@ -11,7 +11,11 @@ async function sha256(blob: Blob): Promise<string> {
 }
 
 interface RowOptions {
+  /** Initialer Wert beim ersten Render. */
   position: BelegpositionEntry;
+  /** Live-Getter — IMMER frischen Wert lesen, nie das stale `position`-Closure
+   *  benutzen, sonst überschreibt ein späterer Field-Change einen früheren. */
+  getCurrent: () => BelegpositionEntry;
   onChange: (next: BelegpositionEntry) => void;
   onRemove: () => void;
 }
@@ -32,7 +36,7 @@ export function renderBelegpositionRow(opts: RowOptions): HTMLElement {
   bez.value = opts.position.bezeichnung;
   bez.className = "beleg-bezeichnung";
   bez.addEventListener("input", () =>
-    opts.onChange({ ...opts.position, bezeichnung: bez.value }),
+    opts.onChange({ ...opts.getCurrent(), bezeichnung: bez.value }),
   );
   row.appendChild(bez);
 
@@ -63,10 +67,10 @@ export function renderBelegpositionRow(opts: RowOptions): HTMLElement {
     const n = parseEuro(betragInput.value);
     if (Number.isNaN(n)) {
       betragInput.setAttribute("aria-invalid", "true");
-      opts.onChange({ ...opts.position, betrag_euro: 0 });
+      opts.onChange({ ...opts.getCurrent(), betrag_euro: 0 });
     } else {
       betragInput.removeAttribute("aria-invalid");
-      opts.onChange({ ...opts.position, betrag_euro: n });
+      opts.onChange({ ...opts.getCurrent(), betrag_euro: n });
     }
   });
   betragWrap.appendChild(betragInput);
@@ -95,7 +99,10 @@ export function renderBelegpositionRow(opts: RowOptions): HTMLElement {
       return;
     }
     const hash = await sha256(f);
-    opts.onChange({ ...opts.position, file: f, file_hash: hash });
+    // DOM-Label sofort updaten (Row wird nicht neu gerendert)
+    lblText.textContent = "✓ " + f.name;
+    fileBtn.classList.add("has-file");
+    opts.onChange({ ...opts.getCurrent(), file: f, file_hash: hash });
   });
   row.appendChild(fileBtn);
 

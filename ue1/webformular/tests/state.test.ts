@@ -75,8 +75,26 @@ describe("isStepComplete", () => {
     });
     expect(isStepComplete(4, s3)).toBe(true);
   });
-  it("Step 5 ohne Programm-Flyer ist nicht complete", () => {
+  it("Step 5 ohne Programm-Flyer und ohne Wochenplan ist nicht complete", () => {
     expect(isStepComplete(5, initialState())).toBe(false);
+  });
+  it("Step 5 mit Programm-Flyer ist complete", () => {
+    const s = makeState({ programm_flyer: new File([], "p.pdf") });
+    expect(isStepComplete(5, s)).toBe(true);
+  });
+  it("Step 5 mit ausgefülltem Wochenplan (1 Eintrag) reicht auch", () => {
+    const s = makeState({
+      oeffnungszeiten: [
+        { wochentag: "mo", oeffnungszeit: "10:00-16:00", angebot: "Kaffee" },
+        { wochentag: "di", oeffnungszeit: "", angebot: "" },
+        { wochentag: "mi", oeffnungszeit: "", angebot: "" },
+        { wochentag: "do", oeffnungszeit: "", angebot: "" },
+        { wochentag: "fr", oeffnungszeit: "", angebot: "" },
+        { wochentag: "sa", oeffnungszeit: "", angebot: "" },
+        { wochentag: "so", oeffnungszeit: "", angebot: "" },
+      ],
+    });
+    expect(isStepComplete(5, s)).toBe(true);
   });
   it("Step 6 braucht Bestätigung", () => {
     expect(isStepComplete(6, initialState())).toBe(false);

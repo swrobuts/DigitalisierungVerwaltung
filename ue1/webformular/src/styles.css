@@ -471,6 +471,22 @@ textarea[aria-invalid="true"] {
 }
 .beleg-upload:hover { background: rgba(173, 14, 54, 0.04); }
 .beleg-upload input[type="file"] { display: none; }
+.beleg-upload.has-file {
+  background: rgba(0, 106, 78, 0.08);
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.fehlend-liste {
+  display: none;
+  margin: 0.5rem 0 0;
+  padding: 0.55rem 0.75rem;
+  background: rgba(176, 0, 32, 0.06);
+  border-left: 3px solid var(--error);
+  border-radius: 2px;
+  font-size: 0.85rem;
+  color: var(--error);
+}
+.fehlend-liste.active { display: block; }
 .beleg-remove {
   width: auto;
   padding: 0.2rem 0.55rem;

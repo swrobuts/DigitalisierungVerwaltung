@@ -69,19 +69,22 @@ export function renderStep4(stateSig: Signal<FormState>): HTMLElement {
       // 2. Append neue Rows in State-Reihenfolge
       for (const pos of items) {
         if (!rowMap.has(pos.id)) {
+          const capturedId = pos.id;
           const el = renderBelegpositionRow({
             position: pos,
+            getCurrent: () =>
+              stateSig.value.belegpositionen.find((b) => b.id === capturedId) ?? pos,
             onChange: (next) => {
               stateSig.value = {
                 ...stateSig.value,
                 belegpositionen: stateSig.value.belegpositionen.map((b) =>
-                  b.id === pos.id ? next : b),
+                  b.id === capturedId ? next : b),
               };
             },
             onRemove: () => {
               stateSig.value = {
                 ...stateSig.value,
-                belegpositionen: stateSig.value.belegpositionen.filter((b) => b.id !== pos.id),
+                belegpositionen: stateSig.value.belegpositionen.filter((b) => b.id !== capturedId),
               };
             },
           });

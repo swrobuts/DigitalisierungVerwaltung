@@ -88,8 +88,14 @@ export function isStepComplete(step: number, s: FormState): boolean {
         (p) => p.bezeichnung.trim().length > 0 && p.betrag_euro > 0 && p.file !== null,
       );
     }
-    case 5:
-      return s.programm_flyer !== null;
+    case 5: {
+      // Anlage 1 (Wochenplan) ODER Programm-Flyer reicht — beide decken
+      // dieselbe Pflicht („Programm der Tagesstätte angeben") ab.
+      const hatWochenplan = s.oeffnungszeiten.some(
+        (o) => o.oeffnungszeit.trim().length > 0 || o.angebot.trim().length > 0,
+      );
+      return s.programm_flyer !== null || hatWochenplan;
+    }
     case 6:
       return s.bestaetigt === true;
     default:

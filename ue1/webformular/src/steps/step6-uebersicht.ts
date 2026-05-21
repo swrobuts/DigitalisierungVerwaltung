@@ -1,7 +1,15 @@
 import type { Signal } from "../signals";
 import type { FormState } from "../types";
-import { isFormComplete } from "../state";
+import { isStepComplete, isFormComplete } from "../state";
 import { t } from "../i18n";
+
+const SECTION_LABELS: Record<number, string> = {
+  1: "Träger & Einrichtung",
+  2: "Kontakt & Bank",
+  4: "Räume + Kosten + Belege",
+  5: "Anlage 1 (Wochenplan oder Programm-Flyer)",
+  6: "Bestätigung",
+};
 
 /**
  * Step 6 — Senden.
@@ -9,7 +17,9 @@ import { t } from "../i18n";
  * Übersicht wäre redundant. Hier nur noch:
  *   - DSGVO-Bestätigung (Checkbox)
  *   - Druckansicht-Button (window.print)
- *   - Absenden-Button (disabled bis Form komplett + bestätigt)
+ *   - Absenden-Button (IMMER aktiv — beim Klick wird isFormComplete geprüft
+ *     und bei fehlenden Pflichtfeldern eine konkrete Liste angezeigt)
+ *   - Hinweis-Zeile darüber, was noch fehlt (live, ohne Klick)
  */
 export function renderStep6(
   stateSig: Signal<FormState>,
@@ -37,6 +47,29 @@ export function renderStep6(
   checkWrap.appendChild(span);
   root.appendChild(checkWrap);
 
+  // Live-Hinweis was fehlt (rote Liste, nur wenn was fehlt)
+  const fehlend = document.createElement("div");
+  fehlend.className = "fehlend-liste";
+  root.appendChild(fehlend);
+
+  function missingSections(s: FormState): number[] {
+    return [1, 2, 4, 5, 6].filter((step) => !isStepComplete(step, s));
+  }
+
+  const updateFehlend = () => {
+    const miss = missingSections(stateSig.value);
+    if (miss.length === 0) {
+      fehlend.textContent = "";
+      fehlend.classList.remove("active");
+    } else {
+      const labels = miss.map((s) => SECTION_LABELS[s] ?? `Step ${s}`).join(", ");
+      fehlend.textContent = `Noch zu vervollständigen: ${labels}`;
+      fehlend.classList.add("active");
+    }
+  };
+  updateFehlend();
+  stateSig.subscribe(updateFehlend);
+
   // Buttons
   const actions = document.createElement("div");
   actions.className = "actions";
@@ -50,13 +83,21 @@ export function renderStep6(
   const submitBtn = document.createElement("button");
   submitBtn.type = "submit";
   submitBtn.textContent = t("form.button.absenden");
-  const updateBtnState = () => {
-    submitBtn.disabled = !isFormComplete(stateSig.value);
-  };
-  updateBtnState();
-  stateSig.subscribe(updateBtnState);
   submitBtn.addEventListener("click", async (e) => {
     e.preventDefault();
+    // Hard-Check beim Klick — falls Pflicht fehlt, konkretes Feedback statt no-op
+    if (!isFormComplete(stateSig.value)) {
+      const miss = missingSections(stateSig.value);
+      const labels = miss.map((s) => SECTION_LABELS[s] ?? `Step ${s}`).join("\n  · ");
+      alert(`Bitte vor dem Absenden vervollständigen:\n  · ${labels}`);
+      // Scroll zur ersten fehlenden Section
+      const first = miss[0];
+      if (first !== undefined) {
+        const target = document.querySelector(`[data-section="${first}"]`);
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      return;
+    }
     submitBtn.disabled = true;
     submitBtn.textContent = "Wird gesendet …";
     try {
