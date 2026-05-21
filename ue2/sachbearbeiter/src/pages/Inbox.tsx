@@ -26,6 +26,42 @@ function totalEuro(a: AntragRow): number {
   );
 }
 
+/**
+ * Splittet `text` an allen Treffern von `needle` (case-insensitive, ohne Regex-
+ * Sonderbehandlung) und gibt React-Children mit <mark>-Wrappern zurück.
+ * Leerer Needle → unveränderter Text.
+ */
+function Highlight({ text, needle }: { text: string; needle: string }) {
+  if (!needle || !text) return <>{text}</>;
+  const lowerText = text.toLowerCase();
+  const lowerNeedle = needle.toLowerCase();
+  const parts: Array<{ str: string; hit: boolean }> = [];
+  let i = 0;
+  while (i < text.length) {
+    const idx = lowerText.indexOf(lowerNeedle, i);
+    if (idx === -1) {
+      parts.push({ str: text.slice(i), hit: false });
+      break;
+    }
+    if (idx > i) parts.push({ str: text.slice(i, idx), hit: false });
+    parts.push({ str: text.slice(idx, idx + needle.length), hit: true });
+    i = idx + needle.length;
+  }
+  return (
+    <>
+      {parts.map((p, j) =>
+        p.hit ? (
+          <mark key={j} className="bg-amber-200 text-slate-900 rounded-sm px-0.5">
+            {p.str}
+          </mark>
+        ) : (
+          <span key={j}>{p.str}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 const MONATE_DE = [
   "Januar", "Februar", "März", "April", "Mai", "Juni",
   "Juli", "August", "September", "Oktober", "November", "Dezember",
@@ -371,9 +407,15 @@ export function Inbox() {
                       const diff = formatDiff(totalEuro(item.antrag), vj);
                       return (
                         <TableRow key={item.antrag.id} className="hover:bg-blue-50/30">
-                          <TableCell className="font-mono text-xs text-slate-500">{item.antrag.antragsnummer}</TableCell>
-                          <TableCell className="text-slate-900">{item.antrag.name}</TableCell>
-                          <TableCell className="text-slate-600">{item.antrag.traeger}</TableCell>
+                          <TableCell className="font-mono text-xs text-slate-500">
+                            <Highlight text={item.antrag.antragsnummer} needle={search} />
+                          </TableCell>
+                          <TableCell className="text-slate-900">
+                            <Highlight text={item.antrag.name} needle={search} />
+                          </TableCell>
+                          <TableCell className="text-slate-600">
+                            <Highlight text={item.antrag.traeger} needle={search} />
+                          </TableCell>
                           <TableCell className="text-xs text-slate-500">{formatDateTime(item.antrag.submitted_at)}</TableCell>
                           <TableCell><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
                           <TableCell><StatusBadge status={item.antrag.status} /></TableCell>
