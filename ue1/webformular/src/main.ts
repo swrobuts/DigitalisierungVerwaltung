@@ -1,234 +1,118 @@
-import type { APL2Antrag, ValidationErrors, Sprache } from "./types";
-import { ALLE_SPRACHEN } from "./types";
-import { isValidIBAN, isValidEmail, isValidPastOrTodayISO, isPositiveEuro } from "./validation";
-import { validateCrossField } from "./cross-field";
-import { collectAnlagen } from "./attachments";
-import { zeigeBestaetigung } from "./submit";
-import { submitAntrag } from "./supabase";
-import { setSprache, getSprache, ladeGespeicherteSprache, applyTranslations } from "./i18n";
+import "./styles.css";
+import { signal } from "./signals";
+import { initialState, isStepComplete } from "./state";
+import { renderStepper } from "./stepper";
+import { renderStep1 } from "./steps/step1-traeger";
+import { renderStep2 } from "./steps/step2-kontakt-bank";
+import { renderStep3 } from "./steps/step3-wochenplan";
+import { renderStep4 } from "./steps/step4-kosten-belege";
+import { renderStep5 } from "./steps/step5-flyer";
+import { renderStep6 } from "./steps/step6-uebersicht";
+import { submitAntrag } from "./submit";
+import { setSprache, t } from "./i18n";
+import type { FormState, Sprache } from "./types";
 
-const form = document.getElementById("antrag-form") as HTMLFormElement;
-const bestaetigung = document.getElementById("bestaetigung") as HTMLElement;
-const btnDrucken = document.getElementById("btn-drucken") as HTMLButtonElement;
-const sprachSelect = document.getElementById("sprach-select") as HTMLSelectElement;
-const ibanStatus = document.getElementById("iban-status") as SVGElement | null;
-const feldBic = document.getElementById("field-bic") as HTMLElement | null;
-const feldMietvertrag = document.getElementById("field-mietvertrag") as HTMLElement | null;
-const fortschrittFill = document.getElementById("fortschritt-fill") as HTMLElement | null;
-const fortschrittText = document.getElementById("fortschritt-text") as HTMLElement | null;
+const root = document.getElementById("app")!;
+const state = signal<FormState>(initialState());
+setSprache(state.value.language);
 
-// i18n
-ladeGespeicherteSprache();
-sprachSelect.value = getSprache();
-applyTranslations();
-document.documentElement.lang = getSprache();
+// Header
+const header = document.createElement("header");
+header.className = "py-4 border-b border-slate-200 bg-white sticky top-0 z-10";
+const headerInner = document.createElement("div");
+headerInner.className = "max-w-3xl mx-auto px-4 flex justify-between items-center";
+const title = document.createElement("h1");
+title.className = "font-semibold";
+title.textContent = "APL 2 — Stadt Würzburg";
+headerInner.appendChild(title);
 
-sprachSelect.addEventListener("change", () => {
-  const wert = sprachSelect.value as Sprache;
-  if ((ALLE_SPRACHEN as string[]).includes(wert)) {
-    setSprache(wert);
+const langSel = document.createElement("select");
+langSel.className = "text-sm rounded border border-slate-300 px-2 py-1";
+for (const code of ["de", "it", "tr", "es"] as Sprache[]) {
+  const opt = document.createElement("option");
+  opt.value = code;
+  opt.textContent = code.toUpperCase();
+  opt.selected = state.value.language === code;
+  langSel.appendChild(opt);
+}
+langSel.addEventListener("change", () => {
+  const lang = langSel.value as Sprache;
+  setSprache(lang);
+  state.value = { ...state.value, language: lang };
+});
+headerInner.appendChild(langSel);
+header.appendChild(headerInner);
+root.appendChild(header);
+
+const main = document.createElement("main");
+main.className = "max-w-3xl mx-auto p-4";
+root.appendChild(main);
+
+const stepper = renderStepper(state);
+main.appendChild(stepper);
+
+const stepContainer = document.createElement("div");
+main.appendChild(stepContainer);
+
+const nav = document.createElement("div");
+nav.className = "mt-6 flex justify-between gap-2";
+const backBtn = document.createElement("button");
+backBtn.type = "button";
+backBtn.className = "rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50";
+backBtn.textContent = t("stepper.zurueck");
+backBtn.addEventListener("click", () => {
+  if (state.value.step > 1) {
+    state.value = { ...state.value, step: (state.value.step - 1) as FormState["step"] };
   }
 });
-
-// Smart Defaults beim Laden
-const heuteISO = new Date().toISOString().slice(0, 10);
-const haushaltsjahrInput = form.querySelector<HTMLInputElement>('[name="haushaltsjahr"]');
-if (haushaltsjahrInput && !haushaltsjahrInput.value) {
-  haushaltsjahrInput.value = String(new Date().getFullYear());
-}
-const datumInput = form.querySelector<HTMLInputElement>('[name="antragsdatum"]');
-if (datumInput && !datumInput.value) {
-  datumInput.value = heuteISO;
-}
-
-function setFieldError(name: string, message: string | undefined): void {
-  const target = form.querySelector<HTMLElement>(`[data-error-for="${name}"]`);
-  const input = form.querySelector<HTMLInputElement>(`[name="${name}"]`);
-  if (target) target.textContent = message ?? "";
-  if (input) input.setAttribute("aria-invalid", message ? "true" : "false");
-}
-
-function clearAllErrors(): void {
-  form.querySelectorAll("[data-error-for]").forEach((el) => (el.textContent = ""));
-  form.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
-}
-
-function leseAntragAusFormular(): APL2Antrag {
-  const fd = new FormData(form);
-  const num = (key: string): number => Number(fd.get(key) ?? 0);
-  const str = (key: string): string => String(fd.get(key) ?? "").trim();
-  return {
-    haushaltsjahr: num("haushaltsjahr"),
-    name: str("name"),
-    strasse:    str("strasse"),
-    hausnummer: str("hausnummer"),
-    plz:        str("plz"),
-    ort:        str("ort"),
-    traeger: str("traeger"),
-    bankverbindung: str("bankverbindung"),
-    iban: str("iban"),
-    bic: str("bic"),
-    ansprechpartner: str("ansprechpartner"),
-    telefon: str("telefon"),
-    email: str("email"),
-    betriebskostenVorjahrEuro: num("betriebskostenVorjahrEuro"),
-    personalkostenVorjahrEuro: num("personalkostenVorjahrEuro"),
-    raeumeVorhanden: (str("raeumeVorhanden") || "nein") as "ja" | "nein",
-    raeumeUnentgeltlich: (str("raeumeUnentgeltlich") || "nein") as "ja" | "nein",
-    monatlicheMieteEuro: num("monatlicheMieteEuro"),
-    antragsdatum: str("antragsdatum"),
-    anlagen: collectAnlagen(form),
-  };
-}
-
-function feldweiseValidieren(antrag: APL2Antrag): ValidationErrors {
-  const errors: ValidationErrors = {};
-  if (antrag.iban && !isValidIBAN(antrag.iban)) {
-    errors.iban = "IBAN-Prüfziffer ungültig.";
+nav.appendChild(backBtn);
+const nextBtn = document.createElement("button");
+nextBtn.type = "button";
+nextBtn.className = "rounded bg-blue-700 text-white px-4 py-2 text-sm hover:bg-blue-800 disabled:opacity-50";
+nextBtn.textContent = t("stepper.weiter");
+nextBtn.addEventListener("click", () => {
+  if (state.value.step < 6) {
+    state.value = { ...state.value, step: (state.value.step + 1) as FormState["step"] };
   }
-  if (antrag.email && !isValidEmail(antrag.email)) {
-    errors.email = "E-Mail-Format ungültig.";
-  }
-  if (antrag.antragsdatum && !isValidPastOrTodayISO(antrag.antragsdatum)) {
-    errors.antragsdatum = "Antragsdatum darf nicht in der Zukunft liegen.";
-  }
-  if (antrag.betriebskostenVorjahrEuro && !isPositiveEuro(antrag.betriebskostenVorjahrEuro)) {
-    errors.betriebskostenVorjahrEuro = "Betrag muss größer als 0 sein.";
-  }
-  if (antrag.personalkostenVorjahrEuro && !isPositiveEuro(antrag.personalkostenVorjahrEuro)) {
-    errors.personalkostenVorjahrEuro = "Betrag muss größer als 0 sein.";
-  }
-  return errors;
-}
-
-function alleFehler(antrag: APL2Antrag): ValidationErrors {
-  return { ...feldweiseValidieren(antrag), ...validateCrossField(antrag) };
-}
-
-function fehlerAnzeigen(errors: ValidationErrors): void {
-  clearAllErrors();
-  for (const [name, message] of Object.entries(errors)) {
-    setFieldError(name, message);
-  }
-}
-
-/* Interaktive Komfort-Funktionen */
-
-function aktualisiereIbanStatus(antrag: APL2Antrag): void {
-  if (!ibanStatus) return;
-  const ok = antrag.iban.length > 0 && isValidIBAN(antrag.iban);
-  ibanStatus.classList.toggle("ok", ok);
-}
-
-function aktualisiereConditionalFields(antrag: APL2Antrag): void {
-  // BIC nur sichtbar bei Nicht-DE-IBAN
-  if (feldBic) {
-    const ibanClean = antrag.iban.replace(/\s+/g, "").toUpperCase();
-    const istNichtDe = ibanClean.length >= 2 && !ibanClean.startsWith("DE");
-    feldBic.classList.toggle("visible", istNichtDe);
-  }
-  // Mietvertrag nur sichtbar bei Miete > 0
-  if (feldMietvertrag) {
-    feldMietvertrag.classList.toggle("visible", antrag.monatlicheMieteEuro > 0);
-  }
-}
-
-function aktualisiereFortschritt(): void {
-  if (!fortschrittFill || !fortschrittText) return;
-  // Zähle "ausgefüllt" für alle sichtbaren Pflichtfelder
-  const pflichtFelder = form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
-    "input[required], select[required], textarea[required]",
-  );
-  let gesamt = 0;
-  let gefuellt = 0;
-  pflichtFelder.forEach((el) => {
-    // Übergeh Felder, deren Container .field-conditional ist und NICHT .visible
-    const conditional = el.closest(".field-conditional");
-    if (conditional && !conditional.classList.contains("visible")) return;
-    gesamt += 1;
-    const wert = el.value.trim();
-    let val: boolean;
-    if (el.type === "file") {
-      val = ((el as HTMLInputElement).files?.length ?? 0) > 0;
-    } else if (el.type === "number") {
-      // Eine 0 (z.B. Default Miete) zählt nicht als „ausgefüllt"
-      const n = Number(wert);
-      val = wert.length > 0 && Number.isFinite(n) && n > 0;
-    } else {
-      val = wert.length > 0;
-    }
-    if (val) gefuellt += 1;
-  });
-  // Pflicht-Anlagen separat (sind kein required=)
-  const pflichtAnlagen = ["programm-altentagesstaette", "anlage-1-kostennachweis", "personalkostenbelege"];
-  pflichtAnlagen.forEach((typ) => {
-    gesamt += 1;
-    const input = form.querySelector<HTMLInputElement>(`input[name="${typ}"]`);
-    if ((input?.files?.length ?? 0) > 0) gefuellt += 1;
-  });
-
-  const prozent = gesamt === 0 ? 0 : Math.round((gefuellt / gesamt) * 100);
-  fortschrittFill.style.width = `${prozent}%`;
-  fortschrittText.textContent = `${gefuellt} / ${gesamt}`;
-}
-
-function liveUpdate(): void {
-  const antrag = leseAntragAusFormular();
-  aktualisiereIbanStatus(antrag);
-  aktualisiereConditionalFields(antrag);
-  aktualisiereFortschritt();
-  fehlerAnzeigen(feldweiseValidieren(antrag));
-}
-
-form.addEventListener("input", liveUpdate);
-form.addEventListener("change", liveUpdate);
-// Initial einmal triggern, damit Default-Werte (Haushaltsjahr, Miete=0) wirken
-liveUpdate();
-
-const btnAbsenden = document.getElementById("btn-absenden") as HTMLButtonElement;
-btnAbsenden.dataset.label = btnAbsenden.textContent ?? "Antrag absenden";
-
-function setzeBusy(busy: boolean): void {
-  btnAbsenden.disabled = busy;
-  btnAbsenden.textContent = busy ? "Wird gesendet…" : (btnAbsenden.dataset.label ?? "Antrag absenden");
-}
-
-function zeigeServerFehler(message: string): void {
-  const div = document.createElement("div");
-  div.className = "field-error";
-  div.setAttribute("role", "alert");
-  div.style.padding = "0.7rem";
-  div.style.marginTop = "1rem";
-  div.style.background = "#ffe5e5";
-  div.style.borderLeft = "3px solid var(--error)";
-  div.textContent = `Übermittlung fehlgeschlagen: ${message}. Bitte später erneut versuchen.`;
-  form.appendChild(div);
-  setTimeout(() => div.remove(), 8000);
-}
-
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const antrag = leseAntragAusFormular();
-  const errors = alleFehler(antrag);
-  if (Object.keys(errors).length > 0) {
-    fehlerAnzeigen(errors);
-    const firstError = form.querySelector<HTMLElement>("[aria-invalid='true']");
-    firstError?.focus();
-    firstError?.scrollIntoView({ behavior: "smooth", block: "center" });
-    return;
-  }
-
-  setzeBusy(true);
-  const ergebnis = await submitAntrag(antrag, antrag.anlagen);
-  setzeBusy(false);
-
-  if ("error" in ergebnis) {
-    zeigeServerFehler(ergebnis.error);
-    return;
-  }
-  zeigeBestaetigung(bestaetigung, antrag, ergebnis.antragsnummer);
-  form.hidden = true;
-  bestaetigung.scrollIntoView({ behavior: "smooth", block: "start" });
 });
+nav.appendChild(nextBtn);
+main.appendChild(nav);
 
-btnDrucken.addEventListener("click", () => window.print());
+const onSubmit = async () => {
+  const result = await submitAntrag(state.value);
+  main.innerHTML = "";
+  const ok = document.createElement("div");
+  ok.className = "bg-white p-6 rounded-lg border border-slate-200 text-center";
+  ok.innerHTML = `
+    <p class="text-3xl mb-3">✓</p>
+    <h2 class="text-lg font-semibold mb-2">Antrag eingegangen</h2>
+    <p>Ihre Antragsnummer: <strong>${result.antragsnummer}</strong></p>
+    <p class="text-sm text-slate-500 mt-2">Sie erhalten eine Eingangsbestätigung per E-Mail.</p>
+  `;
+  main.appendChild(ok);
+};
+
+const renderActive = () => {
+  stepContainer.innerHTML = "";
+  let el: HTMLElement;
+  switch (state.value.step) {
+    case 1: el = renderStep1(state); break;
+    case 2: el = renderStep2(state); break;
+    case 3: el = renderStep3(state); break;
+    case 4: el = renderStep4(state); break;
+    case 5: el = renderStep5(state); break;
+    case 6: el = renderStep6(state, onSubmit); break;
+    default: el = document.createElement("div");
+  }
+  stepContainer.appendChild(el);
+  backBtn.disabled = state.value.step === 1;
+  if (state.value.step === 6) {
+    nextBtn.style.display = "none";
+  } else {
+    nextBtn.style.display = "inline-block";
+    nextBtn.disabled = !isStepComplete(state.value.step, state.value);
+  }
+};
+
+state.subscribe(renderActive);
+renderActive();
