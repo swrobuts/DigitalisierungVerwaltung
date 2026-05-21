@@ -5,6 +5,7 @@ import type { Status } from "../lib/workflow";
 export interface AntragRow {
   id: string;
   antragsnummer: string;
+  haushaltsjahr: number;
   name: string;
   traeger: string;
   submitted_at: string;
@@ -30,7 +31,7 @@ export function useAntraege(): {
       const { data, error } = await supabase
         .from("antrag_mit_summen")
         .select(
-          "id, antragsnummer, name, traeger, submitted_at, status, submitted_language, betriebskosten_vorjahr_euro, personalkosten_vorjahr_euro, miete_jahr_euro",
+          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, betriebskosten_vorjahr_euro, personalkosten_vorjahr_euro, miete_jahr_euro",
         )
         .order("submitted_at", { ascending: false });
       if (!mounted) return;
