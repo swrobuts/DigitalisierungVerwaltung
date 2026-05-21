@@ -18,16 +18,16 @@ export interface AntragFull {
   ansprechpartner: string;
   telefon: string;
   email: string;
-  betriebskosten_vorjahr_euro: number;
-  personalkosten_vorjahr_euro: number;
   raeume_vorhanden: "ja" | "nein";
   raeume_unentgeltlich: "ja" | "nein";
-  monatliche_miete_euro: number;
   antragsdatum: string;
   submitted_language: string;
   submitted_at: string;
   user_agent: string | null;
   ip_address: string | null;
+  betriebskosten_vorjahr_euro: number;
+  personalkosten_vorjahr_euro: number;
+  miete_jahr_euro: number;
   status: Status;
 }
 
@@ -39,6 +39,20 @@ export interface AnlageRow {
   mime_type: string;
   storage_path: string;
   uploaded_at: string;
+}
+
+export interface BelegpositionRow {
+  id: string;
+  belegtyp: "betriebskosten" | "personalkosten" | "miete";
+  bezeichnung: string;
+  betrag_euro: number;
+  anlage_id: string | null;
+}
+
+export interface OeffnungszeitRow {
+  wochentag: "mo" | "di" | "mi" | "do" | "fr" | "sa" | "so";
+  oeffnungszeit: string | null;
+  angebot: string | null;
 }
 
 export interface HistoryRow {
@@ -53,6 +67,8 @@ export interface HistoryRow {
 export function useAntrag(id: string | undefined) {
   const [antrag, setAntrag] = useState<AntragFull | null>(null);
   const [anlagen, setAnlagen] = useState<AnlageRow[]>([]);
+  const [belegpositionen, setBelegpositionen] = useState<BelegpositionRow[]>([]);
+  const [oeffnungszeiten, setOeffnungszeiten] = useState<OeffnungszeitRow[]>([]);
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,18 +76,19 @@ export function useAntrag(id: string | undefined) {
   async function reload() {
     if (!id) return;
     setLoading(true);
-    const [a, an, h] = await Promise.all([
-      supabase.from("antraege").select("*").eq("id", id).single(),
+    const [a, an, bp, oz, h] = await Promise.all([
+      supabase.from("antrag_mit_summen").select("*").eq("id", id).single(),
       supabase.from("anlagen").select("*").eq("antrag_id", id).order("uploaded_at"),
-      supabase
-        .from("antrag_history")
-        .select("*")
-        .eq("antrag_id", id)
+      supabase.from("belegposition").select("*").eq("antrag_id", id).order("belegtyp"),
+      supabase.from("oeffnungszeit").select("*").eq("antrag_id", id),
+      supabase.from("antrag_history").select("*").eq("antrag_id", id)
         .order("geaendert_am", { ascending: false }),
     ]);
     if (a.error) setError(a.error.message);
     else setAntrag(a.data as AntragFull);
     setAnlagen(((an.data as AnlageRow[]) ?? []));
+    setBelegpositionen(((bp.data as BelegpositionRow[]) ?? []));
+    setOeffnungszeiten(((oz.data as OeffnungszeitRow[]) ?? []));
     setHistory(((h.data as HistoryRow[]) ?? []));
     setLoading(false);
   }
@@ -112,5 +129,8 @@ export function useAntrag(id: string | undefined) {
     return { error: null };
   }
 
-  return { antrag, anlagen, history, loading, error, changeStatus, reload };
+  return {
+    antrag, anlagen, belegpositionen, oeffnungszeiten, history,
+    loading, error, changeStatus, reload,
+  };
 }

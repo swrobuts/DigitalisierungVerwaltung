@@ -22,7 +22,7 @@ import { Textarea } from "../components/ui/textarea";
 
 export function AntragDetail() {
   const { id } = useParams<{ id: string }>();
-  const { antrag, anlagen, history, loading, error, changeStatus } =
+  const { antrag, anlagen, belegpositionen, oeffnungszeiten, history, loading, error, changeStatus } =
     useAntrag(id);
   const [confirmTo, setConfirmTo] = useState<Status | null>(null);
   const [kommentar, setKommentar] = useState("");
@@ -100,8 +100,8 @@ export function AntragDetail() {
             </Field>
             <Field label="Räume vorhanden / unentgeltlich">
               {antrag.raeume_vorhanden} / {antrag.raeume_unentgeltlich}
-              {antrag.monatliche_miete_euro > 0 && (
-                <> · Miete {formatEuro(antrag.monatliche_miete_euro)}</>
+              {antrag.miete_jahr_euro > 0 && (
+                <> · Miete (Jahr) {formatEuro(antrag.miete_jahr_euro)}</>
               )}
             </Field>
             <Field label="Eingegangen am">
@@ -173,6 +173,65 @@ export function AntragDetail() {
                     </DialogContent>
                   </Dialog>
                 ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Belegpositionen</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {belegpositionen.length === 0 ? (
+                <p className="text-slate-500">Keine Belegpositionen.</p>
+              ) : (
+                (["betriebskosten", "personalkosten", "miete"] as const).map((typ) => {
+                  const items = belegpositionen.filter((b) => b.belegtyp === typ);
+                  if (items.length === 0) return null;
+                  const summe = items.reduce((s, b) => s + Number(b.betrag_euro), 0);
+                  return (
+                    <div key={typ} className="border-b border-slate-100 pb-2">
+                      <p className="font-medium capitalize mb-1">{typ}</p>
+                      {items.map((b) => (
+                        <div key={b.id} className="flex justify-between text-xs">
+                          <span>{b.bezeichnung}</span>
+                          <span>{formatEuro(Number(b.betrag_euro))}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between mt-1 font-semibold text-xs">
+                        <span>Summe</span>
+                        <span>{formatEuro(summe)}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Öffnungszeiten</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {oeffnungszeiten.length === 0 ? (
+                <p className="text-sm text-slate-500">Kein Wochenplan hinterlegt.</p>
+              ) : (
+                <table className="w-full text-xs">
+                  <tbody>
+                    {(["mo", "di", "mi", "do", "fr", "sa", "so"] as const).map((tag) => {
+                      const eintrag = oeffnungszeiten.find((o) => o.wochentag === tag);
+                      const label = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" }[tag];
+                      return (
+                        <tr key={tag}>
+                          <td className="font-medium pr-2">{label}</td>
+                          <td className="pr-2">{eintrag?.oeffnungszeit ?? "—"}</td>
+                          <td>{eintrag?.angebot ?? ""}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               )}
             </CardContent>
           </Card>

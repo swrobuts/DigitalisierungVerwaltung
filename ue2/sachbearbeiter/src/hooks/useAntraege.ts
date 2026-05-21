@@ -25,7 +25,7 @@ export function useAntraege(): {
     let mounted = true;
     async function load() {
       const { data, error } = await supabase
-        .from("antraege")
+        .from("antrag_mit_summen")
         .select(
           "id, antragsnummer, name, traeger, submitted_at, status, submitted_language",
         )
