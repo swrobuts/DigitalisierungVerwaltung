@@ -265,24 +265,24 @@ export function Inbox() {
               <TableBody>
                 {rendered.map((item, idx) =>
                   item.kind === "group" ? (
-                    <TableRow key={`g-${idx}`}>
-                      <TableCell colSpan={6} className="bg-slate-100 font-semibold text-sm py-2">
-                        {item.label} <span className="text-slate-500 font-normal">({item.count})</span>
+                    <TableRow key={`g-${idx}`} className="bg-slate-200/70">
+                      <TableCell colSpan={6} className="border-t-2 border-slate-300 font-bold text-sm uppercase tracking-wide text-slate-700 py-3">
+                        {item.label} <span className="text-slate-500 font-normal normal-case tracking-normal">· {item.count} {item.count === 1 ? "Antrag" : "Anträge"}</span>
                       </TableCell>
-                      <TableCell className="bg-slate-100 font-semibold text-sm text-right">
+                      <TableCell className="border-t-2 border-slate-300 font-bold text-base text-right tabular-nums text-slate-900 py-3">
                         {formatEuro(item.summe)}
                       </TableCell>
-                      <TableCell className="bg-slate-100"></TableCell>
+                      <TableCell className="border-t-2 border-slate-300"></TableCell>
                     </TableRow>
                   ) : (
-                    <TableRow key={item.antrag.id}>
-                      <TableCell className="font-mono text-xs">{item.antrag.antragsnummer}</TableCell>
+                    <TableRow key={item.antrag.id} className="hover:bg-blue-50/40">
+                      <TableCell className="font-mono text-xs text-slate-600">{item.antrag.antragsnummer}</TableCell>
                       <TableCell>{item.antrag.name}</TableCell>
-                      <TableCell>{item.antrag.traeger}</TableCell>
-                      <TableCell className="text-sm">{formatDateTime(item.antrag.submitted_at)}</TableCell>
+                      <TableCell className="text-slate-600">{item.antrag.traeger}</TableCell>
+                      <TableCell className="text-xs text-slate-600">{formatDateTime(item.antrag.submitted_at)}</TableCell>
                       <TableCell><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
                       <TableCell><StatusBadge status={item.antrag.status} /></TableCell>
-                      <TableCell className="text-right tabular-nums">{formatEuro(totalEuro(item.antrag))}</TableCell>
+                      <TableCell className="text-right tabular-nums text-slate-700">{formatEuro(totalEuro(item.antrag))}</TableCell>
                       <TableCell>
                         <Link to={`/antrag/${item.antrag.id}`} className="text-blue-600 underline text-sm">Öffnen</Link>
                       </TableCell>
@@ -297,14 +297,14 @@ export function Inbox() {
                   </TableRow>
                 )}
                 {rendered.length > 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="border-t-2 border-slate-300 font-semibold text-sm pt-3">
+                  <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
+                    <TableCell colSpan={6} className="font-semibold text-sm py-3 uppercase tracking-wide">
                       Gesamt über alle angezeigten Anträge
                     </TableCell>
-                    <TableCell className="border-t-2 border-slate-300 font-bold text-sm text-right pt-3 tabular-nums">
+                    <TableCell className="font-bold text-base text-right tabular-nums py-3">
                       {formatEuro(gesamtSumme)}
                     </TableCell>
-                    <TableCell className="border-t-2 border-slate-300"></TableCell>
+                    <TableCell></TableCell>
                   </TableRow>
                 )}
               </TableBody>
