@@ -13,11 +13,10 @@ import { setSprache, applyTranslations, t } from "./i18n";
 import type { FormState, Sprache } from "./types";
 
 /**
- * Long-Form-Orchestrierung (UE1-v2, Korrektur-Rebuild).
- * Statt Stepper mit 6 Schritten: alle Sections untereinander auf einer
- * Seite, sticky-Fortschrittsbar oben (im HTML schon angelegt).
- * Würzburg-CI aus UE1-v1 (Header + Footer im HTML, Stilklassen aus
- * styles.css). Wochenplan ist optional — siehe state.isStepComplete(3).
+ * Long-Form-Orchestrierung (UE1-v2).
+ * Alle Sections untereinander als <fieldset>s in einem <form>,
+ * sticky-Fortschrittsbar oben (im HTML schon angelegt).
+ * Würzburg-CI komplett aus styles.css — kein Tailwind im Markup.
  */
 const root = document.getElementById("app") as HTMLElement | null;
 if (!root) throw new Error("main.ts: #app nicht gefunden");
@@ -42,29 +41,30 @@ if (langSel) {
 // === Sticky-Fortschrittsbar bedienen ===
 attachStickyProgress(state);
 
-// === Submit-Handler (ersetzt das gesamte <main>) ===
+// === Submit-Handler (ersetzt das gesamte #app) ===
 const onSubmit = async () => {
   const result = await submitAntrag(state.value);
   root.innerHTML = "";
   const ok = document.createElement("section");
-  ok.className =
-    "bg-white p-6 rounded-lg border border-slate-200 text-center max-w-2xl mx-auto my-8";
+  ok.id = "bestaetigung";
   const tick = document.createElement("p");
-  tick.className = "text-4xl mb-3";
+  tick.style.fontSize = "2.5rem";
+  tick.style.margin = "0 0 0.4rem";
+  tick.style.color = "var(--ok)";
   tick.textContent = "✓";
   ok.appendChild(tick);
   const h2 = document.createElement("h2");
-  h2.className = "text-xl font-semibold mb-2";
   h2.textContent = "Antrag eingegangen";
   ok.appendChild(h2);
   const nr = document.createElement("p");
   nr.textContent = "Ihre Antragsnummer: ";
-  const strong = document.createElement("strong");
+  const strong = document.createElement("span");
+  strong.className = "antragsnummer";
   strong.textContent = result.antragsnummer;
   nr.appendChild(strong);
   ok.appendChild(nr);
   const hint = document.createElement("p");
-  hint.className = "text-sm text-slate-500 mt-2";
+  hint.className = "field-hint";
   hint.textContent = "Sie erhalten eine Eingangsbestätigung per E-Mail.";
   ok.appendChild(hint);
   root.appendChild(ok);
@@ -74,37 +74,40 @@ const onSubmit = async () => {
 function renderSections(): void {
   root!.innerHTML = "";
 
-  const container = document.createElement("div");
-  container.className = "max-w-3xl mx-auto px-4 py-6 space-y-4";
-
-  // Long-Form-Titel
+  // Long-Form-Titel im #app (CSS gibt ihm border-bottom: 2px solid wue-rot)
   const head = document.createElement("header");
-  head.className = "mb-2";
   const h1 = document.createElement("h1");
-  h1.className = "text-2xl font-semibold";
   h1.textContent = t("form.title");
   head.appendChild(h1);
   const sub = document.createElement("p");
-  sub.className = "text-sm text-slate-600 mt-1";
+  sub.className = "subtitle";
   sub.textContent = t("form.subtitle");
   head.appendChild(sub);
-  container.appendChild(head);
+  root!.appendChild(head);
 
-  container.appendChild(renderStep1(state));
-  container.appendChild(renderStep2(state));
+  // Semantisches <form>-Element — Steps sind <fieldset>s.
+  const form = document.createElement("form");
+  form.id = "antrag-form";
+  form.noValidate = true;
+  form.addEventListener("submit", (e) => e.preventDefault());
+
+  form.appendChild(renderStep1(state));
+  form.appendChild(renderStep2(state));
 
   // Optional-Hinweis vor Wochenplan
   const optHint = document.createElement("p");
-  optHint.className = "text-sm text-slate-500 italic mt-6 mb-0";
+  optHint.className = "field-hint";
+  optHint.style.margin = "0.6rem 0 0.3rem";
+  optHint.style.fontStyle = "italic";
   optHint.textContent = t("wochenplan.optional");
-  container.appendChild(optHint);
+  form.appendChild(optHint);
 
-  container.appendChild(renderStep3(state));
-  container.appendChild(renderStep4(state));
-  container.appendChild(renderStep5(state));
-  container.appendChild(renderStep6(state, onSubmit));
+  form.appendChild(renderStep3(state));
+  form.appendChild(renderStep4(state));
+  form.appendChild(renderStep5(state));
+  form.appendChild(renderStep6(state, onSubmit));
 
-  root!.appendChild(container);
+  root!.appendChild(form);
 }
 
 renderSections();

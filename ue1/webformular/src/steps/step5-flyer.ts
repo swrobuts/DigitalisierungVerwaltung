@@ -3,32 +3,43 @@ import type { FormState } from "../types";
 import { t } from "../i18n";
 
 export function renderStep5(stateSig: Signal<FormState>): HTMLElement {
-  const root = document.createElement("section");
-  root.className = "bg-white p-6 rounded-lg border border-slate-200";
+  const root = document.createElement("fieldset");
   root.dataset.section = "5";
 
-  const h = document.createElement("h2");
-  h.className = "text-lg font-semibold mb-4";
-  h.textContent = t("form.label.anlage.programm") + " *";
-  root.appendChild(h);
+  const legend = document.createElement("legend");
+  legend.textContent = t("stepper.5.titel");
+  root.appendChild(legend);
 
-  const dropzone = document.createElement("label");
-  dropzone.className = "block border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:bg-slate-50";
+  const wrap = document.createElement("label");
+  wrap.className = "flyer-dropzone";
+
+  const lbl = document.createElement("span");
+  lbl.className = "field-label";
+  const txt = document.createElement("span");
+  txt.textContent = t("form.label.anlage.programm");
+  lbl.appendChild(txt);
+  const star = document.createElement("span");
+  star.className = "pflicht";
+  star.textContent = " *";
+  lbl.appendChild(star);
+  wrap.appendChild(lbl);
+
   const fileInput = document.createElement("input");
   fileInput.type = "file";
   fileInput.accept = "application/pdf,image/jpeg,image/png";
-  fileInput.className = "hidden";
-  const status = document.createElement("p");
-  status.className = "text-slate-600";
+  wrap.appendChild(fileInput);
 
+  const status = document.createElement("span");
+  status.className = "field-hint";
   const updateStatus = () => {
     const f = stateSig.value.programm_flyer;
     status.textContent = f
       ? `✓ ${f.name} (${(f.size / 1024).toFixed(0)} KB)`
-      : "Datei wählen oder hierher ziehen";
+      : "";
   };
   updateStatus();
   stateSig.subscribe(updateStatus);
+  wrap.appendChild(status);
 
   fileInput.addEventListener("change", () => {
     const f = fileInput.files?.[0] ?? null;
@@ -39,9 +50,6 @@ export function renderStep5(stateSig: Signal<FormState>): HTMLElement {
     stateSig.value = { ...stateSig.value, programm_flyer: f };
   });
 
-  dropzone.appendChild(fileInput);
-  dropzone.appendChild(status);
-  root.appendChild(dropzone);
-
+  root.appendChild(wrap);
   return root;
 }

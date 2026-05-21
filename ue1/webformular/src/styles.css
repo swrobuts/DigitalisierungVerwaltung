@@ -331,10 +331,194 @@ textarea[aria-invalid="true"] {
 
 .pflicht {
   color: var(--wuerzburg-rot);
-  font-weight: 400;
+  font-weight: 700;
   margin-left: 0.05rem;
   font-size: 0.85em;
   vertical-align: top;
+}
+
+/* ===== Radio-Group (ja/nein nebeneinander) ===== */
+/* Würzburg-CI setzt label{display:block} — das brauchen wir hier weg,
+ * also per .radio-inline { display: inline-flex } gezielt überschreiben. */
+.radio-group {
+  border: none;
+  border-left: none;
+  padding: 0;
+  margin: 0 0 0.9rem;
+  background: transparent;
+}
+.radio-group-legend {
+  color: var(--wuerzburg-text);
+  font-weight: 600;
+  font-size: 0.88rem;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 0 0 0.35rem;
+  display: block;
+}
+.radio-inline {
+  display: inline-flex; /* override label { display: block } */
+  align-items: center;
+  gap: 0.4rem;
+  margin-right: 1.25rem;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+.radio-inline input[type="radio"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* ===== Bestätigungs-Checkbox (Step 6) ===== */
+.bestaetigung {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: var(--wuerzburg-text);
+}
+.bestaetigung input[type="checkbox"] {
+  width: auto;
+  margin-top: 0.2rem;
+}
+
+/* ===== Wochenplan-Tabelle ===== */
+.wochenplan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.wochenplan-table td {
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid var(--grey-line-light);
+  vertical-align: middle;
+}
+.wochenplan-table .wp-tag {
+  font-weight: 600;
+  width: 6rem;
+  white-space: nowrap;
+}
+.wochenplan-table .wp-zeit { width: 11rem; }
+.wochenplan-table input {
+  padding: 0.4rem 0.55rem;
+  font-size: 0.9rem;
+}
+
+/* ===== Flyer-Dropzone (Step 5) ===== */
+.flyer-dropzone {
+  display: block;
+  border: 2px dashed var(--grey-line);
+  border-radius: 3px;
+  padding: 1.25rem 1rem;
+  background: var(--grey-bg);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.flyer-dropzone:hover {
+  border-color: var(--wuerzburg-rot);
+  background: white;
+}
+.flyer-dropzone input[type="file"] {
+  margin-top: 0.5rem;
+}
+
+/* ===== Beleg-Rows (Step 4) ===== */
+.beleg-block { margin: 0 0 1.2rem; }
+.beleg-block-title {
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--wuerzburg-text);
+  font-size: 0.95rem;
+}
+.beleg-row {
+  display: grid;
+  grid-template-columns: 1fr 9rem auto auto;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.4rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--grey-line-light);
+  border-radius: 2px;
+  background: var(--grey-bg);
+}
+@media (max-width: 640px) {
+  .beleg-row { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+}
+.beleg-row input {
+  padding: 0.4rem 0.55rem;
+  font-size: 0.9rem;
+}
+.beleg-betrag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.beleg-betrag input { text-align: right; }
+.beleg-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.82rem;
+  border: 1px solid var(--grey-line);
+  background: white;
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--wuerzburg-rot);
+  margin: 0;
+}
+.beleg-upload:hover { background: rgba(173, 14, 54, 0.04); }
+.beleg-upload input[type="file"] { display: none; }
+.beleg-remove {
+  width: auto;
+  padding: 0.2rem 0.55rem;
+  background: transparent;
+  border: none;
+  color: var(--wuerzburg-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  font-weight: 400;
+}
+.beleg-remove:hover {
+  color: var(--error);
+  background: transparent;
+  border: none;
+}
+.beleg-add {
+  margin-top: 0.4rem;
+  background: transparent;
+  border: 1px dashed var(--wuerzburg-rot);
+  color: var(--wuerzburg-rot);
+  padding: 0.45rem 0.9rem;
+  border-radius: 2px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-weight: 600;
+  width: auto;
+}
+.beleg-add:hover {
+  background: rgba(173, 14, 54, 0.04);
+  color: var(--wuerzburg-rot);
+  border-color: var(--wuerzburg-rot);
+}
+.beleg-summe {
+  text-align: right;
+  font-weight: 600;
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--wuerzburg-text);
+}
+.gesamt-summe {
+  text-align: right;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-top: 2px solid var(--wuerzburg-rot);
+  padding-top: 0.7rem;
+  margin: 1rem 0 0;
+  color: var(--wuerzburg-text);
 }
 
 /* ===== Conditional Fields (per JS toggled) ===== */

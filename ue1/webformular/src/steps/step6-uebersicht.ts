@@ -1,130 +1,74 @@
 import type { Signal } from "../signals";
 import type { FormState } from "../types";
-import { formatEuro, formatAdresse } from "../format";
+import { isFormComplete } from "../state";
 import { t } from "../i18n";
 
+/**
+ * Step 6 — Senden.
+ * Im Long-Form-Layout sind alle Eingaben oben sichtbar — eine Pre-Submit-
+ * Übersicht wäre redundant. Hier nur noch:
+ *   - DSGVO-Bestätigung (Checkbox)
+ *   - Druckansicht-Button (window.print)
+ *   - Absenden-Button (disabled bis Form komplett + bestätigt)
+ */
 export function renderStep6(
   stateSig: Signal<FormState>,
   onSubmit: () => Promise<void>,
 ): HTMLElement {
-  const root = document.createElement("section");
-  root.className = "bg-white p-6 rounded-lg border border-slate-200";
+  const root = document.createElement("fieldset");
   root.dataset.section = "6";
 
-  const h = document.createElement("h2");
-  h.className = "text-lg font-semibold mb-4";
-  h.textContent = t("uebersicht.titel");
-  root.appendChild(h);
+  const legend = document.createElement("legend");
+  legend.textContent = t("stepper.6.titel");
+  root.appendChild(legend);
 
-  const list = document.createElement("div");
-  list.className = "space-y-4 text-sm";
-  root.appendChild(list);
-
-  const renderSummary = () => {
-    list.innerHTML = "";
-    const s = stateSig.value;
-    list.appendChild(sectionBlock(stateSig, 1, "Einrichtung & Träger", [
-      `${s.name} · ${s.traeger} · Haushaltsjahr ${s.haushaltsjahr}`,
-      formatAdresse(s.strasse, s.hausnummer, s.plz, s.ort),
-    ]));
-    list.appendChild(sectionBlock(stateSig, 2, "Kontakt & Bank", [
-      `${s.ansprechpartner} · ${s.telefon}`,
-      s.email,
-      `${s.bankverbindung} · ${s.iban}${s.bic ? " · " + s.bic : ""}`,
-    ]));
-    const wp = s.oeffnungszeiten
-      .filter((o) => o.oeffnungszeit.trim() || o.angebot.trim())
-      .map((o) => `${o.wochentag.toUpperCase()} ${o.oeffnungszeit} ${o.angebot}`)
-      .join(" · ");
-    list.appendChild(sectionBlock(stateSig, 3, "Öffnungszeiten", [wp || "—"]));
-    const sumByTyp = (typ: string) =>
-      s.belegpositionen.filter((b) => b.belegtyp === typ).reduce((acc, b) => acc + b.betrag_euro, 0);
-    const grand = s.belegpositionen.reduce((acc, b) => acc + b.betrag_euro, 0);
-    list.appendChild(sectionBlock(stateSig, 4, "Kosten", [
-      `Betriebskosten: ${formatEuro(sumByTyp("betriebskosten"))}`,
-      `Personalkosten: ${formatEuro(sumByTyp("personalkosten"))}`,
-      `Miete (Jahr): ${formatEuro(sumByTyp("miete"))}`,
-      `Gesamt: ${formatEuro(grand)}`,
-    ]));
-    list.appendChild(sectionBlock(stateSig, 5, "Anlage", [
-      s.programm_flyer?.name ?? "—",
-    ]));
-  };
-  renderSummary();
-  stateSig.subscribe(renderSummary);
-
-  const checkboxWrap = document.createElement("label");
-  checkboxWrap.className = "mt-6 flex items-start gap-2";
+  // Bestätigung-Checkbox
+  const checkWrap = document.createElement("label");
+  checkWrap.className = "bestaetigung";
   const cb = document.createElement("input");
   cb.type = "checkbox";
   cb.checked = stateSig.value.bestaetigt;
   cb.addEventListener("change", () => {
     stateSig.value = { ...stateSig.value, bestaetigt: cb.checked };
   });
-  checkboxWrap.appendChild(cb);
-  const cbLbl = document.createElement("span");
-  cbLbl.className = "text-sm";
-  cbLbl.textContent = t("uebersicht.bestaetigung");
-  checkboxWrap.appendChild(cbLbl);
-  root.appendChild(checkboxWrap);
+  checkWrap.appendChild(cb);
+  const span = document.createElement("span");
+  span.textContent = t("uebersicht.bestaetigung");
+  checkWrap.appendChild(span);
+  root.appendChild(checkWrap);
+
+  // Buttons
+  const actions = document.createElement("div");
+  actions.className = "actions";
+
+  const druckBtn = document.createElement("button");
+  druckBtn.type = "button";
+  druckBtn.textContent = t("form.button.drucken");
+  druckBtn.addEventListener("click", () => window.print());
+  actions.appendChild(druckBtn);
 
   const submitBtn = document.createElement("button");
-  submitBtn.type = "button";
-  submitBtn.className = "mt-4 w-full rounded-md bg-rose-700 px-4 py-2 text-white font-semibold hover:bg-rose-800 disabled:opacity-50";
+  submitBtn.type = "submit";
   submitBtn.textContent = t("form.button.absenden");
-  const updateBtn = () => {
-    submitBtn.disabled = !stateSig.value.bestaetigt;
+  const updateBtnState = () => {
+    submitBtn.disabled = !isFormComplete(stateSig.value);
   };
-  updateBtn();
-  stateSig.subscribe(updateBtn);
-  submitBtn.addEventListener("click", async () => {
+  updateBtnState();
+  stateSig.subscribe(updateBtnState);
+  submitBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
     submitBtn.disabled = true;
     submitBtn.textContent = "Wird gesendet …";
     try {
       await onSubmit();
-    } catch (e) {
+    } catch (err) {
       submitBtn.disabled = false;
       submitBtn.textContent = t("form.button.absenden");
-      alert("Fehler beim Absenden: " + (e as Error).message);
+      alert("Fehler beim Absenden: " + (err as Error).message);
     }
   });
-  root.appendChild(submitBtn);
+  actions.appendChild(submitBtn);
 
+  root.appendChild(actions);
   return root;
-}
-
-function sectionBlock(
-  stateSig: Signal<FormState>,
-  step: 1|2|3|4|5,
-  title: string,
-  lines: string[],
-): HTMLElement {
-  const wrap = document.createElement("div");
-  wrap.className = "border border-slate-200 rounded p-3";
-  const header = document.createElement("div");
-  header.className = "flex justify-between items-center mb-2";
-  const h = document.createElement("p");
-  h.className = "font-medium";
-  h.textContent = title;
-  header.appendChild(h);
-  const edit = document.createElement("button");
-  edit.type = "button";
-  edit.className = "text-xs text-blue-700 hover:underline";
-  edit.textContent = t("uebersicht.bearbeiten") + " →";
-  edit.addEventListener("click", () => {
-    // Long-Form-Layout: zur Section scrollen statt Step-Wechsel.
-    const target = document.querySelector(`[data-section="${step}"]`);
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  });
-  header.appendChild(edit);
-  wrap.appendChild(header);
-  for (const ln of lines) {
-    const p = document.createElement("p");
-    p.className = "text-xs text-slate-700";
-    p.textContent = ln;
-    wrap.appendChild(p);
-  }
-  return wrap;
 }

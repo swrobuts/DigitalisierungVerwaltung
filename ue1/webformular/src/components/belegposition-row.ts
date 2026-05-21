@@ -16,30 +16,35 @@ interface RowOptions {
   onRemove: () => void;
 }
 
+/**
+ * Eine Beleg-Zeile im Würzburg-CI-Stil:
+ *   [ Bezeichnung ............... ] [  0,00 € ] [ ⇡ Datei wählen ] [ × ]
+ * Layout per CSS-Grid in `.beleg-row`.
+ */
 export function renderBelegpositionRow(opts: RowOptions): HTMLElement {
   const row = document.createElement("div");
-  row.className =
-    "flex flex-wrap items-center gap-2 border border-slate-200 rounded p-2 mb-1";
+  row.className = "beleg-row";
 
   // Bezeichnung
   const bez = document.createElement("input");
+  bez.type = "text";
   bez.placeholder = t("belegposition.bezeichnung");
   bez.value = opts.position.bezeichnung;
-  bez.className =
-    "flex-1 min-w-[140px] rounded border border-slate-300 px-2 py-1 text-sm";
+  bez.className = "beleg-bezeichnung";
   bez.addEventListener("input", () =>
     opts.onChange({ ...opts.position, bezeichnung: bez.value }),
   );
   row.appendChild(bez);
 
-  // Betrag
+  // Betrag mit €-Suffix
+  const betragWrap = document.createElement("div");
+  betragWrap.className = "beleg-betrag";
   const betragInput = document.createElement("input");
+  betragInput.type = "text";
   betragInput.placeholder = "0,00";
   betragInput.value = opts.position.betrag_euro > 0
     ? formatEuro(opts.position.betrag_euro, false)
     : "";
-  betragInput.className =
-    "w-32 rounded border border-slate-300 px-2 py-1 text-sm text-right";
   betragInput.addEventListener("input", () => {
     const n = parseEuro(betragInput.value);
     opts.onChange({
@@ -47,27 +52,24 @@ export function renderBelegpositionRow(opts: RowOptions): HTMLElement {
       betrag_euro: Number.isNaN(n) ? 0 : n,
     });
   });
-  row.appendChild(betragInput);
+  betragWrap.appendChild(betragInput);
+  const eur = document.createElement("span");
+  eur.textContent = "€";
+  betragWrap.appendChild(eur);
+  row.appendChild(betragWrap);
 
-  const eurLabel = document.createElement("span");
-  eurLabel.textContent = "€";
-  eurLabel.className = "text-sm text-slate-500";
-  row.appendChild(eurLabel);
-
-  // File-Upload
+  // File-Upload (versteckter Input in <label>)
   const fileBtn = document.createElement("label");
-  fileBtn.className =
-    "inline-flex items-center gap-1 cursor-pointer rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50";
+  fileBtn.className = "beleg-upload";
   const fileInput = document.createElement("input");
   fileInput.type = "file";
   fileInput.accept = "application/pdf,image/jpeg,image/png";
-  fileInput.className = "hidden";
-  const labelText = document.createElement("span");
-  labelText.textContent = opts.position.file
-    ? `✓ ${opts.position.file.name}`
+  const lblText = document.createElement("span");
+  lblText.textContent = opts.position.file
+    ? "✓ " + opts.position.file.name
     : t("belegposition.hochladen");
   fileBtn.appendChild(fileInput);
-  fileBtn.appendChild(labelText);
+  fileBtn.appendChild(lblText);
   fileInput.addEventListener("change", async () => {
     const f = fileInput.files?.[0] ?? null;
     if (!f) return;
@@ -80,12 +82,12 @@ export function renderBelegpositionRow(opts: RowOptions): HTMLElement {
   });
   row.appendChild(fileBtn);
 
-  // Remove
+  // Entfernen
   const rm = document.createElement("button");
   rm.type = "button";
+  rm.className = "beleg-remove";
   rm.textContent = "×";
-  rm.className =
-    "ml-auto h-7 w-7 rounded text-slate-400 hover:bg-rose-50 hover:text-rose-600";
+  rm.title = t("belegposition.entfernen");
   rm.addEventListener("click", () => opts.onRemove());
   row.appendChild(rm);
 

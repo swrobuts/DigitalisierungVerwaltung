@@ -9,27 +9,23 @@ function uuid(): string {
 }
 
 export function renderStep4(stateSig: Signal<FormState>): HTMLElement {
-  const root = document.createElement("section");
-  root.className = "bg-white p-6 rounded-lg border border-slate-200";
+  const root = document.createElement("fieldset");
   root.dataset.section = "4";
 
-  const h = document.createElement("h2");
-  h.className = "text-lg font-semibold mb-4";
-  h.textContent = t("stepper.4.titel");
-  root.appendChild(h);
+  const legend = document.createElement("legend");
+  legend.textContent = t("stepper.4.titel");
+  root.appendChild(legend);
 
-  // Räume-Frage
-  const raeumeBlock = document.createElement("div");
-  raeumeBlock.className = "mb-6 space-y-2";
-  raeumeBlock.appendChild(makeRadio(stateSig, "raeume_vorhanden", t("form.label.raeumeVorhanden")));
-  raeumeBlock.appendChild(makeRadio(stateSig, "raeume_unentgeltlich", t("form.label.raeumeUnentgeltlich")));
-  root.appendChild(raeumeBlock);
+  // Räume-Frage (zwei Radio-Groups untereinander)
+  root.appendChild(makeRadio(stateSig, "raeume_vorhanden", t("form.label.raeumeVorhanden")));
+  root.appendChild(makeRadio(stateSig, "raeume_unentgeltlich", t("form.label.raeumeUnentgeltlich")));
 
   const renderTyp = (typ: Belegtyp, titel: string) => {
     const block = document.createElement("div");
-    block.className = "mb-6";
-    const h3 = document.createElement("h3");
-    h3.className = "font-medium mb-2";
+    block.className = "beleg-block";
+
+    const h3 = document.createElement("p");
+    h3.className = "beleg-block-title";
     h3.textContent = titel;
     block.appendChild(h3);
 
@@ -38,8 +34,8 @@ export function renderStep4(stateSig: Signal<FormState>): HTMLElement {
 
     const addBtn = document.createElement("button");
     addBtn.type = "button";
-    addBtn.className = "text-sm text-blue-700 hover:underline";
-    addBtn.textContent = t("belegposition.hinzufuegen");
+    addBtn.className = "beleg-add";
+    addBtn.textContent = "+ " + t("belegposition.hinzufuegen");
     addBtn.addEventListener("click", () => {
       const neu: BelegpositionEntry = {
         id: uuid(), belegtyp: typ, bezeichnung: "", betrag_euro: 0,
@@ -53,7 +49,7 @@ export function renderStep4(stateSig: Signal<FormState>): HTMLElement {
     block.appendChild(addBtn);
 
     const summe = document.createElement("p");
-    summe.className = "mt-2 text-right font-semibold text-sm";
+    summe.className = "beleg-summe";
     block.appendChild(summe);
 
     // Keyed-Rendering: nur bei Änderung der ID-Liste (Add/Remove) die Rows neu bauen.
@@ -105,7 +101,7 @@ export function renderStep4(stateSig: Signal<FormState>): HTMLElement {
   root.appendChild(renderTyp("personalkosten", "Personalkosten"));
 
   const total = document.createElement("p");
-  total.className = "mt-6 text-right text-lg font-bold border-t border-slate-300 pt-3";
+  total.className = "gesamt-summe";
   const updateTotal = () => {
     const sum = stateSig.value.belegpositionen.reduce((s, b) => s + b.betrag_euro, 0);
     total.textContent = `${t("summe.gesamt")}: ${formatEuro(sum)}`;
@@ -122,20 +118,25 @@ function makeRadio(
   key: "raeume_vorhanden" | "raeume_unentgeltlich",
   label: string,
 ): HTMLElement {
-  const wrap = document.createElement("div");
-  const lbl = document.createElement("p");
-  lbl.className = "text-sm font-medium mb-1";
-  lbl.textContent = label + " *";
+  const wrap = document.createElement("fieldset");
+  wrap.className = "radio-group";
+
+  const lbl = document.createElement("legend");
+  lbl.className = "radio-group-legend";
+  lbl.textContent = label;
+  const star = document.createElement("span");
+  star.className = "pflicht";
+  star.textContent = " *";
+  lbl.appendChild(star);
   wrap.appendChild(lbl);
 
   for (const opt of ["ja", "nein"] as const) {
     const r = document.createElement("label");
-    r.className = "inline-flex items-center mr-4 text-sm";
+    r.className = "radio-inline";
     const input = document.createElement("input");
     input.type = "radio";
     input.name = key;
     input.value = opt;
-    input.className = "mr-1";
     input.checked = stateSig.value[key] === opt;
     input.addEventListener("change", () => {
       stateSig.value = { ...stateSig.value, [key]: opt };
