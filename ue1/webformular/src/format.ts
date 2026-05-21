@@ -33,3 +33,18 @@ export function formatEuro(n: number, withCurrency = true): string {
   });
   return withCurrency ? `${num} €` : num;
 }
+
+/**
+ * Adresse zu einer einzeiligen Anzeige zusammenbauen ("Straße Hausnr, PLZ Ort").
+ * Leere Komponenten werden weggelassen, damit Half-filled-State nicht „, " zeigt.
+ */
+export function formatAdresse(
+  strasse: string,
+  hausnummer: string,
+  plz: string,
+  ort: string,
+): string {
+  const links = [strasse, hausnummer].filter((s) => s.trim().length > 0).join(" ");
+  const rechts = [plz, ort].filter((s) => s.trim().length > 0).join(" ");
+  return [links, rechts].filter((s) => s.length > 0).join(", ");
+}
