@@ -75,7 +75,12 @@ export function AntragDetail() {
         </div>
       </header>
 
-      <main className="w-full px-4 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Prozess-Indikator: zeigt, wo der Antrag im Workflow steht */}
+      <div className="w-full px-4 lg:px-8 pt-6">
+        <StatusFlow status={antrag.status} />
+      </div>
+
+      <main className="w-full px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* ═══════════════════ DOKUMENT (LINKS) ═══════════════════ */}
         <article className="lg:col-span-2 bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
           {/* Briefkopf */}
@@ -86,24 +91,25 @@ export function AntragDetail() {
             </div>
           </div>
 
-          {/* Titelblock */}
-          <div className="px-10 lg:px-14 pt-10 pb-8 border-b border-slate-200">
+          {/* Titelblock — Antrags-Klassifikation als Kategorie-Label, Einrichtungs-
+              name als visueller Anker (nicht der Antragstyp). */}
+          <div className="px-10 lg:px-14 pt-8 pb-6 border-b border-slate-200">
             <div className="flex flex-wrap items-start justify-between gap-6">
               <div className="min-w-0">
-                <div className="text-[11px] uppercase tracking-[0.2em] text-wue-rot font-semibold">
-                  Förderantrag
+                <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-medium">
+                  Förderantrag · Altentagesstätten APL 2
                 </div>
-                <h1 className="text-[26px] font-bold text-slate-900 mt-1 leading-tight">
-                  Altentagesstätten — APL 2
+                <h1 className="text-xl font-semibold text-slate-700 mt-0.5">
+                  Betriebs- und Personalkostenzuschuss
                 </h1>
-                <p className="text-sm text-slate-600 mt-1">
-                  Betriebs- und Personalkostenzuschuss · Haushaltsjahr{" "}
+                <p className="text-xs text-slate-500 mt-1">
+                  Haushaltsjahr{" "}
                   <span className="font-semibold text-slate-800 tabular-nums">{antrag.haushaltsjahr}</span>
                 </p>
               </div>
               <div className="text-right shrink-0 text-xs">
                 <div className="text-[11px] uppercase tracking-wider text-slate-500">Aktenzeichen</div>
-                <div className="font-mono text-[15px] font-semibold text-slate-900 mt-0.5">
+                <div className="font-mono text-sm font-semibold text-slate-900 mt-0.5">
                   {antrag.antragsnummer}
                 </div>
                 <div className="mt-2">
@@ -112,8 +118,8 @@ export function AntragDetail() {
               </div>
             </div>
 
-            {/* Einrichtungs-Block */}
-            <div className="mt-8 border-l-[3px] border-wue-rot pl-5">
+            {/* Einrichtungs-Block — DAS ist der visuelle Anker */}
+            <div className="mt-7 border-l-[3px] border-wue-rot pl-5">
               <div className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
                 Einrichtung
               </div>
@@ -140,7 +146,7 @@ export function AntragDetail() {
                 <DocField label="Telefon">
                   <a
                     href={`tel:${antrag.telefon.replace(/\s+/g, "")}`}
-                    className="text-wue-rot hover:text-wue-rot-dark hover:underline"
+                    className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2"
                   >
                     {antrag.telefon}
                   </a>
@@ -148,7 +154,7 @@ export function AntragDetail() {
                 <DocField label="E-Mail">
                   <a
                     href={`mailto:${antrag.email}`}
-                    className="text-wue-rot hover:text-wue-rot-dark hover:underline break-all"
+                    className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2 break-all"
                   >
                     {antrag.email}
                   </a>
@@ -344,7 +350,7 @@ function DocSection({
   return (
     <section>
       <div className="flex items-baseline gap-3 mb-5">
-        <span className="text-wue-rot font-bold text-base tabular-nums">{num}</span>
+        <span className="text-slate-400 font-semibold text-base tabular-nums">{num}</span>
         <h2 className="text-[15px] font-semibold text-slate-900 tracking-tight">{title}</h2>
         {subtitle && <span className="text-xs text-slate-500">— {subtitle}</span>}
       </div>
@@ -399,7 +405,7 @@ function YesNoBox({ checked, label }: { checked: boolean; label: string }) {
       <span
         className={
           checked
-            ? "inline-flex items-center justify-center w-4 h-4 border border-slate-800 bg-wue-rot text-white"
+            ? "inline-flex items-center justify-center w-4 h-4 border border-slate-900 bg-slate-900 text-white"
             : "inline-block w-4 h-4 border border-slate-400 bg-white"
         }
       >
@@ -479,8 +485,8 @@ function KostenTabelle({ items }: { items: Beleg[] }) {
               </tr>
             </Fragment>
           ))}
-          <tr className="border-t-2 border-wue-rot">
-            <td className="pt-2 text-[12px] uppercase tracking-wider text-wue-rot font-semibold">
+          <tr className="border-t-2 border-slate-800">
+            <td className="pt-2 text-[12px] uppercase tracking-wider text-slate-700 font-semibold">
               Gesamtsumme
             </td>
             <td></td>
@@ -557,4 +563,96 @@ function AnlagenListe({ anlagen }: { anlagen: AnlageRow[] }) {
 /** IBAN in 4er-Blöcke gruppieren für bessere Lesbarkeit. */
 function formatIban(iban: string): string {
   return iban.replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Prozess-Indikator
+// ─────────────────────────────────────────────────────────────────────
+
+type FlowStep = {
+  key: Status | "entschieden";
+  label: string;
+  /** Status-Werte, die diesen Schritt als „erreicht" markieren. */
+  matches: Status[];
+};
+
+const FLOW: FlowStep[] = [
+  { key: "eingegangen", label: "Eingegangen", matches: ["eingegangen"] },
+  { key: "in_pruefung", label: "In Prüfung", matches: ["in_pruefung", "rueckfrage"] },
+  { key: "entschieden", label: "Entscheidung", matches: ["bewilligt", "abgelehnt"] },
+];
+
+/**
+ * Horizontaler Prozess-Indikator über drei Phasen
+ * (Eingegangen → In Prüfung → Entscheidung). Spiegelt das tatsächliche
+ * Workflow-Statusmodell, Rückfrage zählt zur Prüfungsphase.
+ */
+function StatusFlow({ status }: { status: Status }) {
+  // Index des aktuellen Schritts bestimmen.
+  const currentIdx = FLOW.findIndex((s) => s.matches.includes(status));
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-sm shadow-sm px-6 lg:px-10 py-4">
+      <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-2">
+        <span>Bearbeitungsstand</span>
+        {status === "rueckfrage" && (
+          <span className="text-amber-700 normal-case tracking-normal text-[12px]">
+            ↩ Rückfrage offen
+          </span>
+        )}
+      </div>
+      <ol className="flex items-center gap-2">
+        {FLOW.map((step, idx) => {
+          const reached = idx <= currentIdx;
+          const current = idx === currentIdx;
+          return (
+            <Fragment key={step.key}>
+              <li className="flex items-center gap-3 flex-1 min-w-0">
+                <span
+                  className={
+                    current
+                      ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-wue-rot text-white text-[12px] font-semibold tabular-nums shadow-sm shrink-0"
+                      : reached
+                        ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-white text-[12px] font-semibold tabular-nums shrink-0"
+                        : "inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-300 bg-white text-slate-400 text-[12px] font-semibold tabular-nums shrink-0"
+                  }
+                  aria-current={current ? "step" : undefined}
+                >
+                  {idx + 1}
+                </span>
+                <div className="min-w-0">
+                  <div
+                    className={
+                      current
+                        ? "text-[13px] font-semibold text-slate-900 truncate"
+                        : reached
+                          ? "text-[13px] font-medium text-slate-700 truncate"
+                          : "text-[13px] text-slate-400 truncate"
+                    }
+                  >
+                    {step.label}
+                  </div>
+                  {current && (
+                    <div className="text-[11px] text-slate-500 truncate">
+                      {STATUS_LABELS[status]}
+                    </div>
+                  )}
+                </div>
+              </li>
+              {idx < FLOW.length - 1 && (
+                <span
+                  className={
+                    idx < currentIdx
+                      ? "h-px flex-1 bg-slate-800"
+                      : "h-px flex-1 bg-slate-200"
+                  }
+                  aria-hidden="true"
+                />
+              )}
+            </Fragment>
+          );
+        })}
+      </ol>
+    </div>
+  );
 }

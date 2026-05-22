@@ -11,7 +11,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANTS: Record<Variant, string> = {
-  default: "bg-wue-rot text-white hover:bg-wue-rot-dark",
+  // Default ist neutral (slate-900) — CI-Rot bewusst sparsam, nur für
+  // wirkliche Identitäts-/Aufmerksamkeitsmomente (Briefkopf, Statusfluss).
+  default: "bg-slate-900 text-white hover:bg-slate-800",
   outline: "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50",
   ghost: "bg-transparent text-slate-700 hover:bg-slate-100",
   secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200",
