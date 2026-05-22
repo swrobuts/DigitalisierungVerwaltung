@@ -210,121 +210,59 @@ def extract_page_texts(pdf_path: Path) -> list[str]:
 
 
 _STRUCTURE_SYSTEM_PROMPT = """Du bekommst den OCR-Text einer Förderrichtlinie der \
-Stadt Würzburg und strukturierst ihn als sauberen JSON-Tree.
+Stadt Würzburg und gibst sie als sauber strukturiertes Markdown zurück.
 
 REGELN:
-1. Identifiziere TOP-LEVEL-SECTIONS (level 1): "1 Vorwort", "2 Förderrichtlinie und \
-Förderbereiche", "3 Verfahren, Verwendungsnachweis, Prüfungsrechte der Stadt Würzburg", \
-"4 Schlussbemerkungen", "5 Anlagen und Formulare".
-2. Identifiziere UNTER-SECTIONS (level 2/3) im numerischen Format: "2.1 Förderbereich I", \
-"3.1 Antragsberechtigt", usw. Section-Nummern wie "3.1" sind KINDER von "3", NIEMALS Top-Level!
-3. OCR-Korrekturen die du anwenden musst:
+1. Top-Level-Sections als `# heading` (genau ein #):
+   - "# 1 Vorwort"
+   - "# 2 Förderrichtlinie und Förderbereiche"
+   - "# 3 Verfahren, Verwendungsnachweis, Prüfungsrechte der Stadt Würzburg"
+   - "# 4 Schlussbemerkungen"
+   - "# 5 Anlagen und Formulare"
+2. Unter-Sections im numerischen Format als `## heading` (zwei ##):
+   - "## 2.1 Förderbereich I — Aufbau von niedrigschwelligen Angeboten"
+   - "## 3.1 Antragsberechtigt"
+3. Sub-Sub-Sections als `### heading` (drei ###).
+4. OCR-Korrekturen anwenden:
    - "Förderbereich Il" → "Förderbereich II"
    - "Förderbereich Ill" → "Förderbereich III"
-   - "$ 71 SGB XII" → "§ 71 SGB XII" (Dollar-Zeichen fälschlich für Paragraph)
+   - "$ 71 SGB XII" → "§ 71 SGB XII"
    - "SGB X1I" → "SGB XII"
-4. Wenn ein Section-Titel mit "-" oder "—" endet, ziehe den Titel über die nächste Zeile \
-zusammen. Beispiel: "2.1 Förderbereich I -" gefolgt von "Aufbau von niedrigschwelligen \
-Angeboten" wird zu "2.1 Förderbereich I — Aufbau von niedrigschwelligen Angeboten".
-5. IGNORIERE komplett (weder Section noch Content):
-   - Inhaltsverzeichnis-Einträge (kurze Listen mit Seitenzahlen, meist auf S. 2-3)
-   - Bibliografie-/Fußnoten-Einträge ("1 Bundesministerium ... (2025). Neunter Altersbericht...")
-   - Wiederkehrende Footer ("Sozialreferat der Stadt Würzburg ... Karmelitenstraße 43, 97070 Würzburg")
+5. Wenn ein Section-Titel mit "-" oder "—" endet, ziehe den Titel über die \
+nächste Zeile zusammen.
+6. IGNORIERE komplett:
+   - Inhaltsverzeichnis-Einträge (kurze Listen mit Seitenzahlen, meist S. 2-3)
+   - Bibliografie-/Fußnoten-Einträge ("1 Bundesministerium ... (2025) ...")
+   - Wiederkehrende Footer ("Sozialreferat ... Karmelitenstraße 43, 97070 Würzburg")
    - Reine Seitenzahlen
-6. Content einer Section ist der FLIESSTEXT zwischen dem Titel und der nächsten Section. \
-Aufzählungen wie "a) ...", "b) ...", "1. ...", "2. ..." gehören IN den Content, NICHT als eigene \
-Sections.
-7. Output ist EIN einziger JSON-Tree, KEIN Markdown-Wrapping, KEINE Erklärung davor/danach.
+7. Content einer Section: Fließtext zwischen Heading und nächstem Heading. \
+Aufzählungen wie "a) ...", "b) ...", "1. ...", "2. ..." bleiben IM Fließtext stehen \
+(NICHT als eigene Headings ausgeben).
+8. Output: pures Markdown, kein Code-Block-Wrapping (```), keine Erklärung davor/danach.
 
-ID-SCHEMA:
-- root-Knoten: id="root"
-- "1 Vorwort": id="sec_1"
-- "3.1 Antragsberechtigt": id="sec_3_1"
-- "2.4 Förderbereich IV": id="sec_2_4"
+BEISPIEL:
 
-PATH-SCHEMA:
-- root-Knoten: path=""
-- "1 Vorwort": path="1"
-- "3.1 Antragsberechtigt": path="3.1"
+# 1 Vorwort
 
-OUTPUT-SCHEMA (exakt einhalten):
-{
-  "id": "root",
-  "title": "AHP-Förderrichtlinie",
-  "path": "",
-  "level": 0,
-  "content": "",
-  "children": [
-    {
-      "id": "sec_1",
-      "title": "1 Vorwort",
-      "path": "1",
-      "level": 1,
-      "content": "Demografischer Wandel...",
-      "children": []
-    },
-    {
-      "id": "sec_3",
-      "title": "3 Verfahren, Verwendungsnachweis, Prüfungsrechte der Stadt Würzburg",
-      "path": "3",
-      "level": 1,
-      "content": "Für die Antragstellung, Bewilligung und Auszahlung...",
-      "children": [
-        {
-          "id": "sec_3_1",
-          "title": "3.1 Antragsberechtigt",
-          "path": "3.1",
-          "level": 2,
-          "content": "sind Verbände, Gruppen und Initiativen...",
-          "children": []
-        }
-      ]
-    }
-  ]
-}
+Demografischer Wandel und seine Herausforderungen für Würzburg
 
-Beginne deine Antwort DIREKT mit dem öffnenden { — kein Markdown-Block, kein Vorwort."""
+Der demografische Wandel stellt die Kommunen ... (voller Fließtext)
 
+# 3 Verfahren, Verwendungsnachweis, Prüfungsrechte der Stadt Würzburg
 
-# Tool-Definition für die strukturierte Tree-Übergabe. Felder werden DIREKT
-# als Tool-Input erwartet (nicht in nested `tree`-Objekt verpackt) — sonst
-# umgeht Claude die Schema-Validierung und liefert {tree: "<json-string>"}.
-_SUBMIT_TREE_TOOL = {
-    "name": "submit_doctree",
-    "description": (
-        "Übergibt den strukturierten Doctree-Root-Knoten der AHP-"
-        "Förderrichtlinie. Die Tree-Felder sind flach als Tool-Input — die "
-        "rekursive Struktur entsteht über das `children`-Array."
-    ),
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "id": {"type": "string", "description": 'Stable-ID, root="root"'},
-            "title": {"type": "string", "description": "Anzeige-Titel der Section"},
-            "path": {
-                "type": "string",
-                "description": 'Breadcrumb-Path (leer bei root, z.B. "3.1")',
-            },
-            "level": {
-                "type": "integer",
-                "description": "0=root, 1=Top-Level (1 Vorwort), 2=Unterabschnitt (3.1)",
-            },
-            "content": {
-                "type": "string",
-                "description": "Fließtext der Section (ohne Kinder)",
-            },
-            "children": {
-                "type": "array",
-                "description": (
-                    "Liste der Unter-Sections. Jedes Element hat die "
-                    "gleiche Struktur {id, title, path, level, content, children}."
-                ),
-                "items": {"type": "object"},
-            },
-        },
-        "required": ["id", "title", "path", "level", "content", "children"],
-    },
-}
+Für die Antragstellung, Bewilligung und Auszahlung der Zuschüsse und für die \
+Zuschussrichtlinien gelten im Einzelnen folgende Regelungen:
+
+## 3.1 Antragsberechtigt
+
+sind Verbände, Gruppen und Initiativen der Seniorenarbeit ...
+
+## 3.2 Antragstellung
+
+a) Die Anträge sind auf den entsprechenden Formblättern fristgerecht ...
+b) Voraussetzungen für die Bearbeitung ...
+
+Beginne deine Antwort DIREKT mit der ersten `#`-Überschrift."""
 
 
 async def structure_with_claude(
@@ -335,9 +273,10 @@ async def structure_with_claude(
     """Strukturiert OCR-Volltexte einer Förderrichtlinie via Claude in einen
     sauberen hierarchischen Tree.
 
-    Nutzt Anthropic Tool-Use mit `submit_doctree`-Tool, damit der Response
-    garantiert wohlgeformtes JSON ist — sonst zerbricht das Parsing an
-    unescaped Anführungszeichen im OCR-Volltext.
+    Pipeline: Claude liefert Markdown (`#`/`##`/`###`-Headings) zurück,
+    wir parsen das robust in den Standard-Tree. Markdown ist robust gegen
+    unescaped Quotes im Section-Content — Tool-Use mit nested JSON-Arrays
+    zerbrach hier wiederholt.
 
     Args:
         pages: Liste der OCR-Volltexte pro Seite (Output von `extract_page_texts`).
@@ -346,10 +285,6 @@ async def structure_with_claude(
 
     Returns:
         Tree-Dict im Standard-Schema (id/title/path/level/content/children).
-
-    Raises:
-        RuntimeError: Wenn Claude das Tool nicht aufruft.
-        anthropic-Exceptions bei API-Fehlern.
     """
     full_text = "\n\n=== SEITENGRENZE ===\n\n".join(
         f"--- Seite {i + 1} ---\n{p}" for i, p in enumerate(pages)
@@ -358,41 +293,76 @@ async def structure_with_claude(
     response = await client.messages.create(
         model=model,
         max_tokens=16000,
-        system=_STRUCTURE_SYSTEM_PROMPT + (
-            "\n\nWICHTIG: Rufe das Tool `submit_doctree` mit dem Tree-JSON auf. "
-            "Schreibe keinen Text in die Antwort, nur den Tool-Call."
-        ),
-        tools=[_SUBMIT_TREE_TOOL],
-        tool_choice={"type": "tool", "name": "submit_doctree"},
+        system=_STRUCTURE_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": full_text}],
     )
-    for block in response.content:
-        if getattr(block, "type", "") == "tool_use" and block.name == "submit_doctree":
-            # block.input enthält bereits die Tree-Felder flach (id, title, …)
-            tree = block.input
-            # Defensiv: falls Claude entgegen Schema ein {tree: ...} eingeschachtelt
-            # hat, entpacken; falls als String — parsen
-            if "tree" in tree and isinstance(tree["tree"], (dict, str)):
-                t = tree["tree"]
-                tree = json.loads(t) if isinstance(t, str) else t
-            return _normalize_tree(tree)
-    raise RuntimeError(
-        f"Claude hat `submit_doctree` nicht aufgerufen. stop_reason={response.stop_reason}"
-    )
+    markdown = "".join(
+        block.text for block in response.content if getattr(block, "type", "") == "text"
+    ).strip()
+    # Defensiv: Falls Claude doch ein Code-Block-Wrapping benutzt, abstreifen
+    if markdown.startswith("```"):
+        markdown = markdown.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+    return md_to_tree(markdown)
 
 
-def _normalize_tree(node: Any) -> dict[str, Any]:
-    """Normalisiert Claude-Output: macht aus JSON-Strings echte Listen/Dicts.
+_MD_HEADING_RE = re.compile(r"^(#{1,4})\s+(.+?)\s*$")
+_MD_PATH_RE = re.compile(r"^([\d]+(?:\.[\d]+)*)\s+")
 
-    Anthropic Tool-Use validiert das input_schema nur shallow — verschachtelte
-    Listen mit `items: object` werden gelegentlich als JSON-String geliefert.
-    Diese Funktion entrollt rekursiv alle solchen Strings."""
-    if isinstance(node, str):
-        node = json.loads(node)
-    if not isinstance(node, dict):
-        return node
-    children = node.get("children", [])
-    if isinstance(children, str):
-        children = json.loads(children)
-    node["children"] = [_normalize_tree(c) for c in (children or [])]
-    return node
+
+def md_to_tree(markdown: str) -> dict[str, Any]:
+    """Parst Markdown mit `#`/`##`/`###`-Headings in den Standard-Tree.
+
+    Heading-Tiefe → `level`. Aus dem Heading-Text wird die `path`-Nummer
+    extrahiert (z.B. `## 3.1 Antragsberechtigt` → path=`3.1`, level=2).
+    Sektionen ohne erkennbare Nummerierung bekommen leere `path` und eine
+    fallback-ID auf Basis der Position.
+
+    Args:
+        markdown: Markdown-String, idealerweise von `structure_with_claude`.
+    """
+    root: dict[str, Any] = {
+        "id": "root",
+        "title": "AHP-Förderrichtlinie",
+        "path": "",
+        "level": 0,
+        "content": "",
+        "children": [],
+    }
+    # Stack: (heading_level, node) — heading_level entspricht der Anzahl #'s
+    stack: list[tuple[int, dict[str, Any]]] = [(0, root)]
+    fallback_idx = 0
+
+    for line in markdown.splitlines():
+        m = _MD_HEADING_RE.match(line)
+        if m:
+            heading_level = len(m.group(1))
+            title = m.group(2).strip()
+            pm = _MD_PATH_RE.match(title)
+            if pm:
+                path = pm.group(1).rstrip(".")
+                sec_id = "sec_" + path.replace(".", "_")
+            else:
+                fallback_idx += 1
+                path = ""
+                sec_id = f"sec_unnamed_{fallback_idx}"
+
+            node: dict[str, Any] = {
+                "id": sec_id,
+                "title": title,
+                "path": path,
+                "level": heading_level,
+                "content": "",
+                "children": [],
+            }
+            while stack and stack[-1][0] >= heading_level:
+                stack.pop()
+            (stack[-1] if stack else (0, root))[1]["children"].append(node)
+            stack.append((heading_level, node))
+        else:
+            text = line.strip()
+            if not text:
+                continue
+            top = stack[-1][1] if stack else root
+            top["content"] = (top["content"] + " " + text).strip()
+
+    return root
