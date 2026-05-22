@@ -160,7 +160,7 @@ export function PruefungsCard({ antragId }: { antragId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>🔍 KI-Prüfung</CardTitle>
+        <CardTitle>🔍 KI-Konformitätsprüfung</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <Button onClick={() => pruefen(email)} disabled={running} className="w-full">

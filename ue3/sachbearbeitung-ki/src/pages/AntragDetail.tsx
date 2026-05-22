@@ -311,9 +311,13 @@ export function AntragDetail() {
             des Dokuments sichtbar bleiben. Eigener Scroll-Container, falls
             der Inhalt höher als der Viewport wird (z.B. viele Befunde). */}
         <aside className="space-y-4 lg:sticky lg:top-[5.25rem] lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
+          {/* KI-Prüfung zuerst: primäres Werkzeug zur Diagnose.
+              Workflow/Status-Wechsel kommt erst NACH der Diagnose. */}
+          <PruefungsCard antragId={antrag.id} />
+
           <Card>
             <CardHeader>
-              <CardTitle>Aktionen</CardTitle>
+              <CardTitle>Workflow · Status-Wechsel</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {folgeStatus.length === 0 ? (
@@ -399,8 +403,6 @@ export function AntragDetail() {
               )}
             </CardContent>
           </Card>
-
-          <PruefungsCard antragId={antrag.id} />
 
           {bescheide.length > 0 && (
             <Card>
@@ -1296,7 +1298,10 @@ function StatusFlow({ status }: { status: Status }) {
                   >
                     {step.label}
                   </div>
-                  {current && (
+                  {/* Sub-Label nur wenn tatsächlicher Status anders als
+                      Step-Label (z.B. Step "In Prüfung" + Status "Rückfrage").
+                      Sonst entsteht die Doppelung Eingegangen/Eingegangen. */}
+                  {current && STATUS_LABELS[status] !== step.label && (
                     <div className="text-[11px] text-slate-500 truncate">
                       {STATUS_LABELS[status]}
                     </div>
