@@ -89,6 +89,9 @@ class Paket:
     raeume_vorhanden: str      # 'ja' | 'nein'
     raeume_unentgeltlich: str  # 'ja' | 'nein'
     antragsdatum: str          # YYYY-MM-DD
+    # Beantragte Fördersumme in EUR — wird gegen AHP 2.3.2 (10.000 €/Jahr) geprüft.
+    # None = nicht angegeben → Hinweis-Befund.
+    geforderte_foerdersumme_euro: float | None
 
     belege: list[Belegpos]
     oeffnungszeiten: list[Oeffnungszeit]
@@ -132,6 +135,7 @@ PAKETE: list[Paket] = [
         raeume_vorhanden="ja",
         raeume_unentgeltlich="nein",
         antragsdatum="2026-03-15",
+        geforderte_foerdersumme_euro=8500.00,
         miet_objekt="Pfarrsaal St. Albert, Erdgeschoss",
         vermieter="Bischöfliche Verwaltung Würzburg",
         miete_monat_euro=850.00,
@@ -187,6 +191,7 @@ PAKETE: list[Paket] = [
         raeume_vorhanden="ja",
         raeume_unentgeltlich="ja",
         antragsdatum="2026-03-22",
+        geforderte_foerdersumme_euro=4200.00,
         raum_geber="Stadt Würzburg / Sozialreferat — Stadtteilbüro Frauenland",
         belege=[
             Belegpos("personalkosten", "Honorar Kursleitung Gedächtnistraining (Frau EichingerTest)", 4800.00),
@@ -243,6 +248,7 @@ PAKETE: list[Paket] = [
         raeume_vorhanden="ja",
         raeume_unentgeltlich="nein",
         antragsdatum="2026-03-25",
+        geforderte_foerdersumme_euro=9800.00,
         miet_objekt="EG-Räume Klingenstraße 11 (ca. 95 m²)",
         vermieter="Wohnungsgenossenschaft Heidingsfeld eG",
         miete_monat_euro=620.00,
@@ -299,6 +305,8 @@ PAKETE: list[Paket] = [
         raeume_vorhanden="ja",
         raeume_unentgeltlich="nein",
         antragsdatum="2026-03-20",
+        # Bewusst über AHP-Cap 10.000 €/Jahr (2.3.2) → Layer-B-Verstoß
+        geforderte_foerdersumme_euro=12500.00,
         miet_objekt="Räume Kath. Pfarrgemeinde St. Burkard Versbach",
         vermieter="Kath. Pfarrgemeinde St. Burkard, Versbach",
         miete_monat_euro=380.00,
@@ -359,6 +367,7 @@ PAKETE: list[Paket] = [
         raeume_vorhanden="ja",
         raeume_unentgeltlich="nein",
         antragsdatum="2026-03-18",
+        geforderte_foerdersumme_euro=7500.00,
         miet_objekt="Gemeindezentrum Wittelsbacherstraße",
         vermieter="Evangelisch-Lutherische Kirchengemeinde Sanderau",
         miete_monat_euro=540.00,
@@ -429,6 +438,8 @@ PAKETE: list[Paket] = [
         raeume_unentgeltlich="nein",
         # Verfristet: nach AHP 3.3 Frist 1. April des Antragsjahres
         antragsdatum="2026-04-15",
+        # Bewusst weit über AHP-Cap 10.000 €/Jahr (2.3.2) → zusätzlicher Verstoß
+        geforderte_foerdersumme_euro=15000.00,
         miet_objekt="Geschäftsräume Industriestraße 38, 1. OG",
         vermieter="Klaus MüllerTest Immobilien GmbH & Co. KG",   # GF-Familienunternehmen!
         miete_monat_euro=1850.00,
@@ -556,18 +567,32 @@ def render_deckblatt(p: Paket, path: Path) -> None:
     ]))
     story.append(Spacer(1, 4 * mm))
 
-    # Block 4: Kostenpositionen
-    story.append(Paragraph("4 — Kostenpositionen (Jahresplanung)", H2))
+    # Block 4: Beantragte Fördersumme
+    story.append(Paragraph("4 — Beantragte Fördersumme", H2))
+    story.append(_kv_table([
+        (
+            "Geforderter Zuschuss (Jahr)",
+            euro(p.geforderte_foerdersumme_euro) if p.geforderte_foerdersumme_euro else "—",
+        ),
+        (
+            "Hinweis Förderhöchstgrenze",
+            "AHP 2.3.2 Begegnungszentren: bis 10.000 € pro Jahr",
+        ),
+    ]))
+    story.append(Spacer(1, 4 * mm))
+
+    # Block 5: Kostenpositionen
+    story.append(Paragraph("5 — Kostenpositionen (Jahresplanung)", H2))
     story.append(_belege_table(p.belege))
     story.append(Spacer(1, 4 * mm))
 
-    # Block 5: Öffnungszeiten
-    story.append(Paragraph("5 — Öffnungszeiten / Wochenplan", H2))
+    # Block 6: Öffnungszeiten
+    story.append(Paragraph("6 — Öffnungszeiten / Wochenplan", H2))
     story.append(_wochenplan_table(p.oeffnungszeiten))
     story.append(Spacer(1, 4 * mm))
 
-    # Block 6: Unterschrift
-    story.append(Paragraph("6 — Erklärung und Unterschrift", H2))
+    # Block 7: Unterschrift
+    story.append(Paragraph("7 — Erklärung und Unterschrift", H2))
     story.append(Paragraph(
         "Die Antragstellerin/der Antragsteller versichert die Richtigkeit "
         "und Vollständigkeit der Angaben.",
@@ -801,7 +826,8 @@ def render_seed_sql(pakete: list[Paket], path: Path) -> None:
             "bankverbindung", "iban", "bic",
             "ansprechpartner", "telefon", "email",
             "raeume_vorhanden", "raeume_unentgeltlich",
-            "antragsdatum", "submitted_language", "status",
+            "antragsdatum", "geforderte_foerdersumme_euro",
+            "submitted_language", "status",
         ]
         vals = [
             p.antrag_id, antragsnummer, p.haushaltsjahr, p.name, p.traeger,
@@ -809,7 +835,8 @@ def render_seed_sql(pakete: list[Paket], path: Path) -> None:
             p.bankverbindung, p.iban, p.bic,
             p.ansprechpartner, p.telefon, p.email,
             p.raeume_vorhanden, p.raeume_unentgeltlich,
-            p.antragsdatum, "de", "eingegangen",
+            p.antragsdatum, p.geforderte_foerdersumme_euro,
+            "de", "eingegangen",
         ]
         lines.append(
             "INSERT INTO antraege (" + ", ".join(cols) + ") VALUES ("

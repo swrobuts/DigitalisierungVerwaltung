@@ -20,6 +20,7 @@
   "raeume_vorhanden": "ja",
   "raeume_unentgeltlich": "ja",
   "antragsdatum": "2026-03-22",
+  "geforderte_foerdersumme_euro": 4200.0,
   "belege": [
     {
       "belegtyp": "personalkosten",

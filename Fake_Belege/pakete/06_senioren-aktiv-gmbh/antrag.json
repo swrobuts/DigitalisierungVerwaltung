@@ -20,6 +20,7 @@
   "raeume_vorhanden": "ja",
   "raeume_unentgeltlich": "nein",
   "antragsdatum": "2026-04-15",
+  "geforderte_foerdersumme_euro": 15000.0,
   "belege": [
     {
       "belegtyp": "miete",
