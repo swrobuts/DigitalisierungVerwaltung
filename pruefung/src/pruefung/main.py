@@ -193,20 +193,31 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
         or (tree_rows[0]["version"] if tree_rows else None)
     )
 
-    # 4) Befunde mit AHP-Wortlaut anreichern (nur Verstöße in den Bescheid,
-    #    Hinweise sind interne Sachbearbeiter-Notizen)
+    # 4) Befunde mit AHP-Wortlaut + Subsumtion anreichern.
+    #    Bei Bewilligung: ggf. Hinweise als Auflagen-Liste; bei Ablehnung:
+    #    Verstöße als rechtlich-strukturierte Begründungs-Punkte.
+    from pruefung.bescheid_subsumtion import build_subsumtion
     befunde_for_template: list[dict] = []
-    for b in befunde_raw:
-        if b.get("schwere") != "verstoss":
-            continue
+    # Bei Bewilligung: Hinweise sind interne Notizen, nicht im Bescheid.
+    # Bei Ablehnung/Rückfrage: ALLE Verstöße kommen in die Begründung,
+    # Hinweise zusätzlich als nachrichtliche Anmerkungen.
+    relevante = [
+        b for b in befunde_raw
+        if b.get("schwere") == "verstoss"
+        or (req.entscheidung != "bewilligt" and b.get("schwere") == "hinweis")
+    ]
+    for b in relevante:
         ahp_path = _extract_ahp_path(b.get("paragraph_ref"))
         ahp_node = _find_section_by_path(tree, ahp_path) if ahp_path else None
+        subs = build_subsumtion(b, antrag)
         befunde_for_template.append({
             "schwere": b.get("schwere"),
             "beschreibung": b.get("beschreibung", ""),
             "paragraph_ref": b.get("paragraph_ref"),
             "ahp_section_title": ahp_node.get("title") if ahp_node else None,
             "ahp_wortlaut": ahp_node.get("content") if ahp_node else None,
+            "sachverhalt": subs.get("sachverhalt"),
+            "wuerdigung": subs.get("wuerdigung"),
         })
 
     # 5) Bescheid-Datensatz anlegen (vor PDF, damit wir die ID kennen)
