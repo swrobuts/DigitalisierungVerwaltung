@@ -38,7 +38,44 @@ def derive_facts(antrag: dict) -> dict:
     facts["antragsfrist_eingehalten"] = _frist_eingehalten(
         antrag.get("antragsdatum"), antrag.get("haushaltsjahr"),
     )
+
+    # AHP 2.3.2 / 2.3.3: max. Auszahlung = Cap × Stadtbewohner-Anteil.
+    # Nur für Förderbereiche, deren AHP-Regel diese Skalierung vorsieht
+    # (Begegnungszentren, Bildungsträger). Andere → None (Regel feuert nicht).
+    facts["max_auszahlung_nach_anteil"] = _max_auszahlung_nach_anteil(
+        antrag.get("foerderbereich"),
+        antrag.get("stadtbewohner_anteil"),
+    )
     return facts
+
+
+# AHP-Caps pro Förderbereich (Quelle: Doctree-Version 2025-03-27, Kap. 2.3.x)
+_CAP_PRO_FOERDERBEREICH: dict[str, float] = {
+    "begegnungszentren": 10000.0,    # AHP 2.3.2
+    "bildungstraeger":    6000.0,    # AHP 2.3.3
+}
+
+
+def _max_auszahlung_nach_anteil(
+    foerderbereich: Any,
+    stadtbewohner_anteil: Any,
+) -> float | None:
+    """Berechnet Cap × Anteil für skalierende Förderbereiche (BZ, Bildung).
+
+    Returnt None wenn:
+    - foerderbereich nicht in {begegnungszentren, bildungstraeger}, oder
+    - stadtbewohner_anteil ist None (kann nicht berechnet werden — Hinweis-
+      Regel foerdersumme_angegeben deckt das separat ab).
+    """
+    if foerderbereich not in _CAP_PRO_FOERDERBEREICH:
+        return None
+    if stadtbewohner_anteil is None:
+        return None
+    try:
+        anteil = float(stadtbewohner_anteil)
+    except (ValueError, TypeError):
+        return None
+    return _CAP_PRO_FOERDERBEREICH[foerderbereich] * anteil
 
 
 def _frist_eingehalten(antragsdatum: Any, haushaltsjahr: Any) -> bool:

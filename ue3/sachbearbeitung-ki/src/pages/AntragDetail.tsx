@@ -167,6 +167,10 @@ export function AntragDetail() {
                 {formatAdresse(antrag.strasse, antrag.hausnummer, antrag.plz, antrag.ort)}
               </div>
             </div>
+
+            {/* Antrags-Summary: Beantragte Summe + Förderbereich + Cap-Status auf
+                einen Blick. Antwortet auf "Was ist die Antragssumme?" sofort. */}
+            <AntragSummaryStrip antrag={antrag} />
           </div>
 
           {/* §§ Abschnitte */}
@@ -250,9 +254,12 @@ export function AntragDetail() {
             <DocSection
               num="§ 5"
               title="Kostenpositionen (Jahresplanung)"
-              subtitle="Geplante Aufwendungen für das laufende Haushaltsjahr"
+              subtitle="Tätigkeitsnachweis — bei Pauschalförderung nicht direkt Förder-Treiber"
             >
-              <KostenTabelle items={belegpositionen} />
+              <KostenTabelle
+                items={belegpositionen}
+                pauschalHinweis={antrag.foerderbereich !== "struktur_schwerpunktfoerderung"}
+              />
             </DocSection>
 
             <DocSection num="§ 6" title="Wochenplan / Öffnungszeiten">
@@ -542,7 +549,13 @@ const BELEG_LABELS: Record<string, string> = {
   betriebskosten: "Betriebskosten",
 };
 
-function KostenTabelle({ items }: { items: Beleg[] }) {
+function KostenTabelle({
+  items,
+  pauschalHinweis = false,
+}: {
+  items: Beleg[];
+  pauschalHinweis?: boolean;
+}) {
   if (items.length === 0) {
     return <p className="text-sm text-slate-500 italic">Keine Kostenpositionen angegeben.</p>;
   }
@@ -557,6 +570,16 @@ function KostenTabelle({ items }: { items: Beleg[] }) {
 
   return (
     <div>
+      {pauschalHinweis && (
+        <div className="mb-3 text-xs text-slate-600 bg-slate-50 border-l-2 border-slate-400 px-3 py-2 rounded-r">
+          <span className="font-medium text-slate-800">Hinweis zur Förderlogik:</span>{" "}
+          Die hier aufgeführten Kostenpositionen sind <strong>Tätigkeits- und
+          Verwendungsnachweis</strong> nach AHP Kap. 3.8 — sie sind <strong>nicht</strong>{" "}
+          der Treiber der Förderhöhe. Begegnungszentren, Bildungsträger,
+          Seniorenkreise usw. werden <strong>pauschal nach AHP-Cap</strong>{" "}
+          gefördert (siehe § 4), nicht aufwandsbasiert.
+        </div>
+      )}
       <table className="w-full text-[14px]">
         <thead>
           <tr className="text-[10.5px] uppercase tracking-[0.12em] text-slate-500 font-medium">
@@ -715,6 +738,147 @@ function BescheidListItem({
   );
 }
 
+/** Antrags-Summary-Streifen direkt unter dem Hero — beantwortet auf einen
+ * Blick: "Was ist die Antragssumme?" und "Steht sie im Cap-Verhältnis?" */
+function AntragSummaryStrip({ antrag }: { antrag: AntragFull }) {
+  const meta = foerderbereichMeta(antrag.foerderbereich);
+  const wert = antrag.geforderte_foerdersumme_euro;
+  if (wert === null || wert === undefined) {
+    return (
+      <div className="mt-6 bg-slate-50 border border-slate-200 rounded-sm px-5 py-3 text-sm text-slate-500 italic">
+        Beantragte Fördersumme nicht angegeben — bitte vom Antragsteller nachfordern.
+      </div>
+    );
+  }
+  const cap = meta?.cap ?? null;
+  const ueber = cap !== null && wert > cap;
+  return (
+    <div
+      className={
+        "mt-6 grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 border rounded-sm px-5 py-4 " +
+        (ueber
+          ? "bg-wue-rot-soft/40 border-wue-rot/40"
+          : "bg-slate-50 border-slate-200")
+      }
+    >
+      <div>
+        <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500 font-medium">
+          Beantragte Förderung (Jahr)
+        </div>
+        <div
+          className={
+            "text-3xl font-bold tabular-nums leading-tight mt-0.5 " +
+            (ueber ? "text-wue-rot" : "text-slate-900")
+          }
+        >
+          {formatEuro(wert)}
+        </div>
+      </div>
+      <div className="sm:border-l sm:border-slate-300 sm:pl-4 flex flex-col justify-center">
+        {meta ? (
+          <>
+            <div className="text-sm text-slate-700">
+              <span className="font-medium">{meta.label}</span>
+            </div>
+            {cap !== null && (
+              <div className="text-xs text-slate-500 mt-1">
+                {meta.ahpPath}: Cap {formatEuro(cap)}/Jahr
+                {ueber && (
+                  <span className="ml-2 text-wue-rot font-medium">
+                    · überschritten um {formatEuro(wert - cap)}
+                  </span>
+                )}
+              </div>
+            )}
+            {cap === null && (
+              <div className="text-xs text-slate-500 mt-1">
+                {meta.ahpPath}: keine Cap, Einzelfallentscheid Sozialausschuss
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-xs text-slate-500 italic">
+            Kein Förderbereich klassifiziert — Cap nicht bestimmbar.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Zeigt den Rechenweg Cap × Stadtbewohner-Anteil = max. Auszahlung
+ * (nur für anteilsskalierte Förderbereiche: BZ, Bildungsträger nach
+ * AHP 2.3.2/2.3.3). Markiert ob die Forderung im Rahmen liegt. */
+function KalkulationsFormel({
+  antrag, meta,
+}: {
+  antrag: AntragFull;
+  meta: FoerderbereichMeta | null;
+}) {
+  // Nur für BZ + Bildungsträger relevant
+  if (
+    !meta ||
+    !meta.cap ||
+    (antrag.foerderbereich !== "begegnungszentren" &&
+      antrag.foerderbereich !== "bildungstraeger")
+  ) {
+    return null;
+  }
+  const anteil = antrag.stadtbewohner_anteil;
+  const wert = antrag.geforderte_foerdersumme_euro;
+  if (anteil === null || anteil === undefined) {
+    return (
+      <div className="bg-slate-50 border-l-2 border-slate-300 px-4 py-3 text-xs text-slate-600">
+        <div className="font-medium text-slate-700 mb-1">Auszahlungs-Kalkulation</div>
+        Cap × Stadtbewohner-Anteil = max. Auszahlung (AHP {meta.ahpPath}). Da der
+        Anteil aktuell nicht erfasst ist, kann die anteilige Cap nicht berechnet
+        werden — Sachbearbeiter prüft.
+      </div>
+    );
+  }
+  const maxAuszahlung = meta.cap * anteil;
+  const innerhalb = wert !== null && wert <= maxAuszahlung + 0.005;
+  return (
+    <div
+      className={
+        "border-l-2 px-4 py-3 " +
+        (innerhalb
+          ? "bg-slate-50 border-slate-400"
+          : "bg-wue-rot-soft/40 border-wue-rot")
+      }
+    >
+      <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-2">
+        Auszahlungs-Kalkulation (AHP {meta.ahpPath})
+      </div>
+      <div className="flex items-baseline gap-2 flex-wrap text-sm tabular-nums">
+        <span className="text-slate-700">{formatEuro(meta.cap)}</span>
+        <span className="text-slate-400">×</span>
+        <span className="text-slate-700">{Math.round(anteil * 100)} %</span>
+        <span className="text-slate-400">=</span>
+        <span className="text-slate-900 font-bold">{formatEuro(maxAuszahlung)}</span>
+        <span className="text-xs text-slate-500 ml-1">max. Auszahlung</span>
+      </div>
+      {wert !== null && (
+        <div className="mt-2 text-xs">
+          {innerhalb ? (
+            <span className="text-slate-600">
+              Forderung {formatEuro(wert)} liegt {wert === maxAuszahlung ? "auf" : "innerhalb"} dieser Berechnung
+              {wert < maxAuszahlung &&
+                ` (${formatEuro(maxAuszahlung - wert)} unter dem Maximum)`}
+              .
+            </span>
+          ) : (
+            <span className="text-wue-rot font-medium">
+              ✖ Forderung {formatEuro(wert)} übersteigt die anteilig berechnete
+              Höchstauszahlung um {formatEuro(wert - maxAuszahlung)}.
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Komplette § 4-Anzeige: Förderbereich-Pill, Fördersumme + Cap, Skalierungs-
  * Kennzahlen, Pflichtangaben — alles kontextsensitiv je nach Förderbereich. */
 function FoerderblockKomplett({ antrag }: { antrag: AntragFull }) {
@@ -747,6 +911,9 @@ function FoerderblockKomplett({ antrag }: { antrag: AntragFull }) {
         cap={meta?.cap ?? null}
         capLabel={meta?.ahpPath ?? null}
       />
+
+      {/* (2b) Kalkulationsformel — nur wenn Förderbereich anteilsskaliert */}
+      <KalkulationsFormel antrag={antrag} meta={meta} />
 
       {/* (3) Skalierungs-Kennzahlen (kontextsensitiv) */}
       <KennzahlenBlock antrag={antrag} meta={meta} />
