@@ -20,7 +20,31 @@ from typing import Any
 import pypdfium2 as pdfium
 import pytesseract
 
-SECTION_RE = re.compile(r"^\s*§\s*(\d+(?:\.\d+)*)\s+(.+?)$")
+# Section-Heading-Patterns (mehrere unterstützt):
+#   Form A: "§ 4.2.1 Titel"  (klassische juristische Form)
+#   Form B: "4.2.1 Titel"    (numerische Gliederung, AHP-Stil)
+#   Form C: "4.2.1. Titel"   (numerische Gliederung mit Punkt am Ende)
+SECTION_RE_PARAGRAPH = re.compile(r"^\s*§\s*(\d+(?:\.\d+)*)\s+(.+?)$")
+SECTION_RE_NUMERIC = re.compile(r"^\s*(\d+(?:\.\d+)*)\.?\s+([A-ZÄÖÜ][\wäöüÄÖÜß\s,\-/&():.]{2,})$")
+
+# Zeilen, die NUR aus Ziffern bestehen (links stehende Zeilennummern in vielen
+# kommunalen Beschluss-PDFs) — werden ignoriert.
+LINENUMBER_RE = re.compile(r"^\s*\d{1,4}\s*$")
+
+
+def _match_section(line: str) -> tuple[str, str] | None:
+    """Versucht beide Heading-Pattern. Returnt (num, title) oder None."""
+    m = SECTION_RE_PARAGRAPH.match(line)
+    if m:
+        return m.group(1), m.group(2).strip()
+    m = SECTION_RE_NUMERIC.match(line)
+    if m:
+        return m.group(1), m.group(2).strip()
+    return None
+
+
+# Backward-Compat (für bestehende Tests, die SECTION_RE importieren).
+SECTION_RE = SECTION_RE_PARAGRAPH
 
 
 def extract_text_blocks(pdf_path: Path) -> list[dict[str, Any]]:
@@ -54,7 +78,10 @@ def extract_text_blocks(pdf_path: Path) -> list[dict[str, Any]]:
                 line = raw_line.strip()
                 if not line:
                     continue
-                is_section = bool(SECTION_RE.match(line))
+                # Zeilennummern (1-4 Ziffern allein in der Zeile) sind Noise
+                if LINENUMBER_RE.match(line):
+                    continue
+                is_section = _match_section(line) is not None
                 blocks.append({
                     "text": line,
                     "size": 14 if is_section else 11,
@@ -84,12 +111,15 @@ def build_tree(blocks: list[dict[str, Any]]) -> dict[str, Any]:
     stack: list[tuple[int, dict]] = [(0, root)]
 
     for blk in blocks:
-        m = SECTION_RE.match(blk["text"])
+        m = _match_section(blk["text"])
         if m:
-            num = m.group(1)               # z.B. "4.2.1"
-            title_rest = m.group(2).strip()
-            path = f"§ {num}"
-            title = f"§ {num} {title_rest}"
+            num, title_rest = m
+            # Pfad-Präfix richtet sich nach dem Pattern: § N für juristisch,
+            # nackte Nummer für numerische Gliederung. Heuristik: wenn die
+            # Original-Zeile mit "§" beginnt → "§", sonst nackt.
+            prefix = "§" if blk["text"].lstrip().startswith("§") else ""
+            path = f"{prefix} {num}".strip() if prefix else num
+            title = f"{path} {title_rest}".strip()
             level = num.count(".") + 1
 
             # Pop bis Parent-Level < current
