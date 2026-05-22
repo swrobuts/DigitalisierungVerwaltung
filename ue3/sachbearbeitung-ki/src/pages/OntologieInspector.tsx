@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, FileSearch, FileCheck2, AlertTriangle } from "lucide-react";
 import { useOntologie } from "../hooks/useOntologie";
@@ -91,7 +92,7 @@ function RuleGroup({
 }: {
   title: string;
   subtitle: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   rules: ReturnType<typeof useOntologie>["rules"];
 }) {
   if (rules.length === 0) {

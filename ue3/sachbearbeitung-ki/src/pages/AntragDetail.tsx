@@ -406,7 +406,7 @@ export function AntragDetail() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {bescheide.map((b) => (
-                  <BescheidRow
+                  <BescheidListItem
                     key={b.id}
                     bescheid={b}
                     onOpen={() => b.pdf_storage_path && openBescheidPdf(b.pdf_storage_path)}
@@ -662,7 +662,7 @@ function formatIban(iban: string): string {
 }
 
 /** Eine Zeile in der Bescheide-Card mit Entscheidung, Datum, Summe + Download. */
-function BescheidRow({
+function BescheidListItem({
   bescheid, onOpen,
 }: {
   bescheid: BescheidRow;
