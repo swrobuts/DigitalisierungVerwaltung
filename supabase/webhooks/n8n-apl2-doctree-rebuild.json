@@ -1,0 +1,44 @@
+{
+  "name": "APL2 — Doc-Tree monatlich neu bauen",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-1",
+      "name": "Monatlich 1. um 03:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://pruefung-service:8000/api/rebuild-doctree",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "rebuild-1",
+      "name": "Rebuild Doctree",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    }
+  ],
+  "connections": {
+    "Monatlich 1. um 03:00": {
+      "main": [[{ "node": "Rebuild Doctree", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

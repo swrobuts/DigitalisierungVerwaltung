@@ -1,0 +1,67 @@
+{
+  "name": "APL2 — Prüfung Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "apl2-pruefung",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wh-1",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300],
+      "webhookId": "apl2-pruefung"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://pruefung-service:8000/api/pruefen",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"antrag_id\": \"{{ $json.body.antrag_id }}\",\n  \"geprueft_von\": \"{{ $json.body.geprueft_von }}\"\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "pruefen-1",
+      "name": "Pruefen Endpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://pruefung-service:8000/api/pdf",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "protokoll_id", "value": "={{ $json.protokoll_id }}" }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "pdf-1",
+      "name": "PDF Endpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Pruefen Endpoint", "type": "main", "index": 0 }]]
+    },
+    "Pruefen Endpoint": {
+      "main": [[{ "node": "PDF Endpoint", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
