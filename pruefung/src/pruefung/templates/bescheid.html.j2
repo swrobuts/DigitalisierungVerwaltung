@@ -154,6 +154,23 @@
     margin-top: 1mm;
   }
 
+  /* ── Sachverhalt-Tabelle (geprüfte Antragsdaten) ───────────────── */
+  .kv-label {
+    color: #555;
+    font-size: 8.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 1.2mm 4mm 1.2mm 0;
+    width: 50mm;
+    vertical-align: top;
+    border-bottom: 0.25pt solid #eee;
+  }
+  .kv-value {
+    color: #1a1a1a;
+    padding: 1.2mm 0;
+    border-bottom: 0.25pt solid #eee;
+  }
+
   /* ── Auflagen (Bewilligung) ─────────────────────────────────────── */
   .auflagen ol { padding-left: 5mm; }
   .auflagen li { margin-bottom: 2mm; }
@@ -232,13 +249,27 @@
 
 {# ── Briefkopf ───────────────────────────────────────────────────── #}
 <div class="briefkopf">
-  {# SVG-Logo: stilisiertes Schild-Symbol (kein Original-Stadtwappen). #}
+  {# Stadt-Würzburg-Wappen-Andeutung: oberer Teil mit 3 roten Frankenrechen-
+     Spitzen auf silber, unterer Teil blauer Schild mit goldener Banner-Linie.
+     Wir vermeiden eine 1:1-Kopie des amtlichen Hoheitszeichens; das hier ist
+     eine stilisierte Annäherung an die Wappenelemente. #}
   <svg class="logo" viewBox="0 0 64 88" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M4 4 H60 V52 Q60 78 32 84 Q4 78 4 52 Z" fill="#AD0E36" stroke="#7A0826" stroke-width="1.5"/>
-    <path d="M4 4 H60 V18 H4 Z" fill="#7A0826"/>
-    <text x="32" y="50" font-family="Georgia, serif" font-size="32" font-weight="700"
-          text-anchor="middle" fill="#FFFFFF">W</text>
-    <path d="M14 64 L32 76 L50 64" fill="none" stroke="#FFFFFF" stroke-width="1.5"/>
+    {# Schild-Outline #}
+    <path d="M4 4 H60 V52 Q60 78 32 84 Q4 78 4 52 Z"
+          fill="#FFFFFF" stroke="#1a1a1a" stroke-width="1.5"/>
+    {# Oberer silberner Bereich (Frankenrechen-Feld) — durch Linie abgesetzt #}
+    <line x1="4" y1="36" x2="60" y2="36" stroke="#1a1a1a" stroke-width="1"/>
+    {# 3 rote Frankenrechen-Spitzen #}
+    <path d="M10 32 L17 8 L24 32 Z" fill="#AD0E36" stroke="#7A0826" stroke-width="0.8"/>
+    <path d="M25 32 L32 8 L39 32 Z" fill="#AD0E36" stroke="#7A0826" stroke-width="0.8"/>
+    <path d="M40 32 L47 8 L54 32 Z" fill="#AD0E36" stroke="#7A0826" stroke-width="0.8"/>
+    {# Unterer blauer Bereich (Würzburg-Banner) #}
+    <path d="M4 36 H60 V52 Q60 78 32 84 Q4 78 4 52 Z" fill="#1E3A8A"/>
+    {# Goldenes Banner-Element #}
+    <rect x="10" y="56" width="44" height="3" fill="#D4AF37"/>
+    <text x="32" y="74" font-family="Georgia, serif" font-size="14"
+          font-weight="700" text-anchor="middle" fill="#D4AF37"
+          letter-spacing="2">WÜ</text>
   </svg>
   <div class="absender">
     <div class="stadt">STADT WÜRZBURG</div>
@@ -307,25 +338,82 @@
   {% endif %}
 </div>
 
-{# ── Begründung mit Subsumtion ─────────────────────────────────── #}
+{# ── I. Sachverhalt: geprüfte Antragsdaten als Übersicht ──────── #}
+{% if entscheidung != 'bewilligt' %}
+<h2>I. Sachverhalt</h2>
+<p>
+  Folgende Antragsdaten lagen der Prüfung zugrunde:
+</p>
+<table style="width: 100%; border-collapse: collapse; font-size: 9.5pt; margin: 3mm 0 5mm 0;">
+  <tbody>
+    <tr><td class="kv-label">Aktenzeichen</td>
+        <td class="kv-value"><span style="font-family:monospace;">{{ antrag.antragsnummer }}</span></td></tr>
+    <tr><td class="kv-label">Antragsdatum</td>
+        <td class="kv-value">{{ format_date(antrag.antragsdatum) }}</td></tr>
+    <tr><td class="kv-label">Haushaltsjahr</td>
+        <td class="kv-value">{{ antrag.haushaltsjahr }}</td></tr>
+    <tr><td class="kv-label">Träger</td>
+        <td class="kv-value">{{ antrag.traeger }}</td></tr>
+    <tr><td class="kv-label">Einrichtung</td>
+        <td class="kv-value">{{ antrag.name }}</td></tr>
+    <tr><td class="kv-label">Sitz</td>
+        <td class="kv-value">{{ antrag.strasse }} {{ antrag.hausnummer }}, {{ antrag.plz }} {{ antrag.ort }}</td></tr>
+    <tr><td class="kv-label">Bankverbindung</td>
+        <td class="kv-value">{{ antrag.bankverbindung }} · IBAN {{ antrag.iban }}</td></tr>
+    {% if antrag.foerderbereich %}
+    <tr><td class="kv-label">Förderbereich (laut Antrag)</td>
+        <td class="kv-value">{{ antrag.foerderbereich }}</td></tr>
+    {% endif %}
+    {% if antrag.geforderte_foerdersumme_euro is not none %}
+    <tr><td class="kv-label">Geforderte Fördersumme</td>
+        <td class="kv-value" style="font-weight: 600;">{{ format_euro(antrag.geforderte_foerdersumme_euro) }} / Jahr</td></tr>
+    {% endif %}
+    {% if antrag.stadtbewohner_anteil is not none %}
+    <tr><td class="kv-label">Anteil Würzburger Teilnehmer</td>
+        <td class="kv-value">{{ (antrag.stadtbewohner_anteil * 100) | round(0) | int }} %</td></tr>
+    {% endif %}
+  </tbody>
+</table>
+
+{# ── II. Prüf-Procedere ─────────────────────────────────────────── #}
+<h2>II. Durchgeführte Prüfung</h2>
+<p>
+  Der Antrag wurde am {{ format_date(ausgestellt_am) }} durch das Sozialreferat
+  einer dreistufigen Prüfung gegen die AHP-Förderrichtlinie der Stadt Würzburg
+  (Beschluss vom 27.03.2025, Doctree-Version {{ doctree_version }}) unterzogen:
+</p>
+<ol style="margin: 2mm 0 4mm 5mm; font-size: 10pt;">
+  <li><strong>Formal-strukturelle Prüfung</strong> — Vollständigkeit + technische
+    Validität (IBAN-Prüfziffer nach ISO 13616, Postleitzahl-Format, E-Mail-Format,
+    Plausibilität Haushaltsjahr).</li>
+  <li><strong>Inhaltliche Konformitätsprüfung (Ontologie)</strong> — Abgleich
+    aller AHP-belegten Cap-Regeln, Fristen, Anteilskalkulationen und
+    Pflichtangaben gegen die Antragswerte.</li>
+  <li><strong>Wortlaut-basierte AHP-Prüfung</strong> — KI-gestützter Abgleich
+    gegen den Volltext der AHP-Richtlinie (Doctree-Navigation + semantische
+    Suche).</li>
+</ol>
+
+{% if geprueft_gegen and geprueft_gegen | length > 0 %}
+<p style="font-size: 9.5pt; color: #444;">
+  Geprüft wurde gegen folgende AHP-Stellen:
+  {% for ref in geprueft_gegen %}<span style="font-family: monospace; font-size: 9pt; background: #f1f1f1; padding: 0.5mm 1.5mm; margin-right: 1mm; border-radius: 2px;">{{ ref }}</span>{% endfor %}
+</p>
+{% endif %}
+{% endif %}
+
+{# ── III. Begründung mit Subsumtion ─────────────────────────────── #}
 {% set verstoesse = befunde | selectattr("schwere", "equalto", "verstoss") | list %}
-{% set hinweise   = befunde | selectattr("schwere", "equalto", "hinweis")   | list %}
 
 {% if verstoesse | length > 0 %}
-<h2>Begründung</h2>
+<h2>{% if entscheidung != 'bewilligt' %}III. {% endif %}Rechtliche Würdigung — festgestellte Verstöße</h2>
 
 {% if entscheidung == 'abgelehnt' %}
 <p>
-  Die Ablehnung stützt sich auf die nachfolgend dargestellten Verstöße gegen
-  Bestimmungen der AHP-Förderrichtlinie 2025-03-27 (Doctree-Version
-  {{ doctree_version }}). Die Prüfung erfolgte unter Anwendung der formalen
-  und materiellen Voraussetzungen der Förderrichtlinie auf den eingereichten
-  Antrag.
-</p>
-{% elif entscheidung == 'bewilligt' %}
-<p>
-  Die Bewilligung erfolgt mit folgenden nachrichtlichen Anmerkungen, die im
-  Verfahren festgestellt wurden:
+  Die Ablehnung stützt sich auf {{ verstoesse | length }} Verstoß{% if verstoesse | length > 1 %}/Verstöße{% endif %}
+  gegen Bestimmungen der AHP-Förderrichtlinie. Jeder Befund wird im Folgenden
+  einzeln dargelegt — bestehend aus dem konkreten Sachverhalt, dem wörtlichen
+  Auszug der einschlägigen Norm, sowie der rechtlichen Würdigung:
 </p>
 {% else %}
 <p>
@@ -342,21 +430,21 @@
 
   {% if b.sachverhalt %}
   <div class="feld">
-    <span class="feld-label">Sachverhalt</span>
+    <span class="feld-label">Sachverhalt im Einzelnen</span>
     {{ b.sachverhalt }}
   </div>
   {% endif %}
 
   {% if b.ahp_wortlaut %}
   <div class="feld">
-    <span class="feld-label">Rechtsgrundlage{% if b.paragraph_ref %} · {{ b.paragraph_ref }}{% endif %}</span>
+    <span class="feld-label">Rechtsgrundlage · Wortlaut{% if b.paragraph_ref %} · {{ b.paragraph_ref }}{% endif %}</span>
     <div class="norm-zitat">{{ b.ahp_wortlaut }}</div>
   </div>
   {% endif %}
 
   {% if b.wuerdigung %}
   <div class="feld">
-    <span class="feld-label">Würdigung</span>
+    <span class="feld-label">Rechtliche Würdigung</span>
     {{ b.wuerdigung }}
   </div>
   {% endif %}
@@ -364,25 +452,9 @@
 {% endfor %}
 {% endif %}
 
-{% if hinweise | length > 0 and entscheidung != 'bewilligt' %}
-<h2>Weitere Hinweise zur Bearbeitung</h2>
-<p style="font-size: 9.5pt; color: #444;">
-  Die folgenden Punkte sind keine Ablehnungsgründe, sondern Empfehlungen der
-  Sachbearbeitung bzw. Hinweise auf Sondertatbestände:
-</p>
-{% for b in hinweise %}
-<div class="begruendung-item hinweis">
-  <div class="titel">
-    {{ b.beschreibung }}
-    {% if b.paragraph_ref %}<span style="font-weight:400; color:#666; font-size:9pt;"> · {{ b.paragraph_ref }}</span>{% endif %}
-  </div>
-</div>
-{% endfor %}
-{% endif %}
-
-{# ── Auflagen bei Bewilligung ──────────────────────────────────── #}
+{# ── IV. Auflagen bei Bewilligung ─────────────────────────────── #}
 {% if entscheidung == 'bewilligt' %}
-<h2>Auflagen und Hinweise</h2>
+<h2>Auflagen zur Mittelverwendung</h2>
 <div class="auflagen">
   <ol>
     <li>
@@ -414,12 +486,23 @@
 </div>
 {% endif %}
 
-{# ── Konsequenz bei Ablehnung ──────────────────────────────────── #}
+{# ── IV. Konsequenz bei Ablehnung ─────────────────────────────── #}
 {% if entscheidung == 'abgelehnt' %}
-<p style="margin-top: 5mm;">
-  Auf Grund der oben dargestellten Verstöße ist der Antrag aus den genannten
-  rechtlichen Gründen abzulehnen. Ein Bewilligungsanspruch besteht im
-  Übrigen auch grundsätzlich nicht (AHP Kap. 3.4 Bewilligung).
+<h2>IV. Entscheidungsgründe und Konsequenz</h2>
+<p>
+  Auf Grund der unter Ziffer III dargestellten {{ verstoesse | length }}
+  {% if verstoesse | length > 1 %}Verstöße{% else %}Verstoßes{% endif %}
+  gegen die AHP-Förderrichtlinie ist der Antrag nach pflichtgemäßer Prüfung
+  abzulehnen. Eine teilweise Bewilligung kommt nicht in Betracht, da die
+  festgestellten Verstöße entweder formaler Natur sind (technische
+  Voraussetzungen wie IBAN-Validität, Antragsfrist, Trägersitz) oder die
+  beantragte Förderhöhe materiell überschreiten.
+</p>
+<p>
+  Im Übrigen besteht nach AHP Kap. 3.4 grundsätzlich kein Rechtsanspruch
+  auf eine Förderung; über Art und Höhe der Bewilligung entscheidet der
+  Sozialausschuss der Stadt Würzburg nach Prüfung durch die Leitung
+  Seniorenarbeit (Fachbereich IIS).
 </p>
 {% endif %}
 

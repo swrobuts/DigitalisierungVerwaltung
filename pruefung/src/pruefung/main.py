@@ -194,19 +194,13 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
     )
 
     # 4) Befunde mit AHP-Wortlaut + Subsumtion anreichern.
-    #    Bei Bewilligung: ggf. Hinweise als Auflagen-Liste; bei Ablehnung:
-    #    Verstöße als rechtlich-strukturierte Begründungs-Punkte.
+    #    NUR Verstöße kommen in den Bescheid — Hinweise sind interne
+    #    Bearbeiter-Aufgaben (z.B. "IBAN-Inhaberschaft manuell prüfen") und
+    #    gehören NICHT in eine Bürger-Begründung.
     from pruefung.bescheid_subsumtion import build_subsumtion
     befunde_for_template: list[dict] = []
-    # Bei Bewilligung: Hinweise sind interne Notizen, nicht im Bescheid.
-    # Bei Ablehnung/Rückfrage: ALLE Verstöße kommen in die Begründung,
-    # Hinweise zusätzlich als nachrichtliche Anmerkungen.
-    relevante = [
-        b for b in befunde_raw
-        if b.get("schwere") == "verstoss"
-        or (req.entscheidung != "bewilligt" and b.get("schwere") == "hinweis")
-    ]
-    for b in relevante:
+    verstoesse_raw = [b for b in befunde_raw if b.get("schwere") == "verstoss"]
+    for b in verstoesse_raw:
         ahp_path = _extract_ahp_path(b.get("paragraph_ref"))
         ahp_node = _find_section_by_path(tree, ahp_path) if ahp_path else None
         subs = build_subsumtion(b, antrag)
@@ -219,6 +213,18 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
             "sachverhalt": subs.get("sachverhalt"),
             "wuerdigung": subs.get("wuerdigung"),
         })
+
+    # Liste aller AHP-Sections, gegen die geprüft wurde — für die
+    # Transparenz-Sektion im Bescheid ("Geprüft gegen folgende AHP-Stellen").
+    # Wir ziehen die paragraph_refs aus ALLEN aktiven Ontologie-Regeln (nicht
+    # nur den verletzten), plus Layer-A-Bezug AHP 3.6, plus Layer-C wenn vorhanden.
+    rules_rows = await db.select(
+        "ontologie_rules",
+        "plan_id=eq.APL2&aktiv=eq.true&select=paragraph_ref",
+    )
+    geprueft_gegen = sorted({
+        r["paragraph_ref"] for r in rules_rows if r.get("paragraph_ref")
+    })
 
     # 5) Bescheid-Datensatz anlegen (vor PDF, damit wir die ID kennen)
     ausgestellt_am = datetime.now(UTC)
@@ -247,6 +253,7 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
         ausgestellt_von=req.ausgestellt_von,
         ausgestellt_am=ausgestellt_am,
         doctree_version=doctree_version,
+        geprueft_gegen=geprueft_gegen,
     )
 
     # 7) PDF in Storage upload + path in bescheide nachtragen

@@ -65,12 +65,14 @@ def render_bescheid_pdf(
     ausgestellt_von: str | None,
     ausgestellt_am: datetime,
     doctree_version: str | None,
+    geprueft_gegen: list[str] | None = None,
 ) -> bytes:
     """Rendert einen Verwaltungsbescheid (bewilligt/abgelehnt/rueckfrage).
 
     Die Befunde stammen aus dem letzten Prüfprotokoll und werden bereits mit
-    angereichertem AHP-Wortlaut übergeben (Caller muss den Doctree konsultieren).
-    Das hält das Template frei von DB-Logik.
+    angereichertem AHP-Wortlaut + Subsumtion übergeben (Caller konsultiert
+    den Doctree). geprueft_gegen ist die Liste aller AHP-Sections, gegen die
+    geprüft wurde — für Transparenz im Bescheid.
     """
     tpl = _env.get_template("bescheid.html.j2")
     html = tpl.render(
@@ -83,5 +85,6 @@ def render_bescheid_pdf(
         ausgestellt_von=ausgestellt_von,
         ausgestellt_am=ausgestellt_am,
         doctree_version=doctree_version or "—",
+        geprueft_gegen=geprueft_gegen or [],
     )
     return HTML(string=html).write_pdf()
