@@ -7,7 +7,7 @@ import { useSession } from "../hooks/useSession";
 import { StatusBadge } from "../components/StatusBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
-import { allowedTransitions, STATUS_LABELS, type Status } from "../lib/workflow";
+import { allowedTransitions, isReverseTransition, STATUS_LABELS, type Status } from "../lib/workflow";
 import { formatEuro, formatDateTime, formatAdresse } from "../lib/format";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -62,6 +62,12 @@ export function AntragDetail() {
 
   async function handleStatusChange() {
     if (!confirmTo) return;
+    const reverse = antrag ? isReverseTransition(antrag.status, confirmTo) : false;
+    // Reverse-Übergänge verlangen einen Pflicht-Kommentar (Audit-Trail)
+    if (reverse && !kommentar.trim()) {
+      alert("Korrektur-Übergänge benötigen einen Kommentar.");
+      return;
+    }
     setBusy(true);
     const result = await changeStatus(confirmTo, kommentar);
     if (result.error) {
@@ -69,8 +75,9 @@ export function AntragDetail() {
       setBusy(false);
       return;
     }
-    // Bei Entscheidungs-Status: zusätzlich Bescheid-PDF erstellen
-    if (istEntscheidungsStatus(confirmTo)) {
+    // Bei Vorwärts-Entscheidung: zusätzlich Bescheid-PDF erstellen.
+    // Bei Reverse-Übergang: KEIN Bescheid (es ist eine Aufhebung).
+    if (!reverse && istEntscheidungsStatus(confirmTo)) {
       const summe =
         confirmTo === "bewilligt" && bewilligteSumme.trim()
           ? Number(bewilligteSumme.replace(",", "."))
@@ -322,10 +329,12 @@ export function AntragDetail() {
             <CardContent className="space-y-2">
               {folgeStatus.length === 0 ? (
                 <p className="text-sm text-slate-500">
-                  Status ist ein Endstatus — keine weiteren Übergänge.
+                  Keine Übergänge verfügbar.
                 </p>
               ) : (
-                folgeStatus.map((s) => (
+                folgeStatus.map((s) => {
+                  const reverse = isReverseTransition(antrag.status, s);
+                  return (
                   <Dialog
                     key={s}
                     open={confirmTo === s}
@@ -334,21 +343,39 @@ export function AntragDetail() {
                     <DialogTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start"
+                        className={
+                          reverse
+                            ? "w-full justify-start text-slate-500 hover:text-slate-900 border-dashed"
+                            : "w-full justify-start"
+                        }
                         onClick={() => setConfirmTo(s)}
+                        title={
+                          reverse
+                            ? "Korrektur-Übergang (Audit-Eintrag mit Pflicht-Kommentar)"
+                            : undefined
+                        }
                       >
-                        → {STATUS_LABELS[s]}
+                        {reverse ? "↶" : "→"} {STATUS_LABELS[s]}
+                        {reverse && (
+                          <span className="ml-auto text-[10px] uppercase tracking-wider text-slate-400">
+                            Korrektur
+                          </span>
+                        )}
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>
-                          Status auf „{STATUS_LABELS[s]}" setzen?
+                          {reverse
+                            ? `Status zurücksetzen auf „${STATUS_LABELS[s]}"?`
+                            : `Status auf „${STATUS_LABELS[s]}" setzen?`}
                         </DialogTitle>
                         <DialogDescription>
-                          {istEntscheidungsStatus(s)
-                            ? "Erzeugt zusätzlich automatisch einen PDF-Bescheid mit der Ontologie-Begründung aus der letzten KI-Prüfung."
-                            : "Optional kannst du einen Kommentar hinterlassen (im Audit-Trail sichtbar)."}
+                          {reverse
+                            ? "Korrektur-Übergang: bisherige Entscheidung wird aufgehoben. Bitte Grund im Kommentar dokumentieren (Pflicht, Audit-Trail)."
+                            : istEntscheidungsStatus(s)
+                              ? "Erzeugt zusätzlich automatisch einen PDF-Bescheid mit der Ontologie-Begründung aus der letzten KI-Prüfung."
+                              : "Optional kannst du einen Kommentar hinterlassen (im Audit-Trail sichtbar)."}
                         </DialogDescription>
                       </DialogHeader>
                       {s === "bewilligt" && (
@@ -399,7 +426,8 @@ export function AntragDetail() {
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
-                ))
+                  );
+                })
               )}
             </CardContent>
           </Card>
