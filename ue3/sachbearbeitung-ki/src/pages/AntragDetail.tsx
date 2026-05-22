@@ -9,6 +9,7 @@ import { allowedTransitions, STATUS_LABELS, type Status } from "../lib/workflow"
 import { formatEuro, formatDateTime, formatAdresse } from "../lib/format";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { PruefungsCard } from "../components/PruefungsCard";
 import {
   Dialog,
   DialogContent,
@@ -176,6 +177,8 @@ export function AntragDetail() {
               )}
             </CardContent>
           </Card>
+
+          <PruefungsCard antragId={antrag.id} />
 
           <Card>
             <CardHeader>
