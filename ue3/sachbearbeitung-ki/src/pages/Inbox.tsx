@@ -157,9 +157,8 @@ export function Inbox() {
     (typeof userMeta.full_name === "string" && userMeta.full_name) ||
     (typeof userMeta.name === "string" && userMeta.name) ||
     (userEmail ? userEmail.split("@")[0] : "—");
-  const avatarUrl = userEmail
-    ? `https://i.pravatar.cc/80?u=${encodeURIComponent(userEmail)}`
-    : "https://i.pravatar.cc/80?u=anonym";
+  // Demo-Avatar wird aus public/ ausgeliefert; statisch für alle eingeloggten Nutzer
+  const avatarUrl = "/demoImage.png";
   const [filter, setFilter] = useState<Set<Status>>(new Set());
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("submitted_at");
