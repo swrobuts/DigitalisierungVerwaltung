@@ -1,7 +1,7 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Check, ChevronDown, FileText } from "lucide-react";
-import { useAntrag, type AnlageRow } from "../hooks/useAntrag";
+import { useAntrag, type AnlageRow, type AntragFull } from "../hooks/useAntrag";
 import { useBescheide, type BescheidRow } from "../hooks/useBescheide";
 import { useSession } from "../hooks/useSession";
 import { StatusBadge } from "../components/StatusBadge";
@@ -241,10 +241,10 @@ export function AntragDetail() {
 
             <DocSection
               num="§ 4"
-              title="Beantragte Fördersumme"
-              subtitle="Bezugsgröße der AHP-Förderhöchstgrenze (Kap. 2.3.2)"
+              title="Förderbereich & beantragte Förderung"
+              subtitle="AHP-Klassifikation und Bezugsgrößen der Förderhöchstgrenze"
             >
-              <FoerdersummeBlock value={antrag.geforderte_foerdersumme_euro} />
+              <FoerderblockKomplett antrag={antrag} />
             </DocSection>
 
             <DocSection
@@ -715,30 +715,168 @@ function BescheidListItem({
   );
 }
 
-/** Anzeige der beantragten Fördersumme mit visueller Cap-Indikation
- * (AHP 2.3.2 Begegnungszentren: 10.000 €/Jahr). */
-function FoerdersummeBlock({ value }: { value: number | null }) {
-  const CAP = 10000;
-  if (value === null || value === undefined) {
+/** Komplette § 4-Anzeige: Förderbereich-Pill, Fördersumme + Cap, Skalierungs-
+ * Kennzahlen, Pflichtangaben — alles kontextsensitiv je nach Förderbereich. */
+function FoerderblockKomplett({ antrag }: { antrag: AntragFull }) {
+  const meta = foerderbereichMeta(antrag.foerderbereich);
+  return (
+    <div className="space-y-6">
+      {/* (1) Förderbereich-Pill */}
+      <div>
+        <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-2">
+          AHP-Förderbereich
+        </div>
+        {meta ? (
+          <div className="flex items-baseline gap-3 flex-wrap">
+            <span className="inline-flex items-center gap-2 bg-wue-rot-soft text-wue-rot-dark border border-wue-rot/30 px-3 py-1 rounded text-sm font-medium">
+              {meta.label}
+            </span>
+            <span className="text-xs text-slate-500 font-mono">{meta.ahpPath}</span>
+          </div>
+        ) : (
+          <div className="text-sm text-slate-500 italic">
+            Kein Förderbereich klassifiziert — Cap-Regeln werden nicht ausgeführt.
+            Sachbearbeiter sollte den Förderbereich nachpflegen.
+          </div>
+        )}
+      </div>
+
+      {/* (2) Fördersumme + Cap */}
+      <FoerdersummeMitCap
+        wert={antrag.geforderte_foerdersumme_euro}
+        cap={meta?.cap ?? null}
+        capLabel={meta?.ahpPath ?? null}
+      />
+
+      {/* (3) Skalierungs-Kennzahlen (kontextsensitiv) */}
+      <KennzahlenBlock antrag={antrag} meta={meta} />
+
+      {/* (4) Pflichtangaben (kontextsensitiv) */}
+      <PflichtangabenBlock antrag={antrag} meta={meta} />
+
+      {/* (5) Zuwendungszweck — nur bei FB IV */}
+      {antrag.foerderbereich === "struktur_schwerpunktfoerderung" && antrag.zuwendungszweck && (
+        <div>
+          <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-1">
+            Zuwendungszweck (AHP 2.4 Pflichtangabe)
+          </div>
+          <p className="text-sm text-slate-900 leading-relaxed border-l-2 border-wue-rot pl-3 italic">
+            {antrag.zuwendungszweck}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface FoerderbereichMeta {
+  label: string;
+  ahpPath: string;
+  cap: number | null;
+  /** Welche Skalierungs-Kennzahlen sind für diesen Förderbereich relevant? */
+  zeigt: {
+    stadtbewohner_anteil?: boolean;
+    treffen_und_teilnehmer?: boolean;
+    ehrenamt?: boolean;
+    befristung?: boolean;
+  };
+  /** Pflichtangaben für diesen Förderbereich */
+  pflicht: {
+    finanzplanung?: boolean;
+    projektskizze?: boolean;
+  };
+}
+
+function foerderbereichMeta(fb: string | null): FoerderbereichMeta | null {
+  if (!fb) return null;
+  const map: Record<string, FoerderbereichMeta> = {
+    aufbau_niedrigschwellige_angebote: {
+      label: "Förderbereich I — Aufbau niedrigschwelliger Angebote",
+      ahpPath: "AHP 2.1",
+      cap: 3000,
+      zeigt: { befristung: true },
+      pflicht: { projektskizze: true },
+    },
+    buergerschaftliches_engagement: {
+      label: "Förderbereich II — Bürgerschaftliches Engagement",
+      ahpPath: "AHP 2.2",
+      cap: 5500,
+      zeigt: { ehrenamt: true },
+      pflicht: {},
+    },
+    mehrgenerationenhaeuser: {
+      label: "Förderbereich III — Mehrgenerationenhäuser",
+      ahpPath: "AHP 2.3.1",
+      cap: 10000,
+      zeigt: {},
+      pflicht: {},
+    },
+    begegnungszentren: {
+      label: "Förderbereich III — Begegnungszentren",
+      ahpPath: "AHP 2.3.2",
+      cap: 10000,
+      zeigt: { stadtbewohner_anteil: true },
+      pflicht: {},
+    },
+    bildungstraeger: {
+      label: "Förderbereich III — Bildungsträger / Bildungshäuser",
+      ahpPath: "AHP 2.3.3",
+      cap: 6000,
+      zeigt: { stadtbewohner_anteil: true },
+      pflicht: {},
+    },
+    seniorenkreise: {
+      label: "Förderbereich III — Seniorenkreise",
+      ahpPath: "AHP 2.3.4",
+      cap: 2000,
+      zeigt: { treffen_und_teilnehmer: true },
+      pflicht: {},
+    },
+    quartiersmanagement_altenarbeit: {
+      label: "Förderbereich III — Quartiersmanagement Altenarbeit",
+      ahpPath: "AHP 2.3.5",
+      cap: 7500,
+      zeigt: {},
+      pflicht: {},
+    },
+    struktur_schwerpunktfoerderung: {
+      label: "Förderbereich IV — Struktur- und Schwerpunktförderung",
+      ahpPath: "AHP 2.4",
+      cap: null, // keine Cap
+      zeigt: {},
+      pflicht: { finanzplanung: true },
+    },
+  };
+  return map[fb] ?? null;
+}
+
+function FoerdersummeMitCap({
+  wert, cap, capLabel,
+}: {
+  wert: number | null;
+  cap: number | null;
+  capLabel: string | null;
+}) {
+  if (wert === null || wert === undefined) {
     return (
       <div className="text-sm text-slate-500 italic">
-        Keine Fördersumme angegeben — die AHP-Höchstgrenze (10.000 € / Jahr nach
-        Kap. 2.3.2) kann maschinell nicht geprüft werden. Bitte vom Antragsteller
-        nachfordern.
+        Keine Fördersumme angegeben — bitte vom Antragsteller nachfordern.
       </div>
     );
   }
-  const ueber = value > CAP;
-  const pct = Math.min((value / CAP) * 100, 130);
+  const ueber = cap !== null && wert > cap;
+  const pct = cap !== null ? Math.min((wert / cap) * 100, 130) : 0;
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2">
         <span className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium">
           Geforderter Zuschuss (Jahr)
         </span>
-        <span className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
-          Cap (AHP 2.3.2)
-        </span>
+        {cap !== null && (
+          <span className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
+            Cap ({capLabel ?? "—"})
+          </span>
+        )}
       </div>
       <div className="flex items-baseline justify-between">
         <span
@@ -748,31 +886,178 @@ function FoerdersummeBlock({ value }: { value: number | null }) {
               : "text-2xl font-bold text-slate-900 tabular-nums"
           }
         >
-          {formatEuro(value)}
+          {formatEuro(wert)}
         </span>
-        <span className="text-sm text-slate-500 tabular-nums">
-          {formatEuro(CAP)} / Jahr
-        </span>
+        {cap !== null && (
+          <span className="text-sm text-slate-500 tabular-nums">
+            {formatEuro(cap)} / Jahr
+          </span>
+        )}
       </div>
-      {/* Visuelle Cap-Anzeige */}
-      <div className="mt-3 relative h-2 bg-slate-100 rounded-sm overflow-hidden">
-        <div
-          className={
-            ueber
-              ? "absolute inset-y-0 left-0 bg-wue-rot transition-all"
-              : "absolute inset-y-0 left-0 bg-slate-700 transition-all"
-          }
-          style={{ width: `${Math.min(pct, 100)}%` }}
-        />
-        {/* 100%-Marker für die Cap */}
-        <div className="absolute inset-y-0 right-0 w-px bg-slate-400" />
-      </div>
-      {ueber && (
+      {cap !== null && (
+        <div className="mt-3 relative h-2 bg-slate-100 rounded-sm overflow-hidden">
+          <div
+            className={
+              ueber
+                ? "absolute inset-y-0 left-0 bg-wue-rot transition-all"
+                : "absolute inset-y-0 left-0 bg-slate-700 transition-all"
+            }
+            style={{ width: `${Math.min(pct, 100)}%` }}
+          />
+          <div className="absolute inset-y-0 right-0 w-px bg-slate-400" />
+        </div>
+      )}
+      {ueber && cap !== null && (
         <p className="mt-2 text-xs text-wue-rot">
           Überschreitet die AHP-Höchstgrenze um{" "}
-          <span className="font-semibold">{formatEuro(value - CAP)}</span>.
+          <span className="font-semibold">{formatEuro(wert - cap)}</span>.
         </p>
       )}
+      {cap === null && (
+        <p className="mt-2 text-xs text-slate-500">
+          Förderbereich IV: keine pauschale Cap — Sozialausschuss entscheidet
+          nach Einzelfallprüfung (AHP 3.4).
+        </p>
+      )}
+    </div>
+  );
+}
+
+function KennzahlenBlock({
+  antrag, meta,
+}: {
+  antrag: AntragFull;
+  meta: FoerderbereichMeta | null;
+}) {
+  if (!meta) return null;
+  const zeilen: Array<{ label: string; value: string; hint?: string }> = [];
+
+  if (meta.zeigt.stadtbewohner_anteil) {
+    const v = antrag.stadtbewohner_anteil;
+    zeilen.push({
+      label: "Anteil Würzburger Bewohner:innen",
+      value: v === null ? "—" : `${Math.round(v * 100)} %`,
+      hint:
+        v === null
+          ? "skaliert die Auszahlung nach AHP 2.3.2/2.3.3"
+          : undefined,
+    });
+  }
+  if (meta.zeigt.treffen_und_teilnehmer) {
+    zeilen.push({
+      label: "Treffen pro Jahr",
+      value: antrag.anzahl_treffen_jahr?.toString() ?? "—",
+      hint: "12–24 → 1.000 € / ≥25 → 2.000 € (AHP 2.3.4)",
+    });
+    zeilen.push({
+      label: "Anzahl Teilnehmer:innen",
+      value: antrag.anzahl_teilnehmer?.toString() ?? "—",
+      hint: "min. 6 (AHP 2.3.4)",
+    });
+  }
+  if (meta.zeigt.ehrenamt) {
+    zeilen.push({
+      label: "Geleistete Stunden / Jahr",
+      value: antrag.geleistete_stunden_jahr?.toString() ?? "—",
+    });
+    zeilen.push({
+      label: "Anzahl Ehrenamtliche",
+      value: antrag.anzahl_ehrenamtliche?.toString() ?? "—",
+      hint: "Staffelung 1.500 € / 2.500 € / 4.000 € / 5.500 € (AHP 2.2)",
+    });
+  }
+  if (meta.zeigt.befristung) {
+    zeilen.push({
+      label: "Bereits geförderte Jahre",
+      value: antrag.foerderbereich_seit_jahren?.toString() ?? "—",
+      hint: "max. 3 Jahre (AHP 2.1)",
+    });
+  }
+
+  if (zeilen.length === 0) return null;
+  return (
+    <div>
+      <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-2">
+        Skalierungs-Kennzahlen
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+        {zeilen.map((z) => (
+          <div key={z.label}>
+            <div className="text-xs text-slate-500">{z.label}</div>
+            <div className="text-sm text-slate-900 tabular-nums">{z.value}</div>
+            {z.hint && (
+              <div className="text-[11px] text-slate-400 mt-0.5">{z.hint}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PflichtangabenBlock({
+  antrag, meta,
+}: {
+  antrag: AntragFull;
+  meta: FoerderbereichMeta | null;
+}) {
+  const items: Array<{ label: string; erfuellt: boolean; bezug: string; pflicht: boolean }> = [];
+
+  // Logo-Pflicht gilt für ALLE Förderbereiche (AHP 2)
+  items.push({
+    label: "Logo der Stadt Würzburg in Materialien verwendet",
+    erfuellt: !!antrag.logo_verwendet,
+    bezug: "AHP 2",
+    pflicht: true,
+  });
+
+  if (meta?.pflicht.finanzplanung) {
+    items.push({
+      label: "Finanzierungsplanung (Ausgaben + Einnahmen) liegt vor",
+      erfuellt: !!antrag.finanzplanung_vorhanden,
+      bezug: "AHP 2.4",
+      pflicht: true,
+    });
+  }
+  if (meta?.pflicht.projektskizze) {
+    items.push({
+      label: "Projektskizze (mit Sozialreferat abgestimmt) eingereicht",
+      erfuellt: !!antrag.projektskizze_eingereicht,
+      bezug: "AHP 2.1",
+      pflicht: true,
+    });
+  }
+
+  return (
+    <div>
+      <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-2">
+        Pflichtangaben
+      </div>
+      <ul className="space-y-1.5">
+        {items.map((it) => (
+          <li key={it.label} className="flex items-start gap-2 text-sm">
+            <span
+              className={
+                it.erfuellt
+                  ? "inline-flex items-center justify-center w-4 h-4 border border-slate-800 bg-slate-900 text-white mt-0.5 shrink-0"
+                  : "inline-block w-4 h-4 border border-slate-400 bg-white mt-0.5 shrink-0"
+              }
+            >
+              {it.erfuellt && <Check className="h-3 w-3" strokeWidth={3} />}
+            </span>
+            <span
+              className={
+                it.erfuellt ? "text-slate-900" : "text-slate-500"
+              }
+            >
+              {it.label}
+            </span>
+            <span className="text-[11px] text-slate-400 ml-1 font-mono shrink-0">
+              {it.bezug}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

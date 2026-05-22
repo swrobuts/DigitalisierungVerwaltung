@@ -28,9 +28,32 @@ export interface AntragFull {
   betriebskosten_vorjahr_euro: number;
   personalkosten_vorjahr_euro: number;
   miete_jahr_euro: number;
-  /** Beantragter Zuschussbetrag in EUR. Wird gegen AHP 2.3.2 (10.000 €/Jahr)
-   * geprüft. NULL = noch nicht beziffert. */
+  /** Beantragter Zuschussbetrag in EUR. Cap je nach foerderbereich. */
   geforderte_foerdersumme_euro: number | null;
+
+  // ── Migration 029 — Förderbereich-spezifische Felder ────────────────
+  foerderbereich:
+    | "aufbau_niedrigschwellige_angebote"
+    | "buergerschaftliches_engagement"
+    | "mehrgenerationenhaeuser"
+    | "begegnungszentren"
+    | "bildungstraeger"
+    | "seniorenkreise"
+    | "quartiersmanagement_altenarbeit"
+    | "struktur_schwerpunktfoerderung"
+    | null;
+  anzahl_treffen_jahr: number | null;
+  anzahl_teilnehmer: number | null;
+  /** 0..1 — Anteil Stadt-Würzburg-Bewohner an Gesamt-Teilnehmern */
+  stadtbewohner_anteil: number | null;
+  anzahl_ehrenamtliche: number | null;
+  geleistete_stunden_jahr: number | null;
+  foerderbereich_seit_jahren: number | null;
+  zuwendungszweck: string | null;
+  finanzplanung_vorhanden: boolean | null;
+  projektskizze_eingereicht: boolean | null;
+  logo_verwendet: boolean | null;
+
   status: Status;
 }
 
