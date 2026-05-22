@@ -375,7 +375,24 @@ async def structure_with_claude(
             if "tree" in tree and isinstance(tree["tree"], (dict, str)):
                 t = tree["tree"]
                 tree = json.loads(t) if isinstance(t, str) else t
-            return tree
+            return _normalize_tree(tree)
     raise RuntimeError(
         f"Claude hat `submit_doctree` nicht aufgerufen. stop_reason={response.stop_reason}"
     )
+
+
+def _normalize_tree(node: Any) -> dict[str, Any]:
+    """Normalisiert Claude-Output: macht aus JSON-Strings echte Listen/Dicts.
+
+    Anthropic Tool-Use validiert das input_schema nur shallow — verschachtelte
+    Listen mit `items: object` werden gelegentlich als JSON-String geliefert.
+    Diese Funktion entrollt rekursiv alle solchen Strings."""
+    if isinstance(node, str):
+        node = json.loads(node)
+    if not isinstance(node, dict):
+        return node
+    children = node.get("children", [])
+    if isinstance(children, str):
+        children = json.loads(children)
+    node["children"] = [_normalize_tree(c) for c in (children or [])]
+    return node
