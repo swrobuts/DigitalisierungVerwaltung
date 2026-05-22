@@ -1,20 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
-import {
-  ArrowLeft,
-  Building2,
-  UserSquare2,
-  Landmark,
-  Receipt,
-  Mail,
-  Phone,
-  Globe,
-  Clock,
-  Send,
-  Check,
-  X as XIcon,
-} from "lucide-react";
-import { useAntrag } from "../hooks/useAntrag";
+import { ArrowLeft, Check, FileText } from "lucide-react";
+import { useAntrag, type AnlageRow } from "../hooks/useAntrag";
 import { StatusBadge } from "../components/StatusBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
@@ -34,10 +21,19 @@ import {
 } from "../components/ui/dialog";
 import { Textarea } from "../components/ui/textarea";
 
+// ════════════════════════════════════════════════════════════════════
+// AntragDetail — Akte mit dokumentartiger Anmutung
+// Links: Antragsformular als „bedrucktes Papier" (Briefkopf · Titelblock ·
+//   § 1-6 · Submission-Footer)
+// Rechts: Werkzeug-Sidebar (Aktionen · KI-Prüfung · Verlauf)
+// ════════════════════════════════════════════════════════════════════
+
 export function AntragDetail() {
   const { id } = useParams<{ id: string }>();
-  const { antrag, anlagen, belegpositionen, oeffnungszeiten, history, loading, error, changeStatus } =
-    useAntrag(id);
+  const {
+    antrag, anlagen, belegpositionen, oeffnungszeiten, history,
+    loading, error, changeStatus,
+  } = useAntrag(id);
   const [confirmTo, setConfirmTo] = useState<Status | null>(null);
   const [kommentar, setKommentar] = useState("");
   const [busy, setBusy] = useState(false);
@@ -63,7 +59,7 @@ export function AntragDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-100">
       <header className="bg-white border-b border-slate-200 relative">
         <div className="absolute inset-x-0 top-0 h-[3px] bg-wue-rot" />
         <div className="w-full px-4 lg:px-8 py-4 flex items-center gap-3">
@@ -79,142 +75,182 @@ export function AntragDetail() {
         </div>
       </header>
 
-      <main className="w-full px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          {/* Hero — wie ein Antrags-Deckblatt (Würzburg-CI) */}
-          <Card className="overflow-hidden">
-            <div className="relative bg-white border-b border-slate-200 px-6 py-6">
-              <div className="absolute inset-x-0 top-0 h-[3px] bg-wue-rot" />
-              <div className="flex flex-wrap items-start justify-between gap-6">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-wue-rot font-semibold mb-2">
-                    Förderantrag · APL 2 · Altentagesstätte
-                  </div>
-                  <h2 className="text-2xl font-bold text-slate-900 leading-tight">
-                    {antrag.name}
-                  </h2>
-                  <p className="text-sm text-slate-700 mt-1">{antrag.traeger}</p>
-                  <p className="text-xs text-slate-500 mt-2">
-                    {formatAdresse(antrag.strasse, antrag.hausnummer, antrag.plz, antrag.ort)}
-                  </p>
+      <main className="w-full px-4 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* ═══════════════════ DOKUMENT (LINKS) ═══════════════════ */}
+        <article className="lg:col-span-2 bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
+          {/* Briefkopf */}
+          <div className="bg-wue-rot text-white px-10 lg:px-14 py-3 flex flex-wrap items-baseline justify-between gap-2">
+            <div className="font-semibold tracking-[0.2em] text-sm">STADT WÜRZBURG</div>
+            <div className="text-xs opacity-90 tracking-wide">
+              Sozialreferat · Beratungsstelle für Senioren
+            </div>
+          </div>
+
+          {/* Titelblock */}
+          <div className="px-10 lg:px-14 pt-10 pb-8 border-b border-slate-200">
+            <div className="flex flex-wrap items-start justify-between gap-6">
+              <div className="min-w-0">
+                <div className="text-[11px] uppercase tracking-[0.2em] text-wue-rot font-semibold">
+                  Förderantrag
                 </div>
-                <div className="text-right shrink-0 border-l-2 border-wue-rot pl-4">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-medium">
-                    Haushaltsjahr
-                  </div>
-                  <div className="text-3xl font-bold text-slate-900 tabular-nums leading-tight">
-                    {antrag.haushaltsjahr}
-                  </div>
+                <h1 className="text-[26px] font-bold text-slate-900 mt-1 leading-tight">
+                  Altentagesstätten — APL 2
+                </h1>
+                <p className="text-sm text-slate-600 mt-1">
+                  Betriebs- und Personalkostenzuschuss · Haushaltsjahr{" "}
+                  <span className="font-semibold text-slate-800 tabular-nums">{antrag.haushaltsjahr}</span>
+                </p>
+              </div>
+              <div className="text-right shrink-0 text-xs">
+                <div className="text-[11px] uppercase tracking-wider text-slate-500">Aktenzeichen</div>
+                <div className="font-mono text-[15px] font-semibold text-slate-900 mt-0.5">
+                  {antrag.antragsnummer}
+                </div>
+                <div className="mt-2">
+                  <StatusBadge status={antrag.status} />
                 </div>
               </div>
             </div>
 
-            {/* Abschnitte */}
-            <div className="divide-y divide-slate-100">
-              <Section icon={<Building2 className="h-4 w-4" />} title="Räumlichkeiten">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                  <FieldRow label="Räume vorhanden">
-                    <YesNoPill value={antrag.raeume_vorhanden} />
-                  </FieldRow>
-                  <FieldRow label="Räume unentgeltlich überlassen">
-                    <YesNoPill value={antrag.raeume_unentgeltlich} />
-                  </FieldRow>
-                  {antrag.miete_jahr_euro > 0 && (
-                    <FieldRow label="Jahresmiete" className="sm:col-span-2">
-                      <span className="font-semibold text-slate-900 tabular-nums">
-                        {formatEuro(antrag.miete_jahr_euro)}
-                      </span>
-                    </FieldRow>
-                  )}
-                </div>
-              </Section>
-
-              <Section icon={<UserSquare2 className="h-4 w-4" />} title="Ansprechpartner/in">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                  <FieldRow label="Name" className="sm:col-span-2">
-                    {antrag.ansprechpartner}
-                  </FieldRow>
-                  <FieldRow label="Telefon">
-                    <a
-                      href={`tel:${antrag.telefon.replace(/\s+/g, "")}`}
-                      className="inline-flex items-center gap-1.5 text-wue-rot hover:text-wue-rot-dark hover:underline"
-                    >
-                      <Phone className="h-3.5 w-3.5" />
-                      {antrag.telefon}
-                    </a>
-                  </FieldRow>
-                  <FieldRow label="E-Mail">
-                    <a
-                      href={`mailto:${antrag.email}`}
-                      className="inline-flex items-center gap-1.5 text-wue-rot hover:text-wue-rot-dark hover:underline break-all"
-                    >
-                      <Mail className="h-3.5 w-3.5 shrink-0" />
-                      {antrag.email}
-                    </a>
-                  </FieldRow>
-                </div>
-              </Section>
-
-              <Section icon={<Landmark className="h-4 w-4" />} title="Bankverbindung">
-                <div className="space-y-3">
-                  <FieldRow label="Kreditinstitut">{antrag.bankverbindung}</FieldRow>
-                  <FieldRow label="IBAN">
-                    <span className="font-mono text-[15px] tracking-wide text-slate-900 bg-slate-50 border border-slate-200 rounded px-2 py-0.5 inline-block">
-                      {formatIban(antrag.iban)}
-                    </span>
-                  </FieldRow>
-                  <FieldRow label="BIC">
-                    {antrag.bic ? (
-                      <span className="font-mono text-slate-700">{antrag.bic}</span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </FieldRow>
-                </div>
-              </Section>
-
-              <Section icon={<Receipt className="h-4 w-4" />} title="Vorjahres-Kosten" subtitle="Ist-Kosten des Vorjahres laut Trägerangabe">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <KostenTile
-                    label="Betriebskosten"
-                    value={antrag.betriebskosten_vorjahr_euro}
-                  />
-                  <KostenTile
-                    label="Personalkosten"
-                    value={antrag.personalkosten_vorjahr_euro}
-                  />
-                </div>
-              </Section>
+            {/* Einrichtungs-Block */}
+            <div className="mt-8 border-l-[3px] border-wue-rot pl-5">
+              <div className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+                Einrichtung
+              </div>
+              <div className="text-[22px] font-bold text-slate-900 mt-0.5 leading-tight">
+                {antrag.name}
+              </div>
+              <div className="text-sm text-slate-700 mt-0.5">{antrag.traeger}</div>
+              <div className="text-sm text-slate-600 mt-1">
+                {formatAdresse(antrag.strasse, antrag.hausnummer, antrag.plz, antrag.ort)}
+              </div>
             </div>
+          </div>
 
-            {/* Einreichungs-Metadaten als Footer */}
-            <div className="bg-slate-50/70 border-t border-slate-200 px-6 py-3 text-xs text-slate-500">
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-                <span className="inline-flex items-center gap-1.5">
-                  <Send className="h-3 w-3" />
-                  Eingegangen {formatDateTime(antrag.submitted_at)}
+          {/* §§ Abschnitte */}
+          <div className="px-10 lg:px-14 py-10 space-y-12">
+            <DocSection num="§ 1" title="Antragsteller / Träger">
+              <FieldGrid>
+                <DocField label="Trägerverein / Organisation" className="sm:col-span-2">
+                  {antrag.traeger}
+                </DocField>
+                <DocField label="Ansprechpartner/in" className="sm:col-span-2">
+                  {antrag.ansprechpartner}
+                </DocField>
+                <DocField label="Telefon">
+                  <a
+                    href={`tel:${antrag.telefon.replace(/\s+/g, "")}`}
+                    className="text-wue-rot hover:text-wue-rot-dark hover:underline"
+                  >
+                    {antrag.telefon}
+                  </a>
+                </DocField>
+                <DocField label="E-Mail">
+                  <a
+                    href={`mailto:${antrag.email}`}
+                    className="text-wue-rot hover:text-wue-rot-dark hover:underline break-all"
+                  >
+                    {antrag.email}
+                  </a>
+                </DocField>
+              </FieldGrid>
+            </DocSection>
+
+            <DocSection num="§ 2" title="Räumlichkeiten">
+              <FieldGrid>
+                <DocField label="Räume vorhanden">
+                  <YesNo value={antrag.raeume_vorhanden} />
+                </DocField>
+                <DocField label="Räume unentgeltlich überlassen">
+                  <YesNo value={antrag.raeume_unentgeltlich} />
+                </DocField>
+                <DocField label="Anschrift Einrichtung" className="sm:col-span-2">
+                  {formatAdresse(antrag.strasse, antrag.hausnummer, antrag.plz, antrag.ort)}
+                </DocField>
+                {antrag.miete_jahr_euro > 0 && (
+                  <DocField label="Jahresmiete" className="sm:col-span-2">
+                    <span className="font-semibold text-slate-900 tabular-nums">
+                      {formatEuro(antrag.miete_jahr_euro)}
+                    </span>
+                  </DocField>
+                )}
+              </FieldGrid>
+            </DocSection>
+
+            <DocSection num="§ 3" title="Bankverbindung">
+              <FieldGrid>
+                <DocField label="Kreditinstitut" className="sm:col-span-2">
+                  {antrag.bankverbindung}
+                </DocField>
+                <DocField label="IBAN" className="sm:col-span-2">
+                  <span className="font-mono text-[15px] tracking-wide text-slate-900">
+                    {formatIban(antrag.iban)}
+                  </span>
+                </DocField>
+                <DocField label="BIC">
+                  {antrag.bic ? (
+                    <span className="font-mono text-slate-700">{antrag.bic}</span>
+                  ) : (
+                    <span className="text-slate-400">—</span>
+                  )}
+                </DocField>
+              </FieldGrid>
+            </DocSection>
+
+            <DocSection
+              num="§ 4"
+              title="Kostenpositionen (Jahresplanung)"
+              subtitle="Geplante Aufwendungen für das laufende Haushaltsjahr"
+            >
+              <KostenTabelle items={belegpositionen} />
+            </DocSection>
+
+            <DocSection num="§ 5" title="Wochenplan / Öffnungszeiten">
+              <Wochenplan zeiten={oeffnungszeiten} />
+            </DocSection>
+
+            <DocSection
+              num="§ 6"
+              title="Anlagen"
+              subtitle="Mit dem Antrag eingereichte Belege"
+            >
+              <AnlagenListe anlagen={anlagen} />
+            </DocSection>
+          </div>
+
+          {/* Submission-Footer (wie Eingangsstempel) */}
+          <div className="bg-slate-50 border-t-2 border-slate-200 px-10 lg:px-14 py-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-4 text-xs">
+              <div className="text-slate-500">
+                <span className="font-semibold uppercase tracking-wider">Eingegangen</span>
+                <span className="ml-2 text-slate-700">
+                  {formatDateTime(antrag.submitted_at)}
                 </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Globe className="h-3 w-3" />
-                  Sprache {antrag.submitted_language.toUpperCase()}
+                <span className="ml-3 text-slate-400">·</span>
+                <span className="ml-3">
+                  Sprache <span className="text-slate-700">{antrag.submitted_language.toUpperCase()}</span>
                 </span>
                 {antrag.ip_address && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" />
-                    IP {antrag.ip_address}
-                  </span>
+                  <>
+                    <span className="ml-3 text-slate-400">·</span>
+                    <span className="ml-3 font-mono">{antrag.ip_address}</span>
+                  </>
                 )}
               </div>
-              {antrag.user_agent && (
-                <div className="mt-1 truncate text-[11px] text-slate-400" title={antrag.user_agent}>
-                  {antrag.user_agent}
-                </div>
-              )}
+              <div className="text-slate-400 text-[11px] font-mono">
+                Elektronische Einreichung — keine Unterschrift erforderlich
+              </div>
             </div>
-          </Card>
-        </div>
+            {antrag.user_agent && (
+              <div className="mt-1 truncate text-[11px] text-slate-400" title={antrag.user_agent}>
+                {antrag.user_agent}
+              </div>
+            )}
+          </div>
+        </article>
 
-        <div className="space-y-4">
+        {/* ═══════════════════ WERKZEUG-SIDEBAR (RECHTS) ═══════════════════ */}
+        <aside className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Aktionen</CardTitle>
@@ -280,129 +316,55 @@ export function AntragDetail() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Belegpositionen</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {belegpositionen.length === 0 ? (
-                <p className="text-slate-500">Keine Belegpositionen.</p>
-              ) : (
-                (["betriebskosten", "personalkosten", "miete"] as const).map((typ) => {
-                  const items = belegpositionen.filter((b) => b.belegtyp === typ);
-                  if (items.length === 0) return null;
-                  const summe = items.reduce((s, b) => s + Number(b.betrag_euro), 0);
-                  return (
-                    <div key={typ} className="border-b border-slate-100 pb-2">
-                      <p className="font-medium capitalize mb-1">{typ}</p>
-                      {items.map((b) => (
-                        <div key={b.id} className="flex justify-between text-xs">
-                          <span>{b.bezeichnung}</span>
-                          <span>{formatEuro(Number(b.betrag_euro))}</span>
-                        </div>
-                      ))}
-                      <div className="flex justify-between mt-1 font-semibold text-xs">
-                        <span>Summe</span>
-                        <span>{formatEuro(summe)}</span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Öffnungszeiten</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {oeffnungszeiten.length === 0 ? (
-                <p className="text-sm text-slate-500">Kein Wochenplan hinterlegt.</p>
-              ) : (
-                <table className="w-full text-xs">
-                  <tbody>
-                    {(["mo", "di", "mi", "do", "fr", "sa", "so"] as const).map((tag) => {
-                      const eintrag = oeffnungszeiten.find((o) => o.wochentag === tag);
-                      const label = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" }[tag];
-                      return (
-                        <tr key={tag}>
-                          <td className="font-medium pr-2">{label}</td>
-                          <td className="pr-2">{eintrag?.oeffnungszeit ?? "—"}</td>
-                          <td>{eintrag?.angebot ?? ""}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Anlagen</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {anlagen.length === 0 ? (
-                <p className="text-sm text-slate-500">Keine Anlagen.</p>
-              ) : (
-                anlagen.map((a) => <AnlageDownload key={a.id} anlage={a} />)
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
               <CardTitle>Verlauf</CardTitle>
             </CardHeader>
             <CardContent>
               <HistoryTimeline history={history} />
             </CardContent>
           </Card>
-        </div>
+        </aside>
       </main>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Layout-Helfer für Antragsdaten-Karte
+// Dokument-Helfer
 // ─────────────────────────────────────────────────────────────────────
 
-function Section({
-  icon,
-  title,
-  subtitle,
-  children,
+/** Nummerierter Akten-Abschnitt im Stil eines Verwaltungs-Formulars. */
+function DocSection({
+  num, title, subtitle, children,
 }: {
-  icon: ReactNode;
+  num: string;
   title: string;
   subtitle?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="px-6 py-5">
-      <div className="flex items-center gap-2.5 mb-4 pb-2 border-b border-slate-200">
-        <span className="text-wue-rot" aria-hidden="true">
-          {icon}
-        </span>
-        <h3 className="text-[13px] font-semibold uppercase tracking-wider text-slate-900 leading-tight">
-          {title}
-        </h3>
-        {subtitle && (
-          <span className="text-xs text-slate-500 font-normal normal-case tracking-normal">
-            · {subtitle}
-          </span>
-        )}
+    <section>
+      <div className="flex items-baseline gap-3 mb-5">
+        <span className="text-wue-rot font-bold text-base tabular-nums">{num}</span>
+        <h2 className="text-[15px] font-semibold text-slate-900 tracking-tight">{title}</h2>
+        {subtitle && <span className="text-xs text-slate-500">— {subtitle}</span>}
       </div>
-      {children}
+      <div className="ml-[3.25rem]">{children}</div>
     </section>
   );
 }
 
-function FieldRow({
-  label,
-  children,
-  className = "",
+/** Zwei-Spalten-Feldraster für klassische Antragsdaten. */
+function FieldGrid({ children }: { children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-5">
+      {children}
+    </div>
+  );
+}
+
+/** Formularfeld mit Label oben und Wert auf gestrichelter Schreiblinie unten. */
+function DocField({
+  label, children, className = "",
 }: {
   label: string;
   children: ReactNode;
@@ -410,43 +372,184 @@ function FieldRow({
 }) {
   return (
     <div className={className}>
-      <div className="text-[11px] uppercase tracking-wider text-slate-500 font-medium mb-1">
+      <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-1">
         {label}
       </div>
-      <div className="text-sm text-slate-900">{children}</div>
+      <div className="text-[15px] text-slate-900 pb-1 border-b border-dotted border-slate-300 min-h-[1.6rem]">
+        {children}
+      </div>
     </div>
   );
 }
 
-function YesNoPill({ value }: { value: string }) {
+/** „ja"/„nein"-Darstellung im klassischen Formular-Checkboxen-Stil. */
+function YesNo({ value }: { value: string }) {
   const isYes = value === "ja";
   return (
-    <span
-      className={
-        isYes
-          ? "inline-flex items-center gap-1 text-slate-900 text-sm"
-          : "inline-flex items-center gap-1 text-slate-500 text-sm"
-      }
-    >
-      {isYes ? (
-        <Check className="h-3.5 w-3.5 text-wue-rot" />
-      ) : (
-        <XIcon className="h-3.5 w-3.5 text-slate-400" />
-      )}
-      {isYes ? "ja" : "nein"}
+    <span className="inline-flex items-center gap-5 text-[15px]">
+      <YesNoBox checked={isYes} label="ja" />
+      <YesNoBox checked={!isYes} label="nein" />
     </span>
   );
 }
 
-function KostenTile({ label, value }: { label: string; value: number }) {
+function YesNoBox({ checked, label }: { checked: boolean; label: string }) {
   return (
-    <div className="border-l-2 border-wue-rot bg-wue-rot-soft/40 px-4 py-3">
-      <div className="text-[11px] uppercase tracking-wider text-slate-600 font-medium">
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className={
+          checked
+            ? "inline-flex items-center justify-center w-4 h-4 border border-slate-800 bg-wue-rot text-white"
+            : "inline-block w-4 h-4 border border-slate-400 bg-white"
+        }
+      >
+        {checked && <Check className="h-3 w-3" strokeWidth={3} />}
+      </span>
+      <span className={checked ? "text-slate-900 font-medium" : "text-slate-400"}>
         {label}
-      </div>
-      <div className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">
-        {formatEuro(value)}
-      </div>
+      </span>
+    </span>
+  );
+}
+
+/** Strukturierte Kostentabelle gruppiert nach Belegtyp. */
+type Beleg = {
+  id: string;
+  belegtyp: string;
+  bezeichnung: string;
+  betrag_euro: string | number;
+};
+
+const BELEG_LABELS: Record<string, string> = {
+  miete: "Miete",
+  personalkosten: "Personalkosten",
+  betriebskosten: "Betriebskosten",
+};
+
+function KostenTabelle({ items }: { items: Beleg[] }) {
+  if (items.length === 0) {
+    return <p className="text-sm text-slate-500 italic">Keine Kostenpositionen angegeben.</p>;
+  }
+  const gruppen = (["miete", "personalkosten", "betriebskosten"] as const)
+    .map((typ) => {
+      const ts = items.filter((b) => b.belegtyp === typ);
+      const summe = ts.reduce((s, b) => s + Number(b.betrag_euro), 0);
+      return { typ, items: ts, summe };
+    })
+    .filter((g) => g.items.length > 0);
+  const gesamt = items.reduce((s, b) => s + Number(b.betrag_euro), 0);
+
+  return (
+    <div>
+      <table className="w-full text-[14px]">
+        <thead>
+          <tr className="text-[10.5px] uppercase tracking-[0.12em] text-slate-500 font-medium">
+            <th className="text-left py-1 pr-3 w-[14rem]">Belegtyp</th>
+            <th className="text-left py-1 pr-3">Bezeichnung</th>
+            <th className="text-right py-1 w-[8rem]">Betrag (Jahr)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {gruppen.map((g, gi) => (
+            <Fragment key={g.typ}>
+              {g.items.map((b, i) => (
+                <tr
+                  key={b.id}
+                  className={i === 0 && gi > 0 ? "border-t border-slate-200" : ""}
+                >
+                  <td className="py-1.5 pr-3 align-top">
+                    {i === 0 && (
+                      <span className="text-slate-700 font-medium">{BELEG_LABELS[g.typ] ?? g.typ}</span>
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-3 text-slate-800">{b.bezeichnung}</td>
+                  <td className="py-1.5 text-right tabular-nums text-slate-900">
+                    {formatEuro(Number(b.betrag_euro))}
+                  </td>
+                </tr>
+              ))}
+              <tr>
+                <td className="py-1 pr-3 text-xs uppercase tracking-wider text-slate-500">
+                  Summe {BELEG_LABELS[g.typ] ?? g.typ}
+                </td>
+                <td></td>
+                <td className="py-1 text-right tabular-nums text-slate-700 border-t border-slate-100">
+                  {formatEuro(g.summe)}
+                </td>
+              </tr>
+            </Fragment>
+          ))}
+          <tr className="border-t-2 border-wue-rot">
+            <td className="pt-2 text-[12px] uppercase tracking-wider text-wue-rot font-semibold">
+              Gesamtsumme
+            </td>
+            <td></td>
+            <td className="pt-2 text-right text-[17px] font-bold tabular-nums text-slate-900">
+              {formatEuro(gesamt)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Wochenplan im Formular-Tabellenstil. */
+const TAG_LABELS: Record<string, string> = {
+  mo: "Montag", di: "Dienstag", mi: "Mittwoch", do: "Donnerstag",
+  fr: "Freitag", sa: "Samstag", so: "Sonntag",
+};
+
+function Wochenplan({
+  zeiten,
+}: {
+  zeiten: Array<{ wochentag: string; oeffnungszeit: string | null; angebot: string | null }>;
+}) {
+  if (zeiten.length === 0) {
+    return <p className="text-sm text-slate-500 italic">Kein Wochenplan hinterlegt.</p>;
+  }
+  return (
+    <table className="w-full text-[14px]">
+      <thead>
+        <tr className="text-[10.5px] uppercase tracking-[0.12em] text-slate-500 font-medium">
+          <th className="text-left py-1 pr-3 w-[8rem]">Tag</th>
+          <th className="text-left py-1 pr-3 w-[10rem]">Öffnungszeit</th>
+          <th className="text-left py-1">Angebot</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {(["mo", "di", "mi", "do", "fr", "sa", "so"] as const).map((tag) => {
+          const eintrag = zeiten.find((o) => o.wochentag === tag);
+          const aktiv = !!eintrag?.oeffnungszeit;
+          return (
+            <tr key={tag} className={aktiv ? "" : "text-slate-400"}>
+              <td className="py-2 pr-3 font-medium">{TAG_LABELS[tag]}</td>
+              <td className="py-2 pr-3 tabular-nums">
+                {eintrag?.oeffnungszeit ?? "geschlossen"}
+              </td>
+              <td className="py-2">{eintrag?.angebot ?? ""}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+/** Anlagen-Liste im Akten-Stil. */
+function AnlagenListe({ anlagen }: { anlagen: AnlageRow[] }) {
+  if (anlagen.length === 0) {
+    return (
+      <p className="text-sm text-slate-500 italic flex items-center gap-2">
+        <FileText className="h-4 w-4" /> Keine Anlagen beigefügt.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      {anlagen.map((a) => (
+        <AnlageDownload key={a.id} anlage={a} />
+      ))}
     </div>
   );
 }
