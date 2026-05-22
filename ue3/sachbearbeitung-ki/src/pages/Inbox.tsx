@@ -84,7 +84,7 @@ function monthLabel(key: string): string {
 
 type SortKey =
   | "antragsnummer" | "name" | "traeger" | "submitted_at"
-  | "submitted_language" | "status" | "gesamt" | "vj" | "diff";
+  | "submitted_language" | "status" | "antragssumme" | "gesamt" | "vj" | "diff";
 type SortDir = "asc" | "desc";
 type GroupKey = "none" | "status" | "traeger" | "submitted_language" | "month";
 
@@ -95,7 +95,8 @@ const COLUMNS: Array<{ key: SortKey; label: string; align?: "right" }> = [
   { key: "submitted_at", label: "Eingegangen" },
   { key: "submitted_language", label: "Sprache" },
   { key: "status", label: "Status" },
-  { key: "gesamt", label: "Gesamt", align: "right" },
+  { key: "antragssumme", label: "Antragssumme", align: "right" },
+  { key: "gesamt", label: "Vorjahres-Aufwand", align: "right" },
   { key: "vj", label: "VJ-Wert", align: "right" },
   { key: "diff", label: "Δ", align: "right" },
 ];
@@ -184,6 +185,10 @@ export function Inbox() {
   }
 
   function compareVals(a: AntragRow, b: AntragRow, key: SortKey, dir: SortDir): number {
+    if (key === "antragssumme") {
+      const d = (a.geforderte_foerdersumme_euro ?? -Infinity) - (b.geforderte_foerdersumme_euro ?? -Infinity);
+      return dir === "asc" ? d : -d;
+    }
     if (key === "gesamt") {
       const d = totalEuro(a) - totalEuro(b);
       return dir === "asc" ? d : -d;
@@ -252,7 +257,7 @@ export function Inbox() {
 
   // Render-Liste mit Gruppen-Markern + aggregierter Summe + VJ-Aggregat pro Gruppe
   const rendered: Array<
-    | { kind: "group"; label: string; count: number; summe: number; vjSumme: number | null }
+    | { kind: "group"; label: string; count: number; antragsSumme: number; summe: number; vjSumme: number | null }
     | { kind: "row"; antrag: AntragRow }
   > = [];
 
@@ -260,11 +265,13 @@ export function Inbox() {
     sorted.forEach((a) => rendered.push({ kind: "row", antrag: a }));
   } else {
     const counts = new Map<string, number>();
+    const antragsSums = new Map<string, number>();
     const sums = new Map<string, number>();
     const vjSums = new Map<string, number | null>();
     sorted.forEach((a) => {
       const g = groupKeyOf(a);
       counts.set(g, (counts.get(g) ?? 0) + 1);
+      antragsSums.set(g, (antragsSums.get(g) ?? 0) + (a.geforderte_foerdersumme_euro ?? 0));
       sums.set(g, (sums.get(g) ?? 0) + totalEuro(a));
       const vj = vjValue(a, vjMap);
       const prev = vjSums.get(g);
@@ -282,6 +289,7 @@ export function Inbox() {
           kind: "group",
           label: groupLabel(groupBy, g),
           count: counts.get(g) ?? 0,
+          antragsSumme: antragsSums.get(g) ?? 0,
           summe: sums.get(g) ?? 0,
           vjSumme: vjSums.get(g) ?? null,
         });
@@ -291,6 +299,9 @@ export function Inbox() {
     });
   }
 
+  const gesamtAntragsSumme = filtered.reduce(
+    (s, a) => s + (a.geforderte_foerdersumme_euro ?? 0), 0,
+  );
   const gesamtSumme = filtered.reduce((s, a) => s + totalEuro(a), 0);
   const gesamtVj = filtered.reduce<{ sum: number; hasAny: boolean }>(
     (acc, a) => {
@@ -422,7 +433,7 @@ export function Inbox() {
                     const active = sortKey === col.key;
                     const arrow = active ? (sortDir === "asc" ? "▲" : "▼") : "";
                     return (
-                      <TableHead key={col.key} className={col.align === "right" ? "text-right" : ""}>
+                      <TableHead key={col.key} className={`whitespace-nowrap ${col.align === "right" ? "text-right" : ""}`}>
                         <button
                           type="button"
                           onClick={() => handleSort(col.key)}
@@ -440,20 +451,23 @@ export function Inbox() {
                 {rendered.map((item, idx) =>
                   item.kind === "group" ? (
                     <TableRow key={`g-${idx}`} className="border-t border-slate-200 hover:bg-transparent">
-                      <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-3 pl-4">
+                      <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-3 pl-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <span className="inline-block w-[3px] h-5 bg-blue-700 rounded-sm" aria-hidden="true"></span>
                           <span className="font-semibold text-[15px] text-slate-900">{item.label}</span>
                           <span className="text-xs text-slate-500 font-normal">{item.count} {item.count === 1 ? "Antrag" : "Anträge"}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold text-[15px] text-slate-900 py-3">
+                      <TableCell className="text-right tabular-nums font-semibold text-[15px] text-slate-900 py-3 whitespace-nowrap">
+                        {formatEuro(item.antragsSumme)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-sm text-slate-600 py-3 whitespace-nowrap">
                         {formatEuro(item.summe)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm text-slate-500 py-3">
+                      <TableCell className="text-right tabular-nums text-sm text-slate-500 py-3 whitespace-nowrap">
                         {item.vjSumme === null ? "—" : formatEuro(item.vjSumme)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm py-3">
+                      <TableCell className="text-right tabular-nums text-sm py-3 whitespace-nowrap">
                         <span className={toneClass(formatDiff(item.summe, item.vjSumme).tone)}>
                           {formatDiff(item.summe, item.vjSumme).text}
                         </span>
@@ -478,7 +492,12 @@ export function Inbox() {
                           <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDateTime(item.antrag.submitted_at)}</TableCell>
                           <TableCell className="whitespace-nowrap"><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
                           <TableCell className="whitespace-nowrap"><StatusBadge status={item.antrag.status} /></TableCell>
-                          <TableCell className="text-right tabular-nums text-sm text-slate-700 whitespace-nowrap">{formatEuro(totalEuro(item.antrag))}</TableCell>
+                          <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
+                            {item.antrag.geforderte_foerdersumme_euro !== null
+                              ? <span className="font-medium text-slate-900">{formatEuro(item.antrag.geforderte_foerdersumme_euro)}</span>
+                              : <span className="text-slate-400">—</span>}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">{formatEuro(totalEuro(item.antrag))}</TableCell>
                           <TableCell className="text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
                             {vj === null ? "—" : formatEuro(vj)}
                           </TableCell>
@@ -508,16 +527,19 @@ export function Inbox() {
                 )}
                 {rendered.length > 0 && (
                   <TableRow className="border-t-2 border-blue-700 bg-blue-50/30 hover:bg-blue-50/30">
-                    <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-4 pl-4 text-sm text-slate-700">
+                    <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-4 pl-4 text-sm text-slate-700 whitespace-nowrap">
                       Gesamtsumme aller angezeigten Anträge
                     </TableCell>
-                    <TableCell className="py-4 text-right tabular-nums text-lg font-bold text-slate-900">
+                    <TableCell className="py-4 text-right tabular-nums text-lg font-bold text-slate-900 whitespace-nowrap">
+                      {formatEuro(gesamtAntragsSumme)}
+                    </TableCell>
+                    <TableCell className="py-4 text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
                       {formatEuro(gesamtSumme)}
                     </TableCell>
-                    <TableCell className="py-4 text-right tabular-nums text-sm text-slate-500">
+                    <TableCell className="py-4 text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
                       {gesamtVj.hasAny ? formatEuro(gesamtVj.sum) : "—"}
                     </TableCell>
-                    <TableCell className="py-4 text-right tabular-nums text-sm">
+                    <TableCell className="py-4 text-right tabular-nums text-sm whitespace-nowrap">
                       <span className={toneClass(gesamtDiff.tone)}>{gesamtDiff.text}</span>
                     </TableCell>
                     <TableCell></TableCell>

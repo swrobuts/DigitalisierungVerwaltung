@@ -14,6 +14,9 @@ export interface AntragRow {
   betriebskosten_vorjahr_euro: number;
   personalkosten_vorjahr_euro: number;
   miete_jahr_euro: number;
+  /** Beantragter Zuschuss (kann von Vorjahres-Aufwand abweichen). NULL =
+   * noch nicht beziffert. */
+  geforderte_foerdersumme_euro: number | null;
 }
 
 export function useAntraege(): {
@@ -31,7 +34,7 @@ export function useAntraege(): {
       const { data, error } = await supabase
         .from("antrag_mit_summen")
         .select(
-          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, betriebskosten_vorjahr_euro, personalkosten_vorjahr_euro, miete_jahr_euro",
+          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, betriebskosten_vorjahr_euro, personalkosten_vorjahr_euro, miete_jahr_euro, geforderte_foerdersumme_euro",
         )
         .order("submitted_at", { ascending: false });
       if (!mounted) return;
