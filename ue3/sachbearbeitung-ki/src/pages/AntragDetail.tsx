@@ -60,7 +60,7 @@ export function AntragDetail() {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="bg-white border-b border-slate-200 relative">
+      <header className="bg-white border-b border-slate-200 relative sticky top-0 z-30">
         <div className="absolute inset-x-0 top-0 h-[3px] bg-wue-rot" />
         <div className="w-full px-4 lg:px-8 py-4 flex items-center gap-3">
           <Link
@@ -80,7 +80,7 @@ export function AntragDetail() {
         <StatusFlow status={antrag.status} />
       </div>
 
-      <main className="w-full px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <main className="w-full px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* ═══════════════════ DOKUMENT (LINKS) ═══════════════════ */}
         <article className="lg:col-span-2 bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
           {/* Briefkopf */}
@@ -255,8 +255,11 @@ export function AntragDetail() {
           </div>
         </article>
 
-        {/* ═══════════════════ WERKZEUG-SIDEBAR (RECHTS) ═══════════════════ */}
-        <aside className="space-y-4">
+        {/* ═══════════════════ WERKZEUG-SIDEBAR (RECHTS) ═══════════════════
+            Sticky-positioniert, damit Aktionen + KI-Prüfung beim Scrollen
+            des Dokuments sichtbar bleiben. Eigener Scroll-Container, falls
+            der Inhalt höher als der Viewport wird (z.B. viele Befunde). */}
+        <aside className="space-y-4 lg:sticky lg:top-[5.25rem] lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
           <Card>
             <CardHeader>
               <CardTitle>Aktionen</CardTitle>
