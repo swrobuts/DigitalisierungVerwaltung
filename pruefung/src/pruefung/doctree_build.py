@@ -18,14 +18,20 @@ from pathlib import Path
 from typing import Any
 
 import pypdfium2 as pdfium
+import pytesseract
 
 SECTION_RE = re.compile(r"^\s*§\s*(\d+(?:\.\d+)*)\s+(.+?)$")
 
 
 def extract_text_blocks(pdf_path: Path) -> list[dict[str, Any]]:
     """Liest PDF und extrahiert Text-Zeilen als Blocks.
+
+    Strategie:
+    - Primär: pypdfium2-Text-Layer (schnell, deterministisch)
+    - Fallback: Tesseract-OCR mit deutscher Sprache, wenn count_chars==0 (gescanntes PDF)
+
     Jede Zeile ein Block: {text, size, page}.
-    size ist Heuristik (14 für Heading-Pattern, 11 sonst) — reicht für AHP-PDF.
+    size ist Heuristik (14 für Heading-Pattern, 11 sonst).
     """
     blocks: list[dict[str, Any]] = []
     pdf = pdfium.PdfDocument(str(pdf_path))
@@ -34,19 +40,26 @@ def extract_text_blocks(pdf_path: Path) -> list[dict[str, Any]]:
             page = pdf[page_idx]
             tp = page.get_textpage()
             try:
-                text = tp.get_text_range()
-                for raw_line in text.splitlines():
-                    line = raw_line.strip()
-                    if not line:
-                        continue
-                    is_section = bool(SECTION_RE.match(line))
-                    blocks.append({
-                        "text": line,
-                        "size": 14 if is_section else 11,
-                        "page": page_idx + 1,
-                    })
+                if tp.count_chars() > 0:
+                    # Text-PDF: schneller pypdfium2-Pfad
+                    text = tp.get_text_range()
+                else:
+                    # Gescanntes PDF: OCR-Fallback (Seite als Bitmap rendern + tesseract-deu)
+                    bitmap = page.render(scale=2.0)  # höhere DPI für bessere OCR
+                    pil_image = bitmap.to_pil()
+                    text = pytesseract.image_to_string(pil_image, lang="deu")
             finally:
                 tp.close()
+            for raw_line in text.splitlines():
+                line = raw_line.strip()
+                if not line:
+                    continue
+                is_section = bool(SECTION_RE.match(line))
+                blocks.append({
+                    "text": line,
+                    "size": 14 if is_section else 11,
+                    "page": page_idx + 1,
+                })
     finally:
         pdf.close()
     return blocks
