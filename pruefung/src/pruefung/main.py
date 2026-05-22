@@ -105,11 +105,15 @@ async def pruefen(req: PruefungsRequest) -> dict[str, Any]:
         befunde=befunde, doctree_version=version, duration_ms=duration_ms,
     )
 
+    # Empfehlung wird mit ins ergebnis_jsonb gepackt, damit sie bei späterem
+    # Reload des Protokolls verfügbar bleibt (UI + Bescheid-Generator)
+    ergebnis_dict = ergebnis.model_dump()
+    ergebnis_dict["empfehlung"] = ergebnis.empfehlung().model_dump()
     protokoll = await db.insert("pruefprotokoll", {
         "antrag_id": req.antrag_id,
         "geprueft_von": req.geprueft_von,
         "doctree_version": version,
-        "ergebnis_jsonb": ergebnis.model_dump(),
+        "ergebnis_jsonb": ergebnis_dict,
         "duration_ms": duration_ms,
     })
     protokoll_id = protokoll[0]["id"] if protokoll else None
@@ -119,6 +123,7 @@ async def pruefen(req: PruefungsRequest) -> dict[str, Any]:
         "anzahl_verstoesse": ergebnis.anzahl_verstoesse(),
         "anzahl_hinweise": ergebnis.anzahl_hinweise(),
         "pruefungsstatus": ergebnis.pruefungsstatus(),
+        "empfehlung": ergebnis.empfehlung().model_dump(),
         "doctree_version": version,
         "duration_ms": duration_ms,
         "befunde": [b.model_dump() for b in befunde],

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
-import { usePruefung, type PruefBefund } from "../hooks/usePruefung";
+import { usePruefung, type PruefBefund, type PruefEmpfehlung } from "../hooks/usePruefung";
 import { useSession } from "../hooks/useSession";
 import { useAhpTree, findNodeByPath, pathFromParagraphRef } from "../hooks/useAhpTree";
 
@@ -59,6 +59,78 @@ function BefundRow({ b }: { b: PruefBefund }) {
       {typeof b.konfidenz === "number" && (
         <p className="text-xs text-slate-400">Konfidenz: {Math.round(b.konfidenz * 100)}%</p>
       )}
+    </div>
+  );
+}
+
+/** Empfehlungs-Box: zeigt die KI-Empfehlung (bewilligen/rueckfrage/ablehnen)
+ * direkt nach der Prüfung. Dient als Vorschlag für die Sachbearbeitung —
+ * Entscheidung bleibt beim Sozialausschuss (AHP 3.4). */
+function EmpfehlungsBox({ empfehlung }: { empfehlung: PruefEmpfehlung }) {
+  const styles: Record<
+    PruefEmpfehlung["aktion"],
+    { label: string; emoji: string; bg: string; border: string; text: string }
+  > = {
+    bewilligen: {
+      label: "Empfehlung: BEWILLIGEN",
+      emoji: "✓",
+      bg: "bg-emerald-50",
+      border: "border-emerald-300",
+      text: "text-emerald-900",
+    },
+    rueckfrage: {
+      label: "Empfehlung: RÜCKFRAGE",
+      emoji: "↩",
+      bg: "bg-amber-50",
+      border: "border-amber-300",
+      text: "text-amber-900",
+    },
+    ablehnen: {
+      label: "Empfehlung: ABLEHNEN",
+      emoji: "✖",
+      bg: "bg-rose-50",
+      border: "border-rose-300",
+      text: "text-rose-900",
+    },
+  };
+  const s = styles[empfehlung.aktion];
+  return (
+    <div className={`border-l-4 ${s.border} ${s.bg} px-3 py-2.5 rounded-r`}>
+      <div className={`text-sm font-semibold ${s.text} flex items-center gap-2`}>
+        <span className="text-base">{s.emoji}</span>
+        {s.label}
+      </div>
+      <p className="text-xs text-slate-700 mt-1 leading-relaxed">
+        {empfehlung.begruendung}
+      </p>
+      {empfehlung.nicht_heilbare_verstoesse.length > 0 && (
+        <details className="mt-2">
+          <summary className="text-[11px] text-rose-700 cursor-pointer hover:underline">
+            {empfehlung.nicht_heilbare_verstoesse.length} nicht heilbar
+          </summary>
+          <ul className="mt-1 ml-3 text-[11px] text-slate-700 list-disc list-inside space-y-0.5">
+            {empfehlung.nicht_heilbare_verstoesse.map((v, i) => (
+              <li key={i}>{v}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {empfehlung.heilbare_verstoesse.length > 0 && (
+        <details className="mt-1">
+          <summary className="text-[11px] text-amber-700 cursor-pointer hover:underline">
+            {empfehlung.heilbare_verstoesse.length} durch Nachbesserung heilbar
+          </summary>
+          <ul className="mt-1 ml-3 text-[11px] text-slate-700 list-disc list-inside space-y-0.5">
+            {empfehlung.heilbare_verstoesse.map((v, i) => (
+              <li key={i}>{v}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+      <p className="text-[10px] text-slate-500 mt-2 italic">
+        Vorschlag der KI — die finale Entscheidung trifft der Sozialausschuss
+        (AHP 3.4).
+      </p>
     </div>
   );
 }
@@ -174,6 +246,11 @@ export function PruefungsCard({ antragId }: { antragId: string }) {
               Letzte Prüfung: {new Date(latest.geprueft_am).toLocaleString("de-DE", {timeZone: "Europe/Berlin"})}
               {" · "}{latest.duration_ms ?? "—"} ms · Doctree v{latest.ergebnis_jsonb?.doctree_version ?? "—"}
             </p>
+
+            {/* Empfehlung der KI prominent oben */}
+            {latest.ergebnis_jsonb?.empfehlung && (
+              <EmpfehlungsBox empfehlung={latest.ergebnis_jsonb.empfehlung} />
+            )}
 
             {verstoesse.length === 0 && hinweise.length === 0 && (
               <p className="text-emerald-700 text-sm">✓ Keine Befunde — Antrag konform.</p>

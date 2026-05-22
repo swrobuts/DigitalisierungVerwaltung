@@ -75,6 +75,9 @@ def render_bescheid_pdf(
     geprüft wurde — für Transparenz im Bescheid.
     """
     tpl = _env.get_template("bescheid.html.j2")
+    # Pfad zum Würzburg-Wappen (SVG liegt im templates/-Ordner).
+    # WeasyPrint braucht ein absolutes file://-URI.
+    wappen_path = (Path(__file__).parent / "templates" / "wuerzburg_coa.svg").resolve()
     html = tpl.render(
         bescheid_id=bescheid_id,
         antrag=antrag,
@@ -86,5 +89,7 @@ def render_bescheid_pdf(
         ausgestellt_am=ausgestellt_am,
         doctree_version=doctree_version or "—",
         geprueft_gegen=geprueft_gegen or [],
+        wappen_src=wappen_path.as_uri(),
     )
-    return HTML(string=html).write_pdf()
+    # base_url muss gesetzt sein, damit WeasyPrint relative/file-URLs auflöst.
+    return HTML(string=html, base_url=str(wappen_path.parent)).write_pdf()

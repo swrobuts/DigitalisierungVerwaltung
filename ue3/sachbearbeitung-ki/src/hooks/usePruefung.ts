@@ -14,6 +14,13 @@ export interface PruefBefund {
   konfidenz?: number | null;
 }
 
+export interface PruefEmpfehlung {
+  aktion: "bewilligen" | "rueckfrage" | "ablehnen";
+  begruendung: string;
+  heilbare_verstoesse: string[];
+  nicht_heilbare_verstoesse: string[];
+}
+
 export interface PruefProtokoll {
   id: string;
   antrag_id: string;
@@ -22,6 +29,7 @@ export interface PruefProtokoll {
     befunde: PruefBefund[];
     doctree_version: string | null;
     duration_ms: number | null;
+    empfehlung?: PruefEmpfehlung;
   };
   pdf_storage_path: string | null;
   duration_ms: number | null;

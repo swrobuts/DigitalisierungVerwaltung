@@ -29,7 +29,8 @@
     border-bottom: 2px solid #AD0E36;
   }
   .briefkopf .logo {
-    width: 16mm; height: 22mm;
+    width: 18mm; height: 22mm;
+    object-fit: contain;
     flex-shrink: 0;
   }
   .briefkopf .absender {
@@ -249,28 +250,11 @@
 
 {# ── Briefkopf ───────────────────────────────────────────────────── #}
 <div class="briefkopf">
-  {# Stadt-Würzburg-Wappen-Andeutung: oberer Teil mit 3 roten Frankenrechen-
-     Spitzen auf silber, unterer Teil blauer Schild mit goldener Banner-Linie.
-     Wir vermeiden eine 1:1-Kopie des amtlichen Hoheitszeichens; das hier ist
-     eine stilisierte Annäherung an die Wappenelemente. #}
-  <svg class="logo" viewBox="0 0 64 88" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    {# Schild-Outline #}
-    <path d="M4 4 H60 V52 Q60 78 32 84 Q4 78 4 52 Z"
-          fill="#FFFFFF" stroke="#1a1a1a" stroke-width="1.5"/>
-    {# Oberer silberner Bereich (Frankenrechen-Feld) — durch Linie abgesetzt #}
-    <line x1="4" y1="36" x2="60" y2="36" stroke="#1a1a1a" stroke-width="1"/>
-    {# 3 rote Frankenrechen-Spitzen #}
-    <path d="M10 32 L17 8 L24 32 Z" fill="#AD0E36" stroke="#7A0826" stroke-width="0.8"/>
-    <path d="M25 32 L32 8 L39 32 Z" fill="#AD0E36" stroke="#7A0826" stroke-width="0.8"/>
-    <path d="M40 32 L47 8 L54 32 Z" fill="#AD0E36" stroke="#7A0826" stroke-width="0.8"/>
-    {# Unterer blauer Bereich (Würzburg-Banner) #}
-    <path d="M4 36 H60 V52 Q60 78 32 84 Q4 78 4 52 Z" fill="#1E3A8A"/>
-    {# Goldenes Banner-Element #}
-    <rect x="10" y="56" width="44" height="3" fill="#D4AF37"/>
-    <text x="32" y="74" font-family="Georgia, serif" font-size="14"
-          font-weight="700" text-anchor="middle" fill="#D4AF37"
-          letter-spacing="2">WÜ</text>
-  </svg>
+  {# Stadt-Würzburg-Wappen (amtliches Hoheitszeichen, Public Domain nach
+     § 5 Abs. 1 UrhG; Quelle: Wikimedia Commons,
+     File:DEU_Würzburg_COA.svg). Wird via file://-URI eingebunden — das
+     SVG liegt im selben templates-Ordner und ist Teil des Image-Builds. #}
+  <img src="{{ wappen_src }}" class="logo" alt="Stadt Würzburg Wappen"/>
   <div class="absender">
     <div class="stadt">STADT WÜRZBURG</div>
     <div class="ressort">Sozialreferat — Fachbereich Integration, Inklusion und Senioren</div>
