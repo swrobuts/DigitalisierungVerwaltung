@@ -1,24 +1,36 @@
 """PDF → Doc-Tree (PageIndex-Stil).
 
-Heuristik: Heading-Erkennung über Pattern `§ N(.M)*` zur Pfad-Konstruktion.
-Liefert hierarchischen Tree mit stable IDs, Path-Breadcrumb und Content je Section.
+Zwei Build-Pfade:
+
+1. `build_tree(blocks)` — Regex-Heuristik (Legacy). Erkennt Section-Header
+   per Pattern `§ N(.M)*` oder numerisch `N(.M)* Title`. Schnell und
+   deterministisch, aber zerbricht an OCR-Rauschen (Trailing-Dash-Titel,
+   Il→II-Verwechslungen, Fußnoten als Sections, kaputte Hierarchie).
+
+2. `structure_with_claude(pages)` — semantischer Strukturierer via
+   Claude. OCR-Volltext je Seite → JSON-Tree mit korrekter Hierarchie,
+   korrigiert OCR-Fehler, ignoriert TOC/Bibliografie. Produktiver Pfad
+   für die AHP-Richtlinie (siehe /api/rebuild-doctree?engine=claude).
 
 Tree-Schema:
 {
   id: str,           # stable, z.B. "sec_4_2_1" oder "root"
-  title: str,        # "§ 4.2.1 Mietkosten" oder synth root
+  title: str,        # "§ 4.2.1 Mietkosten" oder "3.1 Antragsberechtigt"
   path: str,         # "§ 4.2.1" — Breadcrumb (leer bei root)
   level: int,        # 0=root, 1=§N, 2=§N.M, 3=§N.M.K, …
   content: str,      # Plain-Text der Section (ohne Kinder), accumulated
   children: list[<same>],
 }
 """
+import json
+import os
 import re
 from pathlib import Path
 from typing import Any
 
 import pypdfium2 as pdfium
 import pytesseract
+from anthropic import AsyncAnthropic
 
 # Section-Heading-Patterns (mehrere unterstützt):
 #   Form A: "§ 4.2.1 Titel"  (klassische juristische Form)
@@ -164,3 +176,152 @@ def build_tree(blocks: list[dict[str, Any]]) -> dict[str, Any]:
                 root["content"] = (root["content"] + " " + blk["text"]).strip()
 
     return root
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Claude-basierter Strukturierer (semantischer Pfad)
+# ─────────────────────────────────────────────────────────────────────
+
+
+def extract_page_texts(pdf_path: Path) -> list[str]:
+    """Liefert pro Seite einen Volltext-String. OCR-Fallback wenn der
+    Text-Layer leer ist (Image-PDF). Gleiche OCR-Settings wie
+    `extract_text_blocks`, aber pro-Seite-aggregiert für den
+    Claude-Strukturierer."""
+    pages: list[str] = []
+    pdf = pdfium.PdfDocument(str(pdf_path))
+    try:
+        for page_idx in range(len(pdf)):
+            page = pdf[page_idx]
+            tp = page.get_textpage()
+            try:
+                if tp.count_chars() > 0:
+                    text = tp.get_text_range()
+                else:
+                    bitmap = page.render(scale=2.0)
+                    pil_image = bitmap.to_pil()
+                    text = pytesseract.image_to_string(pil_image, lang="deu")
+            finally:
+                tp.close()
+            pages.append(text)
+    finally:
+        pdf.close()
+    return pages
+
+
+_STRUCTURE_SYSTEM_PROMPT = """Du bekommst den OCR-Text einer Förderrichtlinie der \
+Stadt Würzburg und strukturierst ihn als sauberen JSON-Tree.
+
+REGELN:
+1. Identifiziere TOP-LEVEL-SECTIONS (level 1): "1 Vorwort", "2 Förderrichtlinie und \
+Förderbereiche", "3 Verfahren, Verwendungsnachweis, Prüfungsrechte der Stadt Würzburg", \
+"4 Schlussbemerkungen", "5 Anlagen und Formulare".
+2. Identifiziere UNTER-SECTIONS (level 2/3) im numerischen Format: "2.1 Förderbereich I", \
+"3.1 Antragsberechtigt", usw. Section-Nummern wie "3.1" sind KINDER von "3", NIEMALS Top-Level!
+3. OCR-Korrekturen die du anwenden musst:
+   - "Förderbereich Il" → "Förderbereich II"
+   - "Förderbereich Ill" → "Förderbereich III"
+   - "$ 71 SGB XII" → "§ 71 SGB XII" (Dollar-Zeichen fälschlich für Paragraph)
+   - "SGB X1I" → "SGB XII"
+4. Wenn ein Section-Titel mit "-" oder "—" endet, ziehe den Titel über die nächste Zeile \
+zusammen. Beispiel: "2.1 Förderbereich I -" gefolgt von "Aufbau von niedrigschwelligen \
+Angeboten" wird zu "2.1 Förderbereich I — Aufbau von niedrigschwelligen Angeboten".
+5. IGNORIERE komplett (weder Section noch Content):
+   - Inhaltsverzeichnis-Einträge (kurze Listen mit Seitenzahlen, meist auf S. 2-3)
+   - Bibliografie-/Fußnoten-Einträge ("1 Bundesministerium ... (2025). Neunter Altersbericht...")
+   - Wiederkehrende Footer ("Sozialreferat der Stadt Würzburg ... Karmelitenstraße 43, 97070 Würzburg")
+   - Reine Seitenzahlen
+6. Content einer Section ist der FLIESSTEXT zwischen dem Titel und der nächsten Section. \
+Aufzählungen wie "a) ...", "b) ...", "1. ...", "2. ..." gehören IN den Content, NICHT als eigene \
+Sections.
+7. Output ist EIN einziger JSON-Tree, KEIN Markdown-Wrapping, KEINE Erklärung davor/danach.
+
+ID-SCHEMA:
+- root-Knoten: id="root"
+- "1 Vorwort": id="sec_1"
+- "3.1 Antragsberechtigt": id="sec_3_1"
+- "2.4 Förderbereich IV": id="sec_2_4"
+
+PATH-SCHEMA:
+- root-Knoten: path=""
+- "1 Vorwort": path="1"
+- "3.1 Antragsberechtigt": path="3.1"
+
+OUTPUT-SCHEMA (exakt einhalten):
+{
+  "id": "root",
+  "title": "AHP-Förderrichtlinie",
+  "path": "",
+  "level": 0,
+  "content": "",
+  "children": [
+    {
+      "id": "sec_1",
+      "title": "1 Vorwort",
+      "path": "1",
+      "level": 1,
+      "content": "Demografischer Wandel...",
+      "children": []
+    },
+    {
+      "id": "sec_3",
+      "title": "3 Verfahren, Verwendungsnachweis, Prüfungsrechte der Stadt Würzburg",
+      "path": "3",
+      "level": 1,
+      "content": "Für die Antragstellung, Bewilligung und Auszahlung...",
+      "children": [
+        {
+          "id": "sec_3_1",
+          "title": "3.1 Antragsberechtigt",
+          "path": "3.1",
+          "level": 2,
+          "content": "sind Verbände, Gruppen und Initiativen...",
+          "children": []
+        }
+      ]
+    }
+  ]
+}
+
+Beginne deine Antwort DIREKT mit dem öffnenden { — kein Markdown-Block, kein Vorwort."""
+
+
+async def structure_with_claude(
+    pages: list[str],
+    model: str = "claude-sonnet-4-5",
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Strukturiert OCR-Volltexte einer Förderrichtlinie via Claude in einen
+    sauberen hierarchischen Tree.
+
+    Args:
+        pages: Liste der OCR-Volltexte pro Seite (Output von `extract_page_texts`).
+        model: Anthropic-Modell. Default `claude-sonnet-4-5`.
+        api_key: Override; default `ANTHROPIC_API_KEY` aus Environment.
+
+    Returns:
+        Tree-Dict im Standard-Schema (id/title/path/level/content/children).
+
+    Raises:
+        json.JSONDecodeError: Wenn Claude kein parsbares JSON liefert.
+        anthropic-Exceptions bei API-Fehlern.
+    """
+    full_text = "\n\n=== SEITENGRENZE ===\n\n".join(
+        f"--- Seite {i + 1} ---\n{p}" for i, p in enumerate(pages)
+    )
+    client = AsyncAnthropic(api_key=api_key or os.environ["ANTHROPIC_API_KEY"])
+    response = await client.messages.create(
+        model=model,
+        max_tokens=16000,
+        system=_STRUCTURE_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": full_text}],
+    )
+    # Response-Text extrahieren und defensive Markdown-Stripping (falls Claude
+    # trotz Anweisung doch einen Code-Block sendet)
+    raw = "".join(
+        block.text for block in response.content if getattr(block, "type", "") == "text"
+    ).strip()
+    if raw.startswith("```"):
+        # ```json\n{...}\n```
+        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+    return json.loads(raw)

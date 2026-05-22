@@ -6,7 +6,12 @@ from typing import Any
 import httpx
 from fastapi import FastAPI, HTTPException
 from pruefung.db import SupabaseClient
-from pruefung.doctree_build import build_tree, extract_text_blocks
+from pruefung.doctree_build import (
+    build_tree,
+    extract_page_texts,
+    extract_text_blocks,
+    structure_with_claude,
+)
 from pruefung.layer_a_strukturell import check_strukturell
 from pruefung.layer_b_ontologie import check_ontologie
 from pruefung.layer_c_rag import check_rag
@@ -135,15 +140,35 @@ AHP_PDF_PATH_DEFAULT = "/app/materialien/foerderrichtlinie-ahp-2025-03-27.pdf"
 
 
 @app.post("/api/rebuild-doctree")
-async def rebuild_doctree(version: str | None = None) -> dict[str, str]:
-    """Liest AHP-PDF, baut Tree (extract_text_blocks → build_tree),
-    schreibt in apl2.ahp_doctree (vorherige Zeile mit gleicher Version
-    wird gelöscht — Versionierung pro Document-Snapshot)."""
+async def rebuild_doctree(
+    version: str | None = None,
+    engine: str = "claude",
+) -> dict[str, str]:
+    """Liest AHP-PDF, baut Doctree, schreibt in apl2.ahp_doctree.
+
+    engine='claude' (default): OCR-Volltext → Claude strukturiert
+        semantisch (korrigiert OCR-Fehler, baut Hierarchie, ignoriert
+        TOC/Bibliografie). Empfohlen.
+
+    engine='regex': Legacy-Pfad mit `extract_text_blocks` → `build_tree`
+        per Section-Heading-Heuristik. Fallback wenn Claude nicht
+        verfügbar ist.
+
+    Vorherige Zeile mit gleicher Version wird gelöscht — Versionierung
+    pro Document-Snapshot."""
     pdf_path = Path(os.environ.get("AHP_PDF_PATH", AHP_PDF_PATH_DEFAULT))
     if not pdf_path.exists():
         raise HTTPException(500, f"PDF nicht gefunden unter {pdf_path}")
-    blocks = extract_text_blocks(pdf_path)
-    tree = build_tree(blocks)
+
+    if engine == "claude":
+        pages = extract_page_texts(pdf_path)
+        tree = await structure_with_claude(pages)
+    elif engine == "regex":
+        blocks = extract_text_blocks(pdf_path)
+        tree = build_tree(blocks)
+    else:
+        raise HTTPException(400, f"Unbekannte engine: {engine!r}. Erlaubt: 'claude', 'regex'.")
+
     db = SupabaseClient.from_env()
     v = version or pdf_path.stem.replace("foerderrichtlinie-ahp-", "")
     async with httpx.AsyncClient(timeout=30) as c:
@@ -159,5 +184,6 @@ async def rebuild_doctree(version: str | None = None) -> dict[str, str]:
     return {
         "status": "ok",
         "version": v,
+        "engine": engine,
         "sections": str(len(tree.get("children", []))),
     }
