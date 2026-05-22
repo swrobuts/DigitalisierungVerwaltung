@@ -101,6 +101,17 @@ export function AntragDetail() {
     else alert("Bescheid-PDF nicht abrufbar.");
   }
 
+  /** Direkt aus der KI-Empfehlung den passenden Workflow-Dialog öffnen.
+   * Mapped aktion → Status, dann setzt confirmTo, was den existierenden
+   * Bestätigungs-Dialog (mit Kommentar + ggf. Summe) öffnet. */
+  function applyEmpfehlung(aktion: "bewilligen" | "rueckfrage" | "ablehnen") {
+    const targetStatus: Status =
+      aktion === "bewilligen" ? "bewilligt" :
+      aktion === "ablehnen"   ? "abgelehnt" :
+      "rueckfrage";
+    setConfirmTo(targetStatus);
+  }
+
   return (
     <div className="min-h-screen bg-slate-100">
       <header className="bg-white border-b border-slate-200 relative sticky top-0 z-30">
@@ -320,7 +331,7 @@ export function AntragDetail() {
         <aside className="space-y-4 lg:sticky lg:top-[5.25rem] lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
           {/* KI-Prüfung zuerst: primäres Werkzeug zur Diagnose.
               Workflow/Status-Wechsel kommt erst NACH der Diagnose. */}
-          <PruefungsCard antragId={antrag.id} />
+          <PruefungsCard antragId={antrag.id} onApplyEmpfehlung={applyEmpfehlung} />
 
           <Card>
             <CardHeader>

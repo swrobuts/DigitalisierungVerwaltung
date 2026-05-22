@@ -22,14 +22,16 @@ export const STATUS_LABELS: Record<Status, string> = {
 };
 
 // Spiegel der DB-Tabelle apl2.workflow_transition. Bei DB-Änderung
-// muss dieser Cache nachgezogen werden (zuletzt Migration 035).
+// muss dieser Cache nachgezogen werden (zuletzt Migration 036).
 const TRANSITIONS: Record<Status, Status[]> = {
   eingegangen: ["in_pruefung"],
   in_pruefung: ["rueckfrage", "bewilligt", "abgelehnt", "eingegangen"],
-  rueckfrage: ["in_pruefung"],
-  // Reverse-Pfade zur Korrektur einer Entscheidung (Migration 035):
-  bewilligt: ["in_pruefung"],
-  abgelehnt: ["in_pruefung"],
+  // Rückfrage kann direkt zu Endentscheidung oder zurück zur Prüfung:
+  rueckfrage: ["in_pruefung", "bewilligt", "abgelehnt"],
+  // Endstatus können direkt zu einem anderen Endstatus korrigiert werden
+  // oder zurück zur Bearbeitung (Migration 035 + 036):
+  bewilligt: ["in_pruefung", "abgelehnt", "rueckfrage"],
+  abgelehnt: ["in_pruefung", "bewilligt", "rueckfrage"],
 };
 
 /** Übergänge, die einen Status nach VORN bewegen (normaler Workflow). */

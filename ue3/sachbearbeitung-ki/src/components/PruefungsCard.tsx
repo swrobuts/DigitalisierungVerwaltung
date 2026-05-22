@@ -66,7 +66,13 @@ function BefundRow({ b }: { b: PruefBefund }) {
 /** Empfehlungs-Box: zeigt die KI-Empfehlung (bewilligen/rueckfrage/ablehnen)
  * direkt nach der Prüfung. Dient als Vorschlag für die Sachbearbeitung —
  * Entscheidung bleibt beim Sozialausschuss (AHP 3.4). */
-function EmpfehlungsBox({ empfehlung }: { empfehlung: PruefEmpfehlung }) {
+function EmpfehlungsBox({
+  empfehlung,
+  onApply,
+}: {
+  empfehlung: PruefEmpfehlung;
+  onApply?: (aktion: "bewilligen" | "rueckfrage" | "ablehnen") => void;
+}) {
   const styles: Record<
     PruefEmpfehlung["aktion"],
     { label: string; emoji: string; bg: string; border: string; text: string }
@@ -126,6 +132,35 @@ function EmpfehlungsBox({ empfehlung }: { empfehlung: PruefEmpfehlung }) {
             ))}
           </ul>
         </details>
+      )}
+      {onApply && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <Button
+            size="sm"
+            onClick={() => onApply(empfehlung.aktion)}
+            className="text-xs"
+          >
+            → Empfehlung umsetzen
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onApply(empfehlung.aktion === "bewilligen" ? "ablehnen" : "bewilligen")}
+            className="text-xs"
+          >
+            {empfehlung.aktion === "bewilligen" ? "✖ Stattdessen ablehnen" : "✓ Stattdessen bewilligen"}
+          </Button>
+          {empfehlung.aktion !== "rueckfrage" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onApply("rueckfrage")}
+              className="text-xs"
+            >
+              ↩ Rückfrage
+            </Button>
+          )}
+        </div>
       )}
       <p className="text-[10px] text-slate-500 mt-2 italic">
         Vorschlag der KI — die finale Entscheidung trifft der Sozialausschuss
@@ -215,7 +250,16 @@ function AhpWortlautPopover({ path }: { path: string }) {
   );
 }
 
-export function PruefungsCard({ antragId }: { antragId: string }) {
+export function PruefungsCard({
+  antragId,
+  onApplyEmpfehlung,
+}: {
+  antragId: string;
+  /** Wird vom AntragDetail bereitgestellt, um die KI-Empfehlung direkt
+   * in einen Status-Wechsel zu überführen (mit dem normalen Workflow-
+   * Dialog inkl. Kommentar/Bewilligungssumme). */
+  onApplyEmpfehlung?: (aktion: "bewilligen" | "rueckfrage" | "ablehnen") => void;
+}) {
   const { session } = useSession();
   const email = session?.user?.email ?? "unbekannt";
   const { latest, running, error, pruefen, downloadPdf } = usePruefung(antragId);
@@ -249,7 +293,10 @@ export function PruefungsCard({ antragId }: { antragId: string }) {
 
             {/* Empfehlung der KI prominent oben */}
             {latest.ergebnis_jsonb?.empfehlung && (
-              <EmpfehlungsBox empfehlung={latest.ergebnis_jsonb.empfehlung} />
+              <EmpfehlungsBox
+                empfehlung={latest.ergebnis_jsonb.empfehlung}
+                onApply={onApplyEmpfehlung}
+              />
             )}
 
             {verstoesse.length === 0 && hinweise.length === 0 && (
