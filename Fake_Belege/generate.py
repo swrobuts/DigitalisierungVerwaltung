@@ -89,7 +89,8 @@ class Paket:
     raeume_vorhanden: str      # 'ja' | 'nein'
     raeume_unentgeltlich: str  # 'ja' | 'nein'
     antragsdatum: str          # YYYY-MM-DD
-    # Beantragte Fördersumme in EUR — wird gegen AHP 2.3.2 (10.000 €/Jahr) geprüft.
+    # Beantragte Fördersumme in EUR — wird gegen die einschlägige
+    # AHP-Förderhöchstgrenze geprüft (siehe foerderbereich).
     # None = nicht angegeben → Hinweis-Befund.
     geforderte_foerdersumme_euro: float | None
 
@@ -98,6 +99,21 @@ class Paket:
 
     programm_titel: str
     programm_beschreibung: list[str]   # Absätze
+
+    # Ab hier: alles optional mit Default → muss am Class-Ende stehen
+    # (Python dataclass-Regel: required vor default).
+    foerderbereich: str | None = None
+    anzahl_treffen_jahr: int | None = None
+    anzahl_teilnehmer: int | None = None
+    stadtbewohner_anteil: float | None = None
+    anzahl_ehrenamtliche: int | None = None
+    geleistete_stunden_jahr: int | None = None
+    foerderbereich_seit_jahren: int | None = None
+    zuwendungszweck: str | None = None
+    finanzplanung_vorhanden: bool | None = None
+    projektskizze_eingereicht: bool | None = None
+    logo_verwendet: bool | None = None
+
     miet_objekt: str | None = None     # für Mietvertrag-Beleg
     vermieter: str | None = None
     miete_monat_euro: float | None = None
@@ -136,6 +152,9 @@ PAKETE: list[Paket] = [
         raeume_unentgeltlich="nein",
         antragsdatum="2026-03-15",
         geforderte_foerdersumme_euro=8500.00,
+        foerderbereich="begegnungszentren",
+        stadtbewohner_anteil=0.85,
+        logo_verwendet=True,
         miet_objekt="Pfarrsaal St. Albert, Erdgeschoss",
         vermieter="Bischöfliche Verwaltung Würzburg",
         miete_monat_euro=850.00,
@@ -192,6 +211,9 @@ PAKETE: list[Paket] = [
         raeume_unentgeltlich="ja",
         antragsdatum="2026-03-22",
         geforderte_foerdersumme_euro=4200.00,
+        foerderbereich="begegnungszentren",
+        stadtbewohner_anteil=0.92,
+        logo_verwendet=True,
         raum_geber="Stadt Würzburg / Sozialreferat — Stadtteilbüro Frauenland",
         belege=[
             Belegpos("personalkosten", "Honorar Kursleitung Gedächtnistraining (Frau EichingerTest)", 4800.00),
@@ -249,6 +271,9 @@ PAKETE: list[Paket] = [
         raeume_unentgeltlich="nein",
         antragsdatum="2026-03-25",
         geforderte_foerdersumme_euro=9800.00,
+        foerderbereich="begegnungszentren",
+        stadtbewohner_anteil=0.96,
+        logo_verwendet=True,
         miet_objekt="EG-Räume Klingenstraße 11 (ca. 95 m²)",
         vermieter="Wohnungsgenossenschaft Heidingsfeld eG",
         miete_monat_euro=620.00,
@@ -305,8 +330,13 @@ PAKETE: list[Paket] = [
         raeume_vorhanden="ja",
         raeume_unentgeltlich="nein",
         antragsdatum="2026-03-20",
-        # Bewusst über AHP-Cap 10.000 €/Jahr (2.3.2) → Layer-B-Verstoß
+        # Bewusst als Seniorenkreis klassifiziert: dann Cap 2.000 €/Jahr → 12.500 €
+        # ist 6× über AHP-Cap → klarer Layer-B-Verstoß gegen 2.3 Seniorenkreise
         geforderte_foerdersumme_euro=12500.00,
+        foerderbereich="seniorenkreise",
+        anzahl_treffen_jahr=52,      # wöchentlich
+        anzahl_teilnehmer=12,        # >= 6 → Mindestgröße erfüllt
+        logo_verwendet=True,
         miet_objekt="Räume Kath. Pfarrgemeinde St. Burkard Versbach",
         vermieter="Kath. Pfarrgemeinde St. Burkard, Versbach",
         miete_monat_euro=380.00,
@@ -368,6 +398,10 @@ PAKETE: list[Paket] = [
         raeume_unentgeltlich="nein",
         antragsdatum="2026-03-18",
         geforderte_foerdersumme_euro=7500.00,
+        foerderbereich="begegnungszentren",
+        stadtbewohner_anteil=0.78,
+        # Bewusst Logo-Verstoß gegen AHP Kap. 2
+        logo_verwendet=False,
         miet_objekt="Gemeindezentrum Wittelsbacherstraße",
         vermieter="Evangelisch-Lutherische Kirchengemeinde Sanderau",
         miete_monat_euro=540.00,
@@ -440,6 +474,11 @@ PAKETE: list[Paket] = [
         antragsdatum="2026-04-15",
         # Bewusst weit über AHP-Cap 10.000 €/Jahr (2.3.2) → zusätzlicher Verstoß
         geforderte_foerdersumme_euro=15000.00,
+        foerderbereich="begegnungszentren",
+        # Stadtbewohner-Anteil bewusst nicht angegeben → Hinweis
+        stadtbewohner_anteil=None,
+        # Logo-Verstoß
+        logo_verwendet=False,
         miet_objekt="Geschäftsräume Industriestraße 38, 1. OG",
         vermieter="Klaus MüllerTest Immobilien GmbH & Co. KG",   # GF-Familienunternehmen!
         miete_monat_euro=1850.00,
@@ -799,6 +838,8 @@ def _wochenplan_table(zeiten: list[Oeffnungszeit]) -> Table:
 def _sql_escape(value: Any) -> str:
     if value is None:
         return "NULL"
+    if isinstance(value, bool):
+        return "TRUE" if value else "FALSE"
     if isinstance(value, (int, float)):
         return str(value)
     s = str(value).replace("'", "''")
@@ -827,6 +868,12 @@ def render_seed_sql(pakete: list[Paket], path: Path) -> None:
             "ansprechpartner", "telefon", "email",
             "raeume_vorhanden", "raeume_unentgeltlich",
             "antragsdatum", "geforderte_foerdersumme_euro",
+            # Migration 029: Förderbereich-spezifische Felder
+            "foerderbereich", "anzahl_treffen_jahr", "anzahl_teilnehmer",
+            "stadtbewohner_anteil", "anzahl_ehrenamtliche",
+            "geleistete_stunden_jahr", "foerderbereich_seit_jahren",
+            "zuwendungszweck", "finanzplanung_vorhanden",
+            "projektskizze_eingereicht", "logo_verwendet",
             "submitted_language", "status",
         ]
         vals = [
@@ -836,6 +883,11 @@ def render_seed_sql(pakete: list[Paket], path: Path) -> None:
             p.ansprechpartner, p.telefon, p.email,
             p.raeume_vorhanden, p.raeume_unentgeltlich,
             p.antragsdatum, p.geforderte_foerdersumme_euro,
+            p.foerderbereich, p.anzahl_treffen_jahr, p.anzahl_teilnehmer,
+            p.stadtbewohner_anteil, p.anzahl_ehrenamtliche,
+            p.geleistete_stunden_jahr, p.foerderbereich_seit_jahren,
+            p.zuwendungszweck, p.finanzplanung_vorhanden,
+            p.projektskizze_eingereicht, p.logo_verwendet,
             "de", "eingegangen",
         ]
         lines.append(

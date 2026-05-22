@@ -48,6 +48,10 @@ async def _fetch_antrag(antrag_id: str, db: SupabaseClient) -> dict[str, Any]:
             "strasse,hausnummer,plz,ort,"
             "bankverbindung,iban,bic,ansprechpartner,telefon,email,"
             "raeume_vorhanden,raeume_unentgeltlich,geforderte_foerdersumme_euro,"
+            "foerderbereich,anzahl_treffen_jahr,anzahl_teilnehmer,"
+            "stadtbewohner_anteil,anzahl_ehrenamtliche,geleistete_stunden_jahr,"
+            "foerderbereich_seit_jahren,zuwendungszweck,finanzplanung_vorhanden,"
+            "projektskizze_eingereicht,logo_verwendet,"
             "betriebskosten_vorjahr_euro,personalkosten_vorjahr_euro,miete_jahr_euro"
         ),
     )
