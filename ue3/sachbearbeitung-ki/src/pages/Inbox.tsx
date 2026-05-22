@@ -309,7 +309,7 @@ export function Inbox() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200">
-        <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between gap-6">
+        <div className="w-full px-4 lg:px-8 py-3 flex items-center justify-between gap-6">
           <div>
             <h1 className="text-xl font-bold">Sachbearbeitung KI — APL 2</h1>
             <p className="text-sm text-slate-500">
@@ -338,7 +338,7 @@ export function Inbox() {
         </div>
       </header>
 
-      <main className="max-w-[1600px] mx-auto px-6 py-6">
+      <main className="w-full px-4 lg:px-8 py-6">
         <div className="bg-white border border-slate-200 rounded p-4 mb-4">
           <div className="flex flex-wrap items-center gap-3">
             <Input
@@ -377,7 +377,7 @@ export function Inbox() {
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded overflow-x-auto">
           {loading && <div className="p-8 text-slate-500">Lade …</div>}
           {error && <div className="p-4 text-rose-700">{error}</div>}
           {!loading && !error && (
