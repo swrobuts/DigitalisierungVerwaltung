@@ -1,4 +1,5 @@
 """Layer B — Cross-Field-Plausibilität via JSON-Logic gegen apl2.ontologie_rules."""
+from datetime import date
 from typing import Any
 from json_logic import jsonLogic
 from pruefung.db import SupabaseClient
@@ -18,6 +19,8 @@ def derive_facts(antrag: dict) -> dict:
     Felder:
     - oeffnungstage_count: Anzahl Wochentage mit non-empty oeffnungszeit oder angebot
     - personalkosten_pro_oeffnungstag: personalkosten / oeffnungstage_count (0 falls keine)
+    - antragsfrist_eingehalten: bool — antragsdatum ≤ haushaltsjahr-04-01
+      (AHP 3.3 Antragsfristen). False bei Verfristung oder fehlendem Datum.
     """
     facts = dict(antrag)
     oz = antrag.get("oeffnungszeiten") or []
@@ -28,7 +31,26 @@ def derive_facts(antrag: dict) -> dict:
     facts["oeffnungstage_count"] = tage
     pk = float(antrag.get("personalkosten_vorjahr_euro") or 0)
     facts["personalkosten_pro_oeffnungstag"] = pk / tage if tage > 0 else 0
+
+    # AHP 3.3: Antragsfrist 1. April des Antragsjahres.
+    # Fehlende Daten → als "nicht eingehalten" werten (führt zum Befund),
+    # damit Bearbeiter prüft.
+    facts["antragsfrist_eingehalten"] = _frist_eingehalten(
+        antrag.get("antragsdatum"), antrag.get("haushaltsjahr"),
+    )
     return facts
+
+
+def _frist_eingehalten(antragsdatum: Any, haushaltsjahr: Any) -> bool:
+    """Prüft AHP 3.3: Antrag muss bis zum 1. April des Antragsjahres vorliegen."""
+    if not antragsdatum or not haushaltsjahr:
+        return False
+    try:
+        ad = antragsdatum if isinstance(antragsdatum, date) else date.fromisoformat(str(antragsdatum)[:10])
+        hj = int(haushaltsjahr)
+    except (ValueError, TypeError):
+        return False
+    return ad <= date(hj, 4, 1)
 
 
 def _ist_verletzt(passt: Any) -> bool:

@@ -11,7 +11,7 @@ Generator: `python generate.py` (idempotent, deterministische UUIDs).
 | 3 | `03_awo-heidingsfeld` | AWO-Begegnungsstätte Heidingsfeld | 🟡 Layer-A-Verstoß: IBAN ungültig | A |
 | 4 | `04_caritas-versbach` | Caritas-Tagestreff Versbach | 🟡 Layer-B-Verstoß: Personalkosten/Öffnungstag unplausibel | B |
 | 5 | `05_diakonie-sanderau` | Diakonie-Treff Sanderau | 🟡 Layer-C-Verstoß: Programminhalte nicht förderfähig | C |
-| 6 | `06_senioren-aktiv-gmbh` | "Senioren-aktiv GmbH" (Fraud-Multi) | 🔴 Multi-Layer: GmbH statt gemeinnützig, IBAN ungültig, dünner Wochenplan | A + B + C |
+| 6 | `06_senioren-aktiv-gmbh` | "Senioren-aktiv GmbH" (Fraud-Multi) | 🔴 Multi-Verstoß: IBAN ungültig, Sitz nicht in Würzburg, Antragsfrist (1.4.) verpasst | A + B (Sitz, Frist) |
 
 ## Verwendung
 

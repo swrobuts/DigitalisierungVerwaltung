@@ -26,7 +26,8 @@ async def _fetch_antrag(antrag_id: str, db: SupabaseClient) -> dict[str, Any]:
         "antrag_mit_summen",
         (
             f"id=eq.{antrag_id}"
-            "&select=id,antragsnummer,haushaltsjahr,name,traeger,strasse,hausnummer,plz,ort,"
+            "&select=id,antragsnummer,haushaltsjahr,antragsdatum,name,traeger,"
+            "strasse,hausnummer,plz,ort,"
             "bankverbindung,iban,bic,ansprechpartner,telefon,email,"
             "raeume_vorhanden,raeume_unentgeltlich,"
             "betriebskosten_vorjahr_euro,personalkosten_vorjahr_euro,miete_jahr_euro"
