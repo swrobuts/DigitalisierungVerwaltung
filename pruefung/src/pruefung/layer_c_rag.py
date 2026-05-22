@@ -144,11 +144,19 @@ async def _run_claude_loop(tree: dict, antrag: dict, model: str) -> dict[str, An
                 elif tu.name == "semantic_search":
                     if db is None:
                         db = SupabaseClient.from_env()
-                    result = await semantic_search(
-                        db,
-                        tu.input["query"],
-                        top_k=tu.input.get("top_k", 5),
-                    )
+                    # Graceful Fallback wenn Voyage rate-limitiert oder unavailable —
+                    # Layer C soll dann mit den anderen Tools weiterarbeiten.
+                    try:
+                        result = await semantic_search(
+                            db,
+                            tu.input["query"],
+                            top_k=tu.input.get("top_k", 5),
+                        )
+                    except Exception as e:
+                        result = {
+                            "error": f"semantic_search nicht verfügbar: {type(e).__name__}",
+                            "fallback": "Nutze stattdessen das 'search'-Tool für Volltextsuche.",
+                        }
                 else:
                     result = {"error": f"unknown tool {tu.name}"}
                 tool_results.append({
