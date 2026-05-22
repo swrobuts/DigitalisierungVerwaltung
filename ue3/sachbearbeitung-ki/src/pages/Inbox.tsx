@@ -308,12 +308,18 @@ export function Inbox() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
+      <header className="bg-white border-b border-slate-200 relative">
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-wue-rot" />
         <div className="w-full px-4 lg:px-8 py-3 flex items-center justify-between gap-6">
           <div>
-            <h1 className="text-xl font-bold">Sachbearbeitung KI — APL 2</h1>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-wue-rot font-semibold">
+              Stadt Würzburg · Sozialreferat
+            </div>
+            <h1 className="text-xl font-bold leading-tight">
+              Sachbearbeitung KI — APL 2
+            </h1>
             <p className="text-sm text-slate-500">
-              Stadt Würzburg · Beratungsstelle für Senioren · mit KI-Prüfung
+              Beratungsstelle für Senioren · KI-gestützte Antragsprüfung
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -321,7 +327,7 @@ export function Inbox() {
               src={avatarUrl}
               alt=""
               referrerPolicy="no-referrer"
-              className="h-10 w-10 rounded-full ring-2 ring-white shadow object-cover"
+              className="h-10 w-10 rounded-full ring-2 ring-wue-rot-soft shadow-sm object-cover"
             />
             <div className="text-sm leading-tight">
               <div className="font-medium text-slate-900">{displayName}</div>

@@ -64,11 +64,12 @@ export function AntragDetail() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
+      <header className="bg-white border-b border-slate-200 relative">
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-wue-rot" />
         <div className="w-full px-4 lg:px-8 py-4 flex items-center gap-3">
           <Link
             to="/inbox"
-            className="text-sm text-slate-500 flex items-center gap-1 hover:text-slate-900"
+            className="text-sm text-slate-500 flex items-center gap-1 hover:text-wue-rot"
           >
             <ArrowLeft className="h-4 w-4" /> Inbox
           </Link>
@@ -80,25 +81,24 @@ export function AntragDetail() {
 
       <main className="w-full px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
-          {/* Hero — wie ein Antrags-Deckblatt */}
+          {/* Hero — wie ein Antrags-Deckblatt (Würzburg-CI) */}
           <Card className="overflow-hidden">
-            <div className="relative bg-gradient-to-br from-slate-50 via-white to-slate-50 border-b border-slate-200 px-6 py-6">
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-700 via-indigo-500 to-blue-700" />
+            <div className="relative bg-white border-b border-slate-200 px-6 py-6">
+              <div className="absolute inset-x-0 top-0 h-[3px] bg-wue-rot" />
               <div className="flex flex-wrap items-start justify-between gap-6">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-medium mb-1">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-wue-rot font-semibold mb-2">
                     Förderantrag · APL 2 · Altentagesstätte
                   </div>
                   <h2 className="text-2xl font-bold text-slate-900 leading-tight">
                     {antrag.name}
                   </h2>
-                  <p className="text-sm text-slate-600 mt-1">{antrag.traeger}</p>
-                  <p className="text-xs text-slate-500 mt-2 flex items-center gap-1.5">
-                    <Building2 className="h-3.5 w-3.5" />
+                  <p className="text-sm text-slate-700 mt-1">{antrag.traeger}</p>
+                  <p className="text-xs text-slate-500 mt-2">
                     {formatAdresse(antrag.strasse, antrag.hausnummer, antrag.plz, antrag.ort)}
                   </p>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 border-l-2 border-wue-rot pl-4">
                   <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-medium">
                     Haushaltsjahr
                   </div>
@@ -137,7 +137,7 @@ export function AntragDetail() {
                   <FieldRow label="Telefon">
                     <a
                       href={`tel:${antrag.telefon.replace(/\s+/g, "")}`}
-                      className="inline-flex items-center gap-1.5 text-blue-700 hover:text-blue-900"
+                      className="inline-flex items-center gap-1.5 text-wue-rot hover:text-wue-rot-dark hover:underline"
                     >
                       <Phone className="h-3.5 w-3.5" />
                       {antrag.telefon}
@@ -146,7 +146,7 @@ export function AntragDetail() {
                   <FieldRow label="E-Mail">
                     <a
                       href={`mailto:${antrag.email}`}
-                      className="inline-flex items-center gap-1.5 text-blue-700 hover:text-blue-900 break-all"
+                      className="inline-flex items-center gap-1.5 text-wue-rot hover:text-wue-rot-dark hover:underline break-all"
                     >
                       <Mail className="h-3.5 w-3.5 shrink-0" />
                       {antrag.email}
@@ -381,14 +381,18 @@ function Section({
 }) {
   return (
     <section className="px-6 py-5">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+      <div className="flex items-center gap-2.5 mb-4 pb-2 border-b border-slate-200">
+        <span className="text-wue-rot" aria-hidden="true">
           {icon}
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900 leading-tight">{title}</h3>
-          {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
-        </div>
+        </span>
+        <h3 className="text-[13px] font-semibold uppercase tracking-wider text-slate-900 leading-tight">
+          {title}
+        </h3>
+        {subtitle && (
+          <span className="text-xs text-slate-500 font-normal normal-case tracking-normal">
+            · {subtitle}
+          </span>
+        )}
       </div>
       {children}
     </section>
@@ -420,11 +424,15 @@ function YesNoPill({ value }: { value: string }) {
     <span
       className={
         isYes
-          ? "inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-xs font-medium"
-          : "inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 text-xs font-medium"
+          ? "inline-flex items-center gap-1 text-slate-900 text-sm"
+          : "inline-flex items-center gap-1 text-slate-500 text-sm"
       }
     >
-      {isYes ? <Check className="h-3 w-3" /> : <XIcon className="h-3 w-3" />}
+      {isYes ? (
+        <Check className="h-3.5 w-3.5 text-wue-rot" />
+      ) : (
+        <XIcon className="h-3.5 w-3.5 text-slate-400" />
+      )}
       {isYes ? "ja" : "nein"}
     </span>
   );
@@ -432,11 +440,11 @@ function YesNoPill({ value }: { value: string }) {
 
 function KostenTile({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <div className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+    <div className="border-l-2 border-wue-rot bg-wue-rot-soft/40 px-4 py-3">
+      <div className="text-[11px] uppercase tracking-wider text-slate-600 font-medium">
         {label}
       </div>
-      <div className="mt-1 text-xl font-bold text-slate-900 tabular-nums">
+      <div className="mt-1 text-xl font-semibold text-slate-900 tabular-nums">
         {formatEuro(value)}
       </div>
     </div>

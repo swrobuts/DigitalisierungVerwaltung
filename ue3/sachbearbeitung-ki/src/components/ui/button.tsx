@@ -11,7 +11,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANTS: Record<Variant, string> = {
-  default: "bg-slate-900 text-white hover:bg-slate-800",
+  default: "bg-wue-rot text-white hover:bg-wue-rot-dark",
   outline: "border border-slate-300 bg-white text-slate-900 hover:bg-slate-50",
   ghost: "bg-transparent text-slate-700 hover:bg-slate-100",
   secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200",
