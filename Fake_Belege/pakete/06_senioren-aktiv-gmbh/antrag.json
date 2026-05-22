@@ -65,13 +65,16 @@
   "miete_monat_euro": 1850.0,
   "raum_geber": null,
   "fraud_notes": [
-    "Träger ist GmbH (gewerblich) — AHP fordert gemeinnützige Trägerschaft.",
-    "Vermieter ist Familien-Unternehmen des Geschäftsführers (MüllerTest Immobilien).",
-    "Drei Personalkosten-Positionen mit exakt 24.000 € — Round-Number-Fraud-Indikator.",
-    "Beratungshonorar an eigene Consulting-Firma (Selbstkontrahierung).",
-    "Wochenplan: nur 1 Tag/Woche à 2 h.",
-    "Programm: Kapitalanlagen, Provisionsgeschäfte — nicht förderfähig.",
-    "IBAN ungültig (letzte Stelle geflippt)."
+    "Maschinell prüfbar (AHP-belegt, Migration 024):",
+    "  • Sitz nicht in Würzburg (PLZ 90439 Nürnberg) → Verstoß gegen AHP 3.1",
+    "  • Antragsdatum 15.04.2026 > 01.04. → verfristet nach AHP 3.3",
+    "  • IBAN ungültig (mod-97) → Verstoß gegen AHP 3.6",
+    "Nicht maschinell prüfbar, aber pädagogisch relevant (für Sachbearbeiter):",
+    "  • Träger ist GmbH (gewerblich) — AHP 3.1 nennt 'Wohlfahrtsverbände, Vereine, Stadtteilinitiativen', GmbH ist Auslegungsfrage",
+    "  • Selbstkontrahierung: Miete an GF-Familienfirma (MüllerTest Immobilien)",
+    "  • Drei Personalpositionen exakt à 24.000 € — Round-Number-Auffälligkeit",
+    "  • Beratungshonorar an eigene Consulting-Firma",
+    "  • Programm: Kapitalanlagen-Vermittlung — kein expliziter AHP-Verstoß"
   ],
   "personal_positionen": [
     [

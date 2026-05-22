@@ -38,6 +38,7 @@ def check_strukturell(antrag: dict) -> list[Befund]:
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="iban",
             beschreibung="IBAN ungültig (Format oder mod-97-Checksumme).",
+            paragraph_ref="AHP 3.6 Auszahlung des Zuschusses",
         ))
 
     if not _is_valid_plz(antrag.get("plz", "") or ""):

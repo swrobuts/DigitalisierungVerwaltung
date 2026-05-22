@@ -113,7 +113,7 @@ PAKETE: list[Paket] = [
     Paket(
         slug="01_pfarrei-st-albert",
         label="Pfarrei St. Albert Heidingsfeld",
-        erwartetes_ergebnis="✅ sauber",
+        erwartetes_ergebnis="✅ sauber — nur IBAN-Manuell-Hinweis (AHP 3.6)",
         test_layer="Negativ-Kontrolle",
         antrag_id=str(uuid.UUID("a1111111-1111-1111-1111-111111111111")),
         name="Seniorentreff St. Albert",
@@ -168,7 +168,7 @@ PAKETE: list[Paket] = [
     Paket(
         slug="02_buergerverein-frauenland",
         label="Bürgerverein Frauenland e.V.",
-        erwartetes_ergebnis="✅ sauber (unentgeltlich)",
+        erwartetes_ergebnis="✅ sauber — Räume unentgeltlich, nur IBAN-Manuell-Hinweis (AHP 3.6)",
         test_layer="Negativ-Kontrolle #2",
         antrag_id=str(uuid.UUID("a2222222-2222-2222-2222-222222222222")),
         name="Senioren-Stammtisch Frauenland",
@@ -223,7 +223,7 @@ PAKETE: list[Paket] = [
     Paket(
         slug="03_awo-heidingsfeld",
         label="AWO-Begegnungsstätte Heidingsfeld",
-        erwartetes_ergebnis="🟡 Layer-A-Verstoß: IBAN ungültig",
+        erwartetes_ergebnis="🟡 Layer-A-Verstoß: IBAN mod-97-ungültig (Bezug AHP 3.6)",
         test_layer="A",
         antrag_id=str(uuid.UUID("a3333333-3333-3333-3333-333333333333")),
         name="AWO-Begegnungsstätte Heidingsfeld",
@@ -280,8 +280,8 @@ PAKETE: list[Paket] = [
     Paket(
         slug="04_caritas-versbach",
         label="Caritas-Tagestreff Versbach",
-        erwartetes_ergebnis="🟡 Layer-B-Verstoß: Personalkosten/Öffnungstag unplausibel",
-        test_layer="B",
+        erwartetes_ergebnis="✅ sauber — 1 Öffnungstag/Wo ist auffällig, aber AHP nennt keine Mindestzahl",
+        test_layer="Negativ-Kontrolle #3",
         antrag_id=str(uuid.UUID("a4444444-4444-4444-4444-444444444444")),
         name="Caritas-Tagestreff Versbach",
         traeger="Caritasverband für die Stadt und den Landkreis Würzburg e.V.",
@@ -326,8 +326,13 @@ PAKETE: list[Paket] = [
             "wechselnden Kleingruppen-Angeboten (Gedächtnistraining, Singkreis) statt.",
         ],
         fraud_notes=[
-            "78.000 € Personalkosten bei 52 Öffnungstagen → 1.500 € pro Öffnungstag.",
-            "Layer-B-Regel 'plausible_personalkosten' soll triggern.",
+            "Hohe Personalkosten (78.000 €) bei nur 1 Wochentag Öffnung erscheinen "
+            "auffällig, aber die AHP-Förderrichtlinie nennt KEINE konkrete "
+            "Personalkosten-Obergrenze und keine Mindest-Öffnungstage. Layer B "
+            "darf hier nur HINWEISEN, nicht VERSTOSS deklarieren — sonst willkürlich.",
+            "Lehrwert: zeigt, dass nicht jede Auffälligkeit automatisch ein Verstoß "
+            "ist. Sachbearbeiter muss manuell prüfen, ob Personal/Öffnungstag-"
+            "Verhältnis durch Sondersituation (z.B. Aufbauphase) gerechtfertigt ist.",
         ],
     ),
 
@@ -335,8 +340,8 @@ PAKETE: list[Paket] = [
     Paket(
         slug="05_diakonie-sanderau",
         label="Diakonie-Treff Sanderau",
-        erwartetes_ergebnis="🟡 Layer-C-Verstoß: Programminhalte nicht förderfähig",
-        test_layer="C",
+        erwartetes_ergebnis="✅ sauber — Bingo/Tupperware sind in AHP nicht explizit verboten (vgl. fraud_notes)",
+        test_layer="Lehrbeispiel: Lücke der Rechtsgrundlage",
         antrag_id=str(uuid.UUID("a5555555-5555-5555-5555-555555555555")),
         name="Diakonie-Treff Sanderau",
         traeger="Diakonisches Werk Würzburg e.V.",
@@ -387,12 +392,15 @@ PAKETE: list[Paket] = [
             "den Treff zu generieren.",
         ],
         fraud_notes=[
-            "Bingo mit Geldgewinnen, Tupperware-Verkauf, kommerzielle "
-            "Reisevermittlung und Finanzprodukt-Vortrag verstoßen gegen die "
-            "AHP-Förderkriterien (§ 4: gemeinnützige, niedrigschwellige "
-            "Begegnungs- und Bildungsangebote, KEINE kommerziellen oder "
-            "Glücksspiel-Inhalte).",
-            "Layer C (RAG/Claude) soll diese Punkte in der AHP-Richtlinie nachschlagen.",
+            "Lehrbeispiel zur Lücke der Rechtsgrundlage: Bingo mit Geldgewinnen, "
+            "Tupperware-Verkauf und kommerzielle Reisevermittlung sind inhaltlich "
+            "klar gegen den Geist der Altenhilfe-Förderung — die AHP-Richtlinie "
+            "2025-03-27 nennt aber KEINE expliziten Programminhalt-Verbote.",
+            "Konsequenz: Layer C (RAG/Claude) findet keinen direkten Verstoß und "
+            "ist damit ehrlich. Sachbearbeiter würde manuell auf SGB XII § 71 "
+            "(Altenhilfe-Zweckbestimmung) oder Stadtrats-Beschluss zur AHP "
+            "verweisen — das ist nicht maschinell prüfbar ohne erweiterte "
+            "Wissensbasis. Lehrwert: zeigt Grenze des automatisierten Prüfens.",
         ],
     ),
 
@@ -453,13 +461,17 @@ PAKETE: list[Paket] = [
             "mit Allgemein-Akustik MüllerTest, einer Schwestergesellschaft).",
         ],
         fraud_notes=[
-            "Träger ist GmbH (gewerblich) — AHP fordert gemeinnützige Trägerschaft.",
-            "Vermieter ist Familien-Unternehmen des Geschäftsführers (MüllerTest Immobilien).",
-            "Drei Personalkosten-Positionen mit exakt 24.000 € — Round-Number-Fraud-Indikator.",
-            "Beratungshonorar an eigene Consulting-Firma (Selbstkontrahierung).",
-            "Wochenplan: nur 1 Tag/Woche à 2 h.",
-            "Programm: Kapitalanlagen, Provisionsgeschäfte — nicht förderfähig.",
-            "IBAN ungültig (letzte Stelle geflippt).",
+            "Maschinell prüfbar (AHP-belegt, Migration 024):",
+            "  • Sitz nicht in Würzburg (PLZ 90439 Nürnberg) → Verstoß gegen AHP 3.1",
+            "  • Antragsdatum 15.04.2026 > 01.04. → verfristet nach AHP 3.3",
+            "  • IBAN ungültig (mod-97) → Verstoß gegen AHP 3.6",
+            "Nicht maschinell prüfbar, aber pädagogisch relevant (für Sachbearbeiter):",
+            "  • Träger ist GmbH (gewerblich) — AHP 3.1 nennt 'Wohlfahrtsverbände, "
+            "Vereine, Stadtteilinitiativen', GmbH ist Auslegungsfrage",
+            "  • Selbstkontrahierung: Miete an GF-Familienfirma (MüllerTest Immobilien)",
+            "  • Drei Personalpositionen exakt à 24.000 € — Round-Number-Auffälligkeit",
+            "  • Beratungshonorar an eigene Consulting-Firma",
+            "  • Programm: Kapitalanlagen-Vermittlung — kein expliziter AHP-Verstoß",
         ],
     ),
 ]
@@ -857,19 +869,39 @@ Generator: `python generate.py` (idempotent, deterministische UUIDs).
    ```
 3. GUI öffnen: https://amt-ki.butscher.cloud → 6 Anträge sichtbar → "Antrag prüfen" je Paket.
 
-## Test-Erwartungen pro Layer
+## Erwartete Befunde (nach Migration 024 — Ontologie aus echter AHP abgeleitet)
 
-### Layer A (strukturell)
-- **#3 AWO Heidingsfeld**: IBAN ungültig (mod-97-Check schlägt fehl)
-- **#6 Senioren-aktiv GmbH**: IBAN ungültig
+| # | Verstöße | Hinweise | Details |
+|---|---|---|---|
+| 1 Pfarrei St. Albert | 0 | 1 | nur IBAN-Manuell-Hinweis (AHP 3.6) |
+| 2 Bürgerverein Frauenland | 0 | 1 | nur IBAN-Hinweis |
+| 3 AWO Heidingsfeld | 1 | 1 | Layer-A IBAN-mod-97-Verstoß + IBAN-Hinweis |
+| 4 Caritas Versbach | 0 | 1 | nur IBAN-Hinweis (1 Öffnungstag ist auffällig, aber kein AHP-Verstoß) |
+| 5 Diakonie Sanderau | 0 | 1 | nur IBAN-Hinweis (Bingo/Tupperware sind in AHP nicht explizit verboten) |
+| 6 Senioren-aktiv GmbH | 3 | 1 | IBAN ungültig + verfristet (AHP 3.3) + Sitz nicht Würzburg (AHP 3.1) |
 
-### Layer B (Ontologie / JSON-Logic)
-- **#4 Caritas Versbach**: `plausible_personalkosten` (78.000 € bei 52 Öffnungstagen)
-- **#6 Senioren-aktiv GmbH**: `plausible_personalkosten` + ggf. weitere
+### Aktive Ontologie-Regeln (alle mit AHP-Bezug)
 
-### Layer C (RAG via Claude, AHP-Richtlinie)
-- **#5 Diakonie Sanderau**: Bingo mit Geldgewinnen, Tupperware-Verkauf, kommerzielle Inhalte
-- **#6 Senioren-aktiv GmbH**: GmbH statt gemeinnützig, Kapitalanlage-Vermittlung, Selbstkontrahierung
+| Regel | AHP-Bezug | Schwere |
+|---|---|---|
+| `traeger_sitz_wuerzburg` | 3.1 Antragsberechtigt | verstoss |
+| `antragsfrist_1_april` | 3.3 Antragsfristen | verstoss |
+| `mindestens_eine_kostenposition` | 2.4 Förderbereich IV / 3.2 b) | verstoss |
+| `iban_auf_traegerkonto_pruefen` | 3.6 Auszahlung | hinweis (always-fire) |
+| `haushaltsjahr_plausibel` | 3.7 Rechnungslegung | hinweis |
+
+### Lehrwert der Pakete #4 + #5
+
+Beide Pakete enthalten Auffälligkeiten, die ursprünglich als Layer-B/Layer-C-Verstöße
+konstruiert waren — sich aber nach Abgleich mit der echten AHP-Richtlinie als **nicht
+durch eine Rechtsnorm gedeckte Annahmen** herausgestellt haben:
+- Caritas: 78.000 € Personalkosten bei 1 Wochentag-Öffnung — auffällig, aber AHP nennt
+  keine Personalkosten-Grenze oder Mindest-Öffnungstage
+- Diakonie: Bingo mit Geldgewinnen, Tupperware-Verkauf — semantisch fragwürdig, aber
+  AHP 2025-03-27 enthält keine Programminhalt-Verbote
+
+Das ist das pädagogische Lehrbeispiel: nicht jede Auffälligkeit ist ein Verstoß.
+Layer C ist hier ehrlich (0 Befunde) statt willkürlich.
 
 ## Hinweis
 

@@ -1,8 +1,8 @@
 {
   "slug": "04_caritas-versbach",
   "label": "Caritas-Tagestreff Versbach",
-  "erwartetes_ergebnis": "🟡 Layer-B-Verstoß: Personalkosten/Öffnungstag unplausibel",
-  "test_layer": "B",
+  "erwartetes_ergebnis": "✅ sauber — 1 Öffnungstag/Wo ist auffällig, aber AHP nennt keine Mindestzahl",
+  "test_layer": "Negativ-Kontrolle #3",
   "antrag_id": "a4444444-4444-4444-4444-444444444444",
   "name": "Caritas-Tagestreff Versbach",
   "traeger": "Caritasverband für die Stadt und den Landkreis Würzburg e.V.",
@@ -59,8 +59,8 @@
   "miete_monat_euro": 380.0,
   "raum_geber": null,
   "fraud_notes": [
-    "78.000 € Personalkosten bei 52 Öffnungstagen → 1.500 € pro Öffnungstag.",
-    "Layer-B-Regel 'plausible_personalkosten' soll triggern."
+    "Hohe Personalkosten (78.000 €) bei nur 1 Wochentag Öffnung erscheinen auffällig, aber die AHP-Förderrichtlinie nennt KEINE konkrete Personalkosten-Obergrenze und keine Mindest-Öffnungstage. Layer B darf hier nur HINWEISEN, nicht VERSTOSS deklarieren — sonst willkürlich.",
+    "Lehrwert: zeigt, dass nicht jede Auffälligkeit automatisch ein Verstoß ist. Sachbearbeiter muss manuell prüfen, ob Personal/Öffnungstag-Verhältnis durch Sondersituation (z.B. Aufbauphase) gerechtfertigt ist."
   ],
   "personal_positionen": [
     [

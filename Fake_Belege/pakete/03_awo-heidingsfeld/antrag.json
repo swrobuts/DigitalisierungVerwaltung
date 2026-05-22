@@ -1,7 +1,7 @@
 {
   "slug": "03_awo-heidingsfeld",
   "label": "AWO-Begegnungsstätte Heidingsfeld",
-  "erwartetes_ergebnis": "🟡 Layer-A-Verstoß: IBAN ungültig",
+  "erwartetes_ergebnis": "🟡 Layer-A-Verstoß: IBAN mod-97-ungültig (Bezug AHP 3.6)",
   "test_layer": "A",
   "antrag_id": "a3333333-3333-3333-3333-333333333333",
   "name": "AWO-Begegnungsstätte Heidingsfeld",

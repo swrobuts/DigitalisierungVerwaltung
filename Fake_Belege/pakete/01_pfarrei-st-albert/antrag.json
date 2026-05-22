@@ -1,7 +1,7 @@
 {
   "slug": "01_pfarrei-st-albert",
   "label": "Pfarrei St. Albert Heidingsfeld",
-  "erwartetes_ergebnis": "✅ sauber",
+  "erwartetes_ergebnis": "✅ sauber — nur IBAN-Manuell-Hinweis (AHP 3.6)",
   "test_layer": "Negativ-Kontrolle",
   "antrag_id": "a1111111-1111-1111-1111-111111111111",
   "name": "Seniorentreff St. Albert",

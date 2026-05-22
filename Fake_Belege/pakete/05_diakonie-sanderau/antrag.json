@@ -1,8 +1,8 @@
 {
   "slug": "05_diakonie-sanderau",
   "label": "Diakonie-Treff Sanderau",
-  "erwartetes_ergebnis": "🟡 Layer-C-Verstoß: Programminhalte nicht förderfähig",
-  "test_layer": "C",
+  "erwartetes_ergebnis": "✅ sauber — Bingo/Tupperware sind in AHP nicht explizit verboten (vgl. fraud_notes)",
+  "test_layer": "Lehrbeispiel: Lücke der Rechtsgrundlage",
   "antrag_id": "a5555555-5555-5555-5555-555555555555",
   "name": "Diakonie-Treff Sanderau",
   "traeger": "Diakonisches Werk Würzburg e.V.",
@@ -65,8 +65,8 @@
   "miete_monat_euro": 540.0,
   "raum_geber": null,
   "fraud_notes": [
-    "Bingo mit Geldgewinnen, Tupperware-Verkauf, kommerzielle Reisevermittlung und Finanzprodukt-Vortrag verstoßen gegen die AHP-Förderkriterien (§ 4: gemeinnützige, niedrigschwellige Begegnungs- und Bildungsangebote, KEINE kommerziellen oder Glücksspiel-Inhalte).",
-    "Layer C (RAG/Claude) soll diese Punkte in der AHP-Richtlinie nachschlagen."
+    "Lehrbeispiel zur Lücke der Rechtsgrundlage: Bingo mit Geldgewinnen, Tupperware-Verkauf und kommerzielle Reisevermittlung sind inhaltlich klar gegen den Geist der Altenhilfe-Förderung — die AHP-Richtlinie 2025-03-27 nennt aber KEINE expliziten Programminhalt-Verbote.",
+    "Konsequenz: Layer C (RAG/Claude) findet keinen direkten Verstoß und ist damit ehrlich. Sachbearbeiter würde manuell auf SGB XII § 71 (Altenhilfe-Zweckbestimmung) oder Stadtrats-Beschluss zur AHP verweisen — das ist nicht maschinell prüfbar ohne erweiterte Wissensbasis. Lehrwert: zeigt Grenze des automatisierten Prüfens."
   ],
   "personal_positionen": [
     [
