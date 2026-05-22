@@ -34,13 +34,19 @@ const TRANSITIONS: Record<Status, Status[]> = {
   abgelehnt: ["in_pruefung", "bewilligt", "rueckfrage"],
 };
 
-/** Übergänge, die einen Status nach VORN bewegen (normaler Workflow). */
+/** Übergänge, die einen Status nach VORN bewegen (= eine neue Entscheidung
+ * oder Bearbeitungs-Schritt, mit Bescheid-Generierung wenn Endstatus).
+ *
+ * Reverse = nur echte Aufhebungen / Zurücksetzen (Endstatus → in_pruefung,
+ * in_pruefung → eingegangen, rueckfrage → in_pruefung). Quer-Übergänge
+ * zwischen Endstatus (z.B. abgelehnt → bewilligt) sind KEINE Reverse —
+ * sie sind eine neue Entscheidung und erzeugen einen neuen Bescheid. */
 const FORWARD: Record<Status, Status[]> = {
   eingegangen: ["in_pruefung"],
   in_pruefung: ["rueckfrage", "bewilligt", "abgelehnt"],
-  rueckfrage: ["in_pruefung"],
-  bewilligt: [],
-  abgelehnt: [],
+  rueckfrage: ["bewilligt", "abgelehnt"],
+  bewilligt: ["abgelehnt", "rueckfrage"],
+  abgelehnt: ["bewilligt", "rueckfrage"],
 };
 
 export function allowedTransitions(from: Status): Status[] {
