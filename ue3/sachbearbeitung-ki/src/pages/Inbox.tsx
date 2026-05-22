@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
 import { useUserRole } from "../hooks/useUserRole";
+import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
 import { StatusBadge } from "../components/StatusBadge";
 import { formatDateTime, formatEuro } from "../lib/format";
@@ -149,6 +150,16 @@ function formatDiff(current: number, vj: number | null): { text: string; tone: "
 export function Inbox() {
   const { antraege, loading, error } = useAntraege();
   const { rolle } = useUserRole();
+  const { session } = useSession();
+  const userEmail = session?.user?.email ?? "";
+  const userMeta = (session?.user?.user_metadata ?? {}) as Record<string, unknown>;
+  const displayName =
+    (typeof userMeta.full_name === "string" && userMeta.full_name) ||
+    (typeof userMeta.name === "string" && userMeta.name) ||
+    (userEmail ? userEmail.split("@")[0] : "—");
+  const avatarUrl = userEmail
+    ? `https://i.pravatar.cc/80?u=${encodeURIComponent(userEmail)}`
+    : "https://i.pravatar.cc/80?u=anonym";
   const [filter, setFilter] = useState<Set<Status>>(new Set());
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("submitted_at");
@@ -299,23 +310,36 @@ export function Inbox() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between gap-6">
           <div>
             <h1 className="text-xl font-bold">Sachbearbeitung KI — APL 2</h1>
             <p className="text-sm text-slate-500">
               Stadt Würzburg · Beratungsstelle für Senioren · mit KI-Prüfung
             </p>
           </div>
-          <div className="text-sm text-slate-500">
-            Rolle: <span className="font-medium">{rolle ?? "—"}</span>
-            <Button variant="ghost" size="sm" className="ml-3" onClick={() => supabase.auth.signOut()}>
+          <div className="flex items-center gap-4">
+            <img
+              src={avatarUrl}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="h-10 w-10 rounded-full ring-2 ring-white shadow object-cover"
+            />
+            <div className="text-sm leading-tight">
+              <div className="font-medium text-slate-900">{displayName}</div>
+              <div className="text-xs text-slate-500">{userEmail || "—"}</div>
+            </div>
+            <div className="hidden sm:block h-8 w-px bg-slate-200" aria-hidden="true"></div>
+            <div className="text-sm text-slate-500">
+              Rolle <span className="font-medium text-slate-700">{rolle ?? "—"}</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => supabase.auth.signOut()}>
               Abmelden
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="max-w-[1600px] mx-auto px-6 py-6">
         <div className="bg-white border border-slate-200 rounded p-4 mb-4">
           <div className="flex flex-wrap items-center gap-3">
             <Input
@@ -409,27 +433,33 @@ export function Inbox() {
                       const diff = formatDiff(totalEuro(item.antrag), vj);
                       return (
                         <TableRow key={item.antrag.id} className="hover:bg-blue-50/30">
-                          <TableCell className="font-mono text-xs text-slate-500">
+                          <TableCell className="font-mono text-xs text-slate-500 whitespace-nowrap">
                             <Highlight text={item.antrag.antragsnummer} needle={search} />
                           </TableCell>
-                          <TableCell className="text-slate-900">
+                          <TableCell className="text-slate-900 whitespace-nowrap">
                             <Highlight text={item.antrag.name} needle={search} />
                           </TableCell>
-                          <TableCell className="text-slate-600">
+                          <TableCell className="text-slate-600 whitespace-nowrap">
                             <Highlight text={item.antrag.traeger} needle={search} />
                           </TableCell>
-                          <TableCell className="text-xs text-slate-500">{formatDateTime(item.antrag.submitted_at)}</TableCell>
-                          <TableCell><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
-                          <TableCell><StatusBadge status={item.antrag.status} /></TableCell>
-                          <TableCell className="text-right tabular-nums text-sm text-slate-700">{formatEuro(totalEuro(item.antrag))}</TableCell>
-                          <TableCell className="text-right tabular-nums text-sm text-slate-500">
+                          <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDateTime(item.antrag.submitted_at)}</TableCell>
+                          <TableCell className="whitespace-nowrap"><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
+                          <TableCell className="whitespace-nowrap"><StatusBadge status={item.antrag.status} /></TableCell>
+                          <TableCell className="text-right tabular-nums text-sm text-slate-700 whitespace-nowrap">{formatEuro(totalEuro(item.antrag))}</TableCell>
+                          <TableCell className="text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
                             {vj === null ? "—" : formatEuro(vj)}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm">
+                          <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
                             <span className={toneClass(diff.tone)}>{diff.text}</span>
                           </TableCell>
-                          <TableCell>
-                            <Link to={`/antrag/${item.antrag.id}`} className="text-blue-700 hover:text-blue-900 text-sm">Öffnen →</Link>
+                          <TableCell className="whitespace-nowrap pr-4">
+                            <Link
+                              to={`/antrag/${item.antrag.id}`}
+                              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-3 py-1.5 shadow-sm transition-colors"
+                            >
+                              Öffnen
+                              <span aria-hidden="true">→</span>
+                            </Link>
                           </TableCell>
                         </TableRow>
                       );
