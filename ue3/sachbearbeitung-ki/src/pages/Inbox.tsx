@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { BookOpen, FileSearch } from "lucide-react";
+import { BookOpen, FileSearch, Network } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
 import { useUserRole } from "../hooks/useUserRole";
 import { useSession } from "../hooks/useSession";
@@ -326,20 +326,28 @@ export function Inbox() {
           <div className="flex items-center gap-4">
             <nav className="hidden md:flex items-center gap-1 text-sm mr-2">
               <NavLink
+                to="/ahp"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                title="L1 — AHP-Richtlinie als Doctree"
+              >
+                <BookOpen className="h-4 w-4" />
+                AHP
+              </NavLink>
+              <NavLink
+                to="/normen"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                title="L2 — Knowledge-Layer / Norm-Statements"
+              >
+                <Network className="h-4 w-4" />
+                Normen
+              </NavLink>
+              <NavLink
                 to="/ontologie"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                title="Regelkatalog der Ontologie"
+                title="L3 — Ontologie-Regelkatalog"
               >
                 <FileSearch className="h-4 w-4" />
                 Ontologie
-              </NavLink>
-              <NavLink
-                to="/ahp"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                title="AHP-Richtlinie als Doctree"
-              >
-                <BookOpen className="h-4 w-4" />
-                AHP-Richtlinie
               </NavLink>
               <span className="h-6 w-px bg-slate-200 mx-1" aria-hidden="true" />
             </nav>

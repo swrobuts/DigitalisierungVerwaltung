@@ -5,6 +5,7 @@ import { Inbox } from "./pages/Inbox";
 import { AntragDetail } from "./pages/AntragDetail";
 import { OntologieInspector } from "./pages/OntologieInspector";
 import { AhpInspector } from "./pages/AhpInspector";
+import { NormStatementsInspector } from "./pages/NormStatementsInspector";
 import { AuthGuard } from "./components/AuthGuard";
 
 export default function App() {
@@ -42,6 +43,14 @@ export default function App() {
         element={
           <AuthGuard>
             <AhpInspector />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/normen"
+        element={
+          <AuthGuard>
+            <NormStatementsInspector />
           </AuthGuard>
         }
       />
