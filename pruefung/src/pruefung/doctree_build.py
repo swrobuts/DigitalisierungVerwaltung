@@ -286,29 +286,43 @@ OUTPUT-SCHEMA (exakt einhalten):
 Beginne deine Antwort DIREKT mit dem öffnenden { — kein Markdown-Block, kein Vorwort."""
 
 
-# Tool-Definition für die strukturierte Tree-Übergabe. Anthropic validiert das
-# input-Schema des Tools — damit ist garantiert, dass das Ergebnis ein
-# wohlgeformtes JSON-Objekt ist (kein Risiko unescaped Quotes im Volltext).
+# Tool-Definition für die strukturierte Tree-Übergabe. Felder werden DIREKT
+# als Tool-Input erwartet (nicht in nested `tree`-Objekt verpackt) — sonst
+# umgeht Claude die Schema-Validierung und liefert {tree: "<json-string>"}.
 _SUBMIT_TREE_TOOL = {
     "name": "submit_doctree",
     "description": (
-        "Übergibt den strukturierten Doctree der AHP-Förderrichtlinie. "
-        "Tree-Schema: {id, title, path, level, content, children}, wobei "
-        "children rekursiv die gleiche Struktur enthält."
+        "Übergibt den strukturierten Doctree-Root-Knoten der AHP-"
+        "Förderrichtlinie. Die Tree-Felder sind flach als Tool-Input — die "
+        "rekursive Struktur entsteht über das `children`-Array."
     ),
     "input_schema": {
         "type": "object",
         "properties": {
-            "tree": {
-                "type": "object",
+            "id": {"type": "string", "description": 'Stable-ID, root="root"'},
+            "title": {"type": "string", "description": "Anzeige-Titel der Section"},
+            "path": {
+                "type": "string",
+                "description": 'Breadcrumb-Path (leer bei root, z.B. "3.1")',
+            },
+            "level": {
+                "type": "integer",
+                "description": "0=root, 1=Top-Level (1 Vorwort), 2=Unterabschnitt (3.1)",
+            },
+            "content": {
+                "type": "string",
+                "description": "Fließtext der Section (ohne Kinder)",
+            },
+            "children": {
+                "type": "array",
                 "description": (
-                    "Root-Knoten des Trees. Muss die Felder id, title, path, "
-                    "level, content, children enthalten. children ist eine "
-                    "Liste von Sub-Trees mit derselben Struktur."
+                    "Liste der Unter-Sections. Jedes Element hat die "
+                    "gleiche Struktur {id, title, path, level, content, children}."
                 ),
-            }
+                "items": {"type": "object"},
+            },
         },
-        "required": ["tree"],
+        "required": ["id", "title", "path", "level", "content", "children"],
     },
 }
 
@@ -354,7 +368,14 @@ async def structure_with_claude(
     )
     for block in response.content:
         if getattr(block, "type", "") == "tool_use" and block.name == "submit_doctree":
-            return block.input["tree"]
+            # block.input enthält bereits die Tree-Felder flach (id, title, …)
+            tree = block.input
+            # Defensiv: falls Claude entgegen Schema ein {tree: ...} eingeschachtelt
+            # hat, entpacken; falls als String — parsen
+            if "tree" in tree and isinstance(tree["tree"], (dict, str)):
+                t = tree["tree"]
+                tree = json.loads(t) if isinstance(t, str) else t
+            return tree
     raise RuntimeError(
         f"Claude hat `submit_doctree` nicht aufgerufen. stop_reason={response.stop_reason}"
     )
