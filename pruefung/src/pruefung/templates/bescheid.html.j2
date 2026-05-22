@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Bescheid {{ antrag.antragsnummer }}</title>
+<style>
+  @page { size: A4; margin: 22mm 22mm 28mm 22mm; }
+  body { font-family: "Open Sans", "Helvetica", sans-serif; color: #222; font-size: 11pt; line-height: 1.5; }
+
+  .briefkopf { background: #AD0E36; color: white; padding: 4mm 22mm; margin: -22mm -22mm 8mm -22mm;
+               display: flex; justify-content: space-between; align-items: baseline; }
+  .briefkopf .ressort { font-weight: 600; letter-spacing: 0.18em; font-size: 9pt; }
+  .briefkopf .sub { font-size: 8.5pt; opacity: 0.9; }
+
+  h1 { font-size: 18pt; font-weight: 700; margin: 4mm 0 1mm 0; color: #111; }
+  h2 { font-size: 12pt; font-weight: 600; margin: 6mm 0 2mm 0; color: #111;
+       border-bottom: 1px solid #ccc; padding-bottom: 1mm; }
+
+  .meta-row { display: flex; justify-content: space-between; margin: 6mm 0; }
+  .meta-row .label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.12em; color: #888; }
+  .meta-row .value { font-size: 10pt; }
+
+  .empfaenger { margin: 4mm 0 8mm 0; padding: 3mm 4mm; background: #f7f6f4; border-left: 3px solid #AD0E36; }
+  .empfaenger .label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.12em; color: #888; }
+  .empfaenger .name { font-size: 11pt; font-weight: 600; margin-top: 1mm; }
+  .empfaenger .addr { font-size: 10pt; color: #444; }
+
+  .aktenzeichen-box { text-align: right; margin-bottom: 8mm; }
+  .aktenzeichen-box .label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.12em; color: #888; }
+  .aktenzeichen-box .value { font-family: monospace; font-size: 12pt; font-weight: 600; color: #111; }
+
+  .entscheidung { padding: 5mm; margin: 6mm 0; border: 2px solid; text-align: center; }
+  .entscheidung.bewilligt { border-color: #047857; background: #ECFDF5; color: #064E3B; }
+  .entscheidung.abgelehnt { border-color: #B91C1C; background: #FEF2F2; color: #7F1D1D; }
+  .entscheidung.rueckfrage { border-color: #B45309; background: #FFFBEB; color: #78350F; }
+  .entscheidung .verb { font-size: 16pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .entscheidung .summe { font-size: 13pt; font-weight: 600; margin-top: 2mm; font-variant-numeric: tabular-nums; }
+
+  .befund { margin: 3mm 0; padding: 2mm 3mm 2mm 5mm; border-left: 2px solid #999; background: #fafafa; }
+  .befund.verstoss { border-left-color: #AD0E36; }
+  .befund.hinweis  { border-left-color: #B45309; }
+  .befund .head { font-size: 9pt; text-transform: uppercase; letter-spacing: 0.1em; color: #666; }
+  .befund .head.verstoss { color: #AD0E36; }
+  .befund .head.hinweis  { color: #B45309; }
+  .befund .text { font-size: 10pt; color: #222; margin-top: 1mm; }
+  .befund .ahp { margin-top: 2mm; padding: 2mm 3mm; background: #fff; border: 1px solid #e5e5e5;
+                  font-size: 9pt; color: #444; font-style: italic; }
+  .befund .ahp .label { font-style: normal; font-size: 8pt; text-transform: uppercase;
+                          letter-spacing: 0.1em; color: #888; }
+
+  .kommentar { margin-top: 8mm; padding: 4mm; background: #f7f6f4; border-left: 2px solid #AD0E36; }
+  .kommentar .label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.12em; color: #888; }
+
+  .rechtsmittel { margin-top: 12mm; padding: 4mm; border: 1px solid #ccc; background: #fcfcfc;
+                  font-size: 9pt; color: #444; line-height: 1.4; }
+  .rechtsmittel h3 { margin: 0 0 2mm 0; font-size: 10pt; color: #111; }
+
+  .footer { position: fixed; bottom: 8mm; left: 22mm; right: 22mm;
+            font-size: 8pt; color: #888; border-top: 0.5pt solid #ccc; padding-top: 2mm;
+            display: flex; justify-content: space-between; }
+
+  .meta-info { font-size: 8.5pt; color: #888; margin-top: 2mm; }
+</style>
+</head>
+<body>
+
+<div class="briefkopf">
+  <div class="ressort">STADT WÜRZBURG · SOZIALREFERAT</div>
+  <div class="sub">Beratungsstelle für Senioren</div>
+</div>
+
+<div class="aktenzeichen-box">
+  <div class="label">Aktenzeichen</div>
+  <div class="value">{{ antrag.antragsnummer }}</div>
+</div>
+
+<div class="empfaenger">
+  <div class="label">Empfänger</div>
+  <div class="name">{{ antrag.traeger }}</div>
+  <div class="addr">
+    {{ antrag.ansprechpartner }}<br>
+    {{ antrag.strasse }} {{ antrag.hausnummer }}<br>
+    {{ antrag.plz }} {{ antrag.ort }}
+  </div>
+</div>
+
+<h1>
+  {% if entscheidung == 'bewilligt' %}Bewilligungsbescheid
+  {% elif entscheidung == 'abgelehnt' %}Ablehnungsbescheid
+  {% else %}Rückfrage zum Antrag
+  {% endif %}
+</h1>
+
+<p class="meta-info">
+  Förderantrag „Altentagesstätten — APL 2" · Betriebs- und Personalkostenzuschuss<br>
+  Haushaltsjahr {{ antrag.haushaltsjahr }} · Rechtsgrundlage: AHP-Förderrichtlinie der Stadt Würzburg, Beschluss vom 27.03.2025
+</p>
+
+<div class="entscheidung {{ entscheidung }}">
+  <div class="verb">
+    {% if entscheidung == 'bewilligt' %}Bewilligung
+    {% elif entscheidung == 'abgelehnt' %}Ablehnung
+    {% else %}Rückfrage
+    {% endif %}
+  </div>
+  {% if entscheidung == 'bewilligt' and bewilligte_summe_euro %}
+  <div class="summe">Bewilligte Fördersumme: {{ format_euro(bewilligte_summe_euro) }}</div>
+  {% endif %}
+</div>
+
+<p>
+  Sehr geehrte Damen und Herren,
+</p>
+<p>
+  {% if entscheidung == 'bewilligt' %}
+  auf Ihren Antrag vom {{ format_date(antrag.antragsdatum) }} hin wird Ihnen für das Haushaltsjahr
+  {{ antrag.haushaltsjahr }} ein Zuschuss in Höhe von <strong>{{ format_euro(bewilligte_summe_euro) }}</strong>
+  gewährt.
+  {% elif entscheidung == 'abgelehnt' %}
+  Ihr Antrag vom {{ format_date(antrag.antragsdatum) }} wird hiermit <strong>abgelehnt</strong>.
+  {% else %}
+  zur Bearbeitung Ihres Antrags vom {{ format_date(antrag.antragsdatum) }} sind noch
+  <strong>Rückfragen</strong> zu klären, die in der nachfolgenden Begründung benannt sind.
+  {% endif %}
+</p>
+
+{% if befunde %}
+<h2>Begründung</h2>
+
+<p>Die Entscheidung stützt sich auf folgende, im Rahmen der Prüfung festgestellten Punkte aus der
+AHP-Förderrichtlinie (Doctree-Version {{ doctree_version }}):</p>
+
+{% for b in befunde %}
+<div class="befund {{ b.schwere }}">
+  <div class="head {{ b.schwere }}">
+    {% if b.schwere == 'verstoss' %}Verstoß{% else %}Hinweis{% endif %}
+    {% if b.paragraph_ref %} · {{ b.paragraph_ref }}{% endif %}
+  </div>
+  <div class="text">{{ b.beschreibung }}</div>
+  {% if b.ahp_wortlaut %}
+  <div class="ahp">
+    <div class="label">Wortlaut der AHP-Richtlinie ({{ b.ahp_section_title }})</div>
+    {{ b.ahp_wortlaut }}
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if bearbeiter_kommentar %}
+<h2>Anmerkung der Sachbearbeitung</h2>
+<div class="kommentar">
+  <div class="label">Kommentar</div>
+  <p style="margin: 1mm 0 0 0; white-space: pre-wrap;">{{ bearbeiter_kommentar }}</p>
+</div>
+{% endif %}
+
+<div class="rechtsmittel">
+  <h3>Rechtsbehelfsbelehrung</h3>
+  <p>Gegen diesen Bescheid kann innerhalb eines Monats nach seiner Bekanntgabe Widerspruch erhoben
+  werden. Der Widerspruch ist schriftlich oder zur Niederschrift bei der Stadt Würzburg,
+  Sozialreferat, Karmelitenstraße 43, 97070 Würzburg einzulegen.</p>
+  <p>Hinweis: Über die Art und Höhe der Bewilligung entscheidet der Sozialausschuss der Stadt Würzburg
+  nach Prüfung des Antrages durch die Leitung Seniorenarbeit, FB IIS (AHP Kap. 3.4 Bewilligung).
+  Ein Rechtsanspruch besteht nicht.</p>
+</div>
+
+<p style="margin-top: 12mm;">
+  Würzburg, den {{ format_date(ausgestellt_am) }}<br><br>
+  Im Auftrag<br>
+  {{ ausgestellt_von or 'Sachbearbeitung Sozialreferat' }}
+</p>
+
+<div class="footer">
+  <div>Sozialreferat · Karmelitenstraße 43 · 97070 Würzburg</div>
+  <div>Bescheid-ID: {{ bescheid_id }}</div>
+</div>
+
+</body>
+</html>

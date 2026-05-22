@@ -1,10 +1,12 @@
 """FastAPI-Service für UE3 KI-gestützte Prüfung von APL2-Anträgen."""
 import os
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 import httpx
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from pruefung.db import SupabaseClient
 from pruefung.doctree_build import (
     build_tree,
@@ -99,6 +101,137 @@ async def pruefen(req: PruefungsRequest) -> dict[str, Any]:
         "doctree_version": version,
         "duration_ms": duration_ms,
         "befunde": [b.model_dump() for b in befunde],
+    }
+
+
+class BescheidRequest(BaseModel):
+    """Body von POST /api/bescheid."""
+    antrag_id: str
+    entscheidung: str  # 'bewilligt' | 'abgelehnt' | 'rueckfrage'
+    bewilligte_summe_euro: float | None = None
+    bearbeiter_kommentar: str | None = None
+    ausgestellt_von: str | None = None
+
+
+def _find_section_by_path(tree: dict, target: str) -> dict | None:
+    """Sucht im Doctree den Knoten mit passendem path (z.B. '3.3')."""
+    if tree.get("path") == target:
+        return tree
+    for c in tree.get("children", []) or []:
+        r = _find_section_by_path(c, target)
+        if r:
+            return r
+    return None
+
+
+def _extract_ahp_path(paragraph_ref: str | None) -> str | None:
+    """'AHP 3.3 Antragsfristen' → '3.3'."""
+    if not paragraph_ref:
+        return None
+    import re
+    m = re.search(r"(\d+(?:\.\d+)*)", paragraph_ref)
+    return m.group(1) if m else None
+
+
+@app.post("/api/bescheid")
+async def bescheid(req: BescheidRequest) -> dict[str, Any]:
+    """Erstellt einen Verwaltungsbescheid (PDF + apl2.bescheide-Eintrag)
+    auf Basis des letzten Prüfprotokolls. Die Befunde werden mit AHP-Wortlaut
+    angereichert, damit der Bescheid eine rechtlich belastbare Begründung trägt."""
+    if req.entscheidung not in ("bewilligt", "abgelehnt", "rueckfrage"):
+        raise HTTPException(400, f"Ungültige Entscheidung: {req.entscheidung}")
+
+    db = SupabaseClient.from_env()
+
+    # 1) Antrag laden (volle Adresse + Bezeichner)
+    antrag_rows = await db.select(
+        "antraege",
+        f"id=eq.{req.antrag_id}&select=*",
+    )
+    if not antrag_rows:
+        raise HTTPException(404, f"Antrag {req.antrag_id} nicht gefunden")
+    antrag = antrag_rows[0]
+
+    # 2) Letztes Prüfprotokoll holen (für Begründung)
+    protokoll_rows = await db.select(
+        "pruefprotokoll",
+        f"antrag_id=eq.{req.antrag_id}&select=id,ergebnis_jsonb,doctree_version"
+        "&order=geprueft_am.desc&limit=1",
+    )
+    protokoll = protokoll_rows[0] if protokoll_rows else None
+    befunde_raw = (protokoll or {}).get("ergebnis_jsonb", {}).get("befunde", [])
+
+    # 3) AHP-Doctree für Wortlaut-Anreicherung
+    tree_rows = await db.select(
+        "ahp_doctree",
+        "select=version,tree_jsonb&order=built_at.desc&limit=1",
+    )
+    tree = tree_rows[0]["tree_jsonb"] if tree_rows else {}
+    doctree_version = (
+        (protokoll or {}).get("doctree_version")
+        or (tree_rows[0]["version"] if tree_rows else None)
+    )
+
+    # 4) Befunde mit AHP-Wortlaut anreichern (nur Verstöße in den Bescheid,
+    #    Hinweise sind interne Sachbearbeiter-Notizen)
+    befunde_for_template: list[dict] = []
+    for b in befunde_raw:
+        if b.get("schwere") != "verstoss":
+            continue
+        ahp_path = _extract_ahp_path(b.get("paragraph_ref"))
+        ahp_node = _find_section_by_path(tree, ahp_path) if ahp_path else None
+        befunde_for_template.append({
+            "schwere": b.get("schwere"),
+            "beschreibung": b.get("beschreibung", ""),
+            "paragraph_ref": b.get("paragraph_ref"),
+            "ahp_section_title": ahp_node.get("title") if ahp_node else None,
+            "ahp_wortlaut": ahp_node.get("content") if ahp_node else None,
+        })
+
+    # 5) Bescheid-Datensatz anlegen (vor PDF, damit wir die ID kennen)
+    ausgestellt_am = datetime.now(UTC)
+    inserted = await db.insert("bescheide", {
+        "antrag_id": req.antrag_id,
+        "entscheidung": req.entscheidung,
+        "bewilligte_summe_euro": req.bewilligte_summe_euro,
+        "begruendung_jsonb": {"befunde": befunde_for_template},
+        "bearbeiter_kommentar": req.bearbeiter_kommentar,
+        "ausgestellt_von": req.ausgestellt_von,
+        "ausgestellt_am": ausgestellt_am.isoformat(),
+        "pruefprotokoll_id": (protokoll or {}).get("id"),
+        "doctree_version": doctree_version,
+    })
+    bescheid_id = inserted[0]["id"] if inserted else None
+
+    # 6) PDF rendern (lazy-import wie bei /api/pdf wg. native libs)
+    from pruefung.pdf_render import render_bescheid_pdf
+    pdf_bytes = render_bescheid_pdf(
+        bescheid_id=bescheid_id or "",
+        antrag=antrag,
+        entscheidung=req.entscheidung,
+        bewilligte_summe_euro=req.bewilligte_summe_euro,
+        befunde=befunde_for_template,
+        bearbeiter_kommentar=req.bearbeiter_kommentar,
+        ausgestellt_von=req.ausgestellt_von,
+        ausgestellt_am=ausgestellt_am,
+        doctree_version=doctree_version,
+    )
+
+    # 7) PDF in Storage upload + path in bescheide nachtragen
+    storage_path = f"{req.antrag_id}/{bescheid_id}.pdf"
+    await db.upload_storage("bescheide", storage_path, pdf_bytes, "application/pdf")
+    async with httpx.AsyncClient(timeout=30) as c:
+        await c.patch(
+            f"{db.url}/rest/v1/bescheide?id=eq.{bescheid_id}",
+            json={"pdf_storage_path": storage_path},
+            headers={**db._headers, "Prefer": "return=minimal"},
+        )
+
+    return {
+        "bescheid_id": bescheid_id,
+        "pdf_storage_path": storage_path,
+        "anzahl_verstoesse_in_bescheid": len(befunde_for_template),
+        "doctree_version": doctree_version,
     }
 
 

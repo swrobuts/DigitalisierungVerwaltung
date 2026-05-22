@@ -2,6 +2,8 @@ import { Fragment, useState, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Check, FileText } from "lucide-react";
 import { useAntrag, type AnlageRow } from "../hooks/useAntrag";
+import { useBescheide, type BescheidRow } from "../hooks/useBescheide";
+import { useSession } from "../hooks/useSession";
 import { StatusBadge } from "../components/StatusBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
@@ -9,6 +11,7 @@ import { allowedTransitions, STATUS_LABELS, type Status } from "../lib/workflow"
 import { formatEuro, formatDateTime, formatAdresse } from "../lib/format";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import { PruefungsCard } from "../components/PruefungsCard";
 import {
   Dialog,
@@ -47,15 +50,52 @@ export function AntragDetail() {
     );
 
   const folgeStatus = allowedTransitions(antrag.status);
+  const { session } = useSession();
+  const sachbearbeiterEmail = session?.user?.email ?? null;
+  const {
+    bescheide,
+    creating: bescheidCreating,
+    erstelleBescheid,
+    downloadBescheidPdf,
+  } = useBescheide(antrag.id);
+
+  // Wenn Folgestatus eine Entscheidung ist, brauchen wir das bewilligte-Summe-Feld
+  const [bewilligteSumme, setBewilligteSumme] = useState<string>("");
+  const istEntscheidungsStatus = (s: Status) =>
+    s === "bewilligt" || s === "abgelehnt" || s === "rueckfrage";
 
   async function handleStatusChange() {
     if (!confirmTo) return;
     setBusy(true);
     const result = await changeStatus(confirmTo, kommentar);
+    if (result.error) {
+      alert("Fehler: " + result.error);
+      setBusy(false);
+      return;
+    }
+    // Bei Entscheidungs-Status: zusätzlich Bescheid-PDF erstellen
+    if (istEntscheidungsStatus(confirmTo)) {
+      const summe =
+        confirmTo === "bewilligt" && bewilligteSumme.trim()
+          ? Number(bewilligteSumme.replace(",", "."))
+          : null;
+      await erstelleBescheid({
+        entscheidung: confirmTo,
+        bewilligte_summe_euro: Number.isFinite(summe ?? NaN) ? summe : null,
+        bearbeiter_kommentar: kommentar || null,
+        ausgestellt_von: sachbearbeiterEmail,
+      });
+    }
     setBusy(false);
-    if (result.error) alert("Fehler: " + result.error);
     setConfirmTo(null);
     setKommentar("");
+    setBewilligteSumme("");
+  }
+
+  async function openBescheidPdf(path: string) {
+    const url = await downloadBescheidPdf(path);
+    if (url) window.open(url, "_blank", "noopener");
+    else alert("Bescheid-PDF nicht abrufbar.");
   }
 
   return (
@@ -299,12 +339,33 @@ export function AntragDetail() {
                           Status auf „{STATUS_LABELS[s]}" setzen?
                         </DialogTitle>
                         <DialogDescription>
-                          Optional kannst du einen Kommentar hinterlassen (im
-                          Audit-Trail sichtbar).
+                          {istEntscheidungsStatus(s)
+                            ? "Erzeugt zusätzlich automatisch einen PDF-Bescheid mit der Ontologie-Begründung aus der letzten KI-Prüfung."
+                            : "Optional kannst du einen Kommentar hinterlassen (im Audit-Trail sichtbar)."}
                         </DialogDescription>
                       </DialogHeader>
+                      {s === "bewilligt" && (
+                        <div className="space-y-1">
+                          <label
+                            htmlFor="bewilligte-summe"
+                            className="text-[11px] uppercase tracking-wider text-slate-500 font-medium"
+                          >
+                            Bewilligte Fördersumme (€) · Cap AHP 2.3.2: 10.000 €
+                          </label>
+                          <Input
+                            id="bewilligte-summe"
+                            placeholder="z.B. 8500.00"
+                            value={bewilligteSumme}
+                            onChange={(e) => setBewilligteSumme(e.target.value)}
+                          />
+                        </div>
+                      )}
                       <Textarea
-                        placeholder="Kommentar (optional) …"
+                        placeholder={
+                          istEntscheidungsStatus(s)
+                            ? "Anmerkung für den Bescheid (wird im PDF mitgedruckt) …"
+                            : "Kommentar (optional) …"
+                        }
                         value={kommentar}
                         onChange={(e) => setKommentar(e.target.value)}
                       />
@@ -312,14 +373,21 @@ export function AntragDetail() {
                         <Button
                           variant="outline"
                           onClick={() => setConfirmTo(null)}
-                          disabled={busy}
+                          disabled={busy || bescheidCreating}
                         >
                           Abbrechen
                         </Button>
-                        <Button onClick={handleStatusChange} disabled={busy}>
-                          {busy
-                            ? "Wird gespeichert …"
-                            : `Auf "${STATUS_LABELS[s]}" setzen`}
+                        <Button
+                          onClick={handleStatusChange}
+                          disabled={busy || bescheidCreating}
+                        >
+                          {busy || bescheidCreating
+                            ? istEntscheidungsStatus(s)
+                              ? "Status + Bescheid …"
+                              : "Wird gespeichert …"
+                            : istEntscheidungsStatus(s)
+                              ? `${STATUS_LABELS[s]} + Bescheid erstellen`
+                              : `Auf "${STATUS_LABELS[s]}" setzen`}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -330,6 +398,23 @@ export function AntragDetail() {
           </Card>
 
           <PruefungsCard antragId={antrag.id} />
+
+          {bescheide.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Bescheide</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {bescheide.map((b) => (
+                  <BescheidRow
+                    key={b.id}
+                    bescheid={b}
+                    onOpen={() => b.pdf_storage_path && openBescheidPdf(b.pdf_storage_path)}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -574,6 +659,46 @@ function AnlagenListe({ anlagen }: { anlagen: AnlageRow[] }) {
 /** IBAN in 4er-Blöcke gruppieren für bessere Lesbarkeit. */
 function formatIban(iban: string): string {
   return iban.replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
+}
+
+/** Eine Zeile in der Bescheide-Card mit Entscheidung, Datum, Summe + Download. */
+function BescheidRow({
+  bescheid, onOpen,
+}: {
+  bescheid: BescheidRow;
+  onOpen: () => void;
+}) {
+  const labels: Record<BescheidRow["entscheidung"], { txt: string; color: string }> = {
+    bewilligt: { txt: "Bewilligt", color: "text-emerald-700" },
+    abgelehnt: { txt: "Abgelehnt", color: "text-rose-700" },
+    rueckfrage: { txt: "Rückfrage", color: "text-amber-700" },
+  };
+  const meta = labels[bescheid.entscheidung];
+  return (
+    <div className="border border-slate-200 rounded p-2 text-sm">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className={`font-medium ${meta.color}`}>{meta.txt}</span>
+        <span className="text-xs text-slate-500">
+          {formatDateTime(bescheid.ausgestellt_am)}
+        </span>
+      </div>
+      {bescheid.bewilligte_summe_euro !== null && (
+        <div className="text-xs text-slate-700 tabular-nums mt-1">
+          Summe: <span className="font-medium">{formatEuro(bescheid.bewilligte_summe_euro)}</span>
+        </div>
+      )}
+      {bescheid.doctree_version && (
+        <div className="text-[11px] text-slate-400 mt-0.5">
+          Doctree v{bescheid.doctree_version}
+        </div>
+      )}
+      {bescheid.pdf_storage_path && (
+        <Button variant="outline" size="sm" onClick={onOpen} className="w-full mt-2">
+          📄 Bescheid als PDF
+        </Button>
+      )}
+    </div>
+  );
 }
 
 /** Anzeige der beantragten Fördersumme mit visueller Cap-Indikation
