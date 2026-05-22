@@ -15,6 +15,7 @@ from pruefung.doctree_build import (
     extract_text_blocks,
     structure_with_claude,
 )
+from pruefung.knowledge_extract import extract_all_norms
 from pruefung.layer_a_strukturell import check_strukturell
 from pruefung.layer_b_ontologie import check_ontologie
 from pruefung.layer_c_rag import check_rag
@@ -286,6 +287,22 @@ async def pdf(protokoll_id: str) -> dict[str, str]:
 # AHP_PDF_PATH überschreiben oder Symlink legen. So bleibt der Endpoint
 # auch außerhalb des Containers nutzbar (z.B. CI / Reviewer-Workstation).
 AHP_PDF_PATH_DEFAULT = "/app/materialien/foerderrichtlinie-ahp-2025-03-27.pdf"
+
+
+@app.post("/api/extract-norms")
+async def extract_norms() -> dict[str, Any]:
+    """Layer L2 — Knowledge-Layer-Befüllung.
+
+    Iteriert über alle Sections des aktuellen Doctrees und ruft Claude
+    pro Section auf, um normative Aussagen zu extrahieren. Statements
+    landen als status='pending' in apl2.ahp_norm_statements zur manuellen
+    Kuratierung.
+
+    Idempotent: das unique-Constraint auf (doctree_version, section_path,
+    statement) verhindert Duplikate.
+    """
+    db = SupabaseClient.from_env()
+    return await extract_all_norms(db)
 
 
 @app.post("/api/rebuild-doctree")
