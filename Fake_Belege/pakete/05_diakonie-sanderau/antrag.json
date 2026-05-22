@@ -1,0 +1,78 @@
+{
+  "slug": "05_diakonie-sanderau",
+  "label": "Diakonie-Treff Sanderau",
+  "erwartetes_ergebnis": "🟡 Layer-C-Verstoß: Programminhalte nicht förderfähig",
+  "test_layer": "C",
+  "antrag_id": "a5555555-5555-5555-5555-555555555555",
+  "name": "Diakonie-Treff Sanderau",
+  "traeger": "Diakonisches Werk Würzburg e.V.",
+  "strasse": "Wittelsbacherstraße",
+  "hausnummer": "9",
+  "plz": "97072",
+  "ort": "Würzburg",
+  "bankverbindung": "Evangelische Bank eG",
+  "iban": "DE45520604500001234567",
+  "bic": "GENODEF1EK1",
+  "ansprechpartner": "Diakonin Anja Vogt",
+  "telefon": "0931 80498-17",
+  "email": "sanderau@diakonie-wuerzburg.de",
+  "haushaltsjahr": 2026,
+  "raeume_vorhanden": "ja",
+  "raeume_unentgeltlich": "nein",
+  "antragsdatum": "2026-04-19",
+  "belege": [
+    {
+      "belegtyp": "miete",
+      "bezeichnung": "Miete Gemeindezentrum 12 × 540 €",
+      "betrag_euro": 6480.0
+    },
+    {
+      "belegtyp": "personalkosten",
+      "bezeichnung": "Diakonin (Teilzeit 15 h/Woche)",
+      "betrag_euro": 22500.0
+    },
+    {
+      "belegtyp": "betriebskosten",
+      "bezeichnung": "Nebenkosten, Versicherung",
+      "betrag_euro": 3200.0
+    }
+  ],
+  "oeffnungszeiten": [
+    {
+      "wochentag": "mo",
+      "zeit": "14:00 – 17:00",
+      "angebot": "Offener Treff, Café"
+    },
+    {
+      "wochentag": "mi",
+      "zeit": "18:30 – 21:30",
+      "angebot": "Bingo-Abend mit Geldgewinnen"
+    },
+    {
+      "wochentag": "fr",
+      "zeit": "14:00 – 17:00",
+      "angebot": "Tupperware-Vorstellung / Verkaufsnachmittag (monatlich)"
+    }
+  ],
+  "programm_titel": "Programm Diakonie-Treff Sanderau",
+  "programm_beschreibung": [
+    "Der Diakonie-Treff Sanderau bietet montags einen klassischen offenen Café-Treff. Schwerpunkt unseres erweiterten Programms 2026 ist jedoch der mittwöchliche Bingo-Abend mit Geldgewinnen — Hauptpreis bis zu 500 € pro Abend, finanziert aus den Teilnahmegebühren (5 €/Karte). Wir gehen davon aus, dass dieses Format auch jüngere Senior:innen anzieht.",
+    "Freitags wechseln wir uns mit externen Anbietern ab: Tupperware-Verkaufsveranstaltungen (Frau Müller), Genuss-Reisevermittlung der Firma 'Senior-Trips GmbH' (provisionsbeteiligt) sowie ein kommerzieller Vortragsabend zu Kapitalanlagen im Alter, durchgeführt vom Finanzberater Herrn Wagner (Allfinanz Wagner & Partner).",
+    "Diese Angebotsstruktur ermöglicht es uns, zusätzliche Einnahmen für den Treff zu generieren."
+  ],
+  "miet_objekt": "Gemeindezentrum Wittelsbacherstraße",
+  "vermieter": "Evangelisch-Lutherische Kirchengemeinde Sanderau",
+  "miete_monat_euro": 540.0,
+  "raum_geber": null,
+  "fraud_notes": [
+    "Bingo mit Geldgewinnen, Tupperware-Verkauf, kommerzielle Reisevermittlung und Finanzprodukt-Vortrag verstoßen gegen die AHP-Förderkriterien (§ 4: gemeinnützige, niedrigschwellige Begegnungs- und Bildungsangebote, KEINE kommerziellen oder Glücksspiel-Inhalte).",
+    "Layer C (RAG/Claude) soll diese Punkte in der AHP-Richtlinie nachschlagen."
+  ],
+  "personal_positionen": [
+    [
+      "Diakonin (BPT 15 h/Wo, TVöD SuE S8b)",
+      "Anja Vogt",
+      22500.0
+    ]
+  ]
+}

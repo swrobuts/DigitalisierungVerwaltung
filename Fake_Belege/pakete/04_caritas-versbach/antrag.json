@@ -1,0 +1,77 @@
+{
+  "slug": "04_caritas-versbach",
+  "label": "Caritas-Tagestreff Versbach",
+  "erwartetes_ergebnis": "🟡 Layer-B-Verstoß: Personalkosten/Öffnungstag unplausibel",
+  "test_layer": "B",
+  "antrag_id": "a4444444-4444-4444-4444-444444444444",
+  "name": "Caritas-Tagestreff Versbach",
+  "traeger": "Caritasverband für die Stadt und den Landkreis Würzburg e.V.",
+  "strasse": "Versbacher Straße",
+  "hausnummer": "142",
+  "plz": "97078",
+  "ort": "Würzburg",
+  "bankverbindung": "LIGA Bank Regensburg",
+  "iban": "DE10750903000002400500",
+  "bic": "GENODEF1M05",
+  "ansprechpartner": "Herr Stefan Reiser",
+  "telefon": "0931 38664-50",
+  "email": "versbach@caritas-wuerzburg.org",
+  "haushaltsjahr": 2026,
+  "raeume_vorhanden": "ja",
+  "raeume_unentgeltlich": "nein",
+  "antragsdatum": "2026-04-29",
+  "belege": [
+    {
+      "belegtyp": "miete",
+      "bezeichnung": "Raumpauschale 12 × 380 €",
+      "betrag_euro": 4560.0
+    },
+    {
+      "belegtyp": "personalkosten",
+      "bezeichnung": "Einrichtungsleitung Vollzeit (Diplom-Sozialpädagogin)",
+      "betrag_euro": 58000.0
+    },
+    {
+      "belegtyp": "personalkosten",
+      "bezeichnung": "Hauswirtschafterin Teilzeit + Springer",
+      "betrag_euro": 20000.0
+    },
+    {
+      "belegtyp": "betriebskosten",
+      "bezeichnung": "Nebenkosten, Material, Versicherung",
+      "betrag_euro": 2400.0
+    }
+  ],
+  "oeffnungszeiten": [
+    {
+      "wochentag": "mi",
+      "zeit": "14:00 – 16:00",
+      "angebot": "Offener Treff"
+    }
+  ],
+  "programm_titel": "Programm Caritas-Tagestreff Versbach",
+  "programm_beschreibung": [
+    "Der Tagestreff Versbach öffnet derzeit nur einmal pro Woche (mittwochs 14–16 Uhr) wegen Personalengpässen bei der Hauswirtschaft. Es ist geplant, das Angebot 2026 wieder auf 3 Wochentage auszuweiten.",
+    "Aktuell findet ein zweistündiger offener Treff mit Kaffee und wechselnden Kleingruppen-Angeboten (Gedächtnistraining, Singkreis) statt."
+  ],
+  "miet_objekt": "Räume Kath. Pfarrgemeinde St. Burkard Versbach",
+  "vermieter": "Kath. Pfarrgemeinde St. Burkard, Versbach",
+  "miete_monat_euro": 380.0,
+  "raum_geber": null,
+  "fraud_notes": [
+    "78.000 € Personalkosten bei 52 Öffnungstagen → 1.500 € pro Öffnungstag.",
+    "Layer-B-Regel 'plausible_personalkosten' soll triggern."
+  ],
+  "personal_positionen": [
+    [
+      "Einrichtungsleitung Vollzeit (Dipl.-Sozialpäd., AVR-Caritas EG 8)",
+      "Stefan Reiser",
+      58000.0
+    ],
+    [
+      "Hauswirtschaft Teilzeit + Springer-Pool",
+      "Team (3 Personen)",
+      20000.0
+    ]
+  ]
+}

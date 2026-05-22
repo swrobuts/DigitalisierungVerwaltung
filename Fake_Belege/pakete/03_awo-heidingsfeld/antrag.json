@@ -1,0 +1,87 @@
+{
+  "slug": "03_awo-heidingsfeld",
+  "label": "AWO-Begegnungsstätte Heidingsfeld",
+  "erwartetes_ergebnis": "🟡 Layer-A-Verstoß: IBAN ungültig",
+  "test_layer": "A",
+  "antrag_id": "a3333333-3333-3333-3333-333333333333",
+  "name": "AWO-Begegnungsstätte Heidingsfeld",
+  "traeger": "Arbeiterwohlfahrt Kreisverband Würzburg e.V.",
+  "strasse": "Klingenstraße",
+  "hausnummer": "11",
+  "plz": "97084",
+  "ort": "Würzburg",
+  "bankverbindung": "Sparkasse Mainfranken Würzburg",
+  "iban": "DE41790500000102030401",
+  "bic": "BYLADEM1SWU",
+  "ansprechpartner": "Frau Beate Korn (Einrichtungsleitung)",
+  "telefon": "0931 88044-23",
+  "email": "heidingsfeld@awo-wuerzburg.de",
+  "haushaltsjahr": 2026,
+  "raeume_vorhanden": "ja",
+  "raeume_unentgeltlich": "nein",
+  "antragsdatum": "2026-04-08",
+  "belege": [
+    {
+      "belegtyp": "miete",
+      "bezeichnung": "Kaltmiete 12 × 620 €",
+      "betrag_euro": 7440.0
+    },
+    {
+      "belegtyp": "personalkosten",
+      "bezeichnung": "Fachkraft soziale Arbeit (Teilzeit 18h/Woche)",
+      "betrag_euro": 26800.0
+    },
+    {
+      "belegtyp": "betriebskosten",
+      "bezeichnung": "Nebenkosten Heizung/Strom/Wasser (Vorauszahlung)",
+      "betrag_euro": 3120.0
+    },
+    {
+      "belegtyp": "betriebskosten",
+      "bezeichnung": "Versicherung, Telekom, Hygiene",
+      "betrag_euro": 980.0
+    }
+  ],
+  "oeffnungszeiten": [
+    {
+      "wochentag": "mo",
+      "zeit": "10:00 – 16:00",
+      "angebot": "Mittagstisch + offener Treff"
+    },
+    {
+      "wochentag": "mi",
+      "zeit": "10:00 – 16:00",
+      "angebot": "Mittagstisch + Beratung"
+    },
+    {
+      "wochentag": "do",
+      "zeit": "13:00 – 17:00",
+      "angebot": "Themen-Café"
+    },
+    {
+      "wochentag": "fr",
+      "zeit": "10:00 – 14:00",
+      "angebot": "Mittagstisch"
+    }
+  ],
+  "programm_titel": "Programm AWO-Begegnungsstätte Heidingsfeld",
+  "programm_beschreibung": [
+    "Die AWO-Begegnungsstätte Heidingsfeld bietet ein verlässliches tages-strukturierendes Angebot mit Schwerpunkt Mittagstisch (3 Tage/Woche), Beratungssprechstunden und themenoffenem Café.",
+    "Der Mittagstisch wird in Kooperation mit dem AWO-Catering bereitgestellt; Teilnehmende zahlen einen Eigenanteil von 5,50 €.",
+    "Donnerstags-Café behandelt wechselnde Themen: Vorsorgevollmacht, Wohnen im Alter, Mobilität, Digitale Sprechstunde."
+  ],
+  "miet_objekt": "EG-Räume Klingenstraße 11 (ca. 95 m²)",
+  "vermieter": "Wohnungsgenossenschaft Heidingsfeld eG",
+  "miete_monat_euro": 620.0,
+  "raum_geber": null,
+  "fraud_notes": [
+    "IBAN hat einen Zeichendreher (letztes Zeichen) — Layer A mod-97 soll triggern."
+  ],
+  "personal_positionen": [
+    [
+      "Sozialarbeiterin (BPT 18 h/Wo)",
+      "Beate Korn",
+      26800.0
+    ]
+  ]
+}

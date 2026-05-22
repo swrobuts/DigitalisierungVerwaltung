@@ -1,0 +1,85 @@
+{
+  "slug": "02_buergerverein-frauenland",
+  "label": "Bürgerverein Frauenland e.V.",
+  "erwartetes_ergebnis": "✅ sauber (unentgeltlich)",
+  "test_layer": "Negativ-Kontrolle #2",
+  "antrag_id": "a2222222-2222-2222-2222-222222222222",
+  "name": "Senioren-Stammtisch Frauenland",
+  "traeger": "Bürgerverein Frauenland e.V.",
+  "strasse": "Rottendorfer Straße",
+  "hausnummer": "56",
+  "plz": "97074",
+  "ort": "Würzburg",
+  "bankverbindung": "VR-Bank Würzburg",
+  "iban": "DE87790900000010101010",
+  "bic": "GENODEF1WU1",
+  "ansprechpartner": "Dr. Helga Mertens (1. Vorsitzende)",
+  "telefon": "0931 70402-12",
+  "email": "vorstand@buergerverein-frauenland.de",
+  "haushaltsjahr": 2026,
+  "raeume_vorhanden": "ja",
+  "raeume_unentgeltlich": "ja",
+  "antragsdatum": "2026-04-22",
+  "belege": [
+    {
+      "belegtyp": "personalkosten",
+      "bezeichnung": "Honorar Kursleitung Gedächtnistraining (Frau Eichinger)",
+      "betrag_euro": 4800.0
+    },
+    {
+      "belegtyp": "personalkosten",
+      "bezeichnung": "Honorar Bewegungsangebot (Herr Schäfer, ÜL-B Sport)",
+      "betrag_euro": 5400.0
+    },
+    {
+      "belegtyp": "betriebskosten",
+      "bezeichnung": "Verbrauchsmaterial, Getränke, Bastel-/Spielmaterial",
+      "betrag_euro": 1600.0
+    },
+    {
+      "belegtyp": "betriebskosten",
+      "bezeichnung": "Anteilige Reinigung (Eigenleistung Verein)",
+      "betrag_euro": 800.0
+    }
+  ],
+  "oeffnungszeiten": [
+    {
+      "wochentag": "di",
+      "zeit": "13:30 – 16:30",
+      "angebot": "Offener Treff + Gedächtnistraining (14-tägig)"
+    },
+    {
+      "wochentag": "do",
+      "zeit": "13:30 – 16:30",
+      "angebot": "Bewegungsangebot + Café"
+    },
+    {
+      "wochentag": "sa",
+      "zeit": "10:00 – 12:00",
+      "angebot": "Frühstückstreff (1. Sa/Monat)"
+    }
+  ],
+  "programm_titel": "Programm Senioren-Stammtisch Frauenland",
+  "programm_beschreibung": [
+    "Der Senioren-Stammtisch Frauenland ist ein selbstorganisiertes Stadtteil-Angebot des Bürgervereins. Räume werden uns durch die Stadt Würzburg im Stadtteilbüro Frauenland unentgeltlich zur Verfügung gestellt. Aus diesem Grund werden keine Mietkosten geltend gemacht.",
+    "Dienstags wechseln sich offener Treff und Gedächtnistraining im 14-Tage-Rhythmus ab. Donnerstags findet ein leichtes Bewegungsangebot (funktionelles Training, Sturzprophylaxe) statt, gefolgt von gemeinsamem Kaffeetrinken.",
+    "Am ersten Samstag jeden Monats bieten wir einen Frühstückstreff an, der speziell auch Alleinlebende anspricht."
+  ],
+  "miet_objekt": null,
+  "vermieter": null,
+  "miete_monat_euro": null,
+  "raum_geber": "Stadt Würzburg / Sozialreferat — Stadtteilbüro Frauenland",
+  "fraud_notes": [],
+  "personal_positionen": [
+    [
+      "Honorarkraft Gedächtnistraining (40 €/h × 120 h)",
+      "Renate Eichinger",
+      4800.0
+    ],
+    [
+      "Honorarkraft Bewegungsangebot (45 €/h × 120 h)",
+      "Thomas Schäfer",
+      5400.0
+    ]
+  ]
+}

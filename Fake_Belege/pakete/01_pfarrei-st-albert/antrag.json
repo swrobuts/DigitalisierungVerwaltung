@@ -1,0 +1,80 @@
+{
+  "slug": "01_pfarrei-st-albert",
+  "label": "Pfarrei St. Albert Heidingsfeld",
+  "erwartetes_ergebnis": "✅ sauber",
+  "test_layer": "Negativ-Kontrolle",
+  "antrag_id": "a1111111-1111-1111-1111-111111111111",
+  "name": "Seniorentreff St. Albert",
+  "traeger": "Katholische Kirchenstiftung St. Albert",
+  "strasse": "Sieboldstraße",
+  "hausnummer": "14",
+  "plz": "97082",
+  "ort": "Würzburg",
+  "bankverbindung": "Sparkasse Mainfranken Würzburg",
+  "iban": "DE24790500000301234567",
+  "bic": "BYLADEM1SWU",
+  "ansprechpartner": "Pfarrer Michael Klein",
+  "telefon": "0931 78403-0",
+  "email": "seniorentreff@pfarrei-st-albert.de",
+  "haushaltsjahr": 2026,
+  "raeume_vorhanden": "ja",
+  "raeume_unentgeltlich": "nein",
+  "antragsdatum": "2026-04-15",
+  "belege": [
+    {
+      "belegtyp": "miete",
+      "bezeichnung": "Miete Pfarrsaal St. Albert (12 Monate à 850 €)",
+      "betrag_euro": 10200.0
+    },
+    {
+      "belegtyp": "personalkosten",
+      "bezeichnung": "Sozialpädagogin Frau Sabine Hofmann (Teilzeit 12h/Woche)",
+      "betrag_euro": 18400.0
+    },
+    {
+      "belegtyp": "betriebskosten",
+      "bezeichnung": "Strom, Heizung, Wasser anteilig",
+      "betrag_euro": 3800.0
+    },
+    {
+      "belegtyp": "betriebskosten",
+      "bezeichnung": "Versicherung, Reinigungsmaterial, Kaffee/Tee",
+      "betrag_euro": 1200.0
+    }
+  ],
+  "oeffnungszeiten": [
+    {
+      "wochentag": "mo",
+      "zeit": "14:00 – 17:00",
+      "angebot": "Offener Treff, Kaffee"
+    },
+    {
+      "wochentag": "mi",
+      "zeit": "14:00 – 17:00",
+      "angebot": "Spielenachmittag, Skat / Rommé"
+    },
+    {
+      "wochentag": "fr",
+      "zeit": "14:00 – 17:00",
+      "angebot": "Seniorengymnastik mit Frau Eberlein"
+    }
+  ],
+  "programm_titel": "Wöchentliches Programm Seniorentreff St. Albert",
+  "programm_beschreibung": [
+    "Der Seniorentreff St. Albert ist ein niedrigschwelliges, offenes Angebot für Menschen ab 60 Jahren aus dem Stadtteil Heidingsfeld und Umgebung. Der Treff ist konfessionell offen — eine Mitgliedschaft in der Pfarrei ist ausdrücklich nicht erforderlich.",
+    "Montags und mittwochs lädt das Café-Team zum offenen Treff mit Kaffee, Kuchen und Begegnung. Freitags leitet Frau Eberlein (zertifizierte Übungsleiterin) die Seniorengymnastik in zwei altersgemischten Gruppen.",
+    "Begleitend gibt es vierteljährliche Themennachmittage (Stadtgeschichte, Ernährung im Alter, digitale Teilhabe). Im Sommer findet ein gemeinsamer Tagesausflug statt, der über Eigenanteile finanziert wird."
+  ],
+  "miet_objekt": "Pfarrsaal St. Albert, Erdgeschoss",
+  "vermieter": "Bischöfliche Verwaltung Würzburg",
+  "miete_monat_euro": 850.0,
+  "raum_geber": null,
+  "fraud_notes": [],
+  "personal_positionen": [
+    [
+      "Sozialpädagogin (BPT 12 h/Wo)",
+      "Sabine Hofmann",
+      18400.0
+    ]
+  ]
+}
