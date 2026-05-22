@@ -448,23 +448,23 @@ function DocSection({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-baseline gap-3 mb-4 group text-left"
+        className="w-full flex items-center gap-2 mb-4 group text-left"
         aria-expanded={open}
       >
+        <ChevronDown
+          className={
+            "h-4 w-4 text-slate-400 group-hover:text-wue-rot transition-transform shrink-0 " +
+            (open ? "" : "-rotate-90")
+          }
+          aria-hidden="true"
+        />
         <span className="text-slate-400 font-semibold text-base tabular-nums">{num}</span>
         <h2 className="text-[15px] font-semibold text-slate-900 tracking-tight group-hover:text-wue-rot transition-colors">
           {title}
         </h2>
         {subtitle && <span className="text-xs text-slate-500">— {subtitle}</span>}
-        <ChevronDown
-          className={
-            "ml-auto h-4 w-4 text-slate-400 transition-transform shrink-0 " +
-            (open ? "" : "-rotate-90")
-          }
-          aria-hidden="true"
-        />
       </button>
-      {open && <div className="ml-[3.25rem]">{children}</div>}
+      {open && <div className="ml-[3.75rem]">{children}</div>}
     </section>
   );
 }
