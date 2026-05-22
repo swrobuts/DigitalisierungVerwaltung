@@ -286,6 +286,33 @@ OUTPUT-SCHEMA (exakt einhalten):
 Beginne deine Antwort DIREKT mit dem öffnenden { — kein Markdown-Block, kein Vorwort."""
 
 
+# Tool-Definition für die strukturierte Tree-Übergabe. Anthropic validiert das
+# input-Schema des Tools — damit ist garantiert, dass das Ergebnis ein
+# wohlgeformtes JSON-Objekt ist (kein Risiko unescaped Quotes im Volltext).
+_SUBMIT_TREE_TOOL = {
+    "name": "submit_doctree",
+    "description": (
+        "Übergibt den strukturierten Doctree der AHP-Förderrichtlinie. "
+        "Tree-Schema: {id, title, path, level, content, children}, wobei "
+        "children rekursiv die gleiche Struktur enthält."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "tree": {
+                "type": "object",
+                "description": (
+                    "Root-Knoten des Trees. Muss die Felder id, title, path, "
+                    "level, content, children enthalten. children ist eine "
+                    "Liste von Sub-Trees mit derselben Struktur."
+                ),
+            }
+        },
+        "required": ["tree"],
+    },
+}
+
+
 async def structure_with_claude(
     pages: list[str],
     model: str = "claude-sonnet-4-5",
@@ -293,6 +320,10 @@ async def structure_with_claude(
 ) -> dict[str, Any]:
     """Strukturiert OCR-Volltexte einer Förderrichtlinie via Claude in einen
     sauberen hierarchischen Tree.
+
+    Nutzt Anthropic Tool-Use mit `submit_doctree`-Tool, damit der Response
+    garantiert wohlgeformtes JSON ist — sonst zerbricht das Parsing an
+    unescaped Anführungszeichen im OCR-Volltext.
 
     Args:
         pages: Liste der OCR-Volltexte pro Seite (Output von `extract_page_texts`).
@@ -303,7 +334,7 @@ async def structure_with_claude(
         Tree-Dict im Standard-Schema (id/title/path/level/content/children).
 
     Raises:
-        json.JSONDecodeError: Wenn Claude kein parsbares JSON liefert.
+        RuntimeError: Wenn Claude das Tool nicht aufruft.
         anthropic-Exceptions bei API-Fehlern.
     """
     full_text = "\n\n=== SEITENGRENZE ===\n\n".join(
@@ -313,15 +344,17 @@ async def structure_with_claude(
     response = await client.messages.create(
         model=model,
         max_tokens=16000,
-        system=_STRUCTURE_SYSTEM_PROMPT,
+        system=_STRUCTURE_SYSTEM_PROMPT + (
+            "\n\nWICHTIG: Rufe das Tool `submit_doctree` mit dem Tree-JSON auf. "
+            "Schreibe keinen Text in die Antwort, nur den Tool-Call."
+        ),
+        tools=[_SUBMIT_TREE_TOOL],
+        tool_choice={"type": "tool", "name": "submit_doctree"},
         messages=[{"role": "user", "content": full_text}],
     )
-    # Response-Text extrahieren und defensive Markdown-Stripping (falls Claude
-    # trotz Anweisung doch einen Code-Block sendet)
-    raw = "".join(
-        block.text for block in response.content if getattr(block, "type", "") == "text"
-    ).strip()
-    if raw.startswith("```"):
-        # ```json\n{...}\n```
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-    return json.loads(raw)
+    for block in response.content:
+        if getattr(block, "type", "") == "tool_use" and block.name == "submit_doctree":
+            return block.input["tree"]
+    raise RuntimeError(
+        f"Claude hat `submit_doctree` nicht aufgerufen. stop_reason={response.stop_reason}"
+    )
