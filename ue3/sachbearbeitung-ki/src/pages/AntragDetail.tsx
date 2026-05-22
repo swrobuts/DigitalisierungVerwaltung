@@ -33,13 +33,19 @@ import { Textarea } from "../components/ui/textarea";
 
 export function AntragDetail() {
   const { id } = useParams<{ id: string }>();
+  // WICHTIG: alle Hooks unconditionally aufrufen — Rules of Hooks (React #310).
+  // Early returns für loading/error dürfen ERST NACH allen Hook-Calls kommen.
   const {
     antrag, anlagen, belegpositionen, oeffnungszeiten, history,
     loading, error, changeStatus,
   } = useAntrag(id);
+  const { session } = useSession();
+  const { bescheide, creating: bescheidCreating, erstelleBescheid, downloadBescheidPdf } =
+    useBescheide(antrag?.id);
   const [confirmTo, setConfirmTo] = useState<Status | null>(null);
   const [kommentar, setKommentar] = useState("");
   const [busy, setBusy] = useState(false);
+  const [bewilligteSumme, setBewilligteSumme] = useState<string>("");
 
   if (loading) return <div className="p-8 text-slate-500">Lade …</div>;
   if (error || !antrag)
@@ -50,17 +56,7 @@ export function AntragDetail() {
     );
 
   const folgeStatus = allowedTransitions(antrag.status);
-  const { session } = useSession();
   const sachbearbeiterEmail = session?.user?.email ?? null;
-  const {
-    bescheide,
-    creating: bescheidCreating,
-    erstelleBescheid,
-    downloadBescheidPdf,
-  } = useBescheide(antrag.id);
-
-  // Wenn Folgestatus eine Entscheidung ist, brauchen wir das bewilligte-Summe-Feld
-  const [bewilligteSumme, setBewilligteSumme] = useState<string>("");
   const istEntscheidungsStatus = (s: Status) =>
     s === "bewilligt" || s === "abgelehnt" || s === "rueckfrage";
 
