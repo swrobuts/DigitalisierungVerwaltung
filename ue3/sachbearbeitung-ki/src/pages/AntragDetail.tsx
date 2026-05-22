@@ -246,7 +246,7 @@ export function AntragDetail() {
             <DocSection
               num="§ 4"
               title="Förderbereich & beantragte Förderung"
-              subtitle="AHP-Klassifikation und Bezugsgrößen der Förderhöchstgrenze"
+              subtitle="Förderbereich, Cap und beantragte Summe"
             >
               <FoerderblockKomplett antrag={antrag} />
             </DocSection>
@@ -254,7 +254,7 @@ export function AntragDetail() {
             <DocSection
               num="§ 5"
               title="Kostenpositionen (Jahresplanung)"
-              subtitle="Tätigkeitsnachweis — bei Pauschalförderung nicht direkt Förder-Treiber"
+              subtitle="Tätigkeitsnachweis, nicht Förder-Treiber"
             >
               <KostenTabelle
                 items={belegpositionen}
@@ -573,13 +573,10 @@ function KostenTabelle({
   return (
     <div>
       {pauschalHinweis && (
-        <div className="mb-3 text-xs text-slate-600 bg-slate-50 border-l-2 border-slate-400 px-3 py-2 rounded-r">
-          <span className="font-medium text-slate-800">Hinweis zur Förderlogik:</span>{" "}
-          Die hier aufgeführten Kostenpositionen sind <strong>Tätigkeits- und
-          Verwendungsnachweis</strong> nach AHP Kap. 3.8 — sie sind <strong>nicht</strong>{" "}
-          der Treiber der Förderhöhe. Begegnungszentren, Bildungsträger,
-          Seniorenkreise usw. werden <strong>pauschal nach AHP-Cap</strong>{" "}
-          gefördert (siehe § 4), nicht aufwandsbasiert.
+        <div className="mb-3 text-xs text-slate-700 bg-slate-50 border-l-2 border-slate-400 px-3 py-2 rounded-r">
+          Diese Kosten sind nur <strong>Tätigkeitsnachweis</strong>. Sie
+          bestimmen <strong>nicht</strong> die Förderhöhe — die ist eine
+          AHP-Pauschale (siehe § 4).
         </div>
       )}
       <table className="w-full text-[14px]">
@@ -748,7 +745,7 @@ function AntragSummaryStrip({ antrag }: { antrag: AntragFull }) {
   if (wert === null || wert === undefined) {
     return (
       <div className="mt-6 bg-slate-50 border border-slate-200 rounded-sm px-5 py-3 text-sm text-slate-500 italic">
-        Beantragte Fördersumme nicht angegeben — bitte vom Antragsteller nachfordern.
+        Keine Fördersumme angegeben.
       </div>
     );
   }
@@ -784,23 +781,23 @@ function AntragSummaryStrip({ antrag }: { antrag: AntragFull }) {
             </div>
             {cap !== null && (
               <div className="text-xs text-slate-500 mt-1">
-                {meta.ahpPath}: Cap {formatEuro(cap)}/Jahr
+                {meta.ahpPath}: Cap {formatEuro(cap)} / Jahr
                 {ueber && (
                   <span className="ml-2 text-wue-rot font-medium">
-                    · überschritten um {formatEuro(wert - cap)}
+                    · {formatEuro(wert - cap)} darüber
                   </span>
                 )}
               </div>
             )}
             {cap === null && (
               <div className="text-xs text-slate-500 mt-1">
-                {meta.ahpPath}: keine Cap, Einzelfallentscheid Sozialausschuss
+                {meta.ahpPath} · keine Cap (Einzelfall)
               </div>
             )}
           </>
         ) : (
           <div className="text-xs text-slate-500 italic">
-            Kein Förderbereich klassifiziert — Cap nicht bestimmbar.
+            Förderbereich nicht zugeordnet — Cap unbestimmt.
           </div>
         )}
       </div>
@@ -832,9 +829,8 @@ function KalkulationsFormel({
     return (
       <div className="bg-slate-50 border-l-2 border-slate-300 px-4 py-3 text-xs text-slate-600">
         <div className="font-medium text-slate-700 mb-1">Auszahlungs-Kalkulation</div>
-        Cap × Stadtbewohner-Anteil = max. Auszahlung (AHP {meta.ahpPath}). Da der
-        Anteil aktuell nicht erfasst ist, kann die anteilige Cap nicht berechnet
-        werden — Sachbearbeiter prüft.
+        Maximale Auszahlung = Cap × Anteil der Würzburger Teilnehmer (AHP{" "}
+        {meta.ahpPath}). Anteil nicht erfasst — bitte beim Träger nachfragen.
       </div>
     );
   }
@@ -864,15 +860,15 @@ function KalkulationsFormel({
         <div className="mt-2 text-xs">
           {innerhalb ? (
             <span className="text-slate-600">
-              Forderung {formatEuro(wert)} liegt {wert === maxAuszahlung ? "auf" : "innerhalb"} dieser Berechnung
-              {wert < maxAuszahlung &&
-                ` (${formatEuro(maxAuszahlung - wert)} unter dem Maximum)`}
-              .
+              Forderung {formatEuro(wert)}
+              {wert === maxAuszahlung
+                ? " entspricht exakt diesem Maximum."
+                : ` liegt ${formatEuro(maxAuszahlung - wert)} darunter.`}
             </span>
           ) : (
             <span className="text-wue-rot font-medium">
-              ✖ Forderung {formatEuro(wert)} übersteigt die anteilig berechnete
-              Höchstauszahlung um {formatEuro(wert - maxAuszahlung)}.
+              ✖ Forderung übersteigt das Maximum um{" "}
+              {formatEuro(wert - maxAuszahlung)}.
             </span>
           )}
         </div>
@@ -901,8 +897,8 @@ function FoerderblockKomplett({ antrag }: { antrag: AntragFull }) {
           </div>
         ) : (
           <div className="text-sm text-slate-500 italic">
-            Kein Förderbereich klassifiziert — Cap-Regeln werden nicht ausgeführt.
-            Sachbearbeiter sollte den Förderbereich nachpflegen.
+            Förderbereich noch nicht zugeordnet. Ohne diese Angabe wird keine
+            Cap geprüft — bitte nachpflegen.
           </div>
         )}
       </div>
@@ -927,7 +923,7 @@ function FoerderblockKomplett({ antrag }: { antrag: AntragFull }) {
       {antrag.foerderbereich === "struktur_schwerpunktfoerderung" && antrag.zuwendungszweck && (
         <div>
           <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-1">
-            Zuwendungszweck (AHP 2.4 Pflichtangabe)
+            Zuwendungszweck · Pflichtangabe AHP 2.4
           </div>
           <p className="text-sm text-slate-900 leading-relaxed border-l-2 border-wue-rot pl-3 italic">
             {antrag.zuwendungszweck}
@@ -1029,7 +1025,7 @@ function FoerdersummeMitCap({
   if (wert === null || wert === undefined) {
     return (
       <div className="text-sm text-slate-500 italic">
-        Keine Fördersumme angegeben — bitte vom Antragsteller nachfordern.
+        Keine Fördersumme angegeben.
       </div>
     );
   }
@@ -1078,14 +1074,13 @@ function FoerdersummeMitCap({
       )}
       {ueber && cap !== null && (
         <p className="mt-2 text-xs text-wue-rot">
-          Überschreitet die AHP-Höchstgrenze um{" "}
-          <span className="font-semibold">{formatEuro(wert - cap)}</span>.
+          {formatEuro(wert - cap)} über der Cap.
         </p>
       )}
       {cap === null && (
         <p className="mt-2 text-xs text-slate-500">
-          Förderbereich IV: keine pauschale Cap — Sozialausschuss entscheidet
-          nach Einzelfallprüfung (AHP 3.4).
+          Förderbereich IV hat keine Cap. Sozialausschuss entscheidet im
+          Einzelfall (AHP 3.4).
         </p>
       )}
     </div>
@@ -1104,11 +1099,11 @@ function KennzahlenBlock({
   if (meta.zeigt.stadtbewohner_anteil) {
     const v = antrag.stadtbewohner_anteil;
     zeilen.push({
-      label: "Anteil Würzburger Bewohner:innen",
+      label: "Anteil Würzburger Teilnehmer",
       value: v === null ? "—" : `${Math.round(v * 100)} %`,
       hint:
         v === null
-          ? "skaliert die Auszahlung nach AHP 2.3.2/2.3.3"
+          ? "Bestimmt die anteilige Auszahlung (AHP 2.3.2/2.3.3)."
           : undefined,
     });
   }
@@ -1116,30 +1111,30 @@ function KennzahlenBlock({
     zeilen.push({
       label: "Treffen pro Jahr",
       value: antrag.anzahl_treffen_jahr?.toString() ?? "—",
-      hint: "12–24 → 1.000 € / ≥25 → 2.000 € (AHP 2.3.4)",
+      hint: "12–24 Treffen → 1.000 € · ab 25 → 2.000 €",
     });
     zeilen.push({
-      label: "Anzahl Teilnehmer:innen",
+      label: "Teilnehmerzahl",
       value: antrag.anzahl_teilnehmer?.toString() ?? "—",
-      hint: "min. 6 (AHP 2.3.4)",
+      hint: "Mindestens 6 Personen erforderlich.",
     });
   }
   if (meta.zeigt.ehrenamt) {
     zeilen.push({
-      label: "Geleistete Stunden / Jahr",
+      label: "Ehrenamtliche Stunden / Jahr",
       value: antrag.geleistete_stunden_jahr?.toString() ?? "—",
     });
     zeilen.push({
       label: "Anzahl Ehrenamtliche",
       value: antrag.anzahl_ehrenamtliche?.toString() ?? "—",
-      hint: "Staffelung 1.500 € / 2.500 € / 4.000 € / 5.500 € (AHP 2.2)",
+      hint: "Staffel 1.500 – 5.500 € je nach Umfang.",
     });
   }
   if (meta.zeigt.befristung) {
     zeilen.push({
       label: "Bereits geförderte Jahre",
       value: antrag.foerderbereich_seit_jahren?.toString() ?? "—",
-      hint: "max. 3 Jahre (AHP 2.1)",
+      hint: "Höchstens 3 Jahre möglich.",
     });
   }
 
@@ -1147,7 +1142,7 @@ function KennzahlenBlock({
   return (
     <div>
       <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-2">
-        Skalierungs-Kennzahlen
+        Daten für die Förderhöhe
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
         {zeilen.map((z) => (
@@ -1174,7 +1169,7 @@ function PflichtangabenBlock({
 
   // Logo-Pflicht gilt für ALLE Förderbereiche (AHP 2)
   items.push({
-    label: "Logo der Stadt Würzburg in Materialien verwendet",
+    label: "Logo der Stadt Würzburg auf Materialien",
     erfuellt: !!antrag.logo_verwendet,
     bezug: "AHP 2",
     pflicht: true,
@@ -1182,7 +1177,7 @@ function PflichtangabenBlock({
 
   if (meta?.pflicht.finanzplanung) {
     items.push({
-      label: "Finanzierungsplanung (Ausgaben + Einnahmen) liegt vor",
+      label: "Finanzierungsplanung (Ausgaben + Einnahmen) beigelegt",
       erfuellt: !!antrag.finanzplanung_vorhanden,
       bezug: "AHP 2.4",
       pflicht: true,
@@ -1190,7 +1185,7 @@ function PflichtangabenBlock({
   }
   if (meta?.pflicht.projektskizze) {
     items.push({
-      label: "Projektskizze (mit Sozialreferat abgestimmt) eingereicht",
+      label: "Projektskizze mit Sozialreferat abgestimmt",
       erfuellt: !!antrag.projektskizze_eingereicht,
       bezug: "AHP 2.1",
       pflicht: true,
