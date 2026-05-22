@@ -205,18 +205,26 @@ export function AntragDetail() {
 
             <DocSection
               num="§ 4"
+              title="Beantragte Fördersumme"
+              subtitle="Bezugsgröße der AHP-Förderhöchstgrenze (Kap. 2.3.2)"
+            >
+              <FoerdersummeBlock value={antrag.geforderte_foerdersumme_euro} />
+            </DocSection>
+
+            <DocSection
+              num="§ 5"
               title="Kostenpositionen (Jahresplanung)"
               subtitle="Geplante Aufwendungen für das laufende Haushaltsjahr"
             >
               <KostenTabelle items={belegpositionen} />
             </DocSection>
 
-            <DocSection num="§ 5" title="Wochenplan / Öffnungszeiten">
+            <DocSection num="§ 6" title="Wochenplan / Öffnungszeiten">
               <Wochenplan zeiten={oeffnungszeiten} />
             </DocSection>
 
             <DocSection
-              num="§ 6"
+              num="§ 7"
               title="Anlagen"
               subtitle="Mit dem Antrag eingereichte Belege"
             >
@@ -566,6 +574,68 @@ function AnlagenListe({ anlagen }: { anlagen: AnlageRow[] }) {
 /** IBAN in 4er-Blöcke gruppieren für bessere Lesbarkeit. */
 function formatIban(iban: string): string {
   return iban.replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
+}
+
+/** Anzeige der beantragten Fördersumme mit visueller Cap-Indikation
+ * (AHP 2.3.2 Begegnungszentren: 10.000 €/Jahr). */
+function FoerdersummeBlock({ value }: { value: number | null }) {
+  const CAP = 10000;
+  if (value === null || value === undefined) {
+    return (
+      <div className="text-sm text-slate-500 italic">
+        Keine Fördersumme angegeben — die AHP-Höchstgrenze (10.000 € / Jahr nach
+        Kap. 2.3.2) kann maschinell nicht geprüft werden. Bitte vom Antragsteller
+        nachfordern.
+      </div>
+    );
+  }
+  const ueber = value > CAP;
+  const pct = Math.min((value / CAP) * 100, 130);
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-2">
+        <span className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium">
+          Geforderter Zuschuss (Jahr)
+        </span>
+        <span className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
+          Cap (AHP 2.3.2)
+        </span>
+      </div>
+      <div className="flex items-baseline justify-between">
+        <span
+          className={
+            ueber
+              ? "text-2xl font-bold text-wue-rot tabular-nums"
+              : "text-2xl font-bold text-slate-900 tabular-nums"
+          }
+        >
+          {formatEuro(value)}
+        </span>
+        <span className="text-sm text-slate-500 tabular-nums">
+          {formatEuro(CAP)} / Jahr
+        </span>
+      </div>
+      {/* Visuelle Cap-Anzeige */}
+      <div className="mt-3 relative h-2 bg-slate-100 rounded-sm overflow-hidden">
+        <div
+          className={
+            ueber
+              ? "absolute inset-y-0 left-0 bg-wue-rot transition-all"
+              : "absolute inset-y-0 left-0 bg-slate-700 transition-all"
+          }
+          style={{ width: `${Math.min(pct, 100)}%` }}
+        />
+        {/* 100%-Marker für die Cap */}
+        <div className="absolute inset-y-0 right-0 w-px bg-slate-400" />
+      </div>
+      {ueber && (
+        <p className="mt-2 text-xs text-wue-rot">
+          Überschreitet die AHP-Höchstgrenze um{" "}
+          <span className="font-semibold">{formatEuro(value - CAP)}</span>.
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────

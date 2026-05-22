@@ -28,6 +28,9 @@ export interface AntragFull {
   betriebskosten_vorjahr_euro: number;
   personalkosten_vorjahr_euro: number;
   miete_jahr_euro: number;
+  /** Beantragter Zuschussbetrag in EUR. Wird gegen AHP 2.3.2 (10.000 €/Jahr)
+   * geprüft. NULL = noch nicht beziffert. */
+  geforderte_foerdersumme_euro: number | null;
   status: Status;
 }
 
