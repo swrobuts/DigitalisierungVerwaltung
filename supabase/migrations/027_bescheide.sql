@@ -56,7 +56,8 @@ create policy "sachbearbeiter_select_bescheide"
   using (apl2.current_user_role() is not null);
 
 grant select on apl2.bescheide to authenticated;
-grant insert, update on apl2.bescheide to service_role;
+-- service_role braucht auch SELECT für Prefer: return=representation
+grant select, insert, update, delete on apl2.bescheide to service_role;
 
 -- Storage-Bucket für Bescheid-PDFs (privater Bucket, signed-URLs zum Lesen)
 insert into storage.buckets (id, name, public)

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pruefung.db import SupabaseClient
 from pruefung.doctree_build import (
@@ -21,6 +22,20 @@ from pruefung.models import Befund, PruefungsErgebnis, PruefungsRequest
 
 
 app = FastAPI(title="UE3 APL2-Prüfung", version="0.1.0")
+
+# CORS: amt-ki-Frontend (und UE2-amt für Kompatibilität) dürfen den
+# pruefung-service direkt aus dem Browser aufrufen. Anderer Origin = 403
+# implicit (kein Header → Browser blockiert).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://amt-ki.butscher.cloud",
+        "https://amt.butscher.cloud",
+        "http://localhost:5173",
+    ],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 
 
 async def _fetch_antrag(antrag_id: str, db: SupabaseClient) -> dict[str, Any]:
