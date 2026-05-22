@@ -1,0 +1,470 @@
+import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
+import { useAntraege, type AntragRow } from "../hooks/useAntraege";
+import { useUserRole } from "../hooks/useUserRole";
+import { supabase } from "../lib/supabase";
+import { StatusBadge } from "../components/StatusBadge";
+import { formatDateTime, formatEuro } from "../lib/format";
+import { STATUS_ORDER, STATUS_LABELS, type Status } from "../lib/workflow";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+
+function totalEuro(a: AntragRow): number {
+  return (
+    Number(a.betriebskosten_vorjahr_euro ?? 0) +
+    Number(a.personalkosten_vorjahr_euro ?? 0) +
+    Number(a.miete_jahr_euro ?? 0)
+  );
+}
+
+/**
+ * Splittet `text` an allen Treffern von `needle` (case-insensitive, ohne Regex-
+ * Sonderbehandlung) und gibt React-Children mit <mark>-Wrappern zurück.
+ * Leerer Needle → unveränderter Text.
+ */
+function Highlight({ text, needle }: { text: string; needle: string }) {
+  if (!needle || !text) return <>{text}</>;
+  const lowerText = text.toLowerCase();
+  const lowerNeedle = needle.toLowerCase();
+  const parts: Array<{ str: string; hit: boolean }> = [];
+  let i = 0;
+  while (i < text.length) {
+    const idx = lowerText.indexOf(lowerNeedle, i);
+    if (idx === -1) {
+      parts.push({ str: text.slice(i), hit: false });
+      break;
+    }
+    if (idx > i) parts.push({ str: text.slice(i, idx), hit: false });
+    parts.push({ str: text.slice(idx, idx + needle.length), hit: true });
+    i = idx + needle.length;
+  }
+  return (
+    <>
+      {parts.map((p, j) =>
+        p.hit ? (
+          <mark key={j} className="bg-amber-200 text-slate-900 rounded-sm px-0.5">
+            {p.str}
+          </mark>
+        ) : (
+          <span key={j}>{p.str}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+const MONATE_DE = [
+  "Januar", "Februar", "März", "April", "Mai", "Juni",
+  "Juli", "August", "September", "Oktober", "November", "Dezember",
+];
+
+function monthKey(iso: string): string {
+  // YYYY-MM aus submitted_at, in Europe/Berlin
+  const d = new Date(iso);
+  const berlinDate = new Date(d.toLocaleString("en-US", { timeZone: "Europe/Berlin" }));
+  return `${berlinDate.getFullYear()}-${String(berlinDate.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(key: string): string {
+  const [y, m] = key.split("-");
+  const idx = Math.max(0, Math.min(11, Number(m) - 1));
+  return `${MONATE_DE[idx]} ${y}`;
+}
+
+type SortKey =
+  | "antragsnummer" | "name" | "traeger" | "submitted_at"
+  | "submitted_language" | "status" | "gesamt" | "vj" | "diff";
+type SortDir = "asc" | "desc";
+type GroupKey = "none" | "status" | "traeger" | "submitted_language" | "month";
+
+const COLUMNS: Array<{ key: SortKey; label: string; align?: "right" }> = [
+  { key: "antragsnummer", label: "Antragsnummer" },
+  { key: "name", label: "Name" },
+  { key: "traeger", label: "Träger" },
+  { key: "submitted_at", label: "Eingegangen" },
+  { key: "submitted_language", label: "Sprache" },
+  { key: "status", label: "Status" },
+  { key: "gesamt", label: "Gesamt", align: "right" },
+  { key: "vj", label: "VJ-Wert", align: "right" },
+  { key: "diff", label: "Δ", align: "right" },
+];
+
+const GROUP_OPTIONS: Array<{ key: GroupKey; label: string }> = [
+  { key: "none", label: "Keine Gruppierung" },
+  { key: "status", label: "Status" },
+  { key: "traeger", label: "Träger" },
+  { key: "submitted_language", label: "Sprache" },
+  { key: "month", label: "Eingegangen Monat" },
+];
+
+function groupLabel(key: GroupKey, val: string): string {
+  if (key === "status") return STATUS_LABELS[val as Status] ?? val;
+  if (key === "submitted_language") return val.toUpperCase();
+  if (key === "month") return monthLabel(val);
+  return val || "—";
+}
+
+/**
+ * VJ-Wert (Vorjahres-Wert) eines Antrags = Total-Summe des Antrags desselben
+ * Trägers für haushaltsjahr - 1. Gibt null zurück, wenn kein VJ-Antrag existiert.
+ */
+function buildVjMap(antraege: AntragRow[]): Map<string, number> {
+  // Key: "traeger|haushaltsjahr" → Total
+  const m = new Map<string, number>();
+  for (const a of antraege) {
+    const k = `${a.traeger}|${a.haushaltsjahr}`;
+    m.set(k, (m.get(k) ?? 0) + totalEuro(a));
+  }
+  return m;
+}
+
+function vjValue(a: AntragRow, vjMap: Map<string, number>): number | null {
+  const k = `${a.traeger}|${a.haushaltsjahr - 1}`;
+  return vjMap.has(k) ? (vjMap.get(k) ?? 0) : null;
+}
+
+function formatDiff(current: number, vj: number | null): { text: string; tone: "up" | "down" | "neutral" } {
+  if (vj === null) return { text: "—", tone: "neutral" };
+  const diff = current - vj;
+  if (Math.abs(diff) < 0.01) return { text: "± 0", tone: "neutral" };
+  const pct = vj === 0 ? null : (diff / vj) * 100;
+  const sign = diff > 0 ? "+" : "−";
+  const abs = Math.abs(diff);
+  const pctTxt = pct === null ? "" : ` (${pct > 0 ? "+" : "−"}${Math.abs(pct).toFixed(1).replace(".", ",")} %)`;
+  return {
+    text: `${sign} ${formatEuro(abs)}${pctTxt}`,
+    tone: diff > 0 ? "up" : "down",
+  };
+}
+
+export function Inbox() {
+  const { antraege, loading, error } = useAntraege();
+  const { rolle } = useUserRole();
+  const [filter, setFilter] = useState<Set<Status>>(new Set());
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("submitted_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [groupBy, setGroupBy] = useState<GroupKey>("none");
+
+  // VJ-Map über ALLE Anträge (nicht nur gefilterte) — sonst falscher Vergleich
+  const vjMap = useMemo(() => buildVjMap(antraege), [antraege]);
+
+  const filtered = useMemo(() => {
+    const s = search.toLowerCase().trim();
+    return antraege.filter((a) => {
+      if (filter.size > 0 && !filter.has(a.status)) return false;
+      if (s && !`${a.antragsnummer} ${a.name} ${a.traeger}`.toLowerCase().includes(s)) return false;
+      return true;
+    });
+  }, [antraege, filter, search]);
+
+  function groupKeyOf(a: AntragRow): string {
+    if (groupBy === "month") return monthKey(a.submitted_at);
+    return String(a[groupBy as keyof AntragRow] ?? "");
+  }
+
+  function compareVals(a: AntragRow, b: AntragRow, key: SortKey, dir: SortDir): number {
+    if (key === "gesamt") {
+      const d = totalEuro(a) - totalEuro(b);
+      return dir === "asc" ? d : -d;
+    }
+    if (key === "vj") {
+      const va = vjValue(a, vjMap) ?? -Infinity;
+      const vb = vjValue(b, vjMap) ?? -Infinity;
+      return dir === "asc" ? va - vb : vb - va;
+    }
+    if (key === "diff") {
+      const va = vjValue(a, vjMap);
+      const vb = vjValue(b, vjMap);
+      const da = va === null ? -Infinity : totalEuro(a) - va;
+      const db = vb === null ? -Infinity : totalEuro(b) - vb;
+      return dir === "asc" ? da - db : db - da;
+    }
+    if (key === "status") {
+      const ai = STATUS_ORDER.indexOf(a.status);
+      const bi = STATUS_ORDER.indexOf(b.status);
+      return dir === "asc" ? ai - bi : bi - ai;
+    }
+    const av = String(a[key as keyof AntragRow] ?? "").toLowerCase();
+    const bv = String(b[key as keyof AntragRow] ?? "").toLowerCase();
+    if (av < bv) return dir === "asc" ? -1 : 1;
+    if (av > bv) return dir === "asc" ? 1 : -1;
+    return 0;
+  }
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    arr.sort((a, b) => {
+      if (groupBy !== "none") {
+        const ga = groupKeyOf(a);
+        const gb = groupKeyOf(b);
+        if (groupBy === "status") {
+          const ai = STATUS_ORDER.indexOf(ga as Status);
+          const bi = STATUS_ORDER.indexOf(gb as Status);
+          if (ai !== bi) return ai - bi;
+        } else if (groupBy === "month") {
+          // Neueste Monate zuerst
+          if (ga !== gb) return ga < gb ? 1 : -1;
+        } else {
+          if (ga < gb) return -1;
+          if (ga > gb) return 1;
+        }
+      }
+      return compareVals(a, b, sortKey, sortDir);
+    });
+    return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sortKey, sortDir, groupBy, vjMap]);
+
+  function toggleStatus(s: Status) {
+    setFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
+      return next;
+    });
+  }
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  }
+
+  // Render-Liste mit Gruppen-Markern + aggregierter Summe + VJ-Aggregat pro Gruppe
+  const rendered: Array<
+    | { kind: "group"; label: string; count: number; summe: number; vjSumme: number | null }
+    | { kind: "row"; antrag: AntragRow }
+  > = [];
+
+  if (groupBy === "none") {
+    sorted.forEach((a) => rendered.push({ kind: "row", antrag: a }));
+  } else {
+    const counts = new Map<string, number>();
+    const sums = new Map<string, number>();
+    const vjSums = new Map<string, number | null>();
+    sorted.forEach((a) => {
+      const g = groupKeyOf(a);
+      counts.set(g, (counts.get(g) ?? 0) + 1);
+      sums.set(g, (sums.get(g) ?? 0) + totalEuro(a));
+      const vj = vjValue(a, vjMap);
+      const prev = vjSums.get(g);
+      if (vj !== null) {
+        vjSums.set(g, (prev ?? 0) + vj);
+      } else if (!vjSums.has(g)) {
+        vjSums.set(g, null);
+      }
+    });
+    let currentGroup = "";
+    sorted.forEach((a) => {
+      const g = groupKeyOf(a);
+      if (g !== currentGroup) {
+        rendered.push({
+          kind: "group",
+          label: groupLabel(groupBy, g),
+          count: counts.get(g) ?? 0,
+          summe: sums.get(g) ?? 0,
+          vjSumme: vjSums.get(g) ?? null,
+        });
+        currentGroup = g;
+      }
+      rendered.push({ kind: "row", antrag: a });
+    });
+  }
+
+  const gesamtSumme = filtered.reduce((s, a) => s + totalEuro(a), 0);
+  const gesamtVj = filtered.reduce<{ sum: number; hasAny: boolean }>(
+    (acc, a) => {
+      const v = vjValue(a, vjMap);
+      if (v !== null) return { sum: acc.sum + v, hasAny: true };
+      return acc;
+    },
+    { sum: 0, hasAny: false },
+  );
+  const gesamtDiff = formatDiff(gesamtSumme, gesamtVj.hasAny ? gesamtVj.sum : null);
+
+  const toneClass = (tone: "up" | "down" | "neutral") =>
+    tone === "up" ? "text-emerald-700" : tone === "down" ? "text-rose-700" : "text-slate-400";
+
+  const COL_COUNT_BEFORE_GESAMT = 6; // antragsnr, name, traeger, datum, sprache, status
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold">Sachbearbeitung KI — APL 2</h1>
+            <p className="text-sm text-slate-500">
+              Stadt Würzburg · Beratungsstelle für Senioren · mit KI-Prüfung
+            </p>
+          </div>
+          <div className="text-sm text-slate-500">
+            Rolle: <span className="font-medium">{rolle ?? "—"}</span>
+            <Button variant="ghost" size="sm" className="ml-3" onClick={() => supabase.auth.signOut()}>
+              Abmelden
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-6 py-6">
+        <div className="bg-white border border-slate-200 rounded p-4 mb-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              placeholder="Suche (Name, Träger, Antragsnummer) …"
+              className="max-w-xs"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-2">
+              {STATUS_ORDER.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => toggleStatus(s)}
+                  className={`text-xs px-2 py-1 rounded border ${
+                    filter.has(s) ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-300"
+                  }`}
+                >
+                  {STATUS_LABELS[s]}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <label htmlFor="group-by" className="text-slate-600">Gruppieren:</label>
+              <select
+                id="group-by"
+                value={groupBy}
+                onChange={(e) => setGroupBy(e.target.value as GroupKey)}
+                className="border border-slate-300 rounded px-2 py-1 text-sm"
+              >
+                {GROUP_OPTIONS.map((g) => (
+                  <option key={g.key} value={g.key}>{g.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="ml-auto text-sm text-slate-500">{filtered.length} von {antraege.length}</div>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded overflow-hidden">
+          {loading && <div className="p-8 text-slate-500">Lade …</div>}
+          {error && <div className="p-4 text-rose-700">{error}</div>}
+          {!loading && !error && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {COLUMNS.map((col) => {
+                    const active = sortKey === col.key;
+                    const arrow = active ? (sortDir === "asc" ? "▲" : "▼") : "";
+                    return (
+                      <TableHead key={col.key} className={col.align === "right" ? "text-right" : ""}>
+                        <button
+                          type="button"
+                          onClick={() => handleSort(col.key)}
+                          className={`inline-flex items-center gap-1 text-xs uppercase tracking-wide ${active ? "text-slate-900 font-semibold" : "text-slate-500 hover:text-slate-900"}`}
+                        >
+                          {col.label} <span className="text-[10px]">{arrow}</span>
+                        </button>
+                      </TableHead>
+                    );
+                  })}
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rendered.map((item, idx) =>
+                  item.kind === "group" ? (
+                    <TableRow key={`g-${idx}`} className="border-t border-slate-200 hover:bg-transparent">
+                      <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-3 pl-4">
+                        <div className="flex items-center gap-3">
+                          <span className="inline-block w-[3px] h-5 bg-blue-700 rounded-sm" aria-hidden="true"></span>
+                          <span className="font-semibold text-[15px] text-slate-900">{item.label}</span>
+                          <span className="text-xs text-slate-500 font-normal">{item.count} {item.count === 1 ? "Antrag" : "Anträge"}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums font-semibold text-[15px] text-slate-900 py-3">
+                        {formatEuro(item.summe)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-sm text-slate-500 py-3">
+                        {item.vjSumme === null ? "—" : formatEuro(item.vjSumme)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-sm py-3">
+                        <span className={toneClass(formatDiff(item.summe, item.vjSumme).tone)}>
+                          {formatDiff(item.summe, item.vjSumme).text}
+                        </span>
+                      </TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  ) : (
+                    (() => {
+                      const vj = vjValue(item.antrag, vjMap);
+                      const diff = formatDiff(totalEuro(item.antrag), vj);
+                      return (
+                        <TableRow key={item.antrag.id} className="hover:bg-blue-50/30">
+                          <TableCell className="font-mono text-xs text-slate-500">
+                            <Highlight text={item.antrag.antragsnummer} needle={search} />
+                          </TableCell>
+                          <TableCell className="text-slate-900">
+                            <Highlight text={item.antrag.name} needle={search} />
+                          </TableCell>
+                          <TableCell className="text-slate-600">
+                            <Highlight text={item.antrag.traeger} needle={search} />
+                          </TableCell>
+                          <TableCell className="text-xs text-slate-500">{formatDateTime(item.antrag.submitted_at)}</TableCell>
+                          <TableCell><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
+                          <TableCell><StatusBadge status={item.antrag.status} /></TableCell>
+                          <TableCell className="text-right tabular-nums text-sm text-slate-700">{formatEuro(totalEuro(item.antrag))}</TableCell>
+                          <TableCell className="text-right tabular-nums text-sm text-slate-500">
+                            {vj === null ? "—" : formatEuro(vj)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-sm">
+                            <span className={toneClass(diff.tone)}>{diff.text}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Link to={`/antrag/${item.antrag.id}`} className="text-blue-700 hover:text-blue-900 text-sm">Öffnen →</Link>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })()
+                  ),
+                )}
+                {rendered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={COLUMNS.length + 1} className="text-center text-slate-500 py-8">
+                      Keine Anträge gefunden.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {rendered.length > 0 && (
+                  <TableRow className="border-t-2 border-blue-700 bg-blue-50/30 hover:bg-blue-50/30">
+                    <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-4 pl-4 text-sm text-slate-700">
+                      Gesamtsumme aller angezeigten Anträge
+                    </TableCell>
+                    <TableCell className="py-4 text-right tabular-nums text-lg font-bold text-slate-900">
+                      {formatEuro(gesamtSumme)}
+                    </TableCell>
+                    <TableCell className="py-4 text-right tabular-nums text-sm text-slate-500">
+                      {gesamtVj.hasAny ? formatEuro(gesamtVj.sum) : "—"}
+                    </TableCell>
+                    <TableCell className="py-4 text-right tabular-nums text-sm">
+                      <span className={toneClass(gesamtDiff.tone)}>{gesamtDiff.text}</span>
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}

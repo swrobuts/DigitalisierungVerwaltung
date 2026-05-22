@@ -1,0 +1,42 @@
+services:
+  amt-frontend:
+    container_name: amt-frontend
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://supabase.butscher.cloud}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_AUTH_REDIRECT: ${VITE_AUTH_REDIRECT:-https://amt.butscher.cloud/auth/callback}
+    image: amt-frontend:latest
+    restart: unless-stopped
+    networks:
+      - root_default
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=root_default
+
+      # HTTP → HTTPS Redirect
+      - traefik.http.routers.amt-http.rule=Host(`amt.butscher.cloud`)
+      - traefik.http.routers.amt-http.entrypoints=web
+      - traefik.http.routers.amt-http.middlewares=amt-https-redirect
+      - traefik.http.middlewares.amt-https-redirect.redirectscheme.scheme=https
+
+      # HTTPS-Router
+      - traefik.http.routers.amt.rule=Host(`amt.butscher.cloud`)
+      - traefik.http.routers.amt.entrypoints=websecure
+      - traefik.http.routers.amt.tls=true
+      - traefik.http.routers.amt.tls.certresolver=mytlschallenge
+      - traefik.http.routers.amt.service=amt
+
+      - traefik.http.services.amt.loadbalancer.server.port=8080
+
+      # Security-Header
+      - traefik.http.routers.amt.middlewares=amt-secheaders
+      - traefik.http.middlewares.amt-secheaders.headers.stsSeconds=31536000
+      - traefik.http.middlewares.amt-secheaders.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.amt-secheaders.headers.framedeny=true
+
+networks:
+  root_default:
+    external: true
