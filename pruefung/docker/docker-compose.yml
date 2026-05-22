@@ -1,0 +1,36 @@
+services:
+  pruefung-service:
+    container_name: pruefung-service
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: pruefung-service:latest
+    restart: unless-stopped
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      AHP_PDF_PATH: /app/materialien/foerderrichtlinie-ahp-2025-03-27.pdf
+    volumes:
+      - /opt/pruefung/materialien:/app/materialien:ro
+    networks:
+      - root_default
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=root_default
+      # HTTP → HTTPS Redirect
+      - traefik.http.routers.pruefung-http.rule=Host(`pruefung.butscher.cloud`)
+      - traefik.http.routers.pruefung-http.entrypoints=web
+      - traefik.http.routers.pruefung-http.middlewares=pruefung-https-redirect
+      - traefik.http.middlewares.pruefung-https-redirect.redirectscheme.scheme=https
+      # HTTPS-Router
+      - traefik.http.routers.pruefung.rule=Host(`pruefung.butscher.cloud`)
+      - traefik.http.routers.pruefung.entrypoints=websecure
+      - traefik.http.routers.pruefung.tls=true
+      - traefik.http.routers.pruefung.tls.certresolver=mytlschallenge
+      - traefik.http.routers.pruefung.service=pruefung
+      - traefik.http.services.pruefung.loadbalancer.server.port=8000
+
+networks:
+  root_default:
+    external: true
