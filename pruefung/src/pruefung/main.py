@@ -1,4 +1,5 @@
 """FastAPI-Service für UE3 KI-gestützte Prüfung von APL2-Anträgen."""
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -127,10 +128,18 @@ async def pdf(protokoll_id: str) -> dict[str, str]:
     return {"pdf_storage_path": path}
 
 
+# Container-Default: /app/materialien (siehe Dockerfile). Lokal/Dev:
+# AHP_PDF_PATH überschreiben oder Symlink legen. So bleibt der Endpoint
+# auch außerhalb des Containers nutzbar (z.B. CI / Reviewer-Workstation).
+AHP_PDF_PATH_DEFAULT = "/app/materialien/foerderrichtlinie-ahp-2025-03-27.pdf"
+
+
 @app.post("/api/rebuild-doctree")
 async def rebuild_doctree(version: str | None = None) -> dict[str, str]:
-    """Liest AHP-PDF aus /app/materialien/, baut Tree, schreibt in DB."""
-    pdf_path = Path("/app/materialien/foerderrichtlinie-ahp-2025-03-27.pdf")
+    """Liest AHP-PDF, baut Tree (extract_text_blocks → build_tree),
+    schreibt in apl2.ahp_doctree (vorherige Zeile mit gleicher Version
+    wird gelöscht — Versionierung pro Document-Snapshot)."""
+    pdf_path = Path(os.environ.get("AHP_PDF_PATH", AHP_PDF_PATH_DEFAULT))
     if not pdf_path.exists():
         raise HTTPException(500, f"PDF nicht gefunden unter {pdf_path}")
     blocks = extract_text_blocks(pdf_path)

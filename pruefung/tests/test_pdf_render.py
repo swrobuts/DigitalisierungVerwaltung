@@ -1,5 +1,14 @@
-from pruefung.pdf_render import render_protokoll_pdf
-from pruefung.models import Befund, PruefungsErgebnis
+import pytest
+
+# weasyprint braucht native libs (pango/cairo). Falls die im aktuellen
+# Test-Env nicht geladen werden können (z.B. macOS ohne DYLD_LIBRARY_PATH
+# = /opt/homebrew/lib), den Test sauber überspringen statt Collection-Error.
+try:
+    from pruefung.pdf_render import render_protokoll_pdf  # noqa: E402
+except OSError as e:  # pragma: no cover
+    pytest.skip(f"weasyprint native libs nicht ladbar: {e}", allow_module_level=True)
+
+from pruefung.models import Befund, PruefungsErgebnis  # noqa: E402
 
 
 def test_render_pdf_returns_bytes():
