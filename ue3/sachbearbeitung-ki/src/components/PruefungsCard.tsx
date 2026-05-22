@@ -1,7 +1,10 @@
+import { useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { usePruefung, type PruefBefund } from "../hooks/usePruefung";
 import { useSession } from "../hooks/useSession";
+import { useAhpTree, findNodeByPath, pathFromParagraphRef } from "../hooks/useAhpTree";
 
 const layerLabel: Record<"A" | "B" | "C", string> = {
   A: "Strukturell",
@@ -10,8 +13,10 @@ const layerLabel: Record<"A" | "B" | "C", string> = {
 };
 
 function BefundRow({ b }: { b: PruefBefund }) {
+  const [showAhp, setShowAhp] = useState(false);
   const color = b.schwere === "verstoss" ? "text-rose-700" : "text-amber-700";
   const icon = b.schwere === "verstoss" ? "✗" : "⚠";
+  const ahpPath = pathFromParagraphRef(b.paragraph_ref);
   return (
     <div className="border-l-2 border-slate-200 pl-3 py-1">
       <p className={`text-sm font-medium ${color}`}>
@@ -23,10 +28,69 @@ function BefundRow({ b }: { b: PruefBefund }) {
           „{b.zitat}"{b.section_path && <span className="text-slate-500"> ({b.section_path})</span>}
         </p>
       )}
-      {b.paragraph_ref && <p className="text-xs text-slate-500">Bezug: {b.paragraph_ref}</p>}
+      {b.paragraph_ref && (
+        <div className="text-xs text-slate-500 mt-1">
+          Bezug:{" "}
+          <button
+            type="button"
+            onClick={() => setShowAhp((v) => !v)}
+            className="text-wue-rot hover:text-wue-rot-dark hover:underline inline-flex items-center gap-1"
+            title="AHP-Wortlaut einblenden"
+          >
+            {b.paragraph_ref}
+            <ExternalLink className="h-3 w-3" />
+          </button>
+          {ahpPath && (
+            <>
+              {" · "}
+              <a
+                href={`/ahp?section=${ahpPath}`}
+                target="_blank"
+                rel="noopener"
+                className="text-slate-500 hover:text-slate-800 underline decoration-dotted"
+              >
+                im Doctree-Browser öffnen
+              </a>
+            </>
+          )}
+        </div>
+      )}
+      {showAhp && ahpPath && <AhpWortlautPopover path={ahpPath} />}
       {typeof b.konfidenz === "number" && (
         <p className="text-xs text-slate-400">Konfidenz: {Math.round(b.konfidenz * 100)}%</p>
       )}
+    </div>
+  );
+}
+
+/** Lazy-lädt den AHP-Doctree und zeigt den Wortlaut der referenzierten Section
+ * inline unter dem Befund — damit der Sachbearbeiter sofort sieht, woher die
+ * Begründung rechtlich kommt. */
+function AhpWortlautPopover({ path }: { path: string }) {
+  const { tree, loading } = useAhpTree();
+  const node = findNodeByPath(tree, path);
+  if (loading) {
+    return <p className="text-xs text-slate-400 mt-2">Lade AHP-Wortlaut …</p>;
+  }
+  if (!node) {
+    return (
+      <p className="text-xs text-rose-600 mt-2">
+        Section {path} im aktuellen Doctree nicht gefunden.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-2 bg-wue-rot-soft/40 border border-wue-rot-soft border-l-2 border-l-wue-rot px-3 py-2 rounded-sm">
+      <div className="text-[10.5px] uppercase tracking-wider text-wue-rot-dark font-semibold mb-1">
+        AHP-Wortlaut · {node.title}
+      </div>
+      <p className="text-xs text-slate-800 leading-relaxed whitespace-pre-wrap">
+        {node.content || (
+          <span className="text-slate-500 italic">
+            Diese Section hat keinen direkten Fließtext (siehe Unter-Sections).
+          </span>
+        )}
+      </p>
     </div>
   );
 }
