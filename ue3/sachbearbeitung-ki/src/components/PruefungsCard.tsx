@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { usePruefung, type PruefBefund } from "../hooks/usePruefung";
@@ -58,6 +58,54 @@ function BefundRow({ b }: { b: PruefBefund }) {
       {showAhp && ahpPath && <AhpWortlautPopover path={ahpPath} />}
       {typeof b.konfidenz === "number" && (
         <p className="text-xs text-slate-400">Konfidenz: {Math.round(b.konfidenz * 100)}%</p>
+      )}
+    </div>
+  );
+}
+
+/** Klappbare Befund-Gruppe (Verstöße / Hinweise) mit Header-Toggle + Count-Pill. */
+function BefundGroup({
+  title, count, tone, defaultOpen, children,
+}: {
+  title: string;
+  count: number;
+  tone: "rose" | "amber";
+  defaultOpen: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  if (count === 0) return null;
+  const headerColor = tone === "rose" ? "text-rose-700" : "text-amber-700";
+  const pillColor =
+    tone === "rose"
+      ? "bg-rose-100 text-rose-800 border-rose-200"
+      : "bg-amber-100 text-amber-800 border-amber-200";
+  return (
+    <div className="border border-slate-200 rounded-md overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50 hover:bg-slate-100 transition-colors"
+        aria-expanded={open}
+      >
+        <ChevronDown
+          className={
+            "h-3.5 w-3.5 text-slate-500 transition-transform shrink-0 " +
+            (open ? "" : "-rotate-90")
+          }
+          aria-hidden="true"
+        />
+        <span className={`text-sm font-semibold ${headerColor}`}>{title}</span>
+        <span
+          className={`inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 text-[11px] font-semibold rounded-full border tabular-nums ${pillColor}`}
+        >
+          {count}
+        </span>
+      </button>
+      {open && (
+        <div className="px-3 py-2 space-y-2 max-h-96 overflow-y-auto bg-white">
+          {children}
+        </div>
       )}
     </div>
   );
@@ -126,16 +174,29 @@ export function PruefungsCard({ antragId }: { antragId: string }) {
               Letzte Prüfung: {new Date(latest.geprueft_am).toLocaleString("de-DE", {timeZone: "Europe/Berlin"})}
               {" · "}{latest.duration_ms ?? "—"} ms · Doctree v{latest.ergebnis_jsonb?.doctree_version ?? "—"}
             </p>
-            <p className="text-sm">
-              <span className="text-rose-700 font-semibold">{verstoesse.length}</span> Verstöße ·{" "}
-              <span className="text-amber-700 font-semibold">{hinweise.length}</span> Hinweise
-            </p>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {[...verstoesse, ...hinweise].map((b, i) => <BefundRow key={i} b={b} />)}
-              {verstoesse.length === 0 && hinweise.length === 0 && (
-                <p className="text-emerald-700 text-sm">✓ Keine Befunde — Antrag konform.</p>
-              )}
-            </div>
+
+            {verstoesse.length === 0 && hinweise.length === 0 && (
+              <p className="text-emerald-700 text-sm">✓ Keine Befunde — Antrag konform.</p>
+            )}
+
+            <BefundGroup
+              title="Verstöße"
+              count={verstoesse.length}
+              tone="rose"
+              defaultOpen={true}
+            >
+              {verstoesse.map((b, i) => <BefundRow key={`v-${i}`} b={b} />)}
+            </BefundGroup>
+
+            <BefundGroup
+              title="Hinweise"
+              count={hinweise.length}
+              tone="amber"
+              defaultOpen={hinweise.length <= 3}
+            >
+              {hinweise.map((b, i) => <BefundRow key={`h-${i}`} b={b} />)}
+            </BefundGroup>
+
             {latest.pdf_storage_path && (
               <Button variant="outline" onClick={openPdf} className="w-full">
                 📄 Protokoll als PDF herunterladen

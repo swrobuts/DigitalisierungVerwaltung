@@ -1,6 +1,6 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Check, FileText } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, FileText } from "lucide-react";
 import { useAntrag, type AnlageRow } from "../hooks/useAntrag";
 import { useBescheide, type BescheidRow } from "../hooks/useBescheide";
 import { useSession } from "../hooks/useSession";
@@ -430,23 +430,41 @@ export function AntragDetail() {
 // Dokument-Helfer
 // ─────────────────────────────────────────────────────────────────────
 
-/** Nummerierter Akten-Abschnitt im Stil eines Verwaltungs-Formulars. */
+/** Nummerierter Akten-Abschnitt im Stil eines Verwaltungs-Formulars.
+ * Klick auf die Überschrift klappt den Inhalt ein/aus — Sachbearbeiter
+ * kann irrelevante Abschnitte zusammenfalten ohne sie zu verlieren. */
 function DocSection({
-  num, title, subtitle, children,
+  num, title, subtitle, children, defaultOpen = true,
 }: {
   num: string;
   title: string;
   subtitle?: string;
   children: ReactNode;
+  defaultOpen?: boolean;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <section>
-      <div className="flex items-baseline gap-3 mb-5">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-baseline gap-3 mb-4 group text-left"
+        aria-expanded={open}
+      >
         <span className="text-slate-400 font-semibold text-base tabular-nums">{num}</span>
-        <h2 className="text-[15px] font-semibold text-slate-900 tracking-tight">{title}</h2>
+        <h2 className="text-[15px] font-semibold text-slate-900 tracking-tight group-hover:text-wue-rot transition-colors">
+          {title}
+        </h2>
         {subtitle && <span className="text-xs text-slate-500">— {subtitle}</span>}
-      </div>
-      <div className="ml-[3.25rem]">{children}</div>
+        <ChevronDown
+          className={
+            "ml-auto h-4 w-4 text-slate-400 transition-transform shrink-0 " +
+            (open ? "" : "-rotate-90")
+          }
+          aria-hidden="true"
+        />
+      </button>
+      {open && <div className="ml-[3.25rem]">{children}</div>}
     </section>
   );
 }
