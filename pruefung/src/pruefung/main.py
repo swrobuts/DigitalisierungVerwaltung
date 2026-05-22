@@ -20,6 +20,7 @@ from pruefung.layer_a_strukturell import check_strukturell
 from pruefung.layer_b_ontologie import check_ontologie
 from pruefung.layer_c_rag import check_rag
 from pruefung.models import Befund, PruefungsErgebnis, PruefungsRequest
+from pruefung.voyage_embed import build_embeddings_for_doctree
 
 
 app = FastAPI(title="UE3 APL2-Prüfung", version="0.1.0")
@@ -291,6 +292,17 @@ async def pdf(protokoll_id: str) -> dict[str, str]:
 # AHP_PDF_PATH überschreiben oder Symlink legen. So bleibt der Endpoint
 # auch außerhalb des Containers nutzbar (z.B. CI / Reviewer-Workstation).
 AHP_PDF_PATH_DEFAULT = "/app/materialien/foerderrichtlinie-ahp-2025-03-27.pdf"
+
+
+@app.post("/api/build-embeddings")
+async def build_embeddings() -> dict[str, Any]:
+    """L4 — Voyage-Embeddings für alle Sections des aktuellen Doctrees bauen.
+
+    Endpoint ist idempotent: bei Re-Run werden die Embeddings derselben
+    Doctree-Version gelöscht und neu eingesetzt. Sinnvoll nach jedem
+    /api/rebuild-doctree oder bei Voyage-Modellwechsel."""
+    db = SupabaseClient.from_env()
+    return await build_embeddings_for_doctree(db)
 
 
 @app.post("/api/extract-norms")

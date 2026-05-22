@@ -12,8 +12,10 @@ import os
 import re
 from typing import Any
 from anthropic import AsyncAnthropic
+from pruefung.db import SupabaseClient
 from pruefung.doctree_navigate import list_sections, get_section, search_tree
 from pruefung.models import Befund
+from pruefung.voyage_embed import semantic_search
 
 
 SYSTEM_PROMPT = """Du bist Verwaltungs-Prüfer der Stadt Würzburg.
@@ -80,6 +82,26 @@ TOOLS = [
             "required": ["query"],
         },
     },
+    {
+        "name": "semantic_search",
+        "description": (
+            "Semantische Suche per Voyage-Embeddings (voyage-3). Findet "
+            "AHP-Sections, die inhaltlich (nicht nur lexikalisch) zur Anfrage "
+            "passen. Nutze diese Suche wenn die Volltextsuche keine guten "
+            "Treffer liefert oder wenn du nach Konzepten suchst, die in der "
+            "AHP umschrieben sind (z.B. 'Bedingungen für Bewilligung', "
+            "'Mittelverwendung', 'Auszahlungsbedingungen'). Liefert die top_k "
+            "ähnlichsten Sections mit similarity-Score 0..1."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Suchanfrage in natürlicher Sprache."},
+                "top_k": {"type": "integer", "default": 5, "description": "Anzahl der Top-Treffer."},
+            },
+            "required": ["query"],
+        },
+    },
 ]
 
 
@@ -87,6 +109,8 @@ async def _run_claude_loop(tree: dict, antrag: dict, model: str) -> dict[str, An
     """Tool-Use-Loop bis Claude eine final-message mit JSON liefert.
     Max 15 Tool-Iterationen als Safety-Bound (typisch werden 3-7 reichen)."""
     client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    # DB-Client für semantic_search (lazy: nur wenn das Tool aufgerufen wird)
+    db: SupabaseClient | None = None
     messages: list[dict] = [
         {
             "role": "user",
@@ -117,6 +141,14 @@ async def _run_claude_loop(tree: dict, antrag: dict, model: str) -> dict[str, An
                     result = get_section(tree, tu.input["section_id"]) or {}
                 elif tu.name == "search":
                     result = search_tree(tree, tu.input["query"], tu.input.get("max_results", 5))
+                elif tu.name == "semantic_search":
+                    if db is None:
+                        db = SupabaseClient.from_env()
+                    result = await semantic_search(
+                        db,
+                        tu.input["query"],
+                        top_k=tu.input.get("top_k", 5),
+                    )
                 else:
                     result = {"error": f"unknown tool {tu.name}"}
                 tool_results.append({
