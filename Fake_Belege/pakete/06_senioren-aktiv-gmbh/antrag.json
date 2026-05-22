@@ -13,7 +13,7 @@
   "bankverbindung": "Commerzbank Würzburg (Geschäftskonto)",
   "iban": "DE78790400470099887761",
   "bic": "COBADEFFXXX",
-  "ansprechpartner": "Klaus Müller (Geschäftsführer)",
+  "ansprechpartner": "Klaus MüllerTest (Geschäftsführer)",
   "telefon": "0931 99887-66",
   "email": "k.mueller@senioren-aktiv-gmbh.de",
   "haushaltsjahr": 2026,
@@ -23,17 +23,17 @@
   "belege": [
     {
       "belegtyp": "miete",
-      "bezeichnung": "Geschäftsmiete 12 × 1.850 € (Vermieter: Müller Immobilien)",
+      "bezeichnung": "Geschäftsmiete 12 × 1.850 € (Vermieter: MüllerTest Immobilien)",
       "betrag_euro": 22200.0
     },
     {
       "belegtyp": "personalkosten",
-      "bezeichnung": "Geschäftsführer-Bezug (Klaus Müller)",
+      "bezeichnung": "Geschäftsführer-Bezug (Klaus MüllerTest)",
       "betrag_euro": 24000.0
     },
     {
       "belegtyp": "personalkosten",
-      "bezeichnung": "Beratungshonorar K. Müller Consulting",
+      "bezeichnung": "Beratungshonorar K. MüllerTest Consulting",
       "betrag_euro": 24000.0
     },
     {
@@ -43,7 +43,7 @@
     },
     {
       "belegtyp": "betriebskosten",
-      "bezeichnung": "EDV-Lizenzen / SAP-Beratung Müller Consulting",
+      "bezeichnung": "EDV-Lizenzen / SAP-Beratung MüllerTest Consulting",
       "betrag_euro": 6000.0
     }
   ],
@@ -58,15 +58,15 @@
   "programm_beschreibung": [
     "Senioren-aktiv GmbH bietet 50+-Bürger:innen Würzburgs eine moderne Anlauf­stelle zu Themen rund um die finanzielle Vorsorge im Alter.",
     "Donnerstags-Veranstaltung: Strukturvertriebsähnliches Format zu Investmentprodukten, Lebensversicherungen und Immobilien-Crowdfunding. Vortragende sind Vermittler:innen mit Provisionsanspruch.",
-    "Weitere Programmpunkte: Premium-Reisevermittlung 'Silver Cruises', Kosmetik-Hausbesuche und Hörgeräte-Anpassungen vor Ort (Kooperation mit Allgemein-Akustik Müller, einer Schwestergesellschaft)."
+    "Weitere Programmpunkte: Premium-Reisevermittlung 'Silver Cruises', Kosmetik-Hausbesuche und Hörgeräte-Anpassungen vor Ort (Kooperation mit Allgemein-Akustik MüllerTest, einer Schwestergesellschaft)."
   ],
   "miet_objekt": "Geschäftsräume Industriestraße 38, 1. OG",
-  "vermieter": "Klaus Müller Immobilien GmbH & Co. KG",
+  "vermieter": "Klaus MüllerTest Immobilien GmbH & Co. KG",
   "miete_monat_euro": 1850.0,
   "raum_geber": null,
   "fraud_notes": [
     "Träger ist GmbH (gewerblich) — AHP fordert gemeinnützige Trägerschaft.",
-    "Vermieter ist Familien-Unternehmen des Geschäftsführers (Müller Immobilien).",
+    "Vermieter ist Familien-Unternehmen des Geschäftsführers (MüllerTest Immobilien).",
     "Drei Personalkosten-Positionen mit exakt 24.000 € — Round-Number-Fraud-Indikator.",
     "Beratungshonorar an eigene Consulting-Firma (Selbstkontrahierung).",
     "Wochenplan: nur 1 Tag/Woche à 2 h.",
@@ -76,12 +76,12 @@
   "personal_positionen": [
     [
       "Geschäftsführer",
-      "Klaus Müller",
+      "Klaus MüllerTest",
       24000.0
     ],
     [
       "Beratungshonorar (Eigenrechnung)",
-      "Klaus Müller Consulting",
+      "Klaus MüllerTest Consulting",
       24000.0
     ],
     [

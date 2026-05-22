@@ -13,7 +13,7 @@
   "bankverbindung": "VR-Bank Würzburg",
   "iban": "DE87790900000010101010",
   "bic": "GENODEF1WU1",
-  "ansprechpartner": "Dr. Helga Mertens (1. Vorsitzende)",
+  "ansprechpartner": "Dr. Helga MertensTest (1. Vorsitzende)",
   "telefon": "0931 70402-12",
   "email": "vorstand@buergerverein-frauenland.de",
   "haushaltsjahr": 2026,
@@ -23,12 +23,12 @@
   "belege": [
     {
       "belegtyp": "personalkosten",
-      "bezeichnung": "Honorar Kursleitung Gedächtnistraining (Frau Eichinger)",
+      "bezeichnung": "Honorar Kursleitung Gedächtnistraining (Frau EichingerTest)",
       "betrag_euro": 4800.0
     },
     {
       "belegtyp": "personalkosten",
-      "bezeichnung": "Honorar Bewegungsangebot (Herr Schäfer, ÜL-B Sport)",
+      "bezeichnung": "Honorar Bewegungsangebot (Herr SchäferTest, ÜL-B Sport)",
       "betrag_euro": 5400.0
     },
     {
@@ -73,12 +73,12 @@
   "personal_positionen": [
     [
       "Honorarkraft Gedächtnistraining (40 €/h × 120 h)",
-      "Renate Eichinger",
+      "Renate EichingerTest",
       4800.0
     ],
     [
       "Honorarkraft Bewegungsangebot (45 €/h × 120 h)",
-      "Thomas Schäfer",
+      "Thomas SchäferTest",
       5400.0
     ]
   ]

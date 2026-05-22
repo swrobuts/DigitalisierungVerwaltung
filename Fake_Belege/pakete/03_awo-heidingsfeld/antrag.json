@@ -13,7 +13,7 @@
   "bankverbindung": "Sparkasse Mainfranken Würzburg",
   "iban": "DE41790500000102030401",
   "bic": "BYLADEM1SWU",
-  "ansprechpartner": "Frau Beate Korn (Einrichtungsleitung)",
+  "ansprechpartner": "Frau Beate KornTest (Einrichtungsleitung)",
   "telefon": "0931 88044-23",
   "email": "heidingsfeld@awo-wuerzburg.de",
   "haushaltsjahr": 2026,
@@ -80,7 +80,7 @@
   "personal_positionen": [
     [
       "Sozialarbeiterin (BPT 18 h/Wo)",
-      "Beate Korn",
+      "Beate KornTest",
       26800.0
     ]
   ]

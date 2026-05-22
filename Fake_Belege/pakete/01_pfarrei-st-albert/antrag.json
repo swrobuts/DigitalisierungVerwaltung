@@ -13,7 +13,7 @@
   "bankverbindung": "Sparkasse Mainfranken Würzburg",
   "iban": "DE24790500000301234567",
   "bic": "BYLADEM1SWU",
-  "ansprechpartner": "Pfarrer Michael Klein",
+  "ansprechpartner": "Pfarrer Michael KleinTest",
   "telefon": "0931 78403-0",
   "email": "seniorentreff@pfarrei-st-albert.de",
   "haushaltsjahr": 2026,
@@ -28,7 +28,7 @@
     },
     {
       "belegtyp": "personalkosten",
-      "bezeichnung": "Sozialpädagogin Frau Sabine Hofmann (Teilzeit 12h/Woche)",
+      "bezeichnung": "Sozialpädagogin Frau Sabine HofmannTest (Teilzeit 12h/Woche)",
       "betrag_euro": 18400.0
     },
     {
@@ -56,13 +56,13 @@
     {
       "wochentag": "fr",
       "zeit": "14:00 – 17:00",
-      "angebot": "Seniorengymnastik mit Frau Eberlein"
+      "angebot": "Seniorengymnastik mit Frau EberleinTest"
     }
   ],
   "programm_titel": "Wöchentliches Programm Seniorentreff St. Albert",
   "programm_beschreibung": [
     "Der Seniorentreff St. Albert ist ein niedrigschwelliges, offenes Angebot für Menschen ab 60 Jahren aus dem Stadtteil Heidingsfeld und Umgebung. Der Treff ist konfessionell offen — eine Mitgliedschaft in der Pfarrei ist ausdrücklich nicht erforderlich.",
-    "Montags und mittwochs lädt das Café-Team zum offenen Treff mit Kaffee, Kuchen und Begegnung. Freitags leitet Frau Eberlein (zertifizierte Übungsleiterin) die Seniorengymnastik in zwei altersgemischten Gruppen.",
+    "Montags und mittwochs lädt das Café-Team zum offenen Treff mit Kaffee, Kuchen und Begegnung. Freitags leitet Frau EberleinTest (zertifizierte Übungsleiterin) die Seniorengymnastik in zwei altersgemischten Gruppen.",
     "Begleitend gibt es vierteljährliche Themennachmittage (Stadtgeschichte, Ernährung im Alter, digitale Teilhabe). Im Sommer findet ein gemeinsamer Tagesausflug statt, der über Eigenanteile finanziert wird."
   ],
   "miet_objekt": "Pfarrsaal St. Albert, Erdgeschoss",
@@ -73,7 +73,7 @@
   "personal_positionen": [
     [
       "Sozialpädagogin (BPT 12 h/Wo)",
-      "Sabine Hofmann",
+      "Sabine HofmannTest",
       18400.0
     ]
   ]

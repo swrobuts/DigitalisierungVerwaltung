@@ -125,7 +125,7 @@ PAKETE: list[Paket] = [
         bankverbindung="Sparkasse Mainfranken Würzburg",
         iban=compute_iban("DE", "79050000" + "0301234567"),
         bic="BYLADEM1SWU",
-        ansprechpartner="Pfarrer Michael Klein",
+        ansprechpartner="Pfarrer Michael KleinTest",
         telefon="0931 78403-0",
         email="seniorentreff@pfarrei-st-albert.de",
         haushaltsjahr=2026,
@@ -137,17 +137,17 @@ PAKETE: list[Paket] = [
         miete_monat_euro=850.00,
         belege=[
             Belegpos("miete", "Miete Pfarrsaal St. Albert (12 Monate à 850 €)", 10200.00),
-            Belegpos("personalkosten", "Sozialpädagogin Frau Sabine Hofmann (Teilzeit 12h/Woche)", 18400.00),
+            Belegpos("personalkosten", "Sozialpädagogin Frau Sabine HofmannTest (Teilzeit 12h/Woche)", 18400.00),
             Belegpos("betriebskosten", "Strom, Heizung, Wasser anteilig", 3800.00),
             Belegpos("betriebskosten", "Versicherung, Reinigungsmaterial, Kaffee/Tee", 1200.00),
         ],
         oeffnungszeiten=[
             Oeffnungszeit("mo", "14:00 – 17:00", "Offener Treff, Kaffee"),
             Oeffnungszeit("mi", "14:00 – 17:00", "Spielenachmittag, Skat / Rommé"),
-            Oeffnungszeit("fr", "14:00 – 17:00", "Seniorengymnastik mit Frau Eberlein"),
+            Oeffnungszeit("fr", "14:00 – 17:00", "Seniorengymnastik mit Frau EberleinTest"),
         ],
         personal_positionen=[
-            ("Sozialpädagogin (BPT 12 h/Wo)", "Sabine Hofmann", 18400.00),
+            ("Sozialpädagogin (BPT 12 h/Wo)", "Sabine HofmannTest", 18400.00),
         ],
         programm_titel="Wöchentliches Programm Seniorentreff St. Albert",
         programm_beschreibung=[
@@ -156,7 +156,7 @@ PAKETE: list[Paket] = [
             "Der Treff ist konfessionell offen — eine Mitgliedschaft in der Pfarrei "
             "ist ausdrücklich nicht erforderlich.",
             "Montags und mittwochs lädt das Café-Team zum offenen Treff mit Kaffee, "
-            "Kuchen und Begegnung. Freitags leitet Frau Eberlein (zertifizierte "
+            "Kuchen und Begegnung. Freitags leitet Frau EberleinTest (zertifizierte "
             "Übungsleiterin) die Seniorengymnastik in zwei altersgemischten Gruppen.",
             "Begleitend gibt es vierteljährliche Themennachmittage (Stadtgeschichte, "
             "Ernährung im Alter, digitale Teilhabe). Im Sommer findet ein "
@@ -180,7 +180,7 @@ PAKETE: list[Paket] = [
         bankverbindung="VR-Bank Würzburg",
         iban=compute_iban("DE", "79090000" + "0010101010"),
         bic="GENODEF1WU1",
-        ansprechpartner="Dr. Helga Mertens (1. Vorsitzende)",
+        ansprechpartner="Dr. Helga MertensTest (1. Vorsitzende)",
         telefon="0931 70402-12",
         email="vorstand@buergerverein-frauenland.de",
         haushaltsjahr=2026,
@@ -189,8 +189,8 @@ PAKETE: list[Paket] = [
         antragsdatum="2026-04-22",
         raum_geber="Stadt Würzburg / Sozialreferat — Stadtteilbüro Frauenland",
         belege=[
-            Belegpos("personalkosten", "Honorar Kursleitung Gedächtnistraining (Frau Eichinger)", 4800.00),
-            Belegpos("personalkosten", "Honorar Bewegungsangebot (Herr Schäfer, ÜL-B Sport)", 5400.00),
+            Belegpos("personalkosten", "Honorar Kursleitung Gedächtnistraining (Frau EichingerTest)", 4800.00),
+            Belegpos("personalkosten", "Honorar Bewegungsangebot (Herr SchäferTest, ÜL-B Sport)", 5400.00),
             Belegpos("betriebskosten", "Verbrauchsmaterial, Getränke, Bastel-/Spielmaterial", 1600.00),
             Belegpos("betriebskosten", "Anteilige Reinigung (Eigenleistung Verein)", 800.00),
         ],
@@ -200,8 +200,8 @@ PAKETE: list[Paket] = [
             Oeffnungszeit("sa", "10:00 – 12:00", "Frühstückstreff (1. Sa/Monat)"),
         ],
         personal_positionen=[
-            ("Honorarkraft Gedächtnistraining (40 €/h × 120 h)", "Renate Eichinger", 4800.00),
-            ("Honorarkraft Bewegungsangebot (45 €/h × 120 h)", "Thomas Schäfer", 5400.00),
+            ("Honorarkraft Gedächtnistraining (40 €/h × 120 h)", "Renate EichingerTest", 4800.00),
+            ("Honorarkraft Bewegungsangebot (45 €/h × 120 h)", "Thomas SchäferTest", 5400.00),
         ],
         programm_titel="Programm Senioren-Stammtisch Frauenland",
         programm_beschreibung=[
@@ -236,7 +236,7 @@ PAKETE: list[Paket] = [
         # Layer-A-Trigger: IBAN ist mod-97-ungültig (letzte Ziffer geflippt)
         iban=break_iban(compute_iban("DE", "79050000" + "0102030405")),
         bic="BYLADEM1SWU",
-        ansprechpartner="Frau Beate Korn (Einrichtungsleitung)",
+        ansprechpartner="Frau Beate KornTest (Einrichtungsleitung)",
         telefon="0931 88044-23",
         email="heidingsfeld@awo-wuerzburg.de",
         haushaltsjahr=2026,
@@ -259,7 +259,7 @@ PAKETE: list[Paket] = [
             Oeffnungszeit("fr", "10:00 – 14:00", "Mittagstisch"),
         ],
         personal_positionen=[
-            ("Sozialarbeiterin (BPT 18 h/Wo)", "Beate Korn", 26800.00),
+            ("Sozialarbeiterin (BPT 18 h/Wo)", "Beate KornTest", 26800.00),
         ],
         programm_titel="Programm AWO-Begegnungsstätte Heidingsfeld",
         programm_beschreibung=[
@@ -292,7 +292,7 @@ PAKETE: list[Paket] = [
         bankverbindung="LIGA Bank Regensburg",
         iban=compute_iban("DE", "75090300" + "0002400500"),
         bic="GENODEF1M05",
-        ansprechpartner="Herr Stefan Reiser",
+        ansprechpartner="Herr Stefan ReiserTest",
         telefon="0931 38664-50",
         email="versbach@caritas-wuerzburg.org",
         haushaltsjahr=2026,
@@ -314,7 +314,7 @@ PAKETE: list[Paket] = [
             Oeffnungszeit("mi", "14:00 – 16:00", "Offener Treff"),
         ],
         personal_positionen=[
-            ("Einrichtungsleitung Vollzeit (Dipl.-Sozialpäd., AVR-Caritas EG 8)", "Stefan Reiser", 58000.00),
+            ("Einrichtungsleitung Vollzeit (Dipl.-Sozialpäd., AVR-Caritas EG 8)", "Stefan ReiserTest", 58000.00),
             ("Hauswirtschaft Teilzeit + Springer-Pool", "Team (3 Personen)", 20000.00),
         ],
         programm_titel="Programm Caritas-Tagestreff Versbach",
@@ -347,7 +347,7 @@ PAKETE: list[Paket] = [
         bankverbindung="Evangelische Bank eG",
         iban=compute_iban("DE", "52060450" + "0001234567"),
         bic="GENODEF1EK1",
-        ansprechpartner="Diakonin Anja Vogt",
+        ansprechpartner="Diakonin Anja VogtDemo",
         telefon="0931 80498-17",
         email="sanderau@diakonie-wuerzburg.de",
         haushaltsjahr=2026,
@@ -368,7 +368,7 @@ PAKETE: list[Paket] = [
             Oeffnungszeit("fr", "14:00 – 17:00", "Tupperware-Vorstellung / Verkaufsnachmittag (monatlich)"),
         ],
         personal_positionen=[
-            ("Diakonin (BPT 15 h/Wo, TVöD SuE S8b)", "Anja Vogt", 22500.00),
+            ("Diakonin (BPT 15 h/Wo, TVöD SuE S8b)", "Anja VogtDemo", 22500.00),
         ],
         programm_titel="Programm Diakonie-Treff Sanderau",
         programm_beschreibung=[
@@ -379,10 +379,10 @@ PAKETE: list[Paket] = [
             "Wir gehen davon aus, dass dieses Format auch jüngere "
             "Senior:innen anzieht.",
             "Freitags wechseln wir uns mit externen Anbietern ab: Tupperware-"
-            "Verkaufsveranstaltungen (Frau Müller), Genuss-Reisevermittlung der "
+            "Verkaufsveranstaltungen (Frau MüllerTest), Genuss-Reisevermittlung der "
             "Firma 'Senior-Trips GmbH' (provisionsbeteiligt) sowie ein "
             "kommerzieller Vortragsabend zu Kapitalanlagen im Alter, durchgeführt "
-            "vom Finanzberater Herrn Wagner (Allfinanz Wagner & Partner).",
+            "vom Finanzberater Herrn WagnerTest (Allfinanz WagnerTest & Partner).",
             "Diese Angebotsstruktur ermöglicht es uns, zusätzliche Einnahmen für "
             "den Treff zu generieren.",
         ],
@@ -412,7 +412,7 @@ PAKETE: list[Paket] = [
         bankverbindung="Commerzbank Würzburg (Geschäftskonto)",
         iban=break_iban(compute_iban("DE", "79040047" + "0099887766")),
         bic="COBADEFFXXX",
-        ansprechpartner="Klaus Müller (Geschäftsführer)",
+        ansprechpartner="Klaus MüllerTest (Geschäftsführer)",
         telefon="0931 99887-66",
         email="k.mueller@senioren-aktiv-gmbh.de",
         haushaltsjahr=2026,
@@ -420,23 +420,23 @@ PAKETE: list[Paket] = [
         raeume_unentgeltlich="nein",
         antragsdatum="2026-05-06",
         miet_objekt="Geschäftsräume Industriestraße 38, 1. OG",
-        vermieter="Klaus Müller Immobilien GmbH & Co. KG",   # GF-Familienunternehmen!
+        vermieter="Klaus MüllerTest Immobilien GmbH & Co. KG",   # GF-Familienunternehmen!
         miete_monat_euro=1850.00,
         belege=[
-            Belegpos("miete", "Geschäftsmiete 12 × 1.850 € (Vermieter: Müller Immobilien)", 22200.00),
+            Belegpos("miete", "Geschäftsmiete 12 × 1.850 € (Vermieter: MüllerTest Immobilien)", 22200.00),
             # Identische Beträge → Fraud-Indikator
-            Belegpos("personalkosten", "Geschäftsführer-Bezug (Klaus Müller)", 24000.00),
-            Belegpos("personalkosten", "Beratungshonorar K. Müller Consulting", 24000.00),
+            Belegpos("personalkosten", "Geschäftsführer-Bezug (Klaus MüllerTest)", 24000.00),
+            Belegpos("personalkosten", "Beratungshonorar K. MüllerTest Consulting", 24000.00),
             Belegpos("personalkosten", "Aushilfen-Pauschalen (5 Personen á 4.800 €)", 24000.00),
-            Belegpos("betriebskosten", "EDV-Lizenzen / SAP-Beratung Müller Consulting", 6000.00),
+            Belegpos("betriebskosten", "EDV-Lizenzen / SAP-Beratung MüllerTest Consulting", 6000.00),
         ],
         oeffnungszeiten=[
             # Nur ein Wochentag → wochenplan kaum vorhanden
             Oeffnungszeit("do", "14:00 – 16:00", "Info-Veranstaltung Kapitalanlagen 50+"),
         ],
         personal_positionen=[
-            ("Geschäftsführer", "Klaus Müller", 24000.00),
-            ("Beratungshonorar (Eigenrechnung)", "Klaus Müller Consulting", 24000.00),
+            ("Geschäftsführer", "Klaus MüllerTest", 24000.00),
+            ("Beratungshonorar (Eigenrechnung)", "Klaus MüllerTest Consulting", 24000.00),
             ("Aushilfen-Pauschalen", "5 × Mini-Job", 24000.00),
         ],
         programm_titel="Programm Senioren-aktiv Treffpunkt",
@@ -448,11 +448,11 @@ PAKETE: list[Paket] = [
             "Vortragende sind Vermittler:innen mit Provisionsanspruch.",
             "Weitere Programmpunkte: Premium-Reisevermittlung 'Silver Cruises', "
             "Kosmetik-Hausbesuche und Hörgeräte-Anpassungen vor Ort (Kooperation "
-            "mit Allgemein-Akustik Müller, einer Schwestergesellschaft).",
+            "mit Allgemein-Akustik MüllerTest, einer Schwestergesellschaft).",
         ],
         fraud_notes=[
             "Träger ist GmbH (gewerblich) — AHP fordert gemeinnützige Trägerschaft.",
-            "Vermieter ist Familien-Unternehmen des Geschäftsführers (Müller Immobilien).",
+            "Vermieter ist Familien-Unternehmen des Geschäftsführers (MüllerTest Immobilien).",
             "Drei Personalkosten-Positionen mit exakt 24.000 € — Round-Number-Fraud-Indikator.",
             "Beratungshonorar an eigene Consulting-Firma (Selbstkontrahierung).",
             "Wochenplan: nur 1 Tag/Woche à 2 h.",

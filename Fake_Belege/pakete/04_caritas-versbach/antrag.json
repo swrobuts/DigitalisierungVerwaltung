@@ -13,7 +13,7 @@
   "bankverbindung": "LIGA Bank Regensburg",
   "iban": "DE10750903000002400500",
   "bic": "GENODEF1M05",
-  "ansprechpartner": "Herr Stefan Reiser",
+  "ansprechpartner": "Herr Stefan ReiserTest",
   "telefon": "0931 38664-50",
   "email": "versbach@caritas-wuerzburg.org",
   "haushaltsjahr": 2026,
@@ -65,7 +65,7 @@
   "personal_positionen": [
     [
       "Einrichtungsleitung Vollzeit (Dipl.-Sozialpäd., AVR-Caritas EG 8)",
-      "Stefan Reiser",
+      "Stefan ReiserTest",
       58000.0
     ],
     [

@@ -13,7 +13,7 @@
   "bankverbindung": "Evangelische Bank eG",
   "iban": "DE45520604500001234567",
   "bic": "GENODEF1EK1",
-  "ansprechpartner": "Diakonin Anja Vogt",
+  "ansprechpartner": "Diakonin Anja VogtDemo",
   "telefon": "0931 80498-17",
   "email": "sanderau@diakonie-wuerzburg.de",
   "haushaltsjahr": 2026,
@@ -57,7 +57,7 @@
   "programm_titel": "Programm Diakonie-Treff Sanderau",
   "programm_beschreibung": [
     "Der Diakonie-Treff Sanderau bietet montags einen klassischen offenen Café-Treff. Schwerpunkt unseres erweiterten Programms 2026 ist jedoch der mittwöchliche Bingo-Abend mit Geldgewinnen — Hauptpreis bis zu 500 € pro Abend, finanziert aus den Teilnahmegebühren (5 €/Karte). Wir gehen davon aus, dass dieses Format auch jüngere Senior:innen anzieht.",
-    "Freitags wechseln wir uns mit externen Anbietern ab: Tupperware-Verkaufsveranstaltungen (Frau Müller), Genuss-Reisevermittlung der Firma 'Senior-Trips GmbH' (provisionsbeteiligt) sowie ein kommerzieller Vortragsabend zu Kapitalanlagen im Alter, durchgeführt vom Finanzberater Herrn Wagner (Allfinanz Wagner & Partner).",
+    "Freitags wechseln wir uns mit externen Anbietern ab: Tupperware-Verkaufsveranstaltungen (Frau MüllerTest), Genuss-Reisevermittlung der Firma 'Senior-Trips GmbH' (provisionsbeteiligt) sowie ein kommerzieller Vortragsabend zu Kapitalanlagen im Alter, durchgeführt vom Finanzberater Herrn WagnerTest (Allfinanz WagnerTest & Partner).",
     "Diese Angebotsstruktur ermöglicht es uns, zusätzliche Einnahmen für den Treff zu generieren."
   ],
   "miet_objekt": "Gemeindezentrum Wittelsbacherstraße",
@@ -71,7 +71,7 @@
   "personal_positionen": [
     [
       "Diakonin (BPT 15 h/Wo, TVöD SuE S8b)",
-      "Anja Vogt",
+      "Anja VogtDemo",
       22500.0
     ]
   ]
