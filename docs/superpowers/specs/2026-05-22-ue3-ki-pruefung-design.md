@@ -393,7 +393,7 @@ Studis erweitern die Ontologie um eine **neue Regel:**
 1. **PageIndex-Build-Strategie:** Eigene Python-Adaption oder VectifyAI/PageIndex direkt als Dependency? — Empfehlung: eigene schlanke Adaption (das Original ist mehr Demo als Library), inspiriert von der Methode. Tree-Build via `pypdfium2` + Heading-Heuristik.
 2. **BM25 vs. Embeddings für `search()`-Tool:** BM25 ist deterministisch + ohne externe API. Embeddings (z.B. `sentence-transformers` oder Anthropic-Voyage) bringen semantische Treffer. — Empfehlung: BM25 für MVP, Embeddings als Bonus-Hands-on.
 3. **WeasyPrint vs. ReportLab für PDF:** WeasyPrint nimmt HTML+CSS, ReportLab ist programmatisch. — Empfehlung: WeasyPrint (Jinja-Template ist lesbarer und für Studis nachvollziehbar).
-4. **Claude-Modell-Wahl:** `claude-3.5-sonnet` reicht, oder `claude-4-sonnet` (falls verfügbar) für besseres Tool-Use? — TBD je nach API-Stand.
+4. **Claude-Modell-Wahl:** Default `claude-sonnet-4-5` (gutes Tool-Use, akzeptabler Preis). Fallback auf `claude-3-5-sonnet-latest` falls API-Limit/Verfügbarkeit. Pro Antrag <10 Tool-Calls erwartet → Token-Kosten überschaubar (~1–3 Cent pro Prüfung).
 5. **Realtime-Update im GUI:** Prüfung dauert 5–15s — soll der UE3-Detail-Status live updaten (postgres-changes-Subscription auf `pruefprotokoll`)? — Empfehlung: ja, analog UE2-Inbox-Realtime.
 
 ## 14. Akzeptanzkriterien dieser Spec
