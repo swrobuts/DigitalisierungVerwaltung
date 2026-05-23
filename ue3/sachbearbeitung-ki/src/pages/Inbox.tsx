@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { BookOpen, FileSearch, Network } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
@@ -85,11 +85,15 @@ function monthLabel(key: string): string {
 
 type SortKey =
   | "antragsnummer" | "name" | "traeger" | "submitted_at"
-  | "submitted_language" | "status" | "antragssumme" | "gesamt" | "vj" | "diff"
-  | "risiko";
+  | "submitted_language" | "status" | "antragssumme" | "gesamt" | "vj" | "diff";
 type SortDir = "asc" | "desc";
 type GroupKey = "none" | "status" | "traeger" | "submitted_language" | "month";
 
+// Risiko-Score-Spalte wurde bewusst entfernt: heuristischer Wert ohne
+// inline-Erklärbarkeit — alle Anträge zeigten denselben Score, ohne dass
+// im UI sichtbar war, welche Faktoren zugrunde lagen. Backend-Endpoint
+// /api/antrag/{id}/risiko-score bleibt für späteren Re-Use, wenn wir
+// eine bessere Erklärungs-UI bauen.
 const COLUMNS: Array<{ key: SortKey; label: string; align?: "right" }> = [
   { key: "antragsnummer", label: "Antragsnummer" },
   { key: "name", label: "Name" },
@@ -97,7 +101,6 @@ const COLUMNS: Array<{ key: SortKey; label: string; align?: "right" }> = [
   { key: "submitted_at", label: "Eingegangen" },
   { key: "submitted_language", label: "Sprache" },
   { key: "status", label: "Status" },
-  { key: "risiko", label: "Risiko", align: "right" },
   { key: "antragssumme", label: "Antragssumme", align: "right" },
   { key: "gesamt", label: "Vorjahres-Aufwand", align: "right" },
   { key: "vj", label: "VJ-Wert", align: "right" },
@@ -174,31 +177,6 @@ export function Inbox() {
   // VJ-Map über ALLE Anträge (nicht nur gefilterte) — sonst falscher Vergleich
   const vjMap = useMemo(() => buildVjMap(antraege), [antraege]);
 
-  // Risiko-Scores pro Antrag-ID — lädt parallel zu Antragsliste. Daten
-  // bleiben über Filter/Sortierung hinweg gecacht (Map).
-  const [risikoScores, setRisikoScores] = useState<Map<string, { score: number; klasse: string }>>(new Map());
-  useEffect(() => {
-    if (antraege.length === 0) return;
-    let cancelled = false;
-    Promise.all(
-      antraege.map(async (a) => {
-        try {
-          const r = await fetch(`https://pruefung.butscher.cloud/api/antrag/${a.id}/risiko-score`);
-          if (!r.ok) return null;
-          const data = await r.json();
-          return [a.id, { score: data.score, klasse: data.klasse }] as const;
-        } catch {
-          return null;
-        }
-      }),
-    ).then((entries) => {
-      if (cancelled) return;
-      const m = new Map<string, { score: number; klasse: string }>();
-      for (const e of entries) if (e) m.set(e[0], e[1]);
-      setRisikoScores(m);
-    });
-    return () => { cancelled = true; };
-  }, [antraege]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase().trim();
@@ -239,11 +217,6 @@ export function Inbox() {
       const ai = STATUS_ORDER.indexOf(a.status);
       const bi = STATUS_ORDER.indexOf(b.status);
       return dir === "asc" ? ai - bi : bi - ai;
-    }
-    if (key === "risiko") {
-      const ra = risikoScores.get(a.id)?.score ?? -1;
-      const rb = risikoScores.get(b.id)?.score ?? -1;
-      return dir === "asc" ? ra - rb : rb - ra;
     }
     const av = String(a[key as keyof AntragRow] ?? "").toLowerCase();
     const bv = String(b[key as keyof AntragRow] ?? "").toLowerCase();
@@ -351,7 +324,7 @@ export function Inbox() {
   const toneClass = (tone: "up" | "down" | "neutral") =>
     tone === "up" ? "text-emerald-700" : tone === "down" ? "text-rose-700" : "text-slate-400";
 
-  const COL_COUNT_BEFORE_GESAMT = 7; // antragsnr, name, traeger, datum, sprache, status, risiko
+  const COL_COUNT_BEFORE_GESAMT = 6; // antragsnr, name, traeger, datum, sprache, status
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -556,9 +529,6 @@ export function Inbox() {
                           <TableCell className="whitespace-nowrap"><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
                           <TableCell className="whitespace-nowrap"><StatusBadge status={item.antrag.status} /></TableCell>
                           <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
-                            <RisikoPill score={risikoScores.get(item.antrag.id)} />
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
                             {item.antrag.geforderte_foerdersumme_euro !== null
                               ? <span className="font-medium text-slate-900">{formatEuro(item.antrag.geforderte_foerdersumme_euro)}</span>
                               : <span className="text-slate-400">—</span>}
@@ -620,27 +590,3 @@ export function Inbox() {
   );
 }
 
-/** Anomalie-Score als Pill in der Inbox-Tabelle. Farb-Code:
- *  🟢 unauffaellig (0-25), 🟡 pruefenswert (26-50), 🔴 erhoeht (51+).
- *  Score wird vom pruefung-service auf Demand berechnet — heuristisch,
- *  kein KI-Aufruf. */
-function RisikoPill({ score }: { score: { score: number; klasse: string } | undefined }) {
-  if (!score) return <span className="text-slate-300 text-xs">—</span>;
-  const klasse = score.klasse;
-  const palette =
-    klasse === "erhoeht"
-      ? "bg-rose-50 text-rose-700 border-rose-200"
-      : klasse === "pruefenswert"
-        ? "bg-amber-50 text-amber-700 border-amber-200"
-        : "bg-emerald-50 text-emerald-700 border-emerald-200";
-  const punkt = klasse === "erhoeht" ? "🔴" : klasse === "pruefenswert" ? "🟡" : "🟢";
-  return (
-    <span
-      className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border ${palette}`}
-      title={`Risiko-Klasse: ${klasse}`}
-    >
-      <span>{punkt}</span>
-      <span className="tabular-nums font-medium">{score.score}</span>
-    </span>
-  );
-}
