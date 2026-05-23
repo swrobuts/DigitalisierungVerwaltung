@@ -373,7 +373,7 @@ export function Inbox() {
               <NavLink
                 to="/ahp"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                title="L1 — AHP-Richtlinie als Doctree"
+                title="AHP-Förderrichtlinie als strukturierter Volltext"
               >
                 <BookOpen className="h-4 w-4" />
                 AHP
@@ -381,7 +381,7 @@ export function Inbox() {
               <NavLink
                 to="/normen"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                title="L2 — Knowledge-Layer / Norm-Statements"
+                title="Norm-Aussagen aus der AHP-Richtlinie"
               >
                 <Network className="h-4 w-4" />
                 Normen

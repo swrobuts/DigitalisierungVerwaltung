@@ -82,17 +82,17 @@ export function NormStatementsInspector() {
           <span className="text-slate-300">·</span>
           <h1 className="text-lg font-bold flex items-center gap-2">
             <Network className="h-4 w-4 text-wue-rot" />
-            Knowledge-Layer · Norm-Statements
+            Norm-Aussagen aus der AHP-Richtlinie
           </h1>
           <div className="ml-auto flex items-center gap-3 text-xs text-slate-500">
             <Link to="/ahp" className="hover:text-wue-rot inline-flex items-center gap-1">
               <BookOpen className="h-3.5 w-3.5" />
-              Doctree
+              Volltext
             </Link>
             <span className="text-slate-300">·</span>
-            <Link to="/ontologie" className="hover:text-wue-rot inline-flex items-center gap-1">
+            <Link to="/regelkatalog" className="hover:text-wue-rot inline-flex items-center gap-1">
               <Cpu className="h-3.5 w-3.5" />
-              Ontologie ({rules.length})
+              Regelkatalog ({rules.length})
             </Link>
           </div>
         </div>
@@ -103,12 +103,13 @@ export function NormStatementsInspector() {
         <div className="bg-white border border-slate-200 rounded-sm shadow-sm overflow-hidden mb-6">
           <div className="bg-slate-50 border-b border-slate-200 px-8 py-5">
             <h2 className="font-semibold text-slate-900">
-              Was ist der Knowledge-Layer (L2)?
+              Was sind Norm-Aussagen?
             </h2>
             <p className="text-sm text-slate-700 mt-1 leading-relaxed">
-              Norm-Aussagen, die per LLM aus dem AHP-Doctree (L1) extrahiert
-              wurden — die Brücke zwischen Volltext und ausführbaren
-              Ontologie-Regeln (L3). Jede Aussage durchläuft den Lifecycle{" "}
+              Aussagen, die per LLM aus dem Volltext der AHP-Förderrichtlinie
+              extrahiert wurden — die Brücke zwischen Wortlaut und
+              ausführbaren Prüfregeln des Regelkatalogs. Jede Aussage
+              durchläuft den Lifecycle{" "}
               <code className="bg-white border border-slate-300 px-1 py-0.5 rounded text-[11px]">
                 pending
               </code>{" "}
@@ -120,7 +121,7 @@ export function NormStatementsInspector() {
               <code className="bg-white border border-slate-300 px-1 py-0.5 rounded text-[11px]">
                 verworfen
               </code>{" "}
-              und kann mit einer Ontologie-Regel verknüpft werden.
+              und kann mit einer Regel im Regelkatalog verknüpft werden.
             </p>
           </div>
 
@@ -130,7 +131,7 @@ export function NormStatementsInspector() {
             <Kpi label="Kuratiert" value={byStatus.kuratiert} accent="emerald" />
             <Kpi label="Verworfen" value={byStatus.verworfen} accent="slate" />
             <Kpi
-              label="Ontologie-Coverage"
+              label="Regelkatalog-Abdeckung"
               value={`${coveragePct} %`}
               sub={`${pruefbarMitRegel}/${pruefbarTotal} maschinell prüfbare mit Regel`}
               accent={coveragePct >= 80 ? "emerald" : coveragePct >= 50 ? "amber" : "rose"}
@@ -289,11 +290,11 @@ function StatementCard({
         )}
         {statement.ontologie_rule_id && (
           <Link
-            to="/ontologie"
+            to="/regelkatalog"
             className="text-xs text-emerald-700 hover:underline inline-flex items-center gap-1"
-            title="Bereits in Ontologie umgesetzt"
+            title="Bereits als Regel im Regelkatalog umgesetzt"
           >
-            ✓ in Ontologie
+            ✓ im Regelkatalog
           </Link>
         )}
         <span className="ml-auto text-xs text-slate-500 inline-flex items-center gap-1">
