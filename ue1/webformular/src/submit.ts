@@ -42,6 +42,14 @@ export async function submitAntrag(state: FormState): Promise<{ antragsnummer: s
     raeume_unentgeltlich: state.raeume_unentgeltlich!,
     antragsdatum: new Date().toISOString().slice(0, 10),
     submitted_language: state.language,
+    // Bemessungsgrundlage gem. AHP 2.3 FB III Pkt. 2 (Begegnungszentren).
+    // DB-Spaltennamen tragen kein '_vorjahr'-Suffix; im FormState heißen
+    // die Felder bewusst '*_vorjahr', weil die Richtlinie explizit auf
+    // den Vorjahres-Zeitraum referenziert — die DB-Konvention ist älter
+    // und neutraler.
+    anzahl_teilnehmer: state.anzahl_teilnehmer_vorjahr,
+    stadtbewohner_anteil: state.stadtbewohner_anteil_vorjahr,
+    anzahl_treffen_jahr: state.anzahl_veranstaltungen_vorjahr,
     oeffnungszeiten: state.oeffnungszeiten.filter(
       (o) => o.oeffnungszeit.trim() || o.angebot.trim(),
     ),

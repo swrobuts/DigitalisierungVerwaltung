@@ -255,9 +255,13 @@ export function AntragDetail() {
                   {formatAdresse(antrag.strasse, antrag.hausnummer, antrag.plz, antrag.ort)}
                 </DocField>
                 {antrag.miete_jahr_euro > 0 && (
-                  <DocField label="Jahresmiete" className="sm:col-span-2">
-                    <span className="font-semibold text-slate-900 tabular-nums">
+                  <DocField label="Jahresmiete (Eigenangabe)" className="sm:col-span-2">
+                    <span className="text-slate-700 tabular-nums">
                       {formatEuro(antrag.miete_jahr_euro)}
+                    </span>
+                    <span className="block text-[11px] text-slate-500 italic mt-0.5">
+                      Vom Antragsteller mitgeteilt — für Förderbereich III
+                      keine prüfungsrelevante Bemessung (siehe § 5).
                     </span>
                   </DocField>
                 )}
@@ -293,9 +297,17 @@ export function AntragDetail() {
             </DocSection>
 
             <DocSection
+              num="§ 4a"
+              title="Bemessungsgrundlage Vorjahr"
+              subtitle="Stadt-Anteil bestimmt die Auszahlung; Teilnehmer + Veranstaltungen gewichten die Zuwendung (AHP 2.3 Pkt. 2)"
+            >
+              <BemessungsblockVorjahr antrag={antrag} />
+            </DocSection>
+
+            <DocSection
               num="§ 5"
-              title="Kostenpositionen (Jahresplanung)"
-              subtitle="Tätigkeitsnachweis, nicht Förder-Treiber"
+              title="Kostenpositionen (vom Antragsteller mitgeteilt)"
+              subtitle="Tätigkeitsnachweis; für Förderbereich III gem. AHP 3.8 nur auf Anfrage einzureichen — keine Bemessungsgrundlage"
             >
               <KostenTabelle
                 items={belegpositionen}
@@ -663,10 +675,14 @@ function KostenTabelle({
   return (
     <div>
       {pauschalHinweis && (
-        <div className="mb-3 text-xs text-slate-700 bg-slate-50 border-l-2 border-slate-400 px-3 py-2 rounded-r">
-          Diese Kosten sind nur <strong>Tätigkeitsnachweis</strong>. Sie
-          bestimmen <strong>nicht</strong> die Förderhöhe — die ist eine
-          AHP-Pauschale (siehe § 4).
+        <div className="mb-3 text-xs text-slate-700 bg-amber-50 border-l-2 border-amber-500 px-3 py-2 rounded-r">
+          <strong>Hinweis zur Bemessungsrolle:</strong> Diese Positionen
+          sind vom Antragsteller mitgeteilt und dienen als <strong>Tätigkeits­
+          nachweis</strong>. Sie bestimmen <strong>nicht</strong> die
+          Förderhöhe — die ist eine AHP-Pauschale (§ 4), die anteilig
+          nach Stadt-Bewohner-Anteil ausgezahlt wird (§ 4a). Gem. AHP 3.8
+          sind Belege für diesen Förderbereich nur auf Anfrage einzu­
+          reichen.
         </div>
       )}
       <table className="w-full text-[14px]">
@@ -956,6 +972,73 @@ function KalkulationsFormel({
 /** Komplette § 4-Anzeige: Förderbereich-Pill, Fördersumme + Förder-
  * höchstgrenze, Skalierungs-Kennzahlen, Pflichtangaben — alles
  * kontextsensitiv je nach Förderbereich. */
+/**
+ * Bemessungsgrundlage gem. AHP 2.3 Förderbereich III, Pkt. 2
+ * (Begegnungszentren). Zeigt die drei rechtlich relevanten Größen:
+ *
+ *  - stadtbewohner_anteil → Auszahlungsanteil (Pflicht für Bescheid)
+ *  - anzahl_teilnehmer    → Gewichtungsgröße aus dem Budget
+ *  - anzahl_treffen_jahr  → Gewichtungsgröße aus dem Budget
+ *
+ * Bei NULL-Werten wird ein Warnhinweis statt eines Pseudo-Wertes
+ * angezeigt — dann ist der Antrag nicht entscheidungsreif.
+ */
+function BemessungsblockVorjahr({ antrag }: { antrag: AntragFull }) {
+  const anteilPct =
+    antrag.stadtbewohner_anteil === null
+      ? null
+      : `${(antrag.stadtbewohner_anteil * 100).toFixed(1).replace(".", ",")} %`;
+  const fehlend: string[] = [];
+  if (antrag.stadtbewohner_anteil === null) fehlend.push("Stadt-Anteil");
+  if (antrag.anzahl_teilnehmer === null) fehlend.push("Teilnehmer:innen");
+  if (antrag.anzahl_treffen_jahr === null) fehlend.push("Veranstaltungen");
+
+  return (
+    <div className="space-y-4">
+      <FieldGrid>
+        <DocField label="Anteil Stadt-Bewohner:innen Würzburg (Vorjahr)" className="sm:col-span-2">
+          {anteilPct !== null ? (
+            <>
+              <span className="text-2xl font-bold tabular-nums text-wue-rot">{anteilPct}</span>
+              <span className="block text-[11px] text-slate-500 italic mt-0.5">
+                Bestimmt direkt den prozentualen Auszahlungsanteil
+                (AHP 2.3 Pkt. 2: „erfolgt die Auszahlung des prozentualen Anteils").
+              </span>
+            </>
+          ) : (
+            <span className="text-slate-400">— nicht angegeben</span>
+          )}
+        </DocField>
+        <DocField label="Teilnehmer:innen gesamt (Vorjahr)">
+          {antrag.anzahl_teilnehmer !== null ? (
+            <span className="text-slate-900 tabular-nums font-medium">
+              {antrag.anzahl_teilnehmer.toLocaleString("de-DE")}
+            </span>
+          ) : (
+            <span className="text-slate-400">—</span>
+          )}
+        </DocField>
+        <DocField label="Veranstaltungen (Vorjahr)">
+          {antrag.anzahl_treffen_jahr !== null ? (
+            <span className="text-slate-900 tabular-nums font-medium">
+              {antrag.anzahl_treffen_jahr.toLocaleString("de-DE")}
+            </span>
+          ) : (
+            <span className="text-slate-400">—</span>
+          )}
+        </DocField>
+      </FieldGrid>
+      {fehlend.length > 0 && (
+        <div className="text-xs text-amber-900 bg-amber-50 border-l-2 border-amber-500 px-3 py-2 rounded-r">
+          <strong>Antrag nicht entscheidungsreif:</strong> fehlende Bemessungs­
+          angabe(n) — {fehlend.join(", ")}. Ohne diese Werte kann die
+          anteilige Auszahlung gem. AHP 2.3 Pkt. 2 nicht berechnet werden.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FoerderblockKomplett({ antrag }: { antrag: AntragFull }) {
   const meta = foerderbereichMeta(antrag.foerderbereich);
   return (

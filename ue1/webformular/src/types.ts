@@ -64,7 +64,7 @@ export interface OeffnungszeitEntry {
 }
 
 export interface FormState {
-  step: 1 | 2 | 3 | 4 | 5 | 6;
+  step: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   haushaltsjahr: number;
   name: string;
   traeger: string;
@@ -79,6 +79,18 @@ export interface FormState {
   iban: string;
   bic: string;
   oeffnungszeiten: OeffnungszeitEntry[];
+  // Bemessungsgrundlage gem. AHP 2.3 Förderbereich III, Pkt. 2
+  // (Begegnungszentren). Alle drei Felder beziehen sich auf das Vorjahr —
+  // die Richtlinie sagt für den Stadt-Anteil explizit „Vorjahr"; für
+  // die Gewichtungsgrößen ist es praktisch gleich, weil der Antrag im
+  // ersten Quartal des Förderjahres gestellt wird (AHP 3.3: bis 1. April).
+  // null bedeutet noch nicht eingegeben; 0 ist ein gültiger Wert.
+  anzahl_teilnehmer_vorjahr: number | null;
+  /** Anteil Stadtbewohner:innen an Gesamt-Teilnehmer:innen des Vorjahres,
+   *  Wertebereich 0…1 (UI zeigt 0…100 %). Bestimmt direkt den
+   *  prozentualen Auszahlungsanteil. */
+  stadtbewohner_anteil_vorjahr: number | null;
+  anzahl_veranstaltungen_vorjahr: number | null;
   raeume_vorhanden: "ja" | "nein" | null;
   raeume_unentgeltlich: "ja" | "nein" | null;
   belegpositionen: BelegpositionEntry[];

@@ -8,12 +8,12 @@ function uuid(): string {
   return crypto.randomUUID();
 }
 
-export function renderStep4(stateSig: Signal<FormState>): HTMLElement {
+export function renderStep5(stateSig: Signal<FormState>): HTMLElement {
   const root = document.createElement("fieldset");
-  root.dataset.section = "4";
+  root.dataset.section = "5";
 
   const legend = document.createElement("legend");
-  legend.textContent = t("stepper.4.titel");
+  legend.textContent = t("stepper.5.titel");
   root.appendChild(legend);
 
   // Räume-Frage (zwei Radio-Groups untereinander)

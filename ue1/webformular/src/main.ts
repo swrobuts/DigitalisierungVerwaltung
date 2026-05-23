@@ -5,9 +5,10 @@ import { attachStickyProgress } from "./sticky-progress";
 import { renderStep1 } from "./steps/step1-traeger";
 import { renderStep2 } from "./steps/step2-kontakt-bank";
 import { renderStep3 } from "./steps/step3-wochenplan";
-import { renderStep4 } from "./steps/step4-kosten-belege";
-import { renderStep5 } from "./steps/step5-flyer";
-import { renderStep6 } from "./steps/step6-uebersicht";
+import { renderStep4 } from "./steps/step4-bemessung";
+import { renderStep5 } from "./steps/step5-kosten-belege";
+import { renderStep6 } from "./steps/step6-flyer";
+import { renderStep7 } from "./steps/step7-uebersicht";
 import { submitAntrag } from "./submit";
 import { setSprache, applyTranslations, t } from "./i18n";
 import type { FormState, Sprache } from "./types";
@@ -105,7 +106,8 @@ function renderSections(): void {
   form.appendChild(renderStep3(state));
   form.appendChild(renderStep4(state));
   form.appendChild(renderStep5(state));
-  form.appendChild(renderStep6(state, onSubmit));
+  form.appendChild(renderStep6(state));
+  form.appendChild(renderStep7(state, onSubmit));
 
   root!.appendChild(form);
 }

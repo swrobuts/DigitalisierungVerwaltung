@@ -30,6 +30,9 @@ export function initialState(): FormState {
       oeffnungszeit: "",
       angebot: "",
     })),
+    anzahl_teilnehmer_vorjahr: null,
+    stadtbewohner_anteil_vorjahr: null,
+    anzahl_veranstaltungen_vorjahr: null,
     raeume_vorhanden: null,
     raeume_unentgeltlich: null,
     belegpositionen: [],
@@ -80,6 +83,20 @@ export function isStepComplete(step: number, s: FormState): boolean {
       // Im Long-Form-Layout zählt Step 3 deshalb nicht zur Pflicht-Quote.
       return true;
     case 4: {
+      // Bemessungsgrundlage Vorjahr gem. AHP 2.3 Förderbereich III, Pkt. 2.
+      // Alle drei Felder Pflicht: Stadt-Anteil weil die Auszahlung
+      // anteilig danach erfolgt; Teilnehmer + Veranstaltungen weil die
+      // Richtlinie sie als „Gewichtung der möglichen Zuwendung aus dem
+      // Budget" verlangt — ohne diese Werte kann der Sozialausschuss
+      // keine vergleichende Bewertung vornehmen.
+      if (s.anzahl_teilnehmer_vorjahr === null || s.anzahl_teilnehmer_vorjahr < 0) return false;
+      if (s.stadtbewohner_anteil_vorjahr === null
+          || s.stadtbewohner_anteil_vorjahr < 0
+          || s.stadtbewohner_anteil_vorjahr > 1) return false;
+      if (s.anzahl_veranstaltungen_vorjahr === null || s.anzahl_veranstaltungen_vorjahr < 0) return false;
+      return true;
+    }
+    case 5: {
       if (s.raeume_vorhanden === null || s.raeume_unentgeltlich === null) return false;
       if (s.raeume_unentgeltlich === "ja") return true;
       const mietePos = s.belegpositionen.filter((b) => b.belegtyp === "miete");
@@ -88,7 +105,7 @@ export function isStepComplete(step: number, s: FormState): boolean {
         (p) => p.bezeichnung.trim().length > 0 && p.betrag_euro > 0 && p.file !== null,
       );
     }
-    case 5: {
+    case 6: {
       // Anlage 1 (Wochenplan) ODER Programm-Flyer reicht — beide decken
       // dieselbe Pflicht („Programm der Tagesstätte angeben") ab.
       const hatWochenplan = s.oeffnungszeiten.some(
@@ -96,7 +113,7 @@ export function isStepComplete(step: number, s: FormState): boolean {
       );
       return s.programm_flyer !== null || hatWochenplan;
     }
-    case 6:
+    case 7:
       return s.bestaetigt === true;
     default:
       return false;
@@ -104,7 +121,7 @@ export function isStepComplete(step: number, s: FormState): boolean {
 }
 
 /**
- * Form-Completion-Prüfung. True nur, wenn alle 6 Sections grün sind.
+ * Form-Completion-Prüfung. True nur, wenn alle Pflicht-Sections grün sind.
  * Step 3 (Wochenplan) ist optional und liefert immer true (siehe oben).
  */
 export function isFormComplete(s: FormState): boolean {
@@ -114,6 +131,7 @@ export function isFormComplete(s: FormState): boolean {
     isStepComplete(3, s) &&
     isStepComplete(4, s) &&
     isStepComplete(5, s) &&
-    isStepComplete(6, s)
+    isStepComplete(6, s) &&
+    isStepComplete(7, s)
   );
 }
