@@ -21,12 +21,19 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 
-function totalEuro(a: AntragRow): number {
-  return (
-    Number(a.betriebskosten_vorjahr_euro ?? 0) +
-    Number(a.personalkosten_vorjahr_euro ?? 0) +
-    Number(a.miete_jahr_euro ?? 0)
-  );
+/** Belege Vorjahr = Betriebskosten + Personalkosten. Die DB-Felder
+ * tragen das Suffix `_vorjahr_euro`, weil diese Kostenarten typisch als
+ * Vorjahres-Belege beigebracht werden (Buchhaltungs-Abschluss). */
+function belegeVorjahrEuro(a: AntragRow): number {
+  return Number(a.betriebskosten_vorjahr_euro ?? 0)
+       + Number(a.personalkosten_vorjahr_euro ?? 0);
+}
+
+/** Mietplan Antragsjahr = im Antrag veranschlagte Jahresmiete für das
+ * Förderjahr (Mietvertrag läuft im laufenden Jahr; daher kein `_vorjahr_`
+ * im DB-Feldnamen). */
+function mietplanAntragsjahrEuro(a: AntragRow): number {
+  return Number(a.miete_jahr_euro ?? 0);
 }
 
 /**
@@ -85,7 +92,8 @@ function monthLabel(key: string): string {
 
 type SortKey =
   | "antragsnummer" | "name" | "traeger" | "submitted_at"
-  | "submitted_language" | "status" | "antragssumme" | "gesamt" | "vj" | "diff";
+  | "submitted_language" | "status"
+  | "antragssumme" | "belege_vj" | "mietplan_aj" | "vj" | "diff";
 type SortDir = "asc" | "desc";
 type GroupKey = "none" | "status" | "traeger" | "submitted_language" | "month";
 
@@ -114,25 +122,37 @@ interface SpaltenDef {
  * „Antragssumme (2025)" zeigt statt einmal Wort, einmal Kürzel.
  */
 const COLUMNS: SpaltenDef[] = [
-  { key: "antragsnummer", label: "Antragsnummer", pflicht: true, defaultVisible: true },
+  { key: "antragsnummer", label: "Antrag-Nr.", pflicht: true, defaultVisible: true,
+    tooltip: "Antragsnummer (eindeutige ID)" },
   { key: "name", label: "Name", defaultVisible: true },
   { key: "traeger", label: "Träger", defaultVisible: true },
-  { key: "submitted_at", label: "Eingegangen", defaultVisible: true },
+  { key: "submitted_at", label: "Eingang", defaultVisible: true,
+    tooltip: "Zeitpunkt des Antragseingangs" },
   { key: "submitted_language", label: "Sprache", defaultVisible: false },
   { key: "status", label: "Status", pflicht: true, defaultVisible: true },
+  // Beantragte Summen: die zentrale Vergleichsachse zwischen aktuellem
+  // und Vorjahres-Antrag. Beide Spalten heißen schlicht „Antragssumme YYYY",
+  // damit klar ist, dass es sich um das gleiche Konzept handelt.
   { key: "antragssumme", label: "Antragssumme", align: "right", pflicht: true, defaultVisible: true,
-    tooltip: "Beantragte Fördersumme im aktuellen Haushaltsjahr (geforderte_foerdersumme_euro)" },
-  { key: "gesamt", label: "Aufwand Vorjahr (Eigenangabe)", align: "right", defaultVisible: false,
-    tooltip:
-      "Im Antrag angegebener Aufwand des jeweiligen Vorjahres " +
-      "(Betriebskosten + Personal + Miete). Bewusst ohne konkrete " +
-      "Jahreszahl im Header: Ein Antrag enthält definitionsgemäß " +
-      "nur den Vorjahres-Aufwand — der Aufwand des Förderjahres " +
-      "selbst steht zum Antragszeitpunkt noch nicht fest." },
+    tooltip: "Beantragte Fördersumme im aktuellen Haushaltsjahr" },
   { key: "vj", label: "Antragssumme Vorjahr", align: "right", defaultVisible: true,
-    tooltip: "Was derselbe Träger im Vorjahres-Antrag beantragt hatte (aus DB rekonstruiert)" },
-  { key: "diff", label: "Δ Antragssumme", align: "right", defaultVisible: true,
-    tooltip: "Aktuelle Antragssumme − Vorjahres-Antragssumme" },
+    tooltip: "Beantragte Fördersumme im Vorjahres-Antrag desselben Trägers (aus DB rekonstruiert)" },
+  { key: "diff", label: "Δ", align: "right", defaultVisible: true,
+    tooltip: "Aktuelle Antragssumme minus Vorjahres-Antragssumme" },
+  // Bemessungsgrundlagen aus dem Antrag: zwei separate Spalten, weil im
+  // Datenmodell zwei verschiedene semantische Konzepte stecken.
+  // 'Aufwand' war als Sammelbegriff irreführend (suggerierte einen
+  // homogenen Betrag) und ist daher hier ganz vermieden.
+  { key: "belege_vj", label: "Belege Vorjahr", align: "right", defaultVisible: false,
+    tooltip:
+      "Im Antrag beigebrachte Vorjahres-Belege " +
+      "(Betriebskosten + Personalkosten). Dient als Nachweis der " +
+      "tatsächlichen Einrichtungs­kosten." },
+  { key: "mietplan_aj", label: "Mietplan", align: "right", defaultVisible: false,
+    tooltip:
+      "Im Antrag veranschlagte Jahresmiete für das laufende Förderjahr. " +
+      "Stammt aus dem Mietvertrag, daher nicht aus Vorjahres-Belegen, " +
+      "sondern als laufende Verpflichtung des Antragsjahres geführt." },
 ];
 
 /**
@@ -152,16 +172,20 @@ function spaltenFuerHaushaltsjahr(hj: number | null): SpaltenDef[] {
   return COLUMNS.map((c) => {
     switch (c.key) {
       case "antragssumme":
-        return { ...c, label: `Antragssumme (${hj})` };
+        return { ...c, label: `Antragssumme ${hj}` };
       case "vj":
-        return { ...c, label: `Antragssumme (${vj})` };
-      // 'gesamt' (Aufwand-Eigenangabe) bekommt BEWUSST keine Jahreszahl:
-      // Ein Antrag enthält definitionsgemäß nur die Vorjahres-Aufwand-
-      // Eigenangabe — einen "Aufwand 2026"-Wert gibt es nicht, weil das
-      // Förderjahr zum Antragszeitpunkt noch läuft. Ein Jahres-Suffix
-      // würde fälschlich ein Pendant suggerieren, das nie kommen wird.
+        return { ...c, label: `Antragssumme ${vj}` };
+      case "belege_vj":
+        // Vorjahres-Belege gehören per Konvention dem Vorjahr — daher
+        // hier explizit das VJ-Jahr im Label.
+        return { ...c, label: `Belege ${vj}` };
+      case "mietplan_aj":
+        // Mietplan = laufende Verpflichtung im Antragsjahr (Mietvertrag).
+        // Daher das HJ selbst — das ist die Antwort auf die Frage
+        // „wo ist Aufwand 2026?": Mietplan 2026.
+        return { ...c, label: `Mietplan ${hj}` };
       case "diff":
-        return { ...c, label: `Δ ${hj} − ${vj}` };
+        return { ...c, label: `Δ` };
       default:
         return c;
     }
@@ -209,9 +233,9 @@ function groupLabel(key: GroupKey, val: string): string {
  * null zurück, wenn kein VJ-Antrag existiert.
  *
  * Wichtig: hier wird geforderte_foerdersumme_euro summiert, NICHT
- * totalEuro (= Aufwand-Eigenangabe). Sonst zeigt 'Antrag VJ' den
- * Aufwand der Vorjahres-Anträge statt deren Forderung — irreführend
- * und meist 0 weil die VJ-Anträge oft keine Aufwandsfelder gepflegt
+ * Belege/Mietplan (= Bemessungsgrundlagen). Sonst zeigt die VJ-Spalte
+ * die Belege der Vorjahres-Anträge statt deren Forderung — irreführend
+ * und meist 0, weil die VJ-Anträge oft keine Belege/Mietplan gepflegt
  * haben.
  */
 function buildVjMap(antraege: AntragRow[]): Map<string, number> {
@@ -336,8 +360,12 @@ export function Inbox() {
       const d = (a.geforderte_foerdersumme_euro ?? -Infinity) - (b.geforderte_foerdersumme_euro ?? -Infinity);
       return dir === "asc" ? d : -d;
     }
-    if (key === "gesamt") {
-      const d = totalEuro(a) - totalEuro(b);
+    if (key === "belege_vj") {
+      const d = belegeVorjahrEuro(a) - belegeVorjahrEuro(b);
+      return dir === "asc" ? d : -d;
+    }
+    if (key === "mietplan_aj") {
+      const d = mietplanAntragsjahrEuro(a) - mietplanAntragsjahrEuro(b);
       return dir === "asc" ? d : -d;
     }
     if (key === "vj") {
@@ -346,10 +374,12 @@ export function Inbox() {
       return dir === "asc" ? va - vb : vb - va;
     }
     if (key === "diff") {
+      // Sortiert nach Δ Antragssumme (aktuell vs. VJ-Antrag), nicht nach
+      // Belege/Mietplan — die Spalte zeigt genau diese Differenz.
       const va = vjValue(a, vjMap);
       const vb = vjValue(b, vjMap);
-      const da = va === null ? -Infinity : totalEuro(a) - va;
-      const db = vb === null ? -Infinity : totalEuro(b) - vb;
+      const da = va === null ? -Infinity : (a.geforderte_foerdersumme_euro ?? 0) - va;
+      const db = vb === null ? -Infinity : (b.geforderte_foerdersumme_euro ?? 0) - vb;
       return dir === "asc" ? da - db : db - da;
     }
     if (key === "status") {
@@ -404,7 +434,15 @@ export function Inbox() {
 
   // Render-Liste mit Gruppen-Markern + aggregierter Summe + VJ-Aggregat pro Gruppe
   const rendered: Array<
-    | { kind: "group"; label: string; count: number; antragsSumme: number; summe: number; vjSumme: number | null }
+    | {
+        kind: "group";
+        label: string;
+        count: number;
+        antragsSumme: number;
+        belegeSumme: number;
+        mietplanSumme: number;
+        vjSumme: number | null;
+      }
     | { kind: "row"; antrag: AntragRow }
   > = [];
 
@@ -413,13 +451,15 @@ export function Inbox() {
   } else {
     const counts = new Map<string, number>();
     const antragsSums = new Map<string, number>();
-    const sums = new Map<string, number>();
+    const belegeSums = new Map<string, number>();
+    const mietplanSums = new Map<string, number>();
     const vjSums = new Map<string, number | null>();
     sorted.forEach((a) => {
       const g = groupKeyOf(a);
       counts.set(g, (counts.get(g) ?? 0) + 1);
       antragsSums.set(g, (antragsSums.get(g) ?? 0) + (a.geforderte_foerdersumme_euro ?? 0));
-      sums.set(g, (sums.get(g) ?? 0) + totalEuro(a));
+      belegeSums.set(g, (belegeSums.get(g) ?? 0) + belegeVorjahrEuro(a));
+      mietplanSums.set(g, (mietplanSums.get(g) ?? 0) + mietplanAntragsjahrEuro(a));
       const vj = vjValue(a, vjMap);
       const prev = vjSums.get(g);
       if (vj !== null) {
@@ -437,7 +477,8 @@ export function Inbox() {
           label: groupLabel(groupBy, g),
           count: counts.get(g) ?? 0,
           antragsSumme: antragsSums.get(g) ?? 0,
-          summe: sums.get(g) ?? 0,
+          belegeSumme: belegeSums.get(g) ?? 0,
+          mietplanSumme: mietplanSums.get(g) ?? 0,
           vjSumme: vjSums.get(g) ?? null,
         });
         currentGroup = g;
@@ -449,7 +490,8 @@ export function Inbox() {
   const gesamtAntragsSumme = filtered.reduce(
     (s, a) => s + (a.geforderte_foerdersumme_euro ?? 0), 0,
   );
-  const gesamtSumme = filtered.reduce((s, a) => s + totalEuro(a), 0);
+  const gesamtBelege = filtered.reduce((s, a) => s + belegeVorjahrEuro(a), 0);
+  const gesamtMietplan = filtered.reduce((s, a) => s + mietplanAntragsjahrEuro(a), 0);
   const gesamtVj = filtered.reduce<{ sum: number; hasAny: boolean }>(
     (acc, a) => {
       const v = vjValue(a, vjMap);
@@ -458,8 +500,8 @@ export function Inbox() {
     },
     { sum: 0, hasAny: false },
   );
-  // Footer-Δ vergleicht aktuelle GeforderteSummen vs. VJ-Antragssummen
-  // (nicht Aufwand vs. Antrag — das wäre Äpfel/Birnen)
+  // Footer-Δ vergleicht aktuelle Antragssummen vs. VJ-Antragssummen
+  // (Forderung gegen Forderung, nicht Belege/Mietplan dagegen)
   const gesamtDiff = formatDiff(gesamtAntragsSumme, gesamtVj.hasAny ? gesamtVj.sum : null);
 
   const toneClass = (tone: "up" | "down" | "neutral") =>
@@ -470,7 +512,7 @@ export function Inbox() {
   // hier kommt der Group-/Footer-Header rein. Antragssumme + die VJ-Spalten
   // bekommen jeweils eigene Zellen mit Aggregaten.
   const IDENT_KEYS: SortKey[] = ["antragsnummer", "name", "traeger", "submitted_at", "submitted_language", "status"];
-  const aggregatKeys: SortKey[] = ["antragssumme", "gesamt", "vj", "diff"];
+  const aggregatKeys: SortKey[] = ["antragssumme", "vj", "diff", "belege_vj", "mietplan_aj"];
   const sichtbareIdentSpalten = IDENT_KEYS.filter(istSichtbar);
   const sichtbareAggregatSpalten = aggregatKeys.filter(istSichtbar);
   const COL_COUNT_BEFORE_GESAMT = sichtbareIdentSpalten.length;
@@ -688,11 +730,6 @@ export function Inbox() {
                           {formatEuro(item.antragsSumme)}
                         </TableCell>
                       )}
-                      {istSichtbar("gesamt") && (
-                        <TableCell className="text-right tabular-nums text-sm text-slate-600 py-3 whitespace-nowrap">
-                          {formatEuro(item.summe)}
-                        </TableCell>
-                      )}
                       {istSichtbar("vj") && (
                         <TableCell className="text-right tabular-nums text-sm text-slate-500 py-3 whitespace-nowrap">
                           {item.vjSumme === null ? "—" : formatEuro(item.vjSumme)}
@@ -700,10 +737,20 @@ export function Inbox() {
                       )}
                       {istSichtbar("diff") && (
                         <TableCell className="text-right tabular-nums text-sm py-3 whitespace-nowrap">
-                          {/* Δ Antrag: aktuelle Forderung vs. VJ-Forderung (nicht Aufwand) */}
+                          {/* Δ: aktuelle Antragssumme vs. VJ-Antragssumme */}
                           <span className={toneClass(formatDiff(item.antragsSumme, item.vjSumme).tone)}>
                             {formatDiff(item.antragsSumme, item.vjSumme).text}
                           </span>
+                        </TableCell>
+                      )}
+                      {istSichtbar("belege_vj") && (
+                        <TableCell className="text-right tabular-nums text-sm text-slate-600 py-3 whitespace-nowrap">
+                          {formatEuro(item.belegeSumme)}
+                        </TableCell>
+                      )}
+                      {istSichtbar("mietplan_aj") && (
+                        <TableCell className="text-right tabular-nums text-sm text-slate-600 py-3 whitespace-nowrap">
+                          {formatEuro(item.mietplanSumme)}
                         </TableCell>
                       )}
                       <TableCell></TableCell>
@@ -750,9 +797,6 @@ export function Inbox() {
                                 : <span className="text-slate-400">—</span>}
                             </TableCell>
                           )}
-                          {istSichtbar("gesamt") && (
-                            <TableCell className="text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">{formatEuro(totalEuro(item.antrag))}</TableCell>
-                          )}
                           {istSichtbar("vj") && (
                             <TableCell className="text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
                               {vj === null ? "—" : formatEuro(vj)}
@@ -761,6 +805,16 @@ export function Inbox() {
                           {istSichtbar("diff") && (
                             <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
                               <span className={toneClass(diff.tone)}>{diff.text}</span>
+                            </TableCell>
+                          )}
+                          {istSichtbar("belege_vj") && (
+                            <TableCell className="text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
+                              {formatEuro(belegeVorjahrEuro(item.antrag))}
+                            </TableCell>
+                          )}
+                          {istSichtbar("mietplan_aj") && (
+                            <TableCell className="text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
+                              {formatEuro(mietplanAntragsjahrEuro(item.antrag))}
                             </TableCell>
                           )}
                           <TableCell className="whitespace-nowrap pr-4">
@@ -801,11 +855,6 @@ export function Inbox() {
                         {formatEuro(gesamtAntragsSumme)}
                       </TableCell>
                     )}
-                    {istSichtbar("gesamt") && (
-                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
-                        {formatEuro(gesamtSumme)}
-                      </TableCell>
-                    )}
                     {istSichtbar("vj") && (
                       <TableCell className="py-4 text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
                         {gesamtVj.hasAny ? formatEuro(gesamtVj.sum) : "—"}
@@ -814,6 +863,16 @@ export function Inbox() {
                     {istSichtbar("diff") && (
                       <TableCell className="py-4 text-right tabular-nums text-sm whitespace-nowrap">
                         <span className={toneClass(gesamtDiff.tone)}>{gesamtDiff.text}</span>
+                      </TableCell>
+                    )}
+                    {istSichtbar("belege_vj") && (
+                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
+                        {formatEuro(gesamtBelege)}
+                      </TableCell>
+                    )}
+                    {istSichtbar("mietplan_aj") && (
+                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
+                        {formatEuro(gesamtMietplan)}
                       </TableCell>
                     )}
                     <TableCell></TableCell>
