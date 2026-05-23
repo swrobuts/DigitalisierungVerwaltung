@@ -11,12 +11,21 @@ export interface AntragRow {
   submitted_at: string;
   status: Status;
   submitted_language: string;
-  betriebskosten_vorjahr_euro: number;
-  personalkosten_vorjahr_euro: number;
-  miete_jahr_euro: number;
-  /** Beantragter Zuschuss (kann von Vorjahres-Aufwand abweichen). NULL =
-   * noch nicht beziffert. */
+  /** Beantragter Zuschuss. Wird gegen die AHP-Förderhöchstgrenze
+   *  (2.3.2 Begegnungszentren: 10.000 €/Jahr) geprüft. NULL = noch
+   *  nicht beziffert. */
   geforderte_foerdersumme_euro: number | null;
+  /** Bemessungsgrößen gem. AHP 2.3 Förderbereich III, Pkt. 2
+   * (Begegnungszentren). Die Förderung ist Pauschalzuschuss bis 10.000 €,
+   * gewichtet nach Teilnehmer:innen-Anteil und Veranstaltungs-Aktivität;
+   * Personal-/Miet-/Betriebskosten sind hier KEINE Bemessungsgrundlage
+   * (3.8: „Belege sind nur auf Anfrage einzureichen"). Die Inbox zeigt
+   * deshalb diese drei Felder statt der Aufwand-Eigenangaben. */
+  anzahl_teilnehmer: number | null;
+  /** Anteil Stadtbewohner:innen an Gesamt-Teilnehmer:innen des Vorjahres
+   *  (0…1). Bestimmt den prozentualen Auszahlungsanteil. */
+  stadtbewohner_anteil: number | null;
+  anzahl_treffen_jahr: number | null;
 }
 
 export function useAntraege(): {
@@ -34,7 +43,7 @@ export function useAntraege(): {
       const { data, error } = await supabase
         .from("antrag_mit_summen")
         .select(
-          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, betriebskosten_vorjahr_euro, personalkosten_vorjahr_euro, miete_jahr_euro, geforderte_foerdersumme_euro",
+          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, geforderte_foerdersumme_euro, anzahl_teilnehmer, stadtbewohner_anteil, anzahl_treffen_jahr",
         )
         .order("submitted_at", { ascending: false });
       if (!mounted) return;
