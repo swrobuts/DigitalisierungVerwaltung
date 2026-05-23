@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { BookOpen, FileSearch, Network, Settings, Shield } from "lucide-react";
+import { BookOpen, FileSearch, Lock, Network, Settings, Shield } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
 import { useMeineZweitpruefungen } from "../hooks/useMeineZweitpruefungen";
 import { useUserRole } from "../hooks/useUserRole";
@@ -830,10 +830,19 @@ export function Inbox() {
 
 /**
  * Zahnrad-Popover zur Sichtbarkeits-Steuerung der Tabellenspalten.
- * - Pflicht-Spalten (Antragsnummer, Status, Antragssumme) sind disabled,
- *   sie identifizieren den Antrag und dürfen nicht weg.
- * - Sichtbarkeit wird in localStorage persistiert (via onToggle im Parent).
- * - Click-outside schließt das Popover; Escape ebenfalls.
+ *
+ * Aufbau in zwei klar getrennten Sektionen statt einer langen Liste:
+ *
+ * - „Immer sichtbar" — Pflicht-Spalten (Antragsnummer, Status,
+ *   Antragssumme aktuelles HJ). Als nicht-interaktive Chips mit
+ *   Lock-Icon dargestellt; KEINE disabled-Checkbox, weil die im
+ *   Browser-Default je nach OS so blass rendert, dass sie nach
+ *   „ausgeblendet" aussieht (genau die Verwirrung wollen wir
+ *   vermeiden).
+ * - „Optional" — toggle-bare Spalten mit normaler Checkbox.
+ *
+ * Sichtbarkeit wird in localStorage persistiert (via onToggle im
+ * Parent). Click-outside und Escape schließen das Popover.
  */
 function SpaltenKonfig({
   spalten,
@@ -845,7 +854,9 @@ function SpaltenKonfig({
   onToggle: (key: SortKey) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const versteckteAnzahl = hidden.size;
+  const pflichtSpalten = spalten.filter((c) => c.pflicht);
+  const optionaleSpalten = spalten.filter((c) => !c.pflicht);
+  const versteckteAnzahl = optionaleSpalten.filter((c) => hidden.has(c.key)).length;
 
   // Click-outside + Escape
   const ref = useRef<HTMLDivElement | null>(null);
@@ -882,46 +893,56 @@ function SpaltenKonfig({
         <Settings className="h-3.5 w-3.5" />
         Spalten
         {versteckteAnzahl > 0 && (
-          <span className="ml-0.5 inline-flex items-center justify-center min-w-[1rem] h-4 px-1 rounded-full bg-amber-200 text-amber-900 text-[10px] font-semibold tabular-nums">
-            −{versteckteAnzahl}
+          <span
+            className="ml-0.5 inline-flex items-center gap-0.5 h-4 px-1.5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-semibold tabular-nums"
+            title={`${versteckteAnzahl} optionale Spalte${versteckteAnzahl === 1 ? "" : "n"} aktuell ausgeblendet`}
+          >
+            {versteckteAnzahl} aus
           </span>
         )}
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-64 bg-white border border-slate-200 rounded shadow-lg p-2">
-          <div className="text-[11px] uppercase tracking-wide text-slate-500 px-2 pt-1 pb-2 border-b border-slate-100 mb-1">
-            Sichtbare Spalten
+        <div className="absolute right-0 top-full mt-1 z-20 w-72 bg-white border border-slate-200 rounded shadow-lg p-2">
+          {/* Sektion 1: Pflicht-Spalten — nicht-interaktiv, mit Lock */}
+          {pflichtSpalten.length > 0 && (
+            <>
+              <div className="text-[11px] uppercase tracking-wide text-slate-500 px-2 pt-1 pb-1.5">
+                Immer sichtbar
+              </div>
+              <div className="px-2 pb-2 flex flex-wrap gap-1.5 border-b border-slate-100 mb-2">
+                {pflichtSpalten.map((col) => (
+                  <span
+                    key={col.key}
+                    title="Diese Spalte ist Pflicht und kann nicht ausgeblendet werden — sie identifiziert den Antrag eindeutig."
+                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs"
+                  >
+                    <Lock className="h-3 w-3 text-slate-500" aria-hidden="true" />
+                    {col.label}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Sektion 2: Optionale Spalten — toggle-bar */}
+          <div className="text-[11px] uppercase tracking-wide text-slate-500 px-2 pt-1 pb-1.5">
+            Optional ({optionaleSpalten.length - versteckteAnzahl} von {optionaleSpalten.length} sichtbar)
           </div>
-          {spalten.map((col) => {
+          {optionaleSpalten.map((col) => {
             const sichtbar = !hidden.has(col.key);
-            const disabled = !!col.pflicht;
             return (
               <label
                 key={col.key}
-                className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm ${
-                  disabled
-                    ? "text-slate-400 cursor-not-allowed"
-                    : "text-slate-700 hover:bg-slate-50 cursor-pointer"
-                }`}
-                title={
-                  disabled
-                    ? "Pflicht-Spalte — kann nicht ausgeblendet werden"
-                    : col.tooltip
-                }
+                className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
+                title={col.tooltip}
               >
                 <input
                   type="checkbox"
                   checked={sichtbar}
-                  disabled={disabled}
                   onChange={() => onToggle(col.key)}
                   className="accent-blue-700"
                 />
                 <span className="flex-1">{col.label}</span>
-                {disabled && (
-                  <span className="text-[10px] uppercase tracking-wide text-slate-400">
-                    Pflicht
-                  </span>
-                )}
               </label>
             );
           })}
