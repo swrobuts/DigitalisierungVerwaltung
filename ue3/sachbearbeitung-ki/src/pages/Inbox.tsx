@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { BookOpen, FileSearch, Network } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
+import { useMeineZweitpruefungen } from "../hooks/useMeineZweitpruefungen";
 import { useUserRole } from "../hooks/useUserRole";
 import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
@@ -153,6 +154,7 @@ function formatDiff(current: number, vj: number | null): { text: string; tone: "
 
 export function Inbox() {
   const { antraege, loading, error } = useAntraege();
+  const { eintraege: meineZweitpruefungen } = useMeineZweitpruefungen();
   const { rolle } = useUserRole();
   const { session } = useSession();
   const userEmail = session?.user?.email ?? "";
@@ -417,6 +419,34 @@ export function Inbox() {
       </header>
 
       <main className="w-full px-4 lg:px-8 py-6">
+        {meineZweitpruefungen.length > 0 && (
+          <div className="bg-amber-50 border border-amber-300 rounded p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl" aria-hidden="true">👁️</span>
+              <div className="flex-1">
+                <h2 className="font-semibold text-amber-900 text-sm">
+                  Du bist als Zweitprüfer:in zugewiesen ({meineZweitpruefungen.length})
+                </h2>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  Folgende Anträge warten auf deine Zweitprüfung — bitte zeitnah bearbeiten.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {meineZweitpruefungen.map((z) => (
+                    <Link
+                      key={z.pruefung_id}
+                      to={`/antrag/${z.antrag_id}`}
+                      className="inline-flex items-center gap-1.5 text-xs bg-white border border-amber-300 hover:border-amber-500 text-amber-900 rounded px-2 py-1 transition-colors"
+                    >
+                      <span className="font-mono">{z.antragsnummer}</span>
+                      <span className="text-amber-700">·</span>
+                      <span>{z.traeger}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="bg-white border border-slate-200 rounded p-4 mb-4">
           <div className="flex flex-wrap items-center gap-3">
             <Input

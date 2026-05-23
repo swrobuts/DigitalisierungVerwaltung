@@ -9,11 +9,12 @@
  *  5. Dissens               → Befunde mit Widerspruch sind gelb umrandet
  */
 import { useEffect, useState } from "react";
-import { CheckCircle2, AlertTriangle, XCircle, HelpCircle, RotateCcw, Sparkles, User } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Clock, XCircle, HelpCircle, RotateCcw, Sparkles, User, UserPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { useSession } from "../hooks/useSession";
+import { useBekannteBearbeiter } from "../hooks/useBekannteBearbeiter";
 import {
   usePruefungen,
   type AbhakungenJsonb,
@@ -82,11 +83,11 @@ export function ZweitpruefungsCard({
             email={email}
             kiRunning={kiZweitpruefungRunning}
             onStartKi={triggerKiZweitpruefung}
-            onStartMensch={() =>
+            onStartMensch={(pruefer_email) =>
               upsert({
                 rolle: "zweitpruefung",
                 pruefer_typ: "mensch",
-                pruefer_id: email ?? "anonym",
+                pruefer_id: pruefer_email,
                 pruefprotokoll_id: letzteErstpruefung?.id,
               })
             }
@@ -117,11 +118,11 @@ export function ZweitpruefungsCard({
             email={email}
             kiRunning={kiZweitpruefungRunning}
             onStartKi={triggerKiZweitpruefung}
-            onStartMensch={() =>
+            onStartMensch={(pruefer_email) =>
               upsert({
                 rolle: "zweitpruefung",
                 pruefer_typ: "mensch",
-                pruefer_id: email ?? "anonym",
+                pruefer_id: pruefer_email,
                 pruefprotokoll_id: letzteErstpruefung?.id,
               })
             }
@@ -132,11 +133,21 @@ export function ZweitpruefungsCard({
     );
   }
 
+  // Read-only Mode für alle, die nicht die zugewiesene Person sind.
+  // Beispiel: Erstprüfer:in A hat B als Zweitprüfer:in zugewiesen — A
+  // sieht jetzt nur "Wartet auf B", kann nicht bewerten.
+  const istZugewiesenAnAndere =
+    zweitpruefung.pruefer_typ === "mensch"
+    && !zweitpruefung.abgeschlossen_am
+    && email !== null
+    && email !== zweitpruefung.pruefer_id;
+
   return (
     <ZweitpruefungsBody
       zweitpruefung={zweitpruefung}
       letzteErstpruefung={letzteErstpruefung}
       error={error}
+      istReadOnlyForCurrentUser={istZugewiesenAnAndere}
       onSave={(patch) => upsert({ id: zweitpruefung.id, rolle: "zweitpruefung",
         pruefer_typ: zweitpruefung.pruefer_typ, pruefer_id: zweitpruefung.pruefer_id,
         pruefer_modus: zweitpruefung.pruefer_modus,
@@ -166,34 +177,157 @@ function ZweitpruefungsStart({
   email: string | null;
   kiRunning: boolean;
   onStartKi: () => Promise<unknown>;
-  onStartMensch: () => Promise<unknown>;
+  /** Wenn pruefer-email != aktueller User: zugewiesen (wartet auf jemand
+   *  anderen). Wenn email == current_user: Selbst-Zweitprüfung. */
+  onStartMensch: (pruefer_email: string) => Promise<unknown>;
 }) {
+  const [mode, setMode] = useState<"select" | "ich" | "andere" | "ki">("select");
+  const [zugewieseneEmail, setZugewieseneEmail] = useState("");
+  const { emails: bekannteEmails } = useBekannteBearbeiter();
+
+  // Vorschläge sind alle bekannten Bearbeiter:innen außer der/dem
+  // aktuell eingeloggten (man weist nicht sich selbst zu)
+  const vorschlaege = bekannteEmails.filter((e) => e !== email);
+
+  if (mode === "select") {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-slate-700">Wer soll als Zweitprüfer:in agieren?</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <Button
+            variant="outline"
+            onClick={() => email && setMode("ich")}
+            disabled={!email}
+            className="justify-start gap-2 text-left"
+            title="Du prüfst selbst — sinnvoll nur, wenn du nicht der Erstprüfer warst"
+          >
+            <User className="h-4 w-4 shrink-0" />
+            <span className="truncate">Ich selbst</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setMode("andere")}
+            className="justify-start gap-2 text-left"
+            title="Andere Person zuweisen — klassisches Vier-Augen-Prinzip"
+          >
+            <UserPlus className="h-4 w-4 shrink-0" />
+            <span className="truncate">Andere Person</span>
+          </Button>
+          <Button
+            onClick={() => setMode("ki")}
+            className="justify-start gap-2 text-left"
+            title="KI prüft adversariell — sucht aktiv nach Schwächen"
+          >
+            <Sparkles className="h-4 w-4 shrink-0" />
+            <span className="truncate">KI adversariell</span>
+          </Button>
+        </div>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          <strong>Vier-Augen-Prinzip</strong>: idealerweise eine andere
+          Person als die/der Erstprüfer:in. KI-Variante ergänzt oder
+          ersetzt die Mensch-Prüfung, ist aber methodisch nicht das
+          klassische Vier-Augen.
+        </p>
+      </div>
+    );
+  }
+
+  if (mode === "ich") {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-slate-700">
+          Selbst-Zweitprüfung als <strong>{email}</strong> starten?
+        </p>
+        <div className="flex gap-2">
+          <Button onClick={() => email && onStartMensch(email)} size="sm">
+            Starten
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setMode("select")}>
+            Zurück
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "andere") {
+    const istValide = zugewieseneEmail.includes("@") && zugewieseneEmail !== email;
+    return (
+      <div className="space-y-2">
+        <label className="text-sm text-slate-700 font-medium block">
+          Email-Adresse der Zweitprüfer:in
+        </label>
+        <input
+          type="email"
+          list="bekannte-bearbeiter"
+          value={zugewieseneEmail}
+          onChange={(e) => setZugewieseneEmail(e.target.value)}
+          placeholder="vorname.nachname@stadt.wuerzburg.de"
+          className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:border-wue-rot"
+        />
+        <datalist id="bekannte-bearbeiter">
+          {vorschlaege.map((e) => (
+            <option key={e} value={e} />
+          ))}
+        </datalist>
+        {vorschlaege.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 mr-1 mt-1">
+              Vorschläge:
+            </span>
+            {vorschlaege.slice(0, 5).map((e) => (
+              <button
+                key={e}
+                type="button"
+                onClick={() => setZugewieseneEmail(e)}
+                className="text-[11px] border border-slate-200 rounded px-1.5 py-0.5 hover:bg-slate-50"
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
+        {zugewieseneEmail === email && (
+          <p className="text-xs text-amber-700">
+            Du kannst dich nicht selbst zuweisen — wähle „Ich selbst" wenn das gewollt ist.
+          </p>
+        )}
+        <div className="flex gap-2 pt-1">
+          <Button
+            size="sm"
+            disabled={!istValide}
+            onClick={() => onStartMensch(zugewieseneEmail)}
+            title={istValide ? "" : "Bitte gültige Email tippen oder vorschlagen"}
+          >
+            Zuweisen
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setMode("select")}>
+            Zurück
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ki
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm text-slate-700">Wer soll als Zweitprüfer agieren?</p>
-      <div className="grid grid-cols-2 gap-2">
-        <Button
-          variant="outline"
-          onClick={onStartMensch}
-          disabled={!email}
-          className="justify-start gap-2"
-        >
-          <User className="h-4 w-4" />
-          Ich ({email ?? "nicht eingeloggt"})
+    <div className="space-y-2">
+      <p className="text-sm text-slate-700">
+        Adversarielle KI-Zweitprüfung starten?
+      </p>
+      <p className="text-xs text-slate-600 leading-relaxed">
+        Die Zweit-KI sucht aktiv nach Schwächen der Erstprüfung,
+        bestätigt oder widerspricht den einzelnen Befunden und liefert
+        einen eigenen Vorschlag. Dauer ca. 30-60s.
+      </p>
+      <div className="flex gap-2">
+        <Button onClick={onStartKi} disabled={kiRunning} size="sm">
+          {kiRunning ? "KI prüft …" : "KI-Lauf starten"}
         </Button>
-        <Button
-          onClick={onStartKi}
-          disabled={kiRunning}
-          className="justify-start gap-2"
-        >
-          <Sparkles className="h-4 w-4" />
-          {kiRunning ? "KI prüft …" : "KI adversariell"}
+        <Button variant="outline" size="sm" onClick={() => setMode("select")} disabled={kiRunning}>
+          Zurück
         </Button>
       </div>
-      <p className="text-xs text-slate-500 leading-relaxed">
-        Adversariell heißt: die Zweit-KI sucht aktiv nach Schwächen der
-        Erstprüfung — bestätigt, widerspricht und ergänzt deren Befunde.
-      </p>
     </div>
   );
 }
@@ -202,12 +336,17 @@ function ZweitpruefungsBody({
   zweitpruefung,
   letzteErstpruefung,
   error,
+  istReadOnlyForCurrentUser,
   onSave,
   onReset,
 }: {
   zweitpruefung: PruefungRow;
   letzteErstpruefung: PruefProtokoll | null;
   error: string | null;
+  /** True wenn die Zweitprüfung an jemand anderen zugewiesen ist und der
+   *  aktuelle User nur als Beobachter zusieht (z.B. Erstprüfer:in nach
+   *  Zuweisung). UI ist dann read-only, Reset bleibt möglich. */
+  istReadOnlyForCurrentUser: boolean;
   onSave: (patch: Partial<{
     abhakungen_jsonb: AbhakungenJsonb;
     gesamt_kommentar: string;
@@ -218,6 +357,9 @@ function ZweitpruefungsBody({
 }) {
   const istAbgeschlossen = !!zweitpruefung.abgeschlossen_am;
   const istKi = zweitpruefung.pruefer_typ === "ki";
+  // 'disabled' für Edit-Felder: abgeschlossen ODER ich bin nicht die
+  // zugewiesene Person
+  const editDisabled = istAbgeschlossen || istReadOnlyForCurrentUser;
   const erstBefunde: PruefBefund[] =
     letzteErstpruefung?.ergebnis_jsonb?.befunde ?? [];
   const dissens: DissensEintrag[] = zweitpruefung.abhakungen_jsonb?.dissens ?? [];
@@ -331,6 +473,19 @@ function ZweitpruefungsBody({
             <strong>Fehler:</strong> {error}
           </div>
         )}
+        {istReadOnlyForCurrentUser && !istAbgeschlossen && (
+          <div className="text-xs bg-sky-50 border border-sky-300 text-sky-900 px-3 py-2 rounded flex items-start gap-2">
+            <Clock className="h-4 w-4 shrink-0 mt-0.5" />
+            <div>
+              <strong>Wartet auf Zweitprüfung von {zweitpruefung.pruefer_id}.</strong>
+              <p className="mt-0.5 text-sky-800">
+                Du siehst die Card als Beobachter:in. Bewertung und Abschluss
+                bleiben der zugewiesenen Person vorbehalten. Falls die Zuweisung
+                falsch war, kannst du sie über „Zurücksetzen" oben rechts auflösen.
+              </p>
+            </div>
+          </div>
+        )}
         {istAbgeschlossen && (
           <div className="text-xs bg-emerald-50 border border-emerald-200 px-2 py-1 rounded">
             Abgeschlossen am {new Date(zweitpruefung.abgeschlossen_am!).toLocaleString("de-DE")} ·
@@ -364,7 +519,7 @@ function ZweitpruefungsBody({
                     befund={b}
                     check={befundChecks[String(idx)]}
                     dissens={dissensEintrag}
-                    disabled={istAbgeschlossen}
+                    disabled={editDisabled}
                     onStatus={(s) => setBefundStatus(idx, s)}
                     onKommentar={(k) => setBefundKommentar(idx, k)}
                   />
@@ -407,7 +562,7 @@ function ZweitpruefungsBody({
                 key={a.key}
                 label={a.label}
                 check={abschnittChecks[a.key]}
-                disabled={istAbgeschlossen}
+                disabled={editDisabled}
                 onStatus={(s) => setAbschnitt(a.key, s)}
                 onKommentar={(k) => setAbschnittKommentar(a.key, k)}
               />
@@ -423,7 +578,7 @@ function ZweitpruefungsBody({
           <Textarea
             value={kommentar}
             onChange={(e) => setKommentar(e.target.value)}
-            disabled={istAbgeschlossen}
+            disabled={editDisabled}
             rows={3}
             placeholder="Zusammenfassende Einschätzung …"
           />
@@ -440,8 +595,8 @@ function ZweitpruefungsBody({
                 key={v}
                 size="sm"
                 variant={vorschlag === v ? "default" : "outline"}
-                onClick={() => !istAbgeschlossen && setVorschlag(v)}
-                disabled={istAbgeschlossen}
+                onClick={() => !editDisabled && setVorschlag(v)}
+                disabled={editDisabled}
                 className="text-xs"
               >
                 {VORSCHLAG_LABELS[v]}
@@ -451,7 +606,7 @@ function ZweitpruefungsBody({
         </section>
 
         {/* Action-Buttons */}
-        {!istAbgeschlossen && (
+        {!istAbgeschlossen && !istReadOnlyForCurrentUser && (
           <div className="flex gap-2 pt-2 border-t">
             <Button
               variant="outline"
