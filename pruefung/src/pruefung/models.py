@@ -45,7 +45,7 @@ class PruefungsErgebnis(BaseModel):
         - alle Verstöße formal heilbar (IBAN/PLZ/E-Mail/fehlende Pflichtfelder)
           → RÜCKFRAGE (Träger kann nachbessern)
         - mindestens ein materiell nicht-heilbarer Verstoß (verpasste Frist,
-          Sitz nicht Würzburg, Cap-Überschreitung) → ABLEHNEN
+          Sitz nicht Würzburg, Förderhöchstgrenze überschritten) → ABLEHNEN
         """
         verstoesse = [b for b in self.befunde if b.schwere == "verstoss"]
         if not verstoesse:
@@ -68,7 +68,8 @@ class PruefungsErgebnis(BaseModel):
                 begruendung=(
                     f"{len(nicht_heilbar)} nicht heilbare:r Verstoß/Verstöße — "
                     "Rückfrage würde am Sachverhalt nichts ändern (verpasste "
-                    "Frist, Träger-Sitz oder Cap-Überschreitung)."
+                    "Frist, Träger-Sitz oder Überschreitung der "
+                    "Förderhöchstgrenze)."
                 ),
                 heilbare_verstoesse=heilbar,
                 nicht_heilbare_verstoesse=nicht_heilbar,
@@ -100,8 +101,8 @@ class Empfehlung(BaseModel):
 _NICHT_HEILBARE_MARKER = (
     "verfristet",                       # AHP 3.3 — Frist verpasst, nicht reparabel
     "sitz liegt nicht in der stadt",    # AHP 3.1 — Träger-Sitz, struktureller Mangel
-    "ahp-obergrenze",                   # Cap-Überschreitung in absoluter Höhe
-    "anteilig berechnete höchstauszahlung",  # Cap × Anteil überschritten
+    "ahp-obergrenze",                   # Förderhöchstgrenze in absoluter Höhe überschritten
+    "anteilig berechnete höchstauszahlung",  # Förderhöchstgrenze × Stadtbewohner-Anteil überschritten
     "förderbereich i ist auf maximal 3 jahre",  # AHP 2.1 — Befristung
     "ist erst ab haushaltsjahr 2025",   # AHP 2.3.5 — Förderlinie noch nicht offen
     "passt nicht zur ahp-staffelung",   # Treffenstaffel passt nicht

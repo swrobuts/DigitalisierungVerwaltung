@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 export type StatementType =
-  | "cap"
+  | "hoechstgrenze"  // Förderhöchstgrenze (AHP-Begriff)
   | "frist"
   | "verbot"
   | "verpflichtung"

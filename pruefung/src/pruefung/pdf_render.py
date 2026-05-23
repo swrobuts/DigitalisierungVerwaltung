@@ -493,7 +493,7 @@ def render_bescheid_docx(
                    "Validität (IBAN-Prüfziffer nach ISO 13616, Postleitzahl-"
                    "Format, E-Mail-Format, Plausibilität Haushaltsjahr)."),
             ("2.", "Inhaltliche Konformitätsprüfung (Ontologie) — Abgleich aller "
-                   "AHP-belegten Cap-Regeln, Fristen, Anteilskalkulationen und "
+                   "AHP-belegten Förderhöchstgrenzen, Fristen, Anteilskalkulationen und "
                    "Pflichtangaben gegen die Antragswerte."),
             ("3.", "Wortlaut-basierte AHP-Prüfung — KI-gestützter Abgleich gegen "
                    "den Volltext der AHP-Richtlinie (Doctree-Navigation + "

@@ -24,7 +24,7 @@ const TYPE_META: Record<
   StatementType,
   { label: string; emoji: string; color: string }
 > = {
-  cap:           { label: "Geld-Obergrenze",  emoji: "€",  color: "bg-amber-50 text-amber-900 border-amber-200" },
+  hoechstgrenze: { label: "Förderhöchstgrenze", emoji: "€",  color: "bg-amber-50 text-amber-900 border-amber-200" },
   frist:         { label: "Frist",            emoji: "⏱", color: "bg-blue-50 text-blue-900 border-blue-200" },
   verbot:        { label: "Verbot",           emoji: "✖", color: "bg-rose-50 text-rose-900 border-rose-200" },
   verpflichtung: { label: "Verpflichtung",    emoji: "→", color: "bg-slate-50 text-slate-900 border-slate-200" },

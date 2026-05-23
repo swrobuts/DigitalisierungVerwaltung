@@ -42,7 +42,7 @@ _FOERDERBEREICH_LABEL = {
     "struktur_schwerpunktfoerderung":    "Struktur- und Schwerpunktförderung (Förderbereich IV)",
 }
 
-_FOERDERBEREICH_CAP = {
+_FOERDERBEREICH_HOECHSTGRENZE = {
     "aufbau_niedrigschwellige_angebote": 3000,
     "buergerschaftliches_engagement":    5500,
     "mehrgenerationenhaeuser":          10000,
@@ -74,7 +74,7 @@ def build_subsumtion(
     haushaltsjahr = antrag.get("haushaltsjahr", "—")
     fb = antrag.get("foerderbereich")
     fb_label = _FOERDERBEREICH_LABEL.get(fb or "", fb or "—")
-    cap = _FOERDERBEREICH_CAP.get(fb) if fb else None
+    hoechstgrenze = _FOERDERBEREICH_HOECHSTGRENZE.get(fb) if fb else None
     forderung = antrag.get("geforderte_foerdersumme_euro")
     anteil = antrag.get("stadtbewohner_anteil")
     treffen = antrag.get("anzahl_treffen_jahr")
@@ -143,9 +143,13 @@ def build_subsumtion(
             ),
         }
 
-    # Layer B — Förderhöchstgrenze (alle Cap-Regeln)
+    # Layer B — Förderhöchstgrenze überschritten
     if "übersteigt" in bes and "ahp-obergrenze" in bes:
-        diff = (float(forderung) - cap) if (forderung is not None and cap is not None) else None
+        diff = (
+            (float(forderung) - hoechstgrenze)
+            if (forderung is not None and hoechstgrenze is not None)
+            else None
+        )
         return {
             "sachverhalt": (
                 f"Sie beantragen einen Zuschuss in Höhe von {euro(forderung)} "
@@ -153,17 +157,20 @@ def build_subsumtion(
             ),
             "wuerdigung": (
                 f"Die AHP-Förderrichtlinie setzt für diesen Förderbereich eine "
-                f"pauschale Höchstgrenze von {euro(cap)} pro Jahr fest. "
-                f"Ihre Forderung übersteigt diesen Wert"
+                f"pauschale Förderhöchstgrenze von {euro(hoechstgrenze)} pro "
+                f"Jahr fest. Ihre Forderung übersteigt diesen Wert"
                 + (f" um {euro(diff)}." if diff is not None else ".")
                 + " Eine Bewilligung in voller Höhe ist nicht möglich."
             ),
         }
 
-    # Layer B — Auszahlung anteilig (Cap × Stadtbewohner-Anteil)
+    # Layer B — anteilige Auszahlung (Förderhöchstgrenze × Stadtbewohner-Anteil)
     if "anteilig berechnete höchstauszahlung" in bes:
         try:
-            max_a = (cap or 0) * float(anteil) if anteil is not None else None
+            max_a = (
+                (hoechstgrenze or 0) * float(anteil)
+                if anteil is not None else None
+            )
         except (ValueError, TypeError):
             max_a = None
         diff = (
@@ -180,7 +187,7 @@ def build_subsumtion(
                 f"Nach AHP Kap. 2.3.2/2.3.3 wird der Zuschuss anteilig nach dem "
                 f"prozentualen Anteil der Stadtbewohner an den Gesamtteilnehmern "
                 f"ausgezahlt. Die rechnerische Höchstauszahlung beträgt damit "
-                f"{euro(cap)} × {percent(anteil)} = {euro(max_a)}. "
+                f"{euro(hoechstgrenze)} × {percent(anteil)} = {euro(max_a)}. "
                 + (f"Ihre Forderung übersteigt diesen Wert um {euro(diff)}." if diff is not None else "")
             ),
         }

@@ -28,7 +28,7 @@ REGELN:
      keine "Die Richtlinie sagt..."-Form, sondern direkt:
      "Der Zuschuss beträgt max 10.000 € pro Jahr.")
    - statement_type: einer der folgenden:
-       'cap'           = Geldwert-Obergrenze (z.B. 10.000 €/Jahr)
+       'hoechstgrenze' = Förderhöchstgrenze (z.B. 10.000 € pro Jahr) — AHP-Begriff
        'frist'         = Datum/Periode (z.B. bis 1. April)
        'verbot'        = etwas ist ausgeschlossen
        'verpflichtung' = etwas muss getan werden
@@ -70,7 +70,7 @@ _SUBMIT_STATEMENT_TOOL = {
             "statement_type": {
                 "type": "string",
                 "enum": [
-                    "cap", "frist", "verbot", "verpflichtung",
+                    "hoechstgrenze", "frist", "verbot", "verpflichtung",
                     "pflichtfeld", "staffel", "qualitativ",
                 ],
             },

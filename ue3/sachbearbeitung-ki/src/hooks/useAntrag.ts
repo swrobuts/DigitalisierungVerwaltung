@@ -28,7 +28,7 @@ export interface AntragFull {
   betriebskosten_vorjahr_euro: number;
   personalkosten_vorjahr_euro: number;
   miete_jahr_euro: number;
-  /** Beantragter Zuschussbetrag in EUR. Cap je nach foerderbereich. */
+  /** Beantragter Zuschussbetrag in EUR. AHP-Förderhöchstgrenze je nach foerderbereich. */
   geforderte_foerdersumme_euro: number | null;
 
   // ── Migration 029 — Förderbereich-spezifische Felder ────────────────

@@ -205,8 +205,8 @@ export function AntragDetail() {
               </div>
             </div>
 
-            {/* Antrags-Summary: Beantragte Summe + Förderbereich + Cap-Status auf
-                einen Blick. Antwortet auf "Was ist die Antragssumme?" sofort. */}
+            {/* Antrags-Summary: Beantragte Summe + Förderbereich + Bezug zur
+                AHP-Förderhöchstgrenze auf einen Blick. */}
             <AntragSummaryStrip antrag={antrag} />
           </div>
 
@@ -287,7 +287,7 @@ export function AntragDetail() {
             <DocSection
               num="§ 4"
               title="Förderbereich & beantragte Förderung"
-              subtitle="Förderbereich, Cap und beantragte Summe"
+              subtitle="Förderbereich, Förderhöchstgrenze und beantragte Summe"
             >
               <FoerderblockKomplett antrag={antrag} />
             </DocSection>
@@ -428,7 +428,7 @@ export function AntragDetail() {
                             htmlFor="bewilligte-summe"
                             className="text-[11px] uppercase tracking-wider text-slate-500 font-medium"
                           >
-                            Bewilligte Fördersumme (€) · Cap AHP 2.3.2: 10.000 €
+                            Bewilligte Fördersumme (€) · AHP 2.3.2 Förderhöchstgrenze: 10.000 €
                           </label>
                           <Input
                             id="bewilligte-summe"
@@ -811,7 +811,8 @@ function pflichtgrund(letztePruefung: { ergebnis_jsonb?: { empfehlung?: { aktion
 }
 
 /** Antrags-Summary-Streifen direkt unter dem Hero — beantwortet auf einen
- * Blick: "Was ist die Antragssumme?" und "Steht sie im Cap-Verhältnis?" */
+ * Blick: "Was ist die Antragssumme?" und "Liegt sie innerhalb der
+ * AHP-Förderhöchstgrenze?" */
 function AntragSummaryStrip({ antrag }: { antrag: AntragFull }) {
   const meta = foerderbereichMeta(antrag.foerderbereich);
   const wert = antrag.geforderte_foerdersumme_euro;
@@ -822,8 +823,8 @@ function AntragSummaryStrip({ antrag }: { antrag: AntragFull }) {
       </div>
     );
   }
-  const cap = meta?.cap ?? null;
-  const ueber = cap !== null && wert > cap;
+  const hoechstgrenze = meta?.hoechstgrenze ?? null;
+  const ueber = hoechstgrenze !== null && wert > hoechstgrenze;
   return (
     <div
       className={
@@ -852,25 +853,25 @@ function AntragSummaryStrip({ antrag }: { antrag: AntragFull }) {
             <div className="text-sm text-slate-700">
               <span className="font-medium">{meta.label}</span>
             </div>
-            {cap !== null && (
+            {hoechstgrenze !== null && (
               <div className="text-xs text-slate-500 mt-1">
-                {meta.ahpPath}: Cap {formatEuro(cap)} / Jahr
+                {meta.ahpPath}: Förderhöchstgrenze {formatEuro(hoechstgrenze)} / Jahr
                 {ueber && (
                   <span className="ml-2 text-wue-rot font-medium">
-                    · {formatEuro(wert - cap)} darüber
+                    · {formatEuro(wert - hoechstgrenze)} darüber
                   </span>
                 )}
               </div>
             )}
-            {cap === null && (
+            {hoechstgrenze === null && (
               <div className="text-xs text-slate-500 mt-1">
-                {meta.ahpPath} · keine Cap (Einzelfall)
+                {meta.ahpPath} · keine feste Förderhöchstgrenze (Einzelfall-Bewilligung)
               </div>
             )}
           </>
         ) : (
           <div className="text-xs text-slate-500 italic">
-            Förderbereich nicht zugeordnet — Cap unbestimmt.
+            Förderbereich nicht zugeordnet — Förderhöchstgrenze unbestimmt.
           </div>
         )}
       </div>
@@ -878,9 +879,10 @@ function AntragSummaryStrip({ antrag }: { antrag: AntragFull }) {
   );
 }
 
-/** Zeigt den Rechenweg Cap × Stadtbewohner-Anteil = max. Auszahlung
- * (nur für anteilsskalierte Förderbereiche: BZ, Bildungsträger nach
- * AHP 2.3.2/2.3.3). Markiert ob die Forderung im Rahmen liegt. */
+/** Zeigt den Rechenweg Förderhöchstgrenze × Stadtbewohner-Anteil =
+ * maximale Auszahlung (nur für anteilsskalierte Förderbereiche:
+ * Begegnungszentren + Bildungsträger nach AHP 2.3.2/2.3.3).
+ * Markiert ob die Forderung im Rahmen liegt. */
 function KalkulationsFormel({
   antrag, meta,
 }: {
@@ -890,7 +892,7 @@ function KalkulationsFormel({
   // Nur für BZ + Bildungsträger relevant
   if (
     !meta ||
-    !meta.cap ||
+    !meta.hoechstgrenze ||
     (antrag.foerderbereich !== "begegnungszentren" &&
       antrag.foerderbereich !== "bildungstraeger")
   ) {
@@ -902,12 +904,13 @@ function KalkulationsFormel({
     return (
       <div className="bg-slate-50 border-l-2 border-slate-300 px-4 py-3 text-xs text-slate-600">
         <div className="font-medium text-slate-700 mb-1">Auszahlungs-Kalkulation</div>
-        Maximale Auszahlung = Cap × Anteil der Würzburger Teilnehmer (AHP{" "}
-        {meta.ahpPath}). Anteil nicht erfasst — bitte beim Träger nachfragen.
+        Maximale Auszahlung = Förderhöchstgrenze × Anteil der Würzburger
+        Teilnehmer (AHP {meta.ahpPath}). Anteil nicht erfasst — bitte
+        beim Träger nachfragen.
       </div>
     );
   }
-  const maxAuszahlung = meta.cap * anteil;
+  const maxAuszahlung = meta.hoechstgrenze * anteil;
   const innerhalb = wert !== null && wert <= maxAuszahlung + 0.005;
   return (
     <div
@@ -922,7 +925,7 @@ function KalkulationsFormel({
         Auszahlungs-Kalkulation (AHP {meta.ahpPath})
       </div>
       <div className="flex items-baseline gap-2 flex-wrap text-sm tabular-nums">
-        <span className="text-slate-700">{formatEuro(meta.cap)}</span>
+        <span className="text-slate-700">{formatEuro(meta.hoechstgrenze)}</span>
         <span className="text-slate-400">×</span>
         <span className="text-slate-700">{Math.round(anteil * 100)} %</span>
         <span className="text-slate-400">=</span>
@@ -950,8 +953,9 @@ function KalkulationsFormel({
   );
 }
 
-/** Komplette § 4-Anzeige: Förderbereich-Pill, Fördersumme + Cap, Skalierungs-
- * Kennzahlen, Pflichtangaben — alles kontextsensitiv je nach Förderbereich. */
+/** Komplette § 4-Anzeige: Förderbereich-Pill, Fördersumme + Förder-
+ * höchstgrenze, Skalierungs-Kennzahlen, Pflichtangaben — alles
+ * kontextsensitiv je nach Förderbereich. */
 function FoerderblockKomplett({ antrag }: { antrag: AntragFull }) {
   const meta = foerderbereichMeta(antrag.foerderbereich);
   return (
@@ -970,17 +974,17 @@ function FoerderblockKomplett({ antrag }: { antrag: AntragFull }) {
           </div>
         ) : (
           <div className="text-sm text-slate-500 italic">
-            Förderbereich noch nicht zugeordnet. Ohne diese Angabe wird keine
-            Cap geprüft — bitte nachpflegen.
+            Förderbereich noch nicht zugeordnet. Ohne diese Angabe wird die
+            Förderhöchstgrenze nicht geprüft — bitte nachpflegen.
           </div>
         )}
       </div>
 
-      {/* (2) Fördersumme + Cap */}
-      <FoerdersummeMitCap
+      {/* (2) Fördersumme + Förderhöchstgrenze */}
+      <FoerdersummeMitHoechstgrenze
         wert={antrag.geforderte_foerdersumme_euro}
-        cap={meta?.cap ?? null}
-        capLabel={meta?.ahpPath ?? null}
+        hoechstgrenze={meta?.hoechstgrenze ?? null}
+        hoechstgrenzeLabel={meta?.ahpPath ?? null}
       />
 
       {/* (2b) Kalkulationsformel — nur wenn Förderbereich anteilsskaliert */}
@@ -1010,7 +1014,9 @@ function FoerderblockKomplett({ antrag }: { antrag: AntragFull }) {
 interface FoerderbereichMeta {
   label: string;
   ahpPath: string;
-  cap: number | null;
+  /** Förderhöchstgrenze gemäß AHP (Wortlaut: "Zuschuss von bis zu X € pro Jahr").
+   *  null wenn die AHP keinen festen Wert vorsieht (z.B. FB IV Einzelfall). */
+  hoechstgrenze: number | null;
   /** Welche Skalierungs-Kennzahlen sind für diesen Förderbereich relevant? */
   zeigt: {
     stadtbewohner_anteil?: boolean;
@@ -1031,56 +1037,57 @@ function foerderbereichMeta(fb: string | null): FoerderbereichMeta | null {
     aufbau_niedrigschwellige_angebote: {
       label: "Förderbereich I — Aufbau niedrigschwelliger Angebote",
       ahpPath: "AHP 2.1",
-      cap: 3000,
+      hoechstgrenze: 3000,
       zeigt: { befristung: true },
       pflicht: { projektskizze: true },
     },
     buergerschaftliches_engagement: {
       label: "Förderbereich II — Bürgerschaftliches Engagement",
       ahpPath: "AHP 2.2",
-      cap: 5500,
+      hoechstgrenze: 5500,
       zeigt: { ehrenamt: true },
       pflicht: {},
     },
     mehrgenerationenhaeuser: {
       label: "Förderbereich III — Mehrgenerationenhäuser",
       ahpPath: "AHP 2.3.1",
-      cap: 10000,
+      hoechstgrenze: 10000,
       zeigt: {},
       pflicht: {},
     },
     begegnungszentren: {
       label: "Förderbereich III — Begegnungszentren",
       ahpPath: "AHP 2.3.2",
-      cap: 10000,
+      hoechstgrenze: 10000,
       zeigt: { stadtbewohner_anteil: true },
       pflicht: {},
     },
     bildungstraeger: {
       label: "Förderbereich III — Bildungsträger / Bildungshäuser",
       ahpPath: "AHP 2.3.3",
-      cap: 6000,
+      hoechstgrenze: 6000,
       zeigt: { stadtbewohner_anteil: true },
       pflicht: {},
     },
     seniorenkreise: {
       label: "Förderbereich III — Seniorenkreise",
       ahpPath: "AHP 2.3.4",
-      cap: 2000,
+      hoechstgrenze: 2000,
       zeigt: { treffen_und_teilnehmer: true },
       pflicht: {},
     },
     quartiersmanagement_altenarbeit: {
       label: "Förderbereich III — Quartiersmanagement Altenarbeit",
       ahpPath: "AHP 2.3.5",
-      cap: 7500,
+      hoechstgrenze: 7500,
       zeigt: {},
       pflicht: {},
     },
     struktur_schwerpunktfoerderung: {
       label: "Förderbereich IV — Struktur- und Schwerpunktförderung",
       ahpPath: "AHP 2.4",
-      cap: null, // keine Cap
+      // AHP 2.4 sieht keine feste Förderhöchstgrenze vor — Einzelfall-Bewilligung
+      hoechstgrenze: null,
       zeigt: {},
       pflicht: { finanzplanung: true },
     },
@@ -1088,12 +1095,12 @@ function foerderbereichMeta(fb: string | null): FoerderbereichMeta | null {
   return map[fb] ?? null;
 }
 
-function FoerdersummeMitCap({
-  wert, cap, capLabel,
+function FoerdersummeMitHoechstgrenze({
+  wert, hoechstgrenze, hoechstgrenzeLabel,
 }: {
   wert: number | null;
-  cap: number | null;
-  capLabel: string | null;
+  hoechstgrenze: number | null;
+  hoechstgrenzeLabel: string | null;
 }) {
   if (wert === null || wert === undefined) {
     return (
@@ -1102,17 +1109,17 @@ function FoerdersummeMitCap({
       </div>
     );
   }
-  const ueber = cap !== null && wert > cap;
-  const pct = cap !== null ? Math.min((wert / cap) * 100, 130) : 0;
+  const ueber = hoechstgrenze !== null && wert > hoechstgrenze;
+  const pct = hoechstgrenze !== null ? Math.min((wert / hoechstgrenze) * 100, 130) : 0;
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2">
         <span className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium">
           Geforderter Zuschuss (Jahr)
         </span>
-        {cap !== null && (
+        {hoechstgrenze !== null && (
           <span className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500">
-            Cap ({capLabel ?? "—"})
+            Förderhöchstgrenze ({hoechstgrenzeLabel ?? "—"})
           </span>
         )}
       </div>
@@ -1126,13 +1133,13 @@ function FoerdersummeMitCap({
         >
           {formatEuro(wert)}
         </span>
-        {cap !== null && (
+        {hoechstgrenze !== null && (
           <span className="text-sm text-slate-500 tabular-nums">
-            {formatEuro(cap)} / Jahr
+            {formatEuro(hoechstgrenze)} / Jahr
           </span>
         )}
       </div>
-      {cap !== null && (
+      {hoechstgrenze !== null && (
         <div className="mt-3 relative h-2 bg-slate-100 rounded-sm overflow-hidden">
           <div
             className={
@@ -1145,15 +1152,15 @@ function FoerdersummeMitCap({
           <div className="absolute inset-y-0 right-0 w-px bg-slate-400" />
         </div>
       )}
-      {ueber && cap !== null && (
+      {ueber && hoechstgrenze !== null && (
         <p className="mt-2 text-xs text-wue-rot">
-          {formatEuro(wert - cap)} über der Cap.
+          {formatEuro(wert - hoechstgrenze)} über der Förderhöchstgrenze.
         </p>
       )}
-      {cap === null && (
+      {hoechstgrenze === null && (
         <p className="mt-2 text-xs text-slate-500">
-          Förderbereich IV hat keine Cap. Sozialausschuss entscheidet im
-          Einzelfall (AHP 3.4).
+          Förderbereich IV sieht keine feste Förderhöchstgrenze vor —
+          Sozialausschuss entscheidet im Einzelfall (AHP 3.4).
         </p>
       )}
     </div>
