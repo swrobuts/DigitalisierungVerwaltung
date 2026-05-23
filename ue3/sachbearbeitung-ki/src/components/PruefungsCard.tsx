@@ -150,16 +150,11 @@ function EmpfehlungsBox({
           >
             {empfehlung.aktion === "bewilligen" ? "✖ Stattdessen ablehnen" : "✓ Stattdessen bewilligen"}
           </Button>
-          {empfehlung.aktion !== "rueckfrage" && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onApply("rueckfrage")}
-              className="text-xs"
-            >
-              ↩ Rückfrage
-            </Button>
-          )}
+          {/* Rückfrage bewusst NICHT als Empfehlungs-Aktion: die KI selbst
+              empfiehlt 'rueckfrage', wenn es ausschließlich heilbare
+              Verstöße gibt (siehe models.py); ansonsten ist Rückfrage eine
+              manuelle Sachbearbeiter-Entscheidung und steht über den
+              Workflow-Card rechts daneben weiterhin zur Verfügung. */}
         </div>
       )}
       <p className="text-[10px] text-slate-500 mt-2 italic">
