@@ -42,10 +42,16 @@ class PruefungsErgebnis(BaseModel):
 
         Logik:
         - 0 Verstöße → BEWILLIGEN
-        - alle Verstöße formal heilbar (IBAN/PLZ/E-Mail/fehlende Pflichtfelder)
-          → RÜCKFRAGE (Träger kann nachbessern)
-        - mindestens ein materiell nicht-heilbarer Verstoß (verpasste Frist,
-          Sitz nicht Würzburg, Förderhöchstgrenze überschritten) → ABLEHNEN
+        - alle Verstöße im Sachbearbeiter-Spielraum lösbar (heilbar) →
+          RÜCKFRAGE. Drei Sub-Fälle:
+            a) Antragsteller kann nachbessern (IBAN-Korrektur, fehlendes
+               Pflichtfeld, Förderbereich-Zuordnung)
+            b) Antragsteller kann Forderung nach unten korrigieren
+               (anteilige Höchstauszahlung überschritten — eine reduzierte
+               Bewilligung wäre regelkonform möglich)
+        - mindestens ein materiell nicht-heilbarer Verstoß → ABLEHNEN
+          (verpasste Frist, Sitz außerhalb Würzburg, absolute
+          Förderhöchstgrenze überschritten, Förderlinie nicht offen)
         """
         verstoesse = [b for b in self.befunde if b.schwere == "verstoss"]
         if not verstoesse:
@@ -68,19 +74,36 @@ class PruefungsErgebnis(BaseModel):
                 begruendung=(
                     f"{len(nicht_heilbar)} nicht heilbare:r Verstoß/Verstöße — "
                     "Rückfrage würde am Sachverhalt nichts ändern (verpasste "
-                    "Frist, Träger-Sitz oder Überschreitung der "
-                    "Förderhöchstgrenze)."
+                    "Frist, Träger-Sitz außerhalb Würzburg oder absolute "
+                    "Förderhöchstgrenze überschritten)."
                 ),
                 heilbare_verstoesse=heilbar,
                 nicht_heilbare_verstoesse=nicht_heilbar,
             )
-        return Empfehlung(
-            aktion="rueckfrage",
-            begruendung=(
+        # Sonderbegründung wenn anteilige Höchstauszahlung dabei ist:
+        # explizit auf Teilbewilligungs-Option hinweisen, sonst klingt
+        # 'Rückfrage' nach Antragsteller-Nachbesserung.
+        anteilig_betroffen = any(
+            "anteilig berechnete höchstauszahlung" in (h or "").lower()
+            for h in heilbar
+        )
+        if anteilig_betroffen:
+            begruendung = (
+                f"{len(heilbar)} Verstoß/Verstöße — eine reduzierte "
+                "Bewilligung in Höhe der anteiligen Förderhöchstgrenze "
+                "wäre regelkonform möglich (AHP 2.3.2/2.3.3). Alternativ "
+                "kann der Antragsteller mit aktualisierten Teilnehmerzahlen "
+                "eine höhere Auszahlung erwirken."
+            )
+        else:
+            begruendung = (
                 f"{len(heilbar)} formal heilbare:r Verstoß/Verstöße — "
                 "Träger kann nachbessern (Korrektur von IBAN, Pflichtfeldern, "
                 "Förderbereich-Zuordnung)."
-            ),
+            )
+        return Empfehlung(
+            aktion="rueckfrage",
+            begruendung=begruendung,
             heilbare_verstoesse=heilbar,
             nicht_heilbare_verstoesse=[],
         )
@@ -102,7 +125,11 @@ _NICHT_HEILBARE_MARKER = (
     "verfristet",                       # AHP 3.3 — Frist verpasst, nicht reparabel
     "sitz liegt nicht in der stadt",    # AHP 3.1 — Träger-Sitz, struktureller Mangel
     "ahp-obergrenze",                   # Förderhöchstgrenze in absoluter Höhe überschritten
-    "anteilig berechnete höchstauszahlung",  # Förderhöchstgrenze × Stadtbewohner-Anteil überschritten
+    # "anteilig berechnete höchstauszahlung" gehört NICHT in diese Liste:
+    # bei anteiliger Überschreitung ist eine reduzierte Bewilligung (auf
+    # Höhe der anteiligen Förderhöchstgrenze) AHP-konform möglich. Daher
+    # wird das in empfehlung() als heilbar behandelt → Empfehlung
+    # 'rueckfragen' mit Teilbewilligungs-Hinweis statt 'ablehnen'.
     "förderbereich i ist auf maximal 3 jahre",  # AHP 2.1 — Befristung
     "ist erst ab haushaltsjahr 2025",   # AHP 2.3.5 — Förderlinie noch nicht offen
     "passt nicht zur ahp-staffelung",   # Treffenstaffel passt nicht

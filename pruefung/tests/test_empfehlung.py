@@ -76,9 +76,26 @@ def test_empfehlung_ablehnen_bei_foerderlinie_noch_nicht_offen():
     assert emp.aktion == "ablehnen"
 
 
-def test_empfehlung_ablehnen_bei_anteilig_berechnete_hoechstauszahlung():
+def test_empfehlung_rueckfrage_bei_anteilig_berechnete_hoechstauszahlung():
+    """Anteilige Höchstauszahlung überschritten ist KEIN harter Ablehnungs-
+    grund: eine reduzierte Bewilligung in Höhe der anteiligen Höchst-
+    auszahlung wäre AHP-konform möglich (AHP 2.3.2/2.3.3). Empfehlung
+    daher: rueckfrage mit Teilbewilligungs-Hinweis."""
     e = PruefungsErgebnis(befunde=[
         _verstoss("Anteilig berechnete Höchstauszahlung überschritten"),
+    ])
+    emp = e.empfehlung()
+    assert emp.aktion == "rueckfrage"
+    # Begründung muss den Teilbewilligungs-Hinweis enthalten
+    assert "reduzierte Bewilligung" in emp.begruendung
+
+
+def test_empfehlung_ablehnen_wenn_anteilig_kombiniert_mit_nicht_heilbarem():
+    """Wenn zusätzlich zu anteiliger Überschreitung ein wirklich nicht-
+    heilbarer Verstoß vorliegt (z.B. verfristet), bleibt es bei ablehnen."""
+    e = PruefungsErgebnis(befunde=[
+        _verstoss("Anteilig berechnete Höchstauszahlung überschritten"),
+        _verstoss("Antrag ist verfristet"),
     ])
     emp = e.empfehlung()
     assert emp.aktion == "ablehnen"
