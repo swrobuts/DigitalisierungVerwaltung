@@ -13,29 +13,35 @@
 --      'auszahlung_max_hoechstgrenze_mal_anteil'
 
 -- 1) statement_type ändern
-begin;
+-- HINWEIS: ahp_norm_statements gehört supabase_admin (analog bescheide
+-- in Migration 039). DDL-Statements müssen als supabase_admin laufen,
+-- sonst still abgebrochen. Owner-sicher mit DO-Block.
+do $$
+begin
+  if pg_has_role(current_user, 'supabase_admin', 'MEMBER')
+     or current_user = 'supabase_admin' then
+    alter table apl2.ahp_norm_statements
+      drop constraint if exists ahp_norm_statements_statement_type_check;
 
--- Constraint droppen, Werte umschreiben, Constraint neu setzen
-alter table apl2.ahp_norm_statements
-  drop constraint if exists ahp_norm_statements_statement_type_check;
+    update apl2.ahp_norm_statements
+      set statement_type = 'hoechstgrenze'
+      where statement_type = 'cap';
 
-update apl2.ahp_norm_statements
-  set statement_type = 'hoechstgrenze'
-  where statement_type = 'cap';
-
-alter table apl2.ahp_norm_statements
-  add constraint ahp_norm_statements_statement_type_check
-  check (statement_type = any (array[
-    'hoechstgrenze',  -- vormals 'cap'
-    'frist',
-    'verbot',
-    'verpflichtung',
-    'pflichtfeld',
-    'staffel',
-    'qualitativ'
-  ]));
-
-commit;
+    alter table apl2.ahp_norm_statements
+      add constraint ahp_norm_statements_statement_type_check
+      check (statement_type = any (array[
+        'hoechstgrenze',  -- vormals 'cap'
+        'frist',
+        'verbot',
+        'verpflichtung',
+        'pflichtfeld',
+        'staffel',
+        'qualitativ'
+      ]));
+  else
+    raise notice 'Skipping ahp_norm_statements DDL — User % hat keine supabase_admin-Rechte. Bitte separat als supabase_admin ausführen.', current_user;
+  end if;
+end $$;
 
 -- 2) Ontologie-Regel umbenennen
 update apl2.ontologie_rules
