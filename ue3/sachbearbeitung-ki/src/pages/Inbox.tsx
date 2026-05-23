@@ -127,15 +127,22 @@ function groupLabel(key: GroupKey, val: string): string {
 }
 
 /**
- * VJ-Wert (Vorjahres-Wert) eines Antrags = Total-Summe des Antrags desselben
- * Trägers für haushaltsjahr - 1. Gibt null zurück, wenn kein VJ-Antrag existiert.
+ * VJ-Wert (Vorjahres-Wert) eines Antrags = Summe der GEFORDERTEN Förder-
+ * summen aller Anträge desselben Trägers für haushaltsjahr - 1. Gibt
+ * null zurück, wenn kein VJ-Antrag existiert.
+ *
+ * Wichtig: hier wird geforderte_foerdersumme_euro summiert, NICHT
+ * totalEuro (= Aufwand-Eigenangabe). Sonst zeigt 'Antrag VJ' den
+ * Aufwand der Vorjahres-Anträge statt deren Forderung — irreführend
+ * und meist 0 weil die VJ-Anträge oft keine Aufwandsfelder gepflegt
+ * haben.
  */
 function buildVjMap(antraege: AntragRow[]): Map<string, number> {
-  // Key: "traeger|haushaltsjahr" → Total
+  // Key: "traeger|haushaltsjahr" → Summe geforderter Fördersummen
   const m = new Map<string, number>();
   for (const a of antraege) {
     const k = `${a.traeger}|${a.haushaltsjahr}`;
-    m.set(k, (m.get(k) ?? 0) + totalEuro(a));
+    m.set(k, (m.get(k) ?? 0) + (a.geforderte_foerdersumme_euro ?? 0));
   }
   return m;
 }
@@ -345,7 +352,9 @@ export function Inbox() {
     },
     { sum: 0, hasAny: false },
   );
-  const gesamtDiff = formatDiff(gesamtSumme, gesamtVj.hasAny ? gesamtVj.sum : null);
+  // Footer-Δ vergleicht aktuelle GeforderteSummen vs. VJ-Antragssummen
+  // (nicht Aufwand vs. Antrag — das wäre Äpfel/Birnen)
+  const gesamtDiff = formatDiff(gesamtAntragsSumme, gesamtVj.hasAny ? gesamtVj.sum : null);
 
   const toneClass = (tone: "up" | "down" | "neutral") =>
     tone === "up" ? "text-emerald-700" : tone === "down" ? "text-rose-700" : "text-slate-400";
@@ -561,8 +570,9 @@ export function Inbox() {
                         {item.vjSumme === null ? "—" : formatEuro(item.vjSumme)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-sm py-3 whitespace-nowrap">
-                        <span className={toneClass(formatDiff(item.summe, item.vjSumme).tone)}>
-                          {formatDiff(item.summe, item.vjSumme).text}
+                        {/* Δ Antrag: aktuelle Forderung vs. VJ-Forderung (nicht Aufwand) */}
+                        <span className={toneClass(formatDiff(item.antragsSumme, item.vjSumme).tone)}>
+                          {formatDiff(item.antragsSumme, item.vjSumme).text}
                         </span>
                       </TableCell>
                       <TableCell></TableCell>
@@ -570,7 +580,12 @@ export function Inbox() {
                   ) : (
                     (() => {
                       const vj = vjValue(item.antrag, vjMap);
-                      const diff = formatDiff(totalEuro(item.antrag), vj);
+                      // Δ Antrag = geforderte Fördersumme aktuell − VJ-Antrag
+                      // (siehe buildVjMap-Docstring — beide auf geforderte Summe,
+                      // sonst Äpfel/Birnen-Vergleich)
+                      const diff = formatDiff(
+                        item.antrag.geforderte_foerdersumme_euro ?? 0, vj,
+                      );
                       return (
                         <TableRow key={item.antrag.id} className="hover:bg-blue-50/30">
                           <TableCell className="font-mono text-xs text-slate-500 whitespace-nowrap">
