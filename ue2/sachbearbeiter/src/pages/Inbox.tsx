@@ -202,15 +202,9 @@ export function Inbox() {
     (typeof userMeta.full_name === "string" && userMeta.full_name) ||
     (typeof userMeta.name === "string" && userMeta.name) ||
     (userEmail ? userEmail.split("@")[0] : "—");
-  // Initialen-Avatar im wue-rot-Stil (kein externes Bild nötig — robust
-  // ohne public/-Asset, analog zur UE3-Optik ohne dort die /demoImage.png-
-  // Datei zu kopieren).
-  const initials = displayName
-    .split(/\s+|\./)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase() ?? "")
-    .join("") || "?";
+  // Demo-Avatar wird aus public/ ausgeliefert; identisch zu UE3 für
+  // visuelle Konsistenz zwischen beiden Sachbearbeiter-Cockpits.
+  const avatarUrl = "/demoImage.png";
   const [filter, setFilter] = useState<Set<Status>>(new Set());
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("submitted_at");
@@ -440,13 +434,12 @@ export function Inbox() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <div
-              className="h-10 w-10 rounded-full bg-wue-rot-soft text-wue-rot-dark ring-2 ring-wue-rot-soft shadow-sm flex items-center justify-center text-sm font-semibold"
-              aria-hidden="true"
-              title={displayName}
-            >
-              {initials}
-            </div>
+            <img
+              src={avatarUrl}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="h-10 w-10 rounded-full ring-2 ring-wue-rot-soft shadow-sm object-cover"
+            />
             <div className="text-sm leading-tight">
               <div className="font-medium text-slate-900">{displayName}</div>
               <div className="text-xs text-slate-500">{userEmail || "—"}</div>
