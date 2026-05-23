@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
 import { useUserRole } from "../hooks/useUserRole";
+import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
 import { StatusBadge } from "../components/StatusBadge";
 import { formatDateTime, formatEuro } from "../lib/format";
@@ -149,6 +150,22 @@ function formatDiff(current: number, vj: number | null): { text: string; tone: "
 export function Inbox() {
   const { antraege, loading, error } = useAntraege();
   const { rolle } = useUserRole();
+  const { session } = useSession();
+  const userEmail = session?.user?.email ?? "";
+  const userMeta = (session?.user?.user_metadata ?? {}) as Record<string, unknown>;
+  const displayName =
+    (typeof userMeta.full_name === "string" && userMeta.full_name) ||
+    (typeof userMeta.name === "string" && userMeta.name) ||
+    (userEmail ? userEmail.split("@")[0] : "—");
+  // Initialen-Avatar im wue-rot-Stil (kein externes Bild nötig — robust
+  // ohne public/-Asset, analog zur UE3-Optik ohne dort die /demoImage.png-
+  // Datei zu kopieren).
+  const initials = displayName
+    .split(/\s+|\./)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("") || "?";
   const [filter, setFilter] = useState<Set<Status>>(new Set());
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("submitted_at");
@@ -298,22 +315,48 @@ export function Inbox() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <header className="bg-white border-b border-slate-200 relative">
+        {/* 3px Würzburg-Rot-Akzentlinie oben — visuelle Konsistenz zu
+            UE3 (KI-Variante), aber bewusst OHNE die KI-Nav-Links
+            (AHP / Normen / Regelkatalog / Compliance), weil UE2 diese
+            Features funktional nicht hat. */}
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-wue-rot" />
+        <div className="w-full px-4 lg:px-8 py-3 flex items-center justify-between gap-6">
           <div>
-            <h1 className="text-xl font-bold">Sachbearbeitung — APL 2</h1>
-            <p className="text-sm text-slate-500">Stadt Würzburg · Beratungsstelle für Senioren</p>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-wue-rot font-semibold">
+              Stadt Würzburg · Sozialreferat
+            </div>
+            <h1 className="text-xl font-bold leading-tight">
+              Sachbearbeitung — APL 2
+            </h1>
+            <p className="text-sm text-slate-500">
+              Beratungsstelle für Senioren · Antragsprüfung
+            </p>
           </div>
-          <div className="text-sm text-slate-500">
-            Rolle: <span className="font-medium">{rolle ?? "—"}</span>
-            <Button variant="ghost" size="sm" className="ml-3" onClick={() => supabase.auth.signOut()}>
+          <div className="flex items-center gap-4">
+            <div
+              className="h-10 w-10 rounded-full bg-wue-rot-soft text-wue-rot-dark ring-2 ring-wue-rot-soft shadow-sm flex items-center justify-center text-sm font-semibold"
+              aria-hidden="true"
+              title={displayName}
+            >
+              {initials}
+            </div>
+            <div className="text-sm leading-tight">
+              <div className="font-medium text-slate-900">{displayName}</div>
+              <div className="text-xs text-slate-500">{userEmail || "—"}</div>
+            </div>
+            <div className="hidden sm:block h-8 w-px bg-slate-200" aria-hidden="true"></div>
+            <div className="text-sm text-slate-500">
+              Rolle <span className="font-medium text-slate-700">{rolle ?? "—"}</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => supabase.auth.signOut()}>
               Abmelden
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="w-full px-4 lg:px-8 py-6">
         <div className="bg-white border border-slate-200 rounded p-4 mb-4">
           <div className="flex flex-wrap items-center gap-3">
             <Input

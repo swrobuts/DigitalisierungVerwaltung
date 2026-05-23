@@ -1,10 +1,19 @@
 @import "tailwindcss";
 
 @theme {
+  /* Würzburg-CI (offizielle Stadtfarbe Würzburger Rot, abgeleitet aus dem
+     Sozialreferats-Briefkopf — analog zu UE3/UE1 für visuelle Konsistenz). */
+  --color-wue-rot: #AD0E36;
+  --color-wue-rot-dark: #8A0B2B;
+  --color-wue-rot-soft: #FBE9EE;
+  --color-wue-grau: #4A4A4A;
+  --color-wue-bg: #F7F6F4;
+
+  /* Legacy-Tokens (Übergangsphase) */
   --color-amt-blau: #1e3a8a;
   --color-amt-blau-hell: #3b82f6;
   --color-amt-grau: #475569;
-  --color-amt-bg: #f8fafc;
+  --color-amt-bg: var(--color-wue-bg);
 }
 
 html, body, #root {
