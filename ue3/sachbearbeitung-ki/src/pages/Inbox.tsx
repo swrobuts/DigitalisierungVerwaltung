@@ -94,17 +94,21 @@ type GroupKey = "none" | "status" | "traeger" | "submitted_language" | "month";
 // im UI sichtbar war, welche Faktoren zugrunde lagen. Backend-Endpoint
 // /api/antrag/{id}/risiko-score bleibt für späteren Re-Use, wenn wir
 // eine bessere Erklärungs-UI bauen.
-const COLUMNS: Array<{ key: SortKey; label: string; align?: "right" }> = [
+const COLUMNS: Array<{ key: SortKey; label: string; align?: "right"; tooltip?: string }> = [
   { key: "antragsnummer", label: "Antragsnummer" },
   { key: "name", label: "Name" },
   { key: "traeger", label: "Träger" },
   { key: "submitted_at", label: "Eingegangen" },
   { key: "submitted_language", label: "Sprache" },
   { key: "status", label: "Status" },
-  { key: "antragssumme", label: "Antragssumme", align: "right" },
-  { key: "gesamt", label: "Vorjahres-Aufwand", align: "right" },
-  { key: "vj", label: "VJ-Wert", align: "right" },
-  { key: "diff", label: "Δ", align: "right" },
+  { key: "antragssumme", label: "Antragssumme", align: "right",
+    tooltip: "Aktuell beantragte Fördersumme (geforderte_foerdersumme_euro)" },
+  { key: "gesamt", label: "Aufwand VJ (Eigenangabe)", align: "right",
+    tooltip: "Im aktuellen Antrag angegebener Aufwand des Vorjahres (Betriebskosten + Personal + Miete)" },
+  { key: "vj", label: "Antrag VJ", align: "right",
+    tooltip: "Was derselbe Träger im Vorjahres-Antrag beantragt hatte (aus DB rekonstruiert)" },
+  { key: "diff", label: "Δ Antrag", align: "right",
+    tooltip: "Aktuelle Antragssumme − Vorjahres-Antragssumme" },
 ];
 
 const GROUP_OPTIONS: Array<{ key: GroupKey; label: string }> = [
@@ -473,7 +477,8 @@ export function Inbox() {
                         <button
                           type="button"
                           onClick={() => handleSort(col.key)}
-                          className={`inline-flex items-center gap-1 text-xs uppercase tracking-wide ${active ? "text-slate-900 font-semibold" : "text-slate-500 hover:text-slate-900"}`}
+                          title={col.tooltip}
+                          className={`inline-flex items-center gap-1 text-xs uppercase tracking-wide ${active ? "text-slate-900 font-semibold" : "text-slate-500 hover:text-slate-900"} ${col.tooltip ? "cursor-help" : ""}`}
                         >
                           {col.label} <span className="text-[10px]">{arrow}</span>
                         </button>
