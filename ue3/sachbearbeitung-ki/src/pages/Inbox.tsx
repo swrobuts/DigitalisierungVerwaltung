@@ -106,6 +106,13 @@ interface SpaltenDef {
   defaultVisible: boolean;
 }
 
+/**
+ * Statische Spaltendefinitionen. Jahres-abhängige Labels (antragssumme,
+ * vj, gesamt, diff) werden bewusst NICHT hier ausgeschrieben — sie
+ * werden erst in `spaltenFuerHaushaltsjahr()` aus dem aktiven HJ-Filter
+ * abgeleitet, damit die Tabelle konsistent „Antragssumme (2026)" /
+ * „Antragssumme (2025)" zeigt statt einmal Wort, einmal Kürzel.
+ */
 const COLUMNS: SpaltenDef[] = [
   { key: "antragsnummer", label: "Antragsnummer", pflicht: true, defaultVisible: true },
   { key: "name", label: "Name", defaultVisible: true },
@@ -114,14 +121,44 @@ const COLUMNS: SpaltenDef[] = [
   { key: "submitted_language", label: "Sprache", defaultVisible: false },
   { key: "status", label: "Status", pflicht: true, defaultVisible: true },
   { key: "antragssumme", label: "Antragssumme", align: "right", pflicht: true, defaultVisible: true,
-    tooltip: "Aktuell beantragte Fördersumme (geforderte_foerdersumme_euro)" },
-  { key: "gesamt", label: "Aufwand VJ (Eigenangabe)", align: "right", defaultVisible: false,
+    tooltip: "Beantragte Fördersumme im aktuellen Haushaltsjahr (geforderte_foerdersumme_euro)" },
+  { key: "gesamt", label: "Aufwand (Eigenangabe)", align: "right", defaultVisible: false,
     tooltip: "Im aktuellen Antrag angegebener Aufwand des Vorjahres (Betriebskosten + Personal + Miete)" },
-  { key: "vj", label: "Antrag VJ", align: "right", defaultVisible: true,
+  { key: "vj", label: "Antragssumme Vorjahr", align: "right", defaultVisible: true,
     tooltip: "Was derselbe Träger im Vorjahres-Antrag beantragt hatte (aus DB rekonstruiert)" },
-  { key: "diff", label: "Δ Antrag", align: "right", defaultVisible: true,
+  { key: "diff", label: "Δ Antragssumme", align: "right", defaultVisible: true,
     tooltip: "Aktuelle Antragssumme − Vorjahres-Antragssumme" },
 ];
+
+/**
+ * Liefert die Spaltendefinitionen mit Haushaltsjahres-spezifischen
+ * Labels. Wenn `hj` gesetzt ist (Single-Year-Filter), bekommen die
+ * jahresbezogenen Spalten den Jahres-Suffix in Klammern — so steht
+ * „Antragssumme (2026)" und „Antragssumme (2025)" konsistent
+ * nebeneinander statt einmal Wort, einmal „VJ"-Kürzel.
+ *
+ * Bei `hj === null` („Alle Jahre") fallen wir auf die generischen
+ * Labels zurück, weil ein Jahres-Suffix dann irreführend wäre
+ * (die Spalte mischt mehrere Jahre).
+ */
+function spaltenFuerHaushaltsjahr(hj: number | null): SpaltenDef[] {
+  if (hj === null) return COLUMNS;
+  const vj = hj - 1;
+  return COLUMNS.map((c) => {
+    switch (c.key) {
+      case "antragssumme":
+        return { ...c, label: `Antragssumme (${hj})` };
+      case "vj":
+        return { ...c, label: `Antragssumme (${vj})` };
+      case "gesamt":
+        return { ...c, label: `Aufwand ${vj} (Eigenangabe)` };
+      case "diff":
+        return { ...c, label: `Δ ${hj} − ${vj}` };
+      default:
+        return c;
+    }
+  });
+}
 
 const HIDDEN_COLUMNS_STORAGE_KEY = "inbox.hidden_columns.v1";
 
@@ -225,7 +262,6 @@ export function Inbox() {
   // sehen will. Default + Preset im localStorage.
   const [hiddenCols, setHiddenCols] = useState<Set<SortKey>>(loadHiddenColumns);
   const istSichtbar = (key: SortKey) => !hiddenCols.has(key);
-  const sichtbareSpalten = useMemo(() => COLUMNS.filter((c) => istSichtbar(c.key)), [hiddenCols]);
   function toggleColumn(key: SortKey) {
     setHiddenCols((prev) => {
       const next = new Set(prev);
@@ -253,6 +289,20 @@ export function Inbox() {
   const effektivesHj: number | null = hjFilterDirty
     ? hjFilter
     : (verfuegbareHj[0] ?? null);
+
+  // Spalten mit jahresbezogenen Labels (z.B. „Antragssumme (2026)" /
+  // „Antragssumme (2025)"). Wird hier zentral berechnet und an Header,
+  // SpaltenKonfig und Footer-Logik weitergegeben — damit überall
+  // dasselbe Label steht.
+  const spaltenMitJahr = useMemo(
+    () => spaltenFuerHaushaltsjahr(effektivesHj),
+    [effektivesHj],
+  );
+  const sichtbareSpalten = useMemo(
+    () => spaltenMitJahr.filter((c) => istSichtbar(c.key)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [spaltenMitJahr, hiddenCols],
+  );
 
   // VJ-Map über ALLE Anträge (nicht nur gefilterte) — sonst falscher Vergleich
   const vjMap = useMemo(() => buildVjMap(antraege), [antraege]);
@@ -578,6 +628,7 @@ export function Inbox() {
                 )}
               </span>
               <SpaltenKonfig
+                spalten={spaltenMitJahr}
                 hidden={hiddenCols}
                 onToggle={toggleColumn}
               />
@@ -777,9 +828,11 @@ export function Inbox() {
  * - Click-outside schließt das Popover; Escape ebenfalls.
  */
 function SpaltenKonfig({
+  spalten,
   hidden,
   onToggle,
 }: {
+  spalten: SpaltenDef[];
   hidden: Set<SortKey>;
   onToggle: (key: SortKey) => void;
 }) {
@@ -831,7 +884,7 @@ function SpaltenKonfig({
           <div className="text-[11px] uppercase tracking-wide text-slate-500 px-2 pt-1 pb-2 border-b border-slate-100 mb-1">
             Sichtbare Spalten
           </div>
-          {COLUMNS.map((col) => {
+          {spalten.map((col) => {
             const sichtbar = !hidden.has(col.key);
             const disabled = !!col.pflicht;
             return (
