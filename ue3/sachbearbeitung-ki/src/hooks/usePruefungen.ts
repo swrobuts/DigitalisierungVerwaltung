@@ -35,6 +35,12 @@ export interface AbhakungenJsonb {
   befunde?: Record<string, { status: AbhakungStatus; kommentar?: string }>;
   abschnitte?: Record<string, { status: AbschnittStatus; kommentar?: string }>;
   dissens?: DissensEintrag[];
+  /** True wenn die KI-Zweitprüfung eine strukturierte (= auswertbare)
+   *  Antwort geliefert hat. False = JSON-Parsing fehlgeschlagen oder die
+   *  KI hat einen leeren Code-Block produziert. UI nutzt das, um den
+   *  Unterschied zwischen 'echtes Schweigen' und 'differenzierte Beurteilung'
+   *  sichtbar zu machen. */
+  ki_strukturiert?: boolean;
 }
 
 export interface PruefungRow {

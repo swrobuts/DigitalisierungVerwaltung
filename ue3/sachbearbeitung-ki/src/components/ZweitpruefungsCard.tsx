@@ -296,9 +296,13 @@ function ZweitpruefungsBody({
           </div>
         )}
 
-        {dissens.length > 0 && (
-          <DissensZusammenfassung dissens={dissens} />
-        )}
+        <ZweitKiBewertung
+          dissens={dissens}
+          strukturiert={zweitpruefung.abhakungen_jsonb?.ki_strukturiert}
+          istKi={istKi}
+          gesamtVorschlag={vorschlag || null}
+        />
+
 
         {/* Befund-Checkliste */}
         {erstBefunde.length > 0 && (
@@ -447,7 +451,10 @@ function BefundCheckRow({
   onStatus: (s: AbhakungStatus) => void;
   onKommentar: (k: string) => void;
 }) {
-  const borderClass = dissens
+  // Nur echte Widersprüche der Zweit-KI sollen den Befund gelb highlighten.
+  // 'unbeantwortet' bedeutet nur Stille — kein Konflikt, kein Highlight.
+  const istWiderspruch = dissens?.art === "widerspruch";
+  const borderClass = istWiderspruch
     ? "border-l-4 border-amber-500 bg-amber-50/50"
     : "border-l-2 border-slate-300";
   return (
@@ -599,21 +606,103 @@ function CheckButton({
   );
 }
 
-function DissensZusammenfassung({ dissens }: { dissens: DissensEintrag[] }) {
+/**
+ * Differenzierte Anzeige der KI-Zweitprüfungs-Bewertung.
+ *
+ * Vier mögliche Zustände:
+ *  1. Echtes Dissens (Widersprüche oder neue Befunde) → gelb 'KI-Dissens'
+ *  2. Keine strukturierte Antwort (KI hat das Tool-JSON nicht ausgefüllt)
+ *     → grau 'KI lieferte keine differenzierte Beurteilung — manuelle
+ *     Bewertung empfohlen'
+ *  3. Strukturierte Antwort, nur 'unbeantwortet'-Einträge (KI hat zwar
+ *     bewertet, aber einzelne Erst-Befunde übergangen) → blau 'Hinweis:
+ *     n Erst-Befunde nicht einzeln kommentiert'
+ *  4. Strukturierte Antwort + alle Erst-Befunde bestätigt → grün
+ *     'Zweit-KI bestätigt die Erstprüfung'
+ *
+ * Nicht jeder dieser Zustände ist Dissens — das alte 'KI-Dissens'-Label
+ * war für 2/3 dieser Fälle irreführend.
+ */
+function ZweitKiBewertung({
+  dissens, strukturiert, istKi, gesamtVorschlag,
+}: {
+  dissens: DissensEintrag[];
+  strukturiert?: boolean;
+  istKi: boolean;
+  gesamtVorschlag: string | null;
+}) {
+  if (!istKi) return null;  // bei Mensch-Zweitprüfer kein KI-Banner
+
   const wid = dissens.filter((d) => d.art === "widerspruch").length;
   const neu = dissens.filter((d) => d.art === "neuer_befund").length;
   const offen = dissens.filter((d) => d.art === "unbeantwortet").length;
-  return (
-    <div className="border border-amber-300 bg-amber-50 rounded px-3 py-2 text-xs space-y-0.5">
-      <div className="font-semibold text-amber-900 flex items-center gap-2">
-        <AlertTriangle className="h-3.5 w-3.5" />
-        KI-Dissens
+
+  // 1. Echtes Dissens → gelbe Warn-Box
+  if (wid > 0 || neu > 0) {
+    return (
+      <div className="border border-amber-300 bg-amber-50 rounded px-3 py-2 text-xs space-y-0.5">
+        <div className="font-semibold text-amber-900 flex items-center gap-2">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          KI-Dissens
+        </div>
+        <ul className="text-amber-800 ml-5 list-disc">
+          {wid > 0 && <li>{wid} Widerspruch{wid > 1 ? " / -sprüche" : ""}</li>}
+          {neu > 0 && <li>{neu} neue:r Befund(e)</li>}
+          {offen > 0 && <li>{offen} ohne explizite Bewertung</li>}
+        </ul>
       </div>
-      <ul className="text-amber-800 ml-5 list-disc">
-        {wid > 0 && <li>{wid} Widerspruch / -sprüche</li>}
-        {neu > 0 && <li>{neu} neue:r Befund(e)</li>}
-        {offen > 0 && <li>{offen} unbeantwortet</li>}
-      </ul>
+    );
+  }
+
+  // 2. Keine strukturierte Antwort → grauer Hinweis
+  if (strukturiert === false) {
+    return (
+      <div className="border border-slate-300 bg-slate-50 rounded px-3 py-2 text-xs">
+        <div className="font-semibold text-slate-700 flex items-center gap-2">
+          <HelpCircle className="h-3.5 w-3.5" />
+          Zweit-KI ohne differenzierte Beurteilung
+        </div>
+        <p className="text-slate-600 mt-1">
+          Die adversarielle Prüfung hat keinen einzelnen Erst-Befund explizit
+          bewertet und keinen Gegenvorschlag formuliert. Bei wichtigen
+          Entscheidungen bitte manuell ergänzen oder den Lauf wiederholen.
+        </p>
+      </div>
+    );
+  }
+
+  // 3. Strukturierte Antwort, aber einzelne Befunde nicht kommentiert
+  if (offen > 0) {
+    return (
+      <div className="border border-sky-200 bg-sky-50 rounded px-3 py-2 text-xs">
+        <div className="font-semibold text-sky-900 flex items-center gap-2">
+          <HelpCircle className="h-3.5 w-3.5" />
+          Zweit-KI im Detail
+        </div>
+        <p className="text-sky-800 mt-1">
+          {offen} Erst-Befund{offen > 1 ? "e wurden" : " wurde"} nicht einzeln
+          kommentiert
+          {gesamtVorschlag
+            ? `, der Gesamt-Vorschlag der Zweit-KI lautet aber `
+            : "."}
+          {gesamtVorschlag && <strong>„{gesamtVorschlag}"</strong>}
+          {gesamtVorschlag && "."}
+        </p>
+      </div>
+    );
+  }
+
+  // 4. Vollständige Bestätigung
+  return (
+    <div className="border border-emerald-200 bg-emerald-50 rounded px-3 py-2 text-xs">
+      <div className="font-semibold text-emerald-900 flex items-center gap-2">
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        Zweit-KI bestätigt die Erstprüfung
+      </div>
+      <p className="text-emerald-800 mt-1">
+        Keine Widersprüche, keine zusätzlichen Befunde
+        {gesamtVorschlag && <> · Gesamt-Vorschlag: <strong>„{gesamtVorschlag}"</strong></>}.
+      </p>
     </div>
   );
 }

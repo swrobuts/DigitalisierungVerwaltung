@@ -323,8 +323,11 @@ async def trigger_ki_zweitpruefung(req: KiZweitpruefungRequest) -> dict[str, Any
     )
 
     # Dissens berechnen
-    from pruefung.dissens import berechne_dissens, dissens_zusammenfassung
+    from pruefung.dissens import (
+        berechne_dissens, dissens_zusammenfassung, hat_strukturierte_antwort,
+    )
     dissens = berechne_dissens(erst_befunde, zweit_ergebnis)
+    strukturiert = hat_strukturierte_antwort(zweit_ergebnis)
 
     # Zweit-Pprotokoll persistieren (selbe Tabelle, modus-Marker im ergebnis_jsonb)
     duration_ms = int((time.monotonic() - start) * 1000)
@@ -364,6 +367,7 @@ async def trigger_ki_zweitpruefung(req: KiZweitpruefungRequest) -> dict[str, Any
             "befunde": {},
             "abschnitte": {},
             "dissens": dissens,
+            "ki_strukturiert": strukturiert,
         },
         "entscheidungs_vorschlag": _vorschlag_to_db(
             zweit_ergebnis.get("gesamt_vorschlag")

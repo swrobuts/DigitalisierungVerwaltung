@@ -23,20 +23,34 @@ def berechne_dissens(
         "zweit": { ... } | None,
         "begruendung": str,
       }
+
+    Wichtig: Wenn die Zweit-KI gar keine strukturierte Antwort geliefert
+    hat (alle drei Listen leer + kein Gesamtvorschlag), werden KEINE
+    'unbeantwortet'-Einträge erzeugt. Sonst würden wir Stille als
+    Dissens missinterpretieren. Die Lücke wird stattdessen über
+    `hat_strukturierte_antwort()` sichtbar (UI zeigt eigenen Hinweis).
     """
     dissens: list[dict[str, Any]] = []
+    bestaetigt = zweit_ergebnis.get("bestaetigte_befunde") or []
+    widersprochen = zweit_ergebnis.get("widersprochene_befunde") or []
+    neu = zweit_ergebnis.get("neue_befunde") or []
 
     # 1) Widersprüche der Zweitprüfung gegen Erstbefunde
     bestaetigt_idx = {
         b.get("erst_befund_index")
-        for b in (zweit_ergebnis.get("bestaetigte_befunde") or [])
+        for b in bestaetigt
         if b.get("erst_befund_index") is not None
     }
     widersprochen_map = {
         w.get("erst_befund_index"): w
-        for w in (zweit_ergebnis.get("widersprochene_befunde") or [])
+        for w in widersprochen
         if w.get("erst_befund_index") is not None
     }
+
+    # Hat die Zweit-KI überhaupt eine differenzierte Bewertung geliefert?
+    # Bei komplett leerer Antwort generieren wir keine unbeantwortet-Einträge
+    # (siehe Docstring).
+    hat_substanz = bool(bestaetigt or widersprochen or neu)
 
     for idx, eb in enumerate(erst_befunde):
         w = widersprochen_map.get(idx)
@@ -55,9 +69,10 @@ def berechne_dissens(
                 "begruendung": w.get("begruendung", ""),
             })
             continue
-        if idx not in bestaetigt_idx:
-            # Zweitprüfung hat diesen Befund weder bestätigt noch
-            # widersprochen — schwächere Form von Dissens (übersehen).
+        if idx not in bestaetigt_idx and hat_substanz:
+            # Nur als "unbeantwortet" markieren, wenn die Zweit-KI andere
+            # Befunde kommentiert hat — dann ist die Lücke aussagekräftig
+            # ("hat manche bewertet, diese hier nicht").
             dissens.append({
                 "erst_befund_index": idx,
                 "art": "unbeantwortet",
@@ -71,7 +86,7 @@ def berechne_dissens(
 
     # 2) Neue Befunde der Zweitprüfung sind per se Dissens (Erstprüfung
     #    hat sie nicht gefunden).
-    for nb in (zweit_ergebnis.get("neue_befunde") or []):
+    for nb in neu:
         dissens.append({
             "erst_befund_index": None,
             "art": "neuer_befund",
@@ -85,6 +100,19 @@ def berechne_dissens(
         })
 
     return dissens
+
+
+def hat_strukturierte_antwort(zweit_ergebnis: dict) -> bool:
+    """True, wenn die Zweit-KI mindestens etwas Strukturiertes geliefert
+    hat (bestätigt, widersprochen, neuer Befund oder Gesamt-Vorschlag).
+    UI nutzt das, um den Unterschied zwischen 'echtes Schweigen der KI'
+    und 'Konsens-by-Bestätigung' anzuzeigen."""
+    return bool(
+        (zweit_ergebnis.get("bestaetigte_befunde") or [])
+        or (zweit_ergebnis.get("widersprochene_befunde") or [])
+        or (zweit_ergebnis.get("neue_befunde") or [])
+        or zweit_ergebnis.get("gesamt_vorschlag")
+    )
 
 
 def dissens_zusammenfassung(dissens: list[dict]) -> dict[str, int]:
