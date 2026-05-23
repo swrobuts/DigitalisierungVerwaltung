@@ -101,18 +101,18 @@ interface SpaltenDef {
 }
 
 const COLUMNS: SpaltenDef[] = [
-  { key: "antragsnummer", label: "Antrag-Nr.",
+  { key: "antragsnummer", label: "Antragsnummer",
     tooltip: "Antragsnummer (eindeutige ID)" },
   { key: "name", label: "Name" },
   { key: "traeger", label: "Träger" },
-  { key: "submitted_at", label: "Eingang",
+  { key: "submitted_at", label: "Eingegangen",
     tooltip: "Zeitpunkt des Antragseingangs" },
   { key: "status", label: "Status" },
   { key: "antragssumme", label: "Antragssumme", align: "right",
     tooltip: "Beantragte Fördersumme im aktuellen Haushaltsjahr (max. 10.000 € gem. AHP 2.3 Pkt. 2)" },
   { key: "vj", label: "Antragssumme Vorjahr", align: "right",
     tooltip: "Beantragte Fördersumme im Vorjahres-Antrag desselben Trägers (aus DB rekonstruiert)" },
-  { key: "diff", label: "Δ", align: "right",
+  { key: "diff", label: "Δ Antragssumme", align: "right",
     tooltip: "Aktuelle Antragssumme minus Vorjahres-Antragssumme" },
   { key: "stadt_anteil", label: "Stadt-Anteil", align: "right",
     tooltip:

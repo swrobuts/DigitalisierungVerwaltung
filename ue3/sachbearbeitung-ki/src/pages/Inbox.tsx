@@ -138,11 +138,11 @@ interface SpaltenDef {
  * `spaltenFuerHaushaltsjahr()` aus dem aktiven HJ-Filter abgeleitet.
  */
 const COLUMNS: SpaltenDef[] = [
-  { key: "antragsnummer", label: "Antrag-Nr.", pflicht: true, defaultVisible: true,
+  { key: "antragsnummer", label: "Antragsnummer", pflicht: true, defaultVisible: true,
     tooltip: "Antragsnummer (eindeutige ID)" },
   { key: "name", label: "Name", defaultVisible: true },
   { key: "traeger", label: "Träger", defaultVisible: true },
-  { key: "submitted_at", label: "Eingang", defaultVisible: true,
+  { key: "submitted_at", label: "Eingegangen", defaultVisible: true,
     tooltip: "Zeitpunkt des Antragseingangs" },
   { key: "submitted_language", label: "Sprache", defaultVisible: false },
   { key: "status", label: "Status", pflicht: true, defaultVisible: true },
@@ -155,7 +155,7 @@ const COLUMNS: SpaltenDef[] = [
     tooltip: "Beantragte Fördersumme im aktuellen Haushaltsjahr (max. 10.000 € gem. AHP 2.3 Pkt. 2)" },
   { key: "vj", label: "Antragssumme Vorjahr", align: "right", defaultVisible: true,
     tooltip: "Beantragte Fördersumme im Vorjahres-Antrag desselben Trägers (aus DB rekonstruiert)" },
-  { key: "diff", label: "Δ", align: "right", defaultVisible: true,
+  { key: "diff", label: "Δ Antragssumme", align: "right", defaultVisible: true,
     tooltip: "Aktuelle Antragssumme minus Vorjahres-Antragssumme" },
   // AHP-Bemessungsgrößen aus Step 4 des Antragsformulars (alle Vorjahr).
   // Stadt-Anteil ist default sichtbar, weil er die Auszahlung direkt
@@ -196,8 +196,9 @@ function spaltenFuerHaushaltsjahr(hj: number | null): SpaltenDef[] {
         return { ...c, label: `Antragssumme ${hj}` };
       case "vj":
         return { ...c, label: `Antragssumme ${vj}` };
-      case "diff":
-        return { ...c, label: `Δ` };
+      // 'diff' bleibt bewusst beim Default-Label „Δ Antragssumme" —
+      // ein blankes „Δ" wäre inkonsistent zu den ausgeschriebenen
+      // Nachbarspalten und für Außenstehende kryptisch.
       // Stadt-Anteil, Teilnehmer, Veranstaltungen beziehen sich gem.
       // AHP 2.3 Pkt. 2 auf das Vorjahr — Jahres-Suffix macht das explizit.
       // Der Bezug zum VJ ist jetzt durch das Antragsformular gedeckt
