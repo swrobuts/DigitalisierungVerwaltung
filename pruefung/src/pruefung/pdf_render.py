@@ -5,6 +5,7 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from weasyprint import HTML
 from pruefung.models import PruefungsErgebnis
+from pruefung.bescheid_subsumtion import gilt_anteil_logik, get_hoechstgrenze
 
 
 def _format_euro(v: Any) -> str:
@@ -31,6 +32,66 @@ def _format_date(v: Any) -> str:
         return datetime.strptime(s, "%Y-%m-%d").strftime("%d.%m.%Y")
     except ValueError:
         return s
+
+
+def _render_anteils_erlaeuterung(
+    cell,  # _Cell – Word table cell, runtime typecheck wird sich beschweren bei stub
+    antrag: dict[str, Any],
+    bewilligte_summe: float,
+    farben: dict[str, str],
+) -> None:
+    """Bei anteilig-relevanten Förderbereichen (AHP 2.3 Begegnungszentren
+    / Bildungsträger) eine kurze Berechnungs-Zeile unter der bewilligten
+    Summe einfügen:
+
+      'Berechnung: AHP-Förderhöchstgrenze 10.000,00 € × Stadtbewohner-
+       Anteil 70,0 % = 7.000,00 € anteilige Höchstauszahlung.
+       Beantragt: 5.000,00 € → in voller Höhe bewilligt.'
+
+    No-op wenn:
+    - Förderbereich nicht anteils-relevant
+    - Stadt-Anteil oder Höchstgrenze fehlt
+    """
+    from docx.shared import Pt
+    from docx.shared import RGBColor
+
+    fb = antrag.get("foerderbereich")
+    if not gilt_anteil_logik(fb):
+        return
+    anteil = antrag.get("stadtbewohner_anteil")
+    hoechstgrenze = get_hoechstgrenze(fb)
+    if anteil is None or hoechstgrenze is None:
+        return
+    try:
+        anteil_f = float(anteil)
+        hoechstgrenze_f = float(hoechstgrenze)
+        forderung_f = (
+            float(antrag.get("geforderte_foerdersumme_euro"))
+            if antrag.get("geforderte_foerdersumme_euro") is not None else None
+        )
+    except (TypeError, ValueError):
+        return
+    anteilige_grenze = hoechstgrenze_f * anteil_f
+    anteil_pct = f"{anteil_f * 100:.1f}".replace(".", ",") + " %"
+    text = (
+        f"Berechnung: AHP-Höchstgrenze {_format_euro(hoechstgrenze_f)} × "
+        f"Stadtbewohner-Anteil {anteil_pct} = "
+        f"{_format_euro(anteilige_grenze)} anteilige Höchstauszahlung."
+    )
+    if forderung_f is not None:
+        if abs(forderung_f - bewilligte_summe) < 0.01:
+            text += f" Beantragt: {_format_euro(forderung_f)} → in voller Höhe bewilligt."
+        else:
+            text += (
+                f" Beantragt: {_format_euro(forderung_f)}, bewilligt: "
+                f"{_format_euro(bewilligte_summe)}."
+            )
+    p = cell.add_paragraph()
+    p.paragraph_format.space_before = Pt(4)
+    r = p.add_run(text)
+    r.font.size = Pt(8.5)
+    r.italic = True
+    r.font.color.rgb = RGBColor.from_string(farben.get("text", "333333"))
 
 
 _env = Environment(
@@ -422,6 +483,12 @@ def render_bescheid_docx(
         summe_r.bold = True
         summe_r.font.size = Pt(12)
         summe_r.font.color.rgb = RGBColor.from_string(farben["text"])
+        # Bei anteilig-relevanten Förderbereichen (AHP 2.3 Pkt. 2/3:
+        # Begegnungszentren, Bildungsträger) die Berechnung transparent
+        # erläutern, auch wenn die volle Forderung bewilligt wird —
+        # damit Sachbearbeitung/Antragsteller die Anteils-Logik sehen
+        # und nachvollziehen können, dass Cap × Anteil eingehalten ist.
+        _render_anteils_erlaeuterung(ent_cell, antrag, bewilligte_summe_euro, farben)
 
     # ── 6. I. SACHVERHALT (nur wenn nicht bewilligt) ───────────────
     def _h2(text: str) -> None:

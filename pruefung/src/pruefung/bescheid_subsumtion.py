@@ -52,6 +52,29 @@ _FOERDERBEREICH_HOECHSTGRENZE = {
     "quartiersmanagement_altenarbeit":   7500,
 }
 
+# Förderbereiche, für die gem. AHP 2.3 die anteilige Auszahlung gilt:
+# „Je nach prozentualem Anteil der Stadtbewohner:innen an den gesamten
+#  Teilnehmer:innen des Vorjahres, erfolgt die Auszahlung des
+#  prozentualen Anteils." (AHP 2.3 Pkt. 2 und Pkt. 3)
+ANTEIL_RELEVANTE_FOERDERBEREICHE: set[str] = {
+    "begegnungszentren",
+    "bildungstraeger",
+}
+
+
+def gilt_anteil_logik(foerderbereich: str | None) -> bool:
+    """True, wenn die anteilige Auszahlung gem. AHP 2.3 für diesen
+    Förderbereich greift."""
+    return foerderbereich in ANTEIL_RELEVANTE_FOERDERBEREICHE
+
+
+def get_hoechstgrenze(foerderbereich: str | None) -> float | None:
+    """Förderhöchstgrenze (€/Jahr) für einen Förderbereich; None wenn
+    Förderbereich unbekannt."""
+    if foerderbereich is None:
+        return None
+    return _FOERDERBEREICH_HOECHSTGRENZE.get(foerderbereich)
+
 
 def build_subsumtion(
     befund: dict[str, Any],
