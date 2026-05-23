@@ -39,6 +39,18 @@ class SupabaseClient:
             r.raise_for_status()
             return r.json()
 
+    async def update(self, table: str, query: str, patch: dict) -> list[dict]:
+        """PATCH /rest/v1/{table}?{query}. query ist z.B. 'id=eq.{uuid}'.
+        Wird u.a. für 'Prüfung abschließen' und 'Antrags-Status setzen' genutzt."""
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.patch(
+                f"{self.url}/rest/v1/{table}?{query}",
+                json=patch,
+                headers={**self._headers, "Prefer": "return=representation"},
+            )
+            r.raise_for_status()
+            return r.json()
+
     async def upload_storage(self, bucket: str, path: str, content: bytes, content_type: str) -> str:
         async with httpx.AsyncClient(timeout=60) as c:
             r = await c.post(

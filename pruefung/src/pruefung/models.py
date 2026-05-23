@@ -3,7 +3,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 Schwere = Literal["verstoss", "hinweis"]
-LayerName = Literal["A", "B", "C"]
+# A=strukturell, B=ontologie, C=RAG-Wortlaut, Z=adversarielle Zweitprüfung
+LayerName = Literal["A", "B", "C", "Z"]
 
 
 class Befund(BaseModel):

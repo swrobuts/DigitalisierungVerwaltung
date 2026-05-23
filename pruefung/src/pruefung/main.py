@@ -131,6 +131,271 @@ async def pruefen(req: PruefungsRequest) -> dict[str, Any]:
     }
 
 
+class PruefungRequest(BaseModel):
+    """Body von POST /api/pruefung — legt eine Prüfung an oder schließt sie ab.
+
+    Wenn `id` gesetzt ist: Update der bestehenden Prüfung (abhakungen,
+    Kommentar, Vorschlag, ggf. abschließen). Sonst: neue Prüfung anlegen
+    (typischerweise Erstprüfung beim Klick 'Manuelle Prüfung starten').
+
+    `abschliessen=True` schaltet das Antrag-Status-Modell weiter:
+      - Erstprüfung abgeschlossen + Zweitprüfung erforderlich  → 'zweitpruefung_offen'
+      - Sonst                                                    → bleibt 'in_pruefung'
+    """
+    id: str | None = None
+    antrag_id: str
+    rolle: str  # 'erstpruefung' | 'zweitpruefung'
+    pruefer_typ: str  # 'mensch' | 'ki'
+    pruefer_id: str
+    pruefer_modus: str | None = None  # 'standard' | 'adversariell' (nur bei KI)
+    pruefprotokoll_id: str | None = None
+    abhakungen_jsonb: dict[str, Any] | None = None
+    gesamt_kommentar: str | None = None
+    entscheidungs_vorschlag: str | None = None  # 'bewilligen' | 'ablehnen' | 'rueckfragen'
+    abschliessen: bool = False
+    bewilligte_summe_euro: float | None = None  # nur für Trigger-Logik benötigt
+
+
+def _zweitpruefung_erforderlich(
+    entscheidungs_vorschlag: str | None,
+    bewilligte_summe: float | None,
+) -> bool:
+    """Trigger-Logik: Vier-Augen-Prinzip ist Pflicht
+      - bei Ablehnung (rechtssicherheit)
+      - bei Bewilligungen über 5.000 € (Schwellwert per Konvention)."""
+    if entscheidungs_vorschlag == "ablehnen":
+        return True
+    if entscheidungs_vorschlag == "bewilligen" and (bewilligte_summe or 0) > 5000:
+        return True
+    return False
+
+
+@app.post("/api/pruefung")
+async def upsert_pruefung(req: PruefungRequest) -> dict[str, Any]:
+    """Erstellt oder aktualisiert eine Prüfungs-Bewertung. Wenn
+    `abschliessen=True`, wird `abgeschlossen_am` gesetzt und ggf. der
+    Antrags-Status fortgeschaltet (in_pruefung → zweitpruefung_offen, etc.)."""
+    db = SupabaseClient.from_env()
+    if req.rolle not in ("erstpruefung", "zweitpruefung"):
+        raise HTTPException(400, f"Ungültige Rolle: {req.rolle}")
+    if req.pruefer_typ not in ("mensch", "ki"):
+        raise HTTPException(400, f"Ungültiger pruefer_typ: {req.pruefer_typ}")
+
+    payload: dict[str, Any] = {
+        "antrag_id": req.antrag_id,
+        "rolle": req.rolle,
+        "pruefer_typ": req.pruefer_typ,
+        "pruefer_id": req.pruefer_id,
+        "pruefer_modus": req.pruefer_modus,
+        "pruefprotokoll_id": req.pruefprotokoll_id,
+        "gesamt_kommentar": req.gesamt_kommentar,
+        "entscheidungs_vorschlag": req.entscheidungs_vorschlag,
+    }
+    if req.abhakungen_jsonb is not None:
+        payload["abhakungen_jsonb"] = req.abhakungen_jsonb
+    if req.abschliessen:
+        payload["abgeschlossen_am"] = datetime.now(UTC).isoformat()
+    # None-Werte raus, damit wir keine bestehenden Felder überschreiben
+    payload = {k: v for k, v in payload.items() if v is not None}
+
+    if req.id:
+        rows = await db.update("pruefungen", f"id=eq.{req.id}", payload)
+    else:
+        rows = await db.insert("pruefungen", payload)
+
+    pruefung = rows[0] if rows else {}
+
+    # Status-Fortschaltung beim Abschließen
+    if req.abschliessen:
+        new_status = await _fortschalten(db, req)
+        return {"pruefung": pruefung, "neuer_status": new_status}
+    return {"pruefung": pruefung}
+
+
+async def _fortschalten(db: SupabaseClient, req: PruefungRequest) -> str | None:
+    """Nach Abschluss einer Prüfung den Antrags-Status weiterschalten.
+
+    Erstprüfung:
+      - Zweitprüfung erforderlich  → status='zweitpruefung_offen'
+      - Sonst: status bleibt 'in_pruefung' (Sachbearbeiter triggert manuell
+        die finale Status-Änderung via bestehendem Workflow-Card)
+
+    Zweitprüfung:
+      - Beide Vorschläge gleich  → status bleibt (Sachbearbeiter klickt
+        auf 'Bewilligen' / 'Ablehnen' im Workflow-Card wie bisher)
+      - Dissens                   → status='zweitpruefung_dissens'
+    """
+    antrag_rows = await db.select(
+        "antraege", f"id=eq.{req.antrag_id}&select=status",
+    )
+    if not antrag_rows:
+        return None
+    current = antrag_rows[0]["status"]
+
+    if req.rolle == "erstpruefung":
+        if _zweitpruefung_erforderlich(
+            req.entscheidungs_vorschlag, req.bewilligte_summe_euro,
+        ) and current == "in_pruefung":
+            await db.update(
+                "antraege", f"id=eq.{req.antrag_id}",
+                {"status": "zweitpruefung_offen"},
+            )
+            return "zweitpruefung_offen"
+        return current
+
+    # Zweitprüfung abgeschlossen → Dissens-Check
+    erst_rows = await db.select(
+        "pruefungen",
+        f"antrag_id=eq.{req.antrag_id}&rolle=eq.erstpruefung"
+        "&select=entscheidungs_vorschlag",
+    )
+    erst_vorschlag = (erst_rows[0] or {}).get("entscheidungs_vorschlag") if erst_rows else None
+    if (
+        erst_vorschlag
+        and req.entscheidungs_vorschlag
+        and erst_vorschlag != req.entscheidungs_vorschlag
+        and current == "zweitpruefung_offen"
+    ):
+        await db.update(
+            "antraege", f"id=eq.{req.antrag_id}",
+            {"status": "zweitpruefung_dissens"},
+        )
+        return "zweitpruefung_dissens"
+    return current
+
+
+@app.get("/api/pruefung")
+async def list_pruefungen(antrag_id: str) -> dict[str, Any]:
+    """Listet alle (max. 2) Prüfungen eines Antrags."""
+    db = SupabaseClient.from_env()
+    rows = await db.select(
+        "pruefungen",
+        f"antrag_id=eq.{antrag_id}&select=*&order=angelegt_am.asc",
+    )
+    return {"pruefungen": rows}
+
+
+class KiZweitpruefungRequest(BaseModel):
+    """Body von POST /api/pruefung/ki-zweitpruefung."""
+    antrag_id: str
+    pruefprotokoll_id: str | None = None  # default: letztes Erst-Protokoll
+
+
+@app.post("/api/pruefung/ki-zweitpruefung")
+async def trigger_ki_zweitpruefung(req: KiZweitpruefungRequest) -> dict[str, Any]:
+    """Triggert eine adversarielle KI-Zweitprüfung auf Basis einer
+    existierenden Erstprüfung. Schreibt ein neues pruefprotokoll (Layer Z)
+    und legt einen pruefungen-Eintrag mit Rolle=zweitpruefung, Typ=ki,
+    Modus=adversariell + bereits berechneter Dissens-Liste an.
+
+    UI ruft das auf, wenn der Sachbearbeiter im ZweitpruefungsCard auf
+    'KI als Zweitprüfer starten' klickt."""
+    start = time.monotonic()
+    db = SupabaseClient.from_env()
+
+    antrag = await _fetch_antrag(req.antrag_id, db)
+
+    # Letzte Erstprüfung (= jüngstes pruefprotokoll) finden
+    pp_query = (
+        f"antrag_id=eq.{req.antrag_id}&select=id,ergebnis_jsonb,doctree_version"
+        "&order=geprueft_am.desc&limit=1"
+    )
+    if req.pruefprotokoll_id:
+        pp_query = f"id=eq.{req.pruefprotokoll_id}&select=id,ergebnis_jsonb,doctree_version"
+    pp_rows = await db.select("pruefprotokoll", pp_query)
+    if not pp_rows:
+        raise HTTPException(
+            409, "Keine Erstprüfung gefunden — bitte erst KI-Erstprüfung laufen lassen.",
+        )
+    erst_protokoll = pp_rows[0]
+    erst_befunde: list[dict] = (erst_protokoll.get("ergebnis_jsonb") or {}).get("befunde", [])
+
+    tree, version = await _fetch_doctree(db)
+
+    # Adversariellen Lauf ausführen
+    from pruefung.zweitpruefer_ki import (
+        run_adversarielle_zweitpruefung, zweitpruefung_zu_befunden,
+    )
+    zweit_ergebnis = await run_adversarielle_zweitpruefung(
+        antrag=antrag,
+        erst_befunde=erst_befunde,
+        tree=tree,
+    )
+
+    # Dissens berechnen
+    from pruefung.dissens import berechne_dissens, dissens_zusammenfassung
+    dissens = berechne_dissens(erst_befunde, zweit_ergebnis)
+
+    # Zweit-Pprotokoll persistieren (selbe Tabelle, modus-Marker im ergebnis_jsonb)
+    duration_ms = int((time.monotonic() - start) * 1000)
+    zweit_befunde = zweitpruefung_zu_befunden(zweit_ergebnis)
+    zweit_ergebnis_obj = PruefungsErgebnis(
+        befunde=zweit_befunde,
+        doctree_version=version,
+        duration_ms=duration_ms,
+    )
+    zweit_ergebnis_dict = zweit_ergebnis_obj.model_dump()
+    zweit_ergebnis_dict["modus"] = "adversariell"
+    zweit_ergebnis_dict["zweit_ergebnis_raw"] = zweit_ergebnis  # vollständige Rohdaten
+    zweit_ergebnis_dict["dissens"] = dissens
+
+    pp_insert = await db.insert("pruefprotokoll", {
+        "antrag_id": req.antrag_id,
+        "geprueft_von": "claude-sonnet-4-5",
+        "doctree_version": version,
+        "ergebnis_jsonb": zweit_ergebnis_dict,
+        "duration_ms": duration_ms,
+    })
+    zweit_pp_id = pp_insert[0]["id"] if pp_insert else None
+
+    # pruefungen-Row anlegen (oder updaten, falls schon vorhanden)
+    existing = await db.select(
+        "pruefungen",
+        f"antrag_id=eq.{req.antrag_id}&rolle=eq.zweitpruefung&select=id",
+    )
+    payload = {
+        "antrag_id": req.antrag_id,
+        "rolle": "zweitpruefung",
+        "pruefer_typ": "ki",
+        "pruefer_id": "claude-sonnet-4-5",
+        "pruefer_modus": "adversariell",
+        "pruefprotokoll_id": zweit_pp_id,
+        "abhakungen_jsonb": {
+            "befunde": {},
+            "abschnitte": {},
+            "dissens": dissens,
+        },
+        "entscheidungs_vorschlag": _vorschlag_to_db(
+            zweit_ergebnis.get("gesamt_vorschlag")
+        ),
+        "gesamt_kommentar": zweit_ergebnis.get("gesamt_begruendung"),
+        "abgeschlossen_am": datetime.now(UTC).isoformat(),
+    }
+    if existing:
+        rows = await db.update(
+            "pruefungen", f"id=eq.{existing[0]['id']}", payload,
+        )
+    else:
+        rows = await db.insert("pruefungen", payload)
+
+    return {
+        "pruefung": rows[0] if rows else {},
+        "pruefprotokoll_id": zweit_pp_id,
+        "dissens": dissens,
+        "dissens_summary": dissens_zusammenfassung(dissens),
+        "gesamt_vorschlag": zweit_ergebnis.get("gesamt_vorschlag"),
+        "gesamt_begruendung": zweit_ergebnis.get("gesamt_begruendung"),
+        "duration_ms": duration_ms,
+    }
+
+
+def _vorschlag_to_db(vorschlag: str | None) -> str | None:
+    """KI sagt 'bewilligen|ablehnen|rueckfragen' — wir mappen auf Enum."""
+    if vorschlag in ("bewilligen", "ablehnen", "rueckfragen"):
+        return vorschlag
+    return None
+
+
 class BescheidRequest(BaseModel):
     """Body von POST /api/bescheid."""
     antrag_id: str
@@ -178,6 +443,16 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
     if not antrag_rows:
         raise HTTPException(404, f"Antrag {req.antrag_id} nicht gefunden")
     antrag = antrag_rows[0]
+
+    # Bescheid-Sperre: solange Zweitprüfung offen oder im Dissens ist, darf
+    # noch kein Bescheid erzeugt werden — der Sachbearbeiter muss erst die
+    # Zweitprüfung abschließen (und ggf. den Dissens auflösen).
+    if antrag.get("status") in ("zweitpruefung_offen", "zweitpruefung_dissens"):
+        raise HTTPException(
+            409,
+            f"Bescheid kann nicht erzeugt werden: Antrag im Status "
+            f"'{antrag['status']}'. Zweitprüfung muss zuerst abgeschlossen werden.",
+        )
 
     # 2) Letztes Prüfprotokoll holen (für Begründung)
     protokoll_rows = await db.select(
@@ -402,6 +677,24 @@ async def build_embeddings() -> dict[str, Any]:
     /api/rebuild-doctree oder bei Voyage-Modellwechsel."""
     db = SupabaseClient.from_env()
     return await build_embeddings_for_doctree(db)
+
+
+@app.get("/api/antrag/{antrag_id}/vergleich-vorjahr")
+async def vergleich_vorjahr(antrag_id: str) -> dict[str, Any]:
+    """Heuristischer Diff zwischen aktuellem Antrag und Vorjahres-Antrag
+    desselben Trägers. Kein KI-Aufruf — reine Geschäftsregeln (siehe
+    vergleich_vorjahr.py)."""
+    from pruefung.vergleich_vorjahr import vergleich_mit_vorjahr
+    db = SupabaseClient.from_env()
+    return await vergleich_mit_vorjahr(antrag_id, db)
+
+
+@app.get("/api/antrag/{antrag_id}/risiko-score")
+async def risiko_score(antrag_id: str) -> dict[str, Any]:
+    """Heuristischer Risiko-Score (0..100) für die Inbox-Triage."""
+    from pruefung.risiko_score import berechne_risiko_score
+    db = SupabaseClient.from_env()
+    return await berechne_risiko_score(antrag_id, db)
 
 
 @app.post("/api/extract-norms")

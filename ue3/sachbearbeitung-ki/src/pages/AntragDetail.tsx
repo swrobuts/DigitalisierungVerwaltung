@@ -14,6 +14,9 @@ import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { PruefungsCard } from "../components/PruefungsCard";
+import { ZweitpruefungsCard } from "../components/ZweitpruefungsCard";
+import { BescheideListe } from "../components/BescheideListe";
+import { VorjahresVergleich } from "../components/VorjahresVergleich";
 import {
   Dialog,
   DialogContent,
@@ -199,6 +202,10 @@ export function AntragDetail() {
 
           {/* §§ Abschnitte */}
           <div className="px-10 lg:px-14 py-10 space-y-12">
+            {/* Vorjahres-Vergleich — direkt oberhalb der §-Abschnitte,
+                damit Auffälligkeiten gegenüber Vorjahr sofort kontextualisieren. */}
+            <VorjahresVergleich antragId={antrag.id} />
+
             <DocSection num="§ 1" title="Antragsteller / Träger">
               <FieldGrid>
                 <DocField label="Trägerverein / Organisation" className="sm:col-span-2">
@@ -455,35 +462,37 @@ export function AntragDetail() {
           </Card>
           )}
 
-          {bescheide.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Bescheide</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {bescheide.map((b) => (
-                  <BescheidListItem
-                    key={b.id}
-                    bescheid={b}
-                    onOpen={() => b.pdf_storage_path && openBescheidPdf(b.pdf_storage_path)}
-                    onOpenDocx={async () => {
-                      const url = await downloadBescheidDocx(b.id);
-                      if (url) {
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `bescheid_${b.id}.docx`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }
-                    }}
-                    onDelete={async () => {
-                      if (!confirm("Bescheid wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.")) return;
-                      await loeschBescheid(b.id, b.pdf_storage_path);
-                    }}
-                  />
-                ))}
-              </CardContent>
-            </Card>
+          <BescheideListe
+            bescheide={bescheide}
+            onOpen={(b) => b.pdf_storage_path && openBescheidPdf(b.pdf_storage_path)}
+            onOpenDocx={async (b) => {
+              const url = await downloadBescheidDocx(b.id);
+              if (url) {
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `bescheid_${b.id}.docx`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }
+            }}
+            onDelete={async (b) => {
+              if (!confirm("Bescheid wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.")) return;
+              await loeschBescheid(b.id, b.pdf_storage_path);
+            }}
+          />
+
+          {/* Zweitprüfung — erscheint nach Erstprüfung oder wenn Status
+              zweitpruefung_* ist (Pflichtfall). */}
+          {(letztePruefung || antrag.status?.startsWith("zweitpruefung_")) && (
+            <ZweitpruefungsCard
+              antragId={antrag.id}
+              letzteErstpruefung={letztePruefung}
+              zweitpruefungPflicht={
+                antrag.status?.startsWith("zweitpruefung_") ||
+                istZweitpruefungPflichtig(letztePruefung)
+              }
+              pflichtgrund={pflichtgrund(letztePruefung, antrag.status)}
+            />
           )}
 
           <Card>
@@ -762,68 +771,27 @@ function formatIban(iban: string): string {
   return iban.replace(/\s+/g, "").replace(/(.{4})/g, "$1 ").trim();
 }
 
-/** Eine Zeile in der Bescheide-Card mit Entscheidung, Datum, Summe + Download. */
-function BescheidListItem({
-  bescheid, onOpen, onOpenDocx, onDelete,
-}: {
-  bescheid: BescheidRow;
-  onOpen: () => void;
-  onOpenDocx?: () => void;
-  onDelete?: () => void;
-}) {
-  const labels: Record<BescheidRow["entscheidung"], { txt: string; color: string }> = {
-    bewilligt: { txt: "Bewilligt", color: "text-emerald-700" },
-    abgelehnt: { txt: "Abgelehnt", color: "text-rose-700" },
-    rueckfrage: { txt: "Rückfrage", color: "text-amber-700" },
-  };
-  const meta = labels[bescheid.entscheidung];
-  return (
-    <div className="border border-slate-200 rounded p-2 text-sm">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className={`font-medium ${meta.color}`}>{meta.txt}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500">
-            {formatDateTime(bescheid.ausgestellt_am)}
-          </span>
-          {onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              title="Bescheid löschen"
-              className="text-slate-400 hover:text-rose-700 transition-colors p-0.5 rounded hover:bg-rose-50"
-              aria-label="Bescheid löschen"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-      {bescheid.bewilligte_summe_euro !== null && (
-        <div className="text-xs text-slate-700 tabular-nums mt-1">
-          Summe: <span className="font-medium">{formatEuro(bescheid.bewilligte_summe_euro)}</span>
-        </div>
-      )}
-      {bescheid.doctree_version && (
-        <div className="text-[11px] text-slate-400 mt-0.5">
-          Doctree v{bescheid.doctree_version}
-        </div>
-      )}
-      {(bescheid.pdf_storage_path || onOpenDocx) && (
-        <div className="grid grid-cols-2 gap-1 mt-2">
-          {bescheid.pdf_storage_path && (
-            <Button variant="outline" size="sm" onClick={onOpen} className="text-xs">
-              📄 PDF
-            </Button>
-          )}
-          {onOpenDocx && (
-            <Button variant="outline" size="sm" onClick={onOpenDocx} className="text-xs">
-              📝 DOCX
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
-  );
+/** Trigger-Logik für die Pflicht-Zweitprüfung, gespiegelt aus dem
+ *  Backend (pruefung-service main._zweitpruefung_erforderlich) — wir
+ *  duplizieren bewusst die kleine Heuristik im Frontend, damit das UI
+ *  ohne Server-Roundtrip schon ableitet, dass eine Zweitprüfung Pflicht
+ *  ist. Quelle der Wahrheit bleibt das Backend (es schaltet den Status). */
+function istZweitpruefungPflichtig(letztePruefung: { ergebnis_jsonb?: { empfehlung?: { aktion: string } } } | null): boolean {
+  const aktion = letztePruefung?.ergebnis_jsonb?.empfehlung?.aktion;
+  if (aktion === "ablehnen") return true;
+  // 'bewilligen + > 5.000€' können wir hier nicht prüfen, weil wir die
+  // *bewilligte* Summe noch nicht kennen — erst beim Status-Wechsel
+  // 'bewilligt' kommt die durch. Wir geben dafür false zurück und der
+  // Sachbearbeiter sieht 'optional'. Backend setzt zweitpruefung_offen
+  // beim Klick auf 'Bewilligen + Bescheid'.
+  return false;
+}
+
+function pflichtgrund(letztePruefung: { ergebnis_jsonb?: { empfehlung?: { aktion: string } } } | null, status: string | undefined): string | undefined {
+  if (status === "zweitpruefung_dissens") return "Erst- und Zweitprüfung im Dissens — bitte auflösen.";
+  if (letztePruefung?.ergebnis_jsonb?.empfehlung?.aktion === "ablehnen")
+    return "KI empfiehlt Ablehnung — Vier-Augen-Prinzip vorgeschrieben.";
+  return undefined;
 }
 
 /** Antrags-Summary-Streifen direkt unter dem Hero — beantwortet auf einen
