@@ -2,6 +2,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import type { Status } from "../lib/workflow";
 
+/** UE2-Antrag-Zeile für die Inbox.
+ *
+ * Datenmodell synchron zu UE3 gehalten, weil beide Systeme auf demselben
+ * UE1-Antragsformular aufsetzen — die Sachbearbeitenden sollen in beiden
+ * Inboxen denselben Daten-Horizont sehen, auch wenn UE2 keine KI-Features
+ * hat. Was UE2 NICHT braucht (Risiko-Score, Zweitprüfungs-Banner, …)
+ * bleibt aus dem Hook draußen.
+ */
 export interface AntragRow {
   id: string;
   antragsnummer: string;
@@ -11,9 +19,15 @@ export interface AntragRow {
   submitted_at: string;
   status: Status;
   submitted_language: string;
-  betriebskosten_vorjahr_euro: number;
-  personalkosten_vorjahr_euro: number;
-  miete_jahr_euro: number;
+  /** Beantragter Zuschuss (max. 10.000 € gem. AHP 2.3 Pkt. 2). NULL =
+   *  noch nicht beziffert. */
+  geforderte_foerdersumme_euro: number | null;
+  /** AHP-Bemessungsgrößen (Vorjahr) — werden vom UE1-Formular Step 4
+   *  abgefragt. NULL = noch nicht eingegeben. */
+  anzahl_teilnehmer: number | null;
+  /** 0…1 — Auszahlungs-Anteilsfaktor (Würzburger Stadtbewohner). */
+  stadtbewohner_anteil: number | null;
+  anzahl_treffen_jahr: number | null;
 }
 
 export function useAntraege(): {
@@ -31,7 +45,7 @@ export function useAntraege(): {
       const { data, error } = await supabase
         .from("antrag_mit_summen")
         .select(
-          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, betriebskosten_vorjahr_euro, personalkosten_vorjahr_euro, miete_jahr_euro",
+          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, geforderte_foerdersumme_euro, anzahl_teilnehmer, stadtbewohner_anteil, anzahl_treffen_jahr",
         )
         .order("submitted_at", { ascending: false });
       if (!mounted) return;
