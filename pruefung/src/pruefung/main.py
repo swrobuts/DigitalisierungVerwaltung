@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from pydantic import BaseModel
 from pruefung.db import SupabaseClient
 from pruefung.doctree_build import (
@@ -35,7 +36,7 @@ app.add_middleware(
         "https://amt.butscher.cloud",
         "http://localhost:5173",
     ],
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -277,6 +278,81 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
         "anzahl_verstoesse_in_bescheid": len(befunde_for_template),
         "doctree_version": doctree_version,
     }
+
+
+@app.get("/api/bescheid/{bescheid_id}/docx")
+async def bescheid_docx(bescheid_id: str) -> Response:
+    """Editierbare DOCX-Variante eines existierenden Bescheids.
+
+    On-demand-Rendering: Wir persistieren nur das PDF im Storage; DOCX wird
+    bei Bedarf aus der gleichen Datenbasis (Antrag + Bescheid-Begründung)
+    neu erzeugt. So bleibt der Bescheid-Datensatz die single source of truth
+    und das Storage-Volumen klein."""
+    db = SupabaseClient.from_env()
+
+    # 1) Bescheid laden — enthält die bereits angereicherte Begründung
+    rows = await db.select(
+        "bescheide",
+        f"id=eq.{bescheid_id}&select=*",
+    )
+    if not rows:
+        raise HTTPException(404, f"Bescheid {bescheid_id} nicht gefunden")
+    b = rows[0]
+
+    # 2) Antrag laden (volle Adresse + Bezeichner)
+    antrag_rows = await db.select(
+        "antraege",
+        f"id=eq.{b['antrag_id']}&select=*",
+    )
+    if not antrag_rows:
+        raise HTTPException(404, f"Antrag {b['antrag_id']} nicht gefunden")
+    antrag = antrag_rows[0]
+
+    # 3) Befunde direkt aus dem persistierten begruendung_jsonb übernehmen
+    #    (sind beim POST /api/bescheid bereits mit Wortlaut + Subsumtion
+    #    angereichert worden).
+    befunde_for_template = (b.get("begruendung_jsonb") or {}).get("befunde", [])
+
+    # 4) Liste aller geprüften AHP-Stellen (analog POST)
+    rules_rows = await db.select(
+        "ontologie_rules",
+        "plan_id=eq.APL2&aktiv=eq.true&select=paragraph_ref",
+    )
+    geprueft_gegen = sorted({
+        r["paragraph_ref"] for r in rules_rows if r.get("paragraph_ref")
+    })
+
+    ausgestellt_am = b.get("ausgestellt_am")
+    if isinstance(ausgestellt_am, str):
+        # Postgres liefert ISO-8601 mit '+00:00' — robust parsen
+        ausgestellt_am = datetime.fromisoformat(ausgestellt_am.replace("Z", "+00:00"))
+    elif ausgestellt_am is None:
+        ausgestellt_am = datetime.now(UTC)
+
+    from pruefung.pdf_render import render_bescheid_docx
+    docx_bytes = render_bescheid_docx(
+        bescheid_id=bescheid_id,
+        antrag=antrag,
+        entscheidung=b["entscheidung"],
+        bewilligte_summe_euro=b.get("bewilligte_summe_euro"),
+        befunde=befunde_for_template,
+        bearbeiter_kommentar=b.get("bearbeiter_kommentar"),
+        ausgestellt_von=b.get("ausgestellt_von"),
+        ausgestellt_am=ausgestellt_am,
+        doctree_version=b.get("doctree_version"),
+        geprueft_gegen=geprueft_gegen,
+    )
+
+    nummer = antrag.get("antragsnummer") or bescheid_id[:8]
+    filename = f"Bescheid_{nummer}.docx"
+    return Response(
+        content=docx_bytes,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "wordprocessingml.document"
+        ),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.post("/api/pdf")

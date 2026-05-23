@@ -1,8 +1,9 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Check, ChevronDown, FileText } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, FileText, Trash2 } from "lucide-react";
 import { useAntrag, type AnlageRow, type AntragFull } from "../hooks/useAntrag";
 import { useBescheide, type BescheidRow } from "../hooks/useBescheide";
+import { usePruefung } from "../hooks/usePruefung";
 import { useSession } from "../hooks/useSession";
 import { StatusBadge } from "../components/StatusBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
@@ -40,12 +41,17 @@ export function AntragDetail() {
     loading, error, changeStatus,
   } = useAntrag(id);
   const { session } = useSession();
-  const { bescheide, creating: bescheidCreating, erstelleBescheid, downloadBescheidPdf } =
-    useBescheide(antrag?.id);
+  const {
+    bescheide, creating: bescheidCreating,
+    erstelleBescheid, downloadBescheidPdf, downloadBescheidDocx, loeschBescheid,
+  } = useBescheide(antrag?.id);
+  const { latest: letztePruefung } = usePruefung(antrag?.id);
   const [confirmTo, setConfirmTo] = useState<Status | null>(null);
   const [kommentar, setKommentar] = useState("");
   const [busy, setBusy] = useState(false);
   const [bewilligteSumme, setBewilligteSumme] = useState<string>("");
+  // Manuell aktivierter Workflow ohne vorherige KI-Prüfung
+  const [manuellOhneKi, setManuellOhneKi] = useState(false);
 
   if (loading) return <div className="p-8 text-slate-500">Lade …</div>;
   if (error || !antrag)
@@ -331,8 +337,13 @@ export function AntragDetail() {
         <aside className="space-y-4 lg:sticky lg:top-[5.25rem] lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-1">
           {/* KI-Prüfung zuerst: primäres Werkzeug zur Diagnose.
               Workflow/Status-Wechsel kommt erst NACH der Diagnose. */}
-          <PruefungsCard antragId={antrag.id} onApplyEmpfehlung={applyEmpfehlung} />
+          <PruefungsCard
+            antragId={antrag.id}
+            onApplyEmpfehlung={applyEmpfehlung}
+            onManuellStarten={() => setManuellOhneKi(true)}
+          />
 
+          {(letztePruefung || manuellOhneKi) && (
           <Card>
             <CardHeader>
               <CardTitle>Workflow · Status-Wechsel</CardTitle>
@@ -442,6 +453,7 @@ export function AntragDetail() {
               )}
             </CardContent>
           </Card>
+          )}
 
           {bescheide.length > 0 && (
             <Card>
@@ -454,6 +466,20 @@ export function AntragDetail() {
                     key={b.id}
                     bescheid={b}
                     onOpen={() => b.pdf_storage_path && openBescheidPdf(b.pdf_storage_path)}
+                    onOpenDocx={async () => {
+                      const url = await downloadBescheidDocx(b.id);
+                      if (url) {
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `bescheid_${b.id}.docx`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }
+                    }}
+                    onDelete={async () => {
+                      if (!confirm("Bescheid wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.")) return;
+                      await loeschBescheid(b.id, b.pdf_storage_path);
+                    }}
                   />
                 ))}
               </CardContent>
@@ -738,10 +764,12 @@ function formatIban(iban: string): string {
 
 /** Eine Zeile in der Bescheide-Card mit Entscheidung, Datum, Summe + Download. */
 function BescheidListItem({
-  bescheid, onOpen,
+  bescheid, onOpen, onOpenDocx, onDelete,
 }: {
   bescheid: BescheidRow;
   onOpen: () => void;
+  onOpenDocx?: () => void;
+  onDelete?: () => void;
 }) {
   const labels: Record<BescheidRow["entscheidung"], { txt: string; color: string }> = {
     bewilligt: { txt: "Bewilligt", color: "text-emerald-700" },
@@ -753,9 +781,22 @@ function BescheidListItem({
     <div className="border border-slate-200 rounded p-2 text-sm">
       <div className="flex items-baseline justify-between gap-2">
         <span className={`font-medium ${meta.color}`}>{meta.txt}</span>
-        <span className="text-xs text-slate-500">
-          {formatDateTime(bescheid.ausgestellt_am)}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500">
+            {formatDateTime(bescheid.ausgestellt_am)}
+          </span>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              title="Bescheid löschen"
+              className="text-slate-400 hover:text-rose-700 transition-colors p-0.5 rounded hover:bg-rose-50"
+              aria-label="Bescheid löschen"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
       {bescheid.bewilligte_summe_euro !== null && (
         <div className="text-xs text-slate-700 tabular-nums mt-1">
@@ -767,10 +808,19 @@ function BescheidListItem({
           Doctree v{bescheid.doctree_version}
         </div>
       )}
-      {bescheid.pdf_storage_path && (
-        <Button variant="outline" size="sm" onClick={onOpen} className="w-full mt-2">
-          📄 Bescheid als PDF
-        </Button>
+      {(bescheid.pdf_storage_path || onOpenDocx) && (
+        <div className="grid grid-cols-2 gap-1 mt-2">
+          {bescheid.pdf_storage_path && (
+            <Button variant="outline" size="sm" onClick={onOpen} className="text-xs">
+              📄 PDF
+            </Button>
+          )}
+          {onOpenDocx && (
+            <Button variant="outline" size="sm" onClick={onOpenDocx} className="text-xs">
+              📝 DOCX
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

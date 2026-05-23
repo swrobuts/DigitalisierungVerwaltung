@@ -253,12 +253,14 @@ function AhpWortlautPopover({ path }: { path: string }) {
 export function PruefungsCard({
   antragId,
   onApplyEmpfehlung,
+  onManuellStarten,
 }: {
   antragId: string;
   /** Wird vom AntragDetail bereitgestellt, um die KI-Empfehlung direkt
-   * in einen Status-Wechsel zu überführen (mit dem normalen Workflow-
-   * Dialog inkl. Kommentar/Bewilligungssumme). */
+   * in einen Status-Wechsel zu überführen. */
   onApplyEmpfehlung?: (aktion: "bewilligen" | "rueckfrage" | "ablehnen") => void;
+  /** Aktiviert den Workflow-Card im AntragDetail ohne KI-Prüfung. */
+  onManuellStarten?: () => void;
 }) {
   const { session } = useSession();
   const email = session?.user?.email ?? "unbekannt";
@@ -275,13 +277,19 @@ export function PruefungsCard({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>🔍 KI-Konformitätsprüfung</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 text-sm">
+      <CardContent className="space-y-3 text-sm pt-5">
         <Button onClick={() => pruefen(email)} disabled={running} className="w-full">
-          {running ? "Prüfung läuft …" : "Antrag prüfen"}
+          {running ? "Prüfung läuft …" : "Konformität per KI prüfen"}
         </Button>
+        {!latest && onManuellStarten && (
+          <button
+            type="button"
+            onClick={onManuellStarten}
+            className="w-full text-xs text-slate-500 hover:text-wue-rot underline decoration-dotted underline-offset-2"
+          >
+            … oder manuell ohne KI bearbeiten
+          </button>
+        )}
         {error && <p className="text-rose-700 text-xs">{error}</p>}
 
         {latest && (

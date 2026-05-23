@@ -92,5 +92,46 @@ export function useBescheide(antragId: string | undefined) {
     return data.signedUrl;
   }, []);
 
-  return { bescheide, loading, error, creating, erstelleBescheid, downloadBescheidPdf, reload };
+  /** DOCX-Variante zum editierbaren Weiterverarbeiten — wird on-demand
+   * vom pruefung-service gerendert. */
+  const downloadBescheidDocx = useCallback(
+    async (bescheidId: string) => {
+      const res = await fetch(
+        `https://pruefung.butscher.cloud/api/bescheid/${bescheidId}/docx`,
+        { method: "GET" },
+      );
+      if (!res.ok) {
+        setError(`DOCX-Download fehlgeschlagen: ${res.status}`);
+        return null;
+      }
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    },
+    [],
+  );
+
+  /** Bescheid löschen — entfernt DB-Eintrag (CASCADE löscht Storage-Object
+   * NICHT automatisch, also separat). Nur zulässig, wenn der Bescheid noch
+   * nicht verschickt wurde (in unserem Demo: jederzeit). */
+  const loeschBescheid = useCallback(
+    async (id: string, pdfStoragePath: string | null) => {
+      if (pdfStoragePath) {
+        await supabase.storage.from("bescheide").remove([pdfStoragePath]);
+      }
+      const { error } = await supabase.from("bescheide").delete().eq("id", id);
+      if (error) {
+        setError(`Löschen fehlgeschlagen: ${error.message}`);
+        return { error: error.message };
+      }
+      await reload();
+      return {};
+    },
+    [reload],
+  );
+
+  return {
+    bescheide, loading, error, creating,
+    erstelleBescheid, downloadBescheidPdf, downloadBescheidDocx,
+    loeschBescheid, reload,
+  };
 }
