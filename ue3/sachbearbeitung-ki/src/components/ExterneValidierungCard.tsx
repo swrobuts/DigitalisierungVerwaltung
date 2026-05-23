@@ -7,8 +7,8 @@
  * 'Hinweis' markiert — nie rechtsverbindlich.
  */
 import { useState } from "react";
-import { ExternalLink, Globe2, Loader2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { ExternalLink, Loader2 } from "lucide-react";
+import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 
 const PRUEFUNG_SERVICE = "https://pruefung.butscher.cloud";
@@ -63,68 +63,48 @@ export function ExterneValidierungCard({ antragId }: Props) {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Globe2 className="h-4 w-4 text-sky-600" />
-              Externe Validierung (Layer D)
-              {data && (
-                <span className="text-xs font-normal text-slate-500 ml-1">
-                  {data.summary.kritisch > 0 && (
-                    <span className="text-rose-700 mr-2">
-                      {data.summary.kritisch} kritisch
-                    </span>
-                  )}
-                  {data.summary.neutral} bestätigt/neutral
-                  {data.summary.fehler > 0 && (
-                    <span className="text-amber-700 ml-2">
-                      {data.summary.fehler} Fehler
-                    </span>
-                  )}
-                </span>
-              )}
-            </CardTitle>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Perplexity prüft Träger, Adresse und Einrichtung gegen
-              öffentliche Quellen. Hinweise, keine rechtsverbindliche
-              Auskunft. Personenbezogene Daten werden nicht übertragen.
-            </p>
-          </div>
-          <Button
-            size="sm"
-            onClick={trigger}
-            disabled={running}
-            className="shrink-0"
-          >
-            {running ? (
-              <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Recherchiert …</>
-            ) : data ? "Erneut prüfen" : "Realität prüfen"}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="space-y-3 text-sm pt-5">
+        <Button onClick={trigger} disabled={running} className="w-full">
+          {running ? (
+            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Recherche läuft …</>
+          ) : data ? "Erneut mit öffentlichen Quellen abgleichen" : "Mit öffentlichen Quellen abgleichen"}
+        </Button>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Recherchiert <strong>Träger, Adresse und Einrichtung</strong> mit
+          Perplexity gegen öffentliche Quellen (Bistum, Caritas, Handelsregister,
+          OpenStreetMap u.a.). Liefert Hinweise mit Quellenangabe — keine
+          rechtsverbindliche Auskunft. Personenbezogene Daten werden nicht
+          übertragen.
+        </p>
         {error && (
-          <div className="text-xs bg-rose-50 border border-rose-300 text-rose-800 px-2 py-1.5 rounded mb-3">
+          <div className="text-xs bg-rose-50 border border-rose-300 text-rose-800 px-2 py-1.5 rounded">
             <strong>Fehler:</strong> {error}
           </div>
         )}
-        {!data && !error && !running && (
-          <p className="text-xs text-slate-500 italic">
-            Noch keine externe Prüfung durchgeführt.
-          </p>
-        )}
         {data && (
-          <div className="space-y-2">
-            {data.befunde.map((b) => (
-              <BefundZeile key={b.name} befund={b} />
-            ))}
-            <p className="text-[10px] text-slate-400 italic pt-1">
-              ⚠ Externe Validierung ist eine Triage-Hilfe, keine
-              rechtsverbindliche Auskunft. Bei Auffälligkeiten manuell
-              mit Verwaltungsdaten abgleichen.
+          <>
+            <p className="text-xs text-slate-500">
+              Letzte Recherche:{" "}
+              {data.summary.kritisch > 0 && (
+                <span className="text-rose-700 font-medium">
+                  {data.summary.kritisch} kritisch ·{" "}
+                </span>
+              )}
+              <span>{data.summary.neutral} bestätigt/neutral</span>
+              {data.summary.fehler > 0 && (
+                <span className="text-amber-700"> · {data.summary.fehler} Fehler</span>
+              )}
             </p>
-          </div>
+            <div className="space-y-2">
+              {data.befunde.map((b) => (
+                <BefundZeile key={b.name} befund={b} />
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 italic">
+              ⚠ Triage-Hilfe, keine rechtsverbindliche Auskunft. Bei
+              Auffälligkeiten manuell mit Verwaltungsdaten abgleichen.
+            </p>
+          </>
         )}
       </CardContent>
     </Card>
