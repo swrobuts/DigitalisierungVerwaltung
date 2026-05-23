@@ -387,12 +387,12 @@ export function Inbox() {
                 Normen
               </NavLink>
               <NavLink
-                to="/ontologie"
+                to="/regelkatalog"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                title="L3 — Ontologie-Regelkatalog"
+                title="Prüfregeln gegen die AHP-Förderrichtlinie"
               >
                 <FileSearch className="h-4 w-4" />
-                Ontologie
+                Regelkatalog
               </NavLink>
               <NavLink
                 to="/dashboard/adoption"

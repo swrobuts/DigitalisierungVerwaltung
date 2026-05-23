@@ -6,10 +6,12 @@ import { usePruefung, type PruefBefund, type PruefEmpfehlung } from "../hooks/us
 import { useSession } from "../hooks/useSession";
 import { useAhpTree, findNodeByPath, pathFromParagraphRef } from "../hooks/useAhpTree";
 
+// Anzeigenamen pro Prüfschritt (intern bleiben A/B/C als Identifier,
+// nach außen erklärende Begriffe ohne Layer-/Ontologie-Jargon)
 const layerLabel: Record<"A" | "B" | "C", string> = {
-  A: "Strukturell",
-  B: "Ontologie",
-  C: "Richtlinie (RAG)",
+  A: "Formale Prüfung",
+  B: "Regelkatalog",
+  C: "AHP-Wortlaut",
 };
 
 function BefundRow({ b }: { b: PruefBefund }) {
@@ -49,7 +51,7 @@ function BefundRow({ b }: { b: PruefBefund }) {
                 rel="noopener"
                 className="text-slate-500 hover:text-slate-800 underline decoration-dotted"
               >
-                im Doctree-Browser öffnen
+                in der AHP-Förderrichtlinie öffnen
               </a>
             </>
           )}
@@ -225,7 +227,7 @@ function AhpWortlautPopover({ path }: { path: string }) {
   if (!node) {
     return (
       <p className="text-xs text-rose-600 mt-2">
-        Section {path} im aktuellen Doctree nicht gefunden.
+        Abschnitt {path} in der aktuellen AHP-Förderrichtlinie nicht gefunden.
       </p>
     );
   }
@@ -300,7 +302,7 @@ export function PruefungsCard({
           <>
             <p className="text-xs text-slate-500">
               Letzte Prüfung: {new Date(latest.geprueft_am).toLocaleString("de-DE", {timeZone: "Europe/Berlin"})}
-              {" · "}{latest.duration_ms ?? "—"} ms · Doctree v{latest.ergebnis_jsonb?.doctree_version ?? "—"}
+              {" · "}{latest.duration_ms ?? "—"} ms · AHP-Stand v{latest.ergebnis_jsonb?.doctree_version ?? "—"}
             </p>
 
             {/* Empfehlung der KI prominent oben */}

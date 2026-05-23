@@ -32,7 +32,7 @@ export function OntologieInspector() {
           <span className="text-slate-300">·</span>
           <h1 className="text-lg font-bold flex items-center gap-2">
             <FileSearch className="h-4 w-4 text-wue-rot" />
-            Ontologie · Regelkatalog
+            Regelkatalog
           </h1>
         </div>
       </header>
@@ -41,13 +41,12 @@ export function OntologieInspector() {
         <div className="bg-white border border-slate-200 rounded-sm shadow-sm overflow-hidden">
           {/* Erklärungs-Header */}
           <div className="bg-slate-50 border-b border-slate-200 px-8 py-5">
-            <h2 className="font-semibold text-slate-900">Was ist die Ontologie?</h2>
+            <h2 className="font-semibold text-slate-900">Was ist der Regelkatalog?</h2>
             <p className="text-sm text-slate-700 mt-1 leading-relaxed">
-              Eine Sammlung deklarativer Regeln, die jeden Antrag gegen die
-              AHP-Förderrichtlinie prüfen. Format: <code className="bg-white border border-slate-300 px-1 py-0.5 rounded font-mono text-[12px]">JSON-Logic</code>
-              in PostgreSQL (Tabelle <code className="bg-white border border-slate-300 px-1 py-0.5 rounded font-mono text-[12px]">apl2.ontologie_rules</code>).
-              Jede Regel verweist über <code className="bg-white border border-slate-300 px-1 py-0.5 rounded font-mono text-[12px]">paragraph_ref</code>
-              auf einen konkreten Abschnitt im extrahierten AHP-Doctree.
+              Eine Sammlung deklarativer Prüfregeln, die jeden Antrag gegen die
+              AHP-Förderrichtlinie abgleichen. Format: <code className="bg-white border border-slate-300 px-1 py-0.5 rounded font-mono text-[12px]">JSON-Logic</code>
+              in PostgreSQL. Jede Regel verweist über <code className="bg-white border border-slate-300 px-1 py-0.5 rounded font-mono text-[12px]">paragraph_ref</code>
+              auf einen konkreten Abschnitt der AHP-Förderrichtlinie.
             </p>
             <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
               <span className="inline-flex items-center gap-1.5">

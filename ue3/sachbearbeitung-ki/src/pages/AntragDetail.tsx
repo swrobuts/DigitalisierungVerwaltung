@@ -418,7 +418,7 @@ export function AntragDetail() {
                           {reverse
                             ? "Korrektur-Übergang: bisherige Entscheidung wird aufgehoben. Bitte Grund im Kommentar dokumentieren (Pflicht, Audit-Trail)."
                             : istEntscheidungsStatus(s)
-                              ? "Erzeugt zusätzlich automatisch einen PDF-Bescheid mit der Ontologie-Begründung aus der letzten KI-Prüfung."
+                              ? "Erzeugt zusätzlich automatisch einen PDF-Bescheid mit der regelbasierten Begründung aus der letzten KI-Prüfung."
                               : "Optional kannst du einen Kommentar hinterlassen (im Audit-Trail sichtbar)."}
                         </DialogDescription>
                       </DialogHeader>

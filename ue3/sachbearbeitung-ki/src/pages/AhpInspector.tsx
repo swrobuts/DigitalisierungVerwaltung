@@ -80,7 +80,7 @@ export function AhpInspector() {
           <span className="text-slate-300">·</span>
           <h1 className="text-lg font-bold flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-wue-rot" />
-            AHP-Förderrichtlinie · Doctree-Browser
+            AHP-Förderrichtlinie · Strukturierter Volltext
           </h1>
           {meta && (
             <span className="ml-auto text-xs text-slate-500">
@@ -106,7 +106,7 @@ export function AhpInspector() {
               />
             </div>
           </div>
-          {loading && <div className="p-4 text-sm text-slate-500">Lade Doctree …</div>}
+          {loading && <div className="p-4 text-sm text-slate-500">Lade AHP-Volltext …</div>}
           {error && <div className="p-4 text-sm text-rose-700">Fehler: {error}</div>}
           {!loading && !error && tree && (
             <div className="py-2">

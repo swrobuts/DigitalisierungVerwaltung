@@ -32,13 +32,15 @@ export default function App() {
         }
       />
       <Route
-        path="/ontologie"
+        path="/regelkatalog"
         element={
           <AuthGuard>
             <OntologieInspector />
           </AuthGuard>
         }
       />
+      {/* Alter Pfad als Redirect für Bestandslinks */}
+      <Route path="/ontologie" element={<Navigate to="/regelkatalog" replace />} />
       <Route
         path="/ahp"
         element={

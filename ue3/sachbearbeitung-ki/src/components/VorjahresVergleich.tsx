@@ -21,6 +21,10 @@ interface Aenderung {
   neu: unknown;
   pct_veraenderung?: number | null;
   schwere: "kritisch" | "auffaellig" | "unauffaellig";
+  /** Optional: konkrete rechtliche/finanzielle Konsequenz, wenn die
+   *  Änderung über die reine Heuristik hinausgeht (z.B. Anteil drückt
+   *  Auszahlung unter geforderte Summe). */
+  konsequenz?: string;
 }
 
 interface VergleichResponse {
@@ -166,25 +170,34 @@ function AenderungZeile({ aenderung: a }: { aenderung: Aenderung }) {
   const punkt =
     a.schwere === "kritisch" ? "🔴" : a.schwere === "auffaellig" ? "🟡" : "🟢";
   return (
-    <tr className={`${farbe} border-t border-slate-100`}>
-      <td className="px-2 py-1.5 flex items-center gap-1.5">
-        <span>{punkt}</span>
-        <span>{a.label}</span>
-      </td>
-      <td className="px-2 py-1.5 tabular-nums text-slate-600">
-        {formatWert(a.alt, a.format)}
-      </td>
-      <td className="px-2 py-1.5 tabular-nums font-medium">
-        {formatWert(a.neu, a.format)}
-      </td>
-      <td className="px-2 py-1.5 text-right tabular-nums">
-        {typeof a.pct_veraenderung === "number"
-          ? <span className={a.pct_veraenderung > 0 ? "text-rose-700" : "text-emerald-700"}>
-              {a.pct_veraenderung > 0 ? "+" : ""}{a.pct_veraenderung.toFixed(0)}%
-            </span>
-          : <span className="text-slate-400">—</span>}
-      </td>
-    </tr>
+    <>
+      <tr className={`${farbe} border-t border-slate-100`}>
+        <td className="px-2 py-1.5 flex items-center gap-1.5">
+          <span>{punkt}</span>
+          <span>{a.label}</span>
+        </td>
+        <td className="px-2 py-1.5 tabular-nums text-slate-600">
+          {formatWert(a.alt, a.format)}
+        </td>
+        <td className="px-2 py-1.5 tabular-nums font-medium">
+          {formatWert(a.neu, a.format)}
+        </td>
+        <td className="px-2 py-1.5 text-right tabular-nums">
+          {typeof a.pct_veraenderung === "number"
+            ? <span className={a.pct_veraenderung > 0 ? "text-rose-700" : "text-emerald-700"}>
+                {a.pct_veraenderung > 0 ? "+" : ""}{a.pct_veraenderung.toFixed(0)}%
+              </span>
+            : <span className="text-slate-400">—</span>}
+        </td>
+      </tr>
+      {a.konsequenz && (
+        <tr className={farbe}>
+          <td colSpan={4} className="px-2 pb-2 pt-0 text-[11px] text-rose-800 italic">
+            ⚠ {a.konsequenz}
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 

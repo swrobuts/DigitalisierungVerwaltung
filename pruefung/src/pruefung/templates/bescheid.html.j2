@@ -363,18 +363,18 @@
 <p>
   Der Antrag wurde am {{ format_date(ausgestellt_am) }} durch das Sozialreferat
   einer dreistufigen Prüfung gegen die AHP-Förderrichtlinie der Stadt Würzburg
-  (Beschluss vom 27.03.2025, Doctree-Version {{ doctree_version }}) unterzogen:
+  (Beschluss vom 27.03.2025, AHP-Stand {{ doctree_version }}) unterzogen:
 </p>
 <ol style="margin: 2mm 0 4mm 5mm; font-size: 10pt;">
   <li><strong>Formal-strukturelle Prüfung</strong> — Vollständigkeit + technische
     Validität (IBAN-Prüfziffer nach ISO 13616, Postleitzahl-Format, E-Mail-Format,
     Plausibilität Haushaltsjahr).</li>
-  <li><strong>Inhaltliche Konformitätsprüfung (Ontologie)</strong> — Abgleich
-    aller AHP-belegten Förderhöchstgrenzen, Fristen, Anteilskalkulationen und
+  <li><strong>Regelbasierte Konformitätsprüfung</strong> — Abgleich aller
+    AHP-belegten Förderhöchstgrenzen, Fristen, Anteilskalkulationen und
     Pflichtangaben gegen die Antragswerte.</li>
   <li><strong>Wortlaut-basierte AHP-Prüfung</strong> — KI-gestützter Abgleich
-    gegen den Volltext der AHP-Richtlinie (Doctree-Navigation + semantische
-    Suche).</li>
+    gegen den Volltext der AHP-Förderrichtlinie (Volltext-Navigation +
+    semantische Suche).</li>
 </ol>
 
 {% if geprueft_gegen and geprueft_gegen | length > 0 %}
@@ -538,7 +538,7 @@
 <p style="margin-top: 6mm; font-size: 8pt; color: #888;">
   Bescheid-ID: <span style="font-family: monospace;">{{ bescheid_id }}</span> ·
   Erstellt auf Basis des Prüfprotokolls vom {{ format_date(ausgestellt_am) }} ·
-  Doctree-Version <span style="font-family: monospace;">{{ doctree_version or '—' }}</span>
+  AHP-Stand <span style="font-family: monospace;">{{ doctree_version or '—' }}</span>
 </p>
 
 </body>

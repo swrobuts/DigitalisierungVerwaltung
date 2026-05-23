@@ -188,7 +188,14 @@ def build_subsumtion(
                 f"prozentualen Anteil der Stadtbewohner an den Gesamtteilnehmern "
                 f"ausgezahlt. Die rechnerische Höchstauszahlung beträgt damit "
                 f"{euro(hoechstgrenze)} × {percent(anteil)} = {euro(max_a)}. "
-                + (f"Ihre Forderung übersteigt diesen Wert um {euro(diff)}." if diff is not None else "")
+                + (
+                    f"Ihre Forderung übersteigt diesen Wert um {euro(diff)}. "
+                    f"Eine reduzierte Bewilligung in Höhe von {euro(max_a)} "
+                    f"wäre regelkonform möglich; alternativ können Sie den "
+                    f"Antrag mit aktualisierten Teilnehmerzahlen erneut stellen, "
+                    f"wenn der Stadtbewohner-Anteil im laufenden Jahr höher liegt."
+                    if diff is not None else ""
+                )
             ),
         }
 

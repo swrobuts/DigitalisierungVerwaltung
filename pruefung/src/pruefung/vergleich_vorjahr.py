@@ -129,6 +129,14 @@ async def vergleich_mit_vorjahr(antrag_id: str, db: SupabaseClient) -> dict[str,
             "schwere": schwere,
         })
 
+    # Konsequenz-Override: bei stadtbewohner_anteil-Senkung in anteilig
+    # skalierten Förderbereichen (Begegnungszentren, Bildungsträger)
+    # prüfen wir die ABSOLUTE Auswirkung, nicht nur den prozentualen
+    # YoY-Diff. Wenn neuer Anteil × Förderhöchstgrenze < geforderte
+    # Summe, ist die Veränderung KRITISCH — unabhängig davon, ob die
+    # YoY-Heuristik "auffällig" oder "unauffällig" sagt.
+    _override_anteil_konsequenz(aenderungen, a)
+
     # Strukturelle Diffs
     for feld, meta in STRUKTURELLE_FELDER.items():
         alt_v = v.get(feld)
@@ -159,6 +167,60 @@ async def vergleich_mit_vorjahr(antrag_id: str, db: SupabaseClient) -> dict[str,
         "anzahl_kritisch": sum(1 for x in aenderungen if x["schwere"] == "kritisch"),
         "anzahl_auffaellig": sum(1 for x in aenderungen if x["schwere"] == "auffaellig"),
     }
+
+
+def _override_anteil_konsequenz(
+    aenderungen: list[dict[str, Any]],
+    aktueller_antrag: dict,
+) -> None:
+    """Eskaliert die stadtbewohner_anteil-Änderung auf 'kritisch', wenn
+    sie die Auszahlung unter die geforderte Summe drückt.
+
+    Hintergrund: AHP 2.3.2/2.3.3 schreibt für Begegnungszentren und
+    Bildungsträger eine ANTEILIGE Auszahlung vor:
+      max. Auszahlung = Förderhöchstgrenze × Stadtbewohner-Anteil
+    Eine Anteilssenkung um z.B. -18% wirkt prozentual moderat — kann
+    aber den Antrag in eine Cap-Überschreitung schubsen (statt 8.500€
+    sind nur noch 7.000€ auszahlbar). Das ist rechtlich erheblich und
+    muss als kritisch markiert werden, NICHT als unauffällig.
+    """
+    # Lazy-Import um Zirkular-Abhängigkeit zu vermeiden
+    from pruefung.layer_b_ontologie import (
+        _FOERDERHOECHSTGRENZE_PRO_FOERDERBEREICH,
+    )
+    fb = aktueller_antrag.get("foerderbereich")
+    hoechstgrenze = _FOERDERHOECHSTGRENZE_PRO_FOERDERBEREICH.get(fb or "")
+    if hoechstgrenze is None:
+        return  # nicht anteilig skaliert (z.B. Mehrgenerationenhäuser pauschal)
+    forderung = aktueller_antrag.get("geforderte_foerdersumme_euro")
+    if forderung is None:
+        return
+    try:
+        forderung_f = float(forderung)
+    except (TypeError, ValueError):
+        return
+
+    for aenderung in aenderungen:
+        if aenderung.get("feld") != "stadtbewohner_anteil":
+            continue
+        neu = aenderung.get("neu")
+        if neu is None:
+            continue
+        try:
+            anteil = float(neu)
+        except (TypeError, ValueError):
+            continue
+        max_auszahlung = hoechstgrenze * anteil
+        if max_auszahlung < forderung_f:
+            aenderung["schwere"] = "kritisch"
+            aenderung["konsequenz"] = (
+                f"Mit {int(round(anteil * 100))} % Stadtbewohner-Anteil ist "
+                f"die maximale Auszahlung {hoechstgrenze:.0f} € × "
+                f"{int(round(anteil * 100))} % = {max_auszahlung:.0f} €. "
+                f"Geforderte Summe {forderung_f:.0f} € wäre damit "
+                f"{forderung_f - max_auszahlung:.0f} € über der anteiligen "
+                f"Förderhöchstgrenze (AHP 2.3.2/2.3.3)."
+            )
 
 
 def _quote(s: str) -> str:

@@ -19,7 +19,7 @@
 <h1>Prüfprotokoll · {{ antrag.antragsnummer }}</h1>
 <p class="meta">
   Einrichtung: {{ antrag.name }} · Träger: {{ antrag.traeger }}<br>
-  Geprüft am: {{ geprueft_am }} · Doctree-Version: {{ ergebnis.doctree_version or "—" }} · Dauer: {{ ergebnis.duration_ms }} ms
+  Geprüft am: {{ geprueft_am }} · AHP-Stand: {{ ergebnis.doctree_version or "—" }} · Dauer: {{ ergebnis.duration_ms }} ms
 </p>
 <p>
   <strong>{{ verstoesse }}</strong> Verstöße · <strong>{{ hinweise }}</strong> Hinweise · Status: <strong>{{ status }}</strong>

@@ -486,17 +486,17 @@ def render_bescheid_docx(
             f"Der Antrag wurde am {_format_date(ausgestellt_am)} durch das "
             f"Sozialreferat einer dreistufigen Prüfung gegen die AHP-Förder"
             f"richtlinie der Stadt Würzburg (Beschluss vom 27.03.2025, "
-            f"Doctree-Version {doctree_version or '—'}) unterzogen:"
+            f"AHP-Stand {doctree_version or '—'}) unterzogen:"
         )
         for nr, schritt in [
             ("1.", "Formal-strukturelle Prüfung — Vollständigkeit + technische "
                    "Validität (IBAN-Prüfziffer nach ISO 13616, Postleitzahl-"
                    "Format, E-Mail-Format, Plausibilität Haushaltsjahr)."),
-            ("2.", "Inhaltliche Konformitätsprüfung (Ontologie) — Abgleich aller "
+            ("2.", "Regelbasierte Konformitätsprüfung — Abgleich aller "
                    "AHP-belegten Förderhöchstgrenzen, Fristen, Anteilskalkulationen und "
                    "Pflichtangaben gegen die Antragswerte."),
             ("3.", "Wortlaut-basierte AHP-Prüfung — KI-gestützter Abgleich gegen "
-                   "den Volltext der AHP-Richtlinie (Doctree-Navigation + "
+                   "den Volltext der AHP-Förderrichtlinie (Volltext-Navigation + "
                    "semantische Suche)."),
         ]:
             p = doc.add_paragraph()
@@ -721,7 +721,7 @@ def render_bescheid_docx(
         f"Bescheid-ID: {bescheid_id} · "
         f"Erstellt auf Basis des Prüfprotokolls vom "
         f"{_format_date(ausgestellt_am)} · "
-        f"Doctree-Version {doctree_version or '—'}"
+        f"AHP-Stand {doctree_version or '—'}"
     )
     foot_r.font.size = Pt(8)
     foot_r.font.color.rgb = RGBColor.from_string(_CI_HELLGRAU)

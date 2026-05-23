@@ -197,7 +197,7 @@ function BescheidZeile({
       </div>
       {b.doctree_version && (
         <p className="text-[10px] text-slate-400 mb-1.5 font-mono">
-          Doctree {b.doctree_version}
+          AHP-Stand {b.doctree_version}
         </p>
       )}
       <div className="grid grid-cols-2 gap-1.5">
