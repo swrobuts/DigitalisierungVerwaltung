@@ -356,6 +356,11 @@ async def trigger_ki_zweitpruefung(req: KiZweitpruefungRequest) -> dict[str, Any
         "pruefungen",
         f"antrag_id=eq.{req.antrag_id}&rolle=eq.zweitpruefung&select=id",
     )
+    # WICHTIG: abgeschlossen_am wird NICHT gesetzt — die KI liefert nur eine
+    # Vorab-Bewertung. Der Mensch sieht den KI-Output in der UI, kann die
+    # Befund-Checks (✓/✗/?) selbst setzen, den Vorschlag bestätigen oder
+    # ändern und schließt erst dann die Zweitprüfung ab. Sonst wäre der
+    # Mensch im KI→KI-Vier-Augen-Workflow nur Statist.
     payload = {
         "antrag_id": req.antrag_id,
         "rolle": "zweitpruefung",
@@ -373,7 +378,6 @@ async def trigger_ki_zweitpruefung(req: KiZweitpruefungRequest) -> dict[str, Any
             zweit_ergebnis.get("gesamt_vorschlag")
         ),
         "gesamt_kommentar": zweit_ergebnis.get("gesamt_begruendung"),
-        "abgeschlossen_am": datetime.now(UTC).isoformat(),
     }
     if existing:
         rows = await db.update(

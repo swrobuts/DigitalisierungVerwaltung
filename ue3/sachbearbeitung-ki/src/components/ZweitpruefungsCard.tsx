@@ -301,6 +301,11 @@ function ZweitpruefungsBody({
               {istKi ? "🤖 KI" : "👤 Mensch"} ({zweitpruefung.pruefer_id})
               {zweitpruefung.pruefer_modus === "adversariell" && " · adversariell"}
             </span>
+            {istKi && !istAbgeschlossen && (
+              <span className="text-[11px] font-normal text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded ml-2">
+                KI-Vorschlag · bitte sichten + abschließen
+              </span>
+            )}
           </CardTitle>
           <button
             type="button"
