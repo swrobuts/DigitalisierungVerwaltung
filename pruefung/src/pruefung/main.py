@@ -743,6 +743,45 @@ async def vergleich_vorjahr(antrag_id: str) -> dict[str, Any]:
     return await vergleich_mit_vorjahr(antrag_id, db)
 
 
+@app.post("/api/antrag/{antrag_id}/validiere-extern")
+async def validiere_extern(antrag_id: str) -> dict[str, Any]:
+    """Layer D — externe Validierung via Perplexity.
+
+    Prüft Träger, Adresse und Einrichtung gegen öffentliche Web-Quellen.
+    Antwort enthält Quellen-URLs für Audit-Trail. Personenbezogene Daten
+    (Ansprechpartner, Email) werden bewusst NICHT an die externe API
+    geschickt (Datenminimierung gem. DSGVO).
+
+    Ergebnis-Befunde sind immer 'hinweis'-Schwere (nie 'verstoss') —
+    externe Quellen sind nicht rechtsverbindlich, Sachbearbeiter:in muss
+    bei Auffälligkeiten manuell prüfen."""
+    from pruefung.extern_validierung import validiere_alles
+    db = SupabaseClient.from_env()
+    antrag = await _fetch_antrag(antrag_id, db)
+    befunde = await validiere_alles(antrag)
+
+    # Audit: in apl2.pruefprotokoll persistieren als eigener Eintrag mit
+    # ergebnis_jsonb.modus='extern' — dann sichtbar im Verlauf-Trace
+    # ('Externe Validierung durchgeführt 23.05. …').
+    summary = {
+        "kritisch": sum(1 for b in befunde if b["art"] == "kritisch"),
+        "neutral": sum(1 for b in befunde if b["art"] == "neutral"),
+        "fehler": sum(1 for b in befunde if b["art"] == "fehler"),
+    }
+    await db.insert("pruefprotokoll", {
+        "antrag_id": antrag_id,
+        "geprueft_von": "perplexity-sonar",
+        "ergebnis_jsonb": {
+            "modus": "extern",
+            "befunde": [],  # Layer-A/B/C-Befunde sind hier leer
+            "extern_befunde": befunde,
+            "summary": summary,
+        },
+        "duration_ms": None,
+    })
+    return {"befunde": befunde, "summary": summary}
+
+
 @app.get("/api/antrag/{antrag_id}/risiko-score")
 async def risiko_score(antrag_id: str) -> dict[str, Any]:
     """Heuristischer Risiko-Score (0..100) für die Inbox-Triage."""

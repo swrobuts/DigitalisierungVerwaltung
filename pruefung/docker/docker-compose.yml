@@ -11,6 +11,7 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       VOYAGE_API_KEY: ${VOYAGE_API_KEY}
+      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY}
       AHP_PDF_PATH: /app/materialien/foerderrichtlinie-ahp-2025-03-27.pdf
     volumes:
       - /opt/pruefung/materialien:/app/materialien:ro

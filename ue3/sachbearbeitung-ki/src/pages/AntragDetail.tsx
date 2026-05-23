@@ -18,6 +18,7 @@ import { ZweitpruefungsCard } from "../components/ZweitpruefungsCard";
 import { BescheideListe } from "../components/BescheideListe";
 import { VorjahresVergleich } from "../components/VorjahresVergleich";
 import { AntragMetricsBar } from "../components/AntragMetricsBar";
+import { ExterneValidierungCard } from "../components/ExterneValidierungCard";
 import {
   Dialog,
   DialogContent,
@@ -358,6 +359,11 @@ export function AntragDetail() {
             onApplyEmpfehlung={applyEmpfehlung}
             onManuellStarten={() => setManuellOhneKi(true)}
           />
+
+          {/* Externe Validierung (Layer D) — Realitäts-Check gegen
+              öffentliche Web-Quellen. Wird auf Knopfdruck getriggert,
+              weil API-Latenz und -Kosten anfallen. */}
+          <ExterneValidierungCard antragId={antrag.id} />
 
           {(letztePruefung || manuellOhneKi) && (
           <Card>
