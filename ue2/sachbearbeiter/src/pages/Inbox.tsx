@@ -5,7 +5,7 @@ import { useUserRole } from "../hooks/useUserRole";
 import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
 import { StatusBadge } from "../components/StatusBadge";
-import { formatDateTime, formatEuro } from "../lib/format";
+import { formatDate, formatEuro } from "../lib/format";
 import { STATUS_ORDER, STATUS_LABELS, type Status } from "../lib/workflow";
 import {
   Table,
@@ -178,16 +178,23 @@ function vjValue(a: AntragRow, vjMap: Map<string, number>): number | null {
   return vjMap.has(k) ? (vjMap.get(k) ?? 0) : null;
 }
 
+/** Kompaktes Δ-Format für die Inbox-Spalte (analog UE3): keine Centbeträge
+ *  ab 100 €, Prozent ohne Nachkommastelle, Vorzeichen direkt am Wert. */
 function formatDiff(current: number, vj: number | null): { text: string; tone: "up" | "down" | "neutral" } {
   if (vj === null) return { text: "—", tone: "neutral" };
   const diff = current - vj;
   if (Math.abs(diff) < 0.01) return { text: "± 0", tone: "neutral" };
-  const pct = vj === 0 ? null : (diff / vj) * 100;
   const sign = diff > 0 ? "+" : "−";
   const abs = Math.abs(diff);
-  const pctTxt = pct === null ? "" : ` (${pct > 0 ? "+" : "−"}${Math.abs(pct).toFixed(1).replace(".", ",")} %)`;
+  const euroFmt = abs >= 100
+    ? `${Math.round(abs).toLocaleString("de-DE")} €`
+    : formatEuro(abs);
+  const pct = vj === 0 ? null : (diff / vj) * 100;
+  const pctTxt = pct === null
+    ? ""
+    : ` (${pct > 0 ? "+" : "−"}${Math.round(Math.abs(pct))} %)`;
   return {
-    text: `${sign} ${formatEuro(abs)}${pctTxt}`,
+    text: `${sign}${euroFmt}${pctTxt}`,
     tone: diff > 0 ? "up" : "down",
   };
 }
@@ -421,7 +428,7 @@ export function Inbox() {
             (AHP / Normen / Regelkatalog / Compliance), weil UE2 diese
             Features funktional nicht hat. */}
         <div className="absolute inset-x-0 top-0 h-[3px] bg-wue-rot" />
-        <div className="w-full px-4 lg:px-8 py-3 flex items-center justify-between gap-6">
+        <div className="w-full px-4 py-3 flex items-center justify-between gap-6">
           <div>
             <div className="text-[10px] uppercase tracking-[0.18em] text-wue-rot font-semibold">
               Stadt Würzburg · Sozialreferat
@@ -455,7 +462,7 @@ export function Inbox() {
         </div>
       </header>
 
-      <main className="w-full px-4 lg:px-8 py-6">
+      <main className="w-full px-4 py-6">
         <div className="bg-white border border-slate-200 rounded p-4 mb-4">
           <div className="flex flex-wrap items-center gap-3">
             <Input
@@ -578,13 +585,17 @@ export function Inbox() {
                           <TableCell className="font-mono text-xs text-slate-500 whitespace-nowrap">
                             <Highlight text={item.antrag.antragsnummer} needle={search} />
                           </TableCell>
-                          <TableCell className="text-slate-900 whitespace-nowrap">
-                            <Highlight text={item.antrag.name} needle={search} />
+                          <TableCell className="text-slate-900 align-top">
+                            <div className="max-w-[14rem] leading-snug">
+                              <Highlight text={item.antrag.name} needle={search} />
+                            </div>
                           </TableCell>
-                          <TableCell className="text-slate-600 whitespace-nowrap">
-                            <Highlight text={item.antrag.traeger} needle={search} />
+                          <TableCell className="text-slate-600 align-top">
+                            <div className="max-w-[16rem] leading-snug">
+                              <Highlight text={item.antrag.traeger} needle={search} />
+                            </div>
                           </TableCell>
-                          <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDateTime(item.antrag.submitted_at)}</TableCell>
+                          <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDate(item.antrag.submitted_at)}</TableCell>
                           <TableCell className="whitespace-nowrap"><StatusBadge status={item.antrag.status} /></TableCell>
                           <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
                             {item.antrag.geforderte_foerdersumme_euro !== null

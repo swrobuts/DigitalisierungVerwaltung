@@ -27,6 +27,20 @@ export function formatDateTime(iso: string): string {
   return DT.format(new Date(hasTz ? iso : iso + "Z"));
 }
 
+const D = new Intl.DateTimeFormat("de-DE", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "Europe/Berlin",
+});
+
+/** Nur Datum, ohne Uhrzeit. Für Listen-Übersichten — die Uhrzeit ist
+ *  in der Inbox meist irrelevant und nimmt nur Spaltenbreite weg. */
+export function formatDate(iso: string): string {
+  const hasTz = /[Zz]$|[+-]\d{2}:?\d{2}$/.test(iso);
+  return D.format(new Date(hasTz ? iso : iso + "Z"));
+}
+
 export function formatAdresse(
   strasse: string,
   hausnummer: string,
