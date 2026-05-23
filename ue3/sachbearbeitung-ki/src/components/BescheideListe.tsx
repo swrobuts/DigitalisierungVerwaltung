@@ -40,9 +40,12 @@ interface Props {
   onOpen: (b: BescheidRow) => void;
   onOpenDocx: (b: BescheidRow) => void;
   onDelete: (b: BescheidRow) => void;
+  /** Optionaler Fehler aus dem letzten Lösch- oder Erstell-Versuch.
+   *  Erscheint als rote Fehler-Box am Anfang der Card. */
+  error?: string | null;
 }
 
-export function BescheideListe({ bescheide, onOpen, onOpenDocx, onDelete }: Props) {
+export function BescheideListe({ bescheide, onOpen, onOpenDocx, onDelete, error }: Props) {
   const [gruppieren, setGruppieren] = useState<Gruppieren>("entscheidung");
   const [sortieren, setSortieren] = useState<Sortieren>("datum_desc");
 
@@ -80,6 +83,11 @@ export function BescheideListe({ bescheide, onOpen, onOpenDocx, onDelete }: Prop
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {error && (
+          <div className="text-xs bg-rose-50 border border-rose-300 text-rose-800 px-2 py-1.5 rounded">
+            <strong>Fehler:</strong> {error}
+          </div>
+        )}
         {gruppen.map((g) => (
           <BescheideGruppe
             key={g.key}

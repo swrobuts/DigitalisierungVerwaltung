@@ -136,6 +136,7 @@ export function ZweitpruefungsCard({
     <ZweitpruefungsBody
       zweitpruefung={zweitpruefung}
       letzteErstpruefung={letzteErstpruefung}
+      error={error}
       onSave={(patch) => upsert({ id: zweitpruefung.id, rolle: "zweitpruefung",
         pruefer_typ: zweitpruefung.pruefer_typ, pruefer_id: zweitpruefung.pruefer_id,
         pruefer_modus: zweitpruefung.pruefer_modus,
@@ -200,11 +201,13 @@ function ZweitpruefungsStart({
 function ZweitpruefungsBody({
   zweitpruefung,
   letzteErstpruefung,
+  error,
   onSave,
   onReset,
 }: {
   zweitpruefung: PruefungRow;
   letzteErstpruefung: PruefProtokoll | null;
+  error: string | null;
   onSave: (patch: Partial<{
     abhakungen_jsonb: AbhakungenJsonb;
     gesamt_kommentar: string;
@@ -323,6 +326,11 @@ function ZweitpruefungsBody({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {error && (
+          <div className="text-xs bg-rose-50 border border-rose-300 text-rose-800 px-2 py-1.5 rounded">
+            <strong>Fehler:</strong> {error}
+          </div>
+        )}
         {istAbgeschlossen && (
           <div className="text-xs bg-emerald-50 border border-emerald-200 px-2 py-1 rounded">
             Abgeschlossen am {new Date(zweitpruefung.abgeschlossen_am!).toLocaleString("de-DE")} ·

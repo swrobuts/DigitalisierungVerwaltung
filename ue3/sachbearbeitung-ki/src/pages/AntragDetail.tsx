@@ -46,7 +46,7 @@ export function AntragDetail() {
   } = useAntrag(id);
   const { session } = useSession();
   const {
-    bescheide, creating: bescheidCreating,
+    bescheide, creating: bescheidCreating, error: bescheidError,
     erstelleBescheid, downloadBescheidPdf, downloadBescheidDocx, loeschBescheid,
   } = useBescheide(antrag?.id);
   const { latest: letztePruefung } = usePruefung(antrag?.id);
@@ -473,6 +473,7 @@ export function AntragDetail() {
 
           <BescheideListe
             bescheide={bescheide}
+            error={bescheidError}
             onOpen={(b) => b.pdf_storage_path && openBescheidPdf(b.pdf_storage_path)}
             onOpenDocx={async (b) => {
               const url = await downloadBescheidDocx(b.id);

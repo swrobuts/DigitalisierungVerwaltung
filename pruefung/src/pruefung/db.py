@@ -51,6 +51,29 @@ class SupabaseClient:
             r.raise_for_status()
             return r.json()
 
+    async def delete(self, table: str, query: str) -> int:
+        """DELETE /rest/v1/{table}?{query}. query ist z.B. 'id=eq.{uuid}'.
+        Returnt die Anzahl gelöschter Zeilen (über Content-Range-Header)."""
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.delete(
+                f"{self.url}/rest/v1/{table}?{query}",
+                headers={**self._headers, "Prefer": "return=representation,count=exact"},
+            )
+            r.raise_for_status()
+            data = r.json() if r.content else []
+            return len(data) if isinstance(data, list) else 0
+
+    async def delete_storage(self, bucket: str, path: str) -> None:
+        """Löscht ein Objekt aus dem Storage-Bucket."""
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.delete(
+                f"{self.url}/storage/v1/object/{bucket}/{path}",
+                headers=self._headers,
+            )
+            # 404 ist ok — Objekt war bereits weg
+            if r.status_code not in (200, 204, 404):
+                r.raise_for_status()
+
     async def upload_storage(self, bucket: str, path: str, content: bytes, content_type: str) -> str:
         async with httpx.AsyncClient(timeout=60) as c:
             r = await c.post(

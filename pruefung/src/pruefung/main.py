@@ -275,6 +275,52 @@ async def list_pruefungen(antrag_id: str) -> dict[str, Any]:
     return {"pruefungen": rows}
 
 
+@app.delete("/api/pruefung/{pruefung_id}")
+async def delete_pruefung(pruefung_id: str) -> dict[str, Any]:
+    """Löscht eine Prüfungs-Bewertung und rollt den Antrags-Status zurück,
+    falls er im Zweitprüfungs-Zustand hängt. Läuft über Service-Role und
+    umgeht damit RLS — verlässlicher als Frontend-direkter Supabase-Call."""
+    db = SupabaseClient.from_env()
+    rows = await db.select(
+        "pruefungen", f"id=eq.{pruefung_id}&select=antrag_id",
+    )
+    if not rows:
+        raise HTTPException(404, f"Prüfung {pruefung_id} nicht gefunden")
+    antrag_id = rows[0]["antrag_id"]
+
+    deleted = await db.delete("pruefungen", f"id=eq.{pruefung_id}")
+
+    # Antrags-Status zurücksetzen falls noch in zweitpruefung_*-State
+    a_rows = await db.select("antraege", f"id=eq.{antrag_id}&select=status")
+    current = a_rows[0]["status"] if a_rows else None
+    if current in ("zweitpruefung_offen", "zweitpruefung_dissens"):
+        await db.update(
+            "antraege", f"id=eq.{antrag_id}", {"status": "in_pruefung"},
+        )
+
+    return {"deleted": deleted, "antrag_status": current}
+
+
+@app.delete("/api/bescheid/{bescheid_id}")
+async def delete_bescheid(bescheid_id: str) -> dict[str, Any]:
+    """Löscht einen Bescheid + zugehöriges PDF aus dem Storage.
+    Läuft über Service-Role und umgeht RLS-Owner-Probleme der bescheide-
+    Tabelle (gehört supabase_admin, nicht postgres)."""
+    db = SupabaseClient.from_env()
+    rows = await db.select(
+        "bescheide", f"id=eq.{bescheid_id}&select=pdf_storage_path",
+    )
+    if not rows:
+        raise HTTPException(404, f"Bescheid {bescheid_id} nicht gefunden")
+    pdf_path = rows[0].get("pdf_storage_path")
+
+    if pdf_path:
+        await db.delete_storage("bescheide", pdf_path)
+    deleted = await db.delete("bescheide", f"id=eq.{bescheid_id}")
+
+    return {"deleted": deleted, "pdf_storage_path": pdf_path}
+
+
 class KiZweitpruefungRequest(BaseModel):
     """Body von POST /api/pruefung/ki-zweitpruefung."""
     antrag_id: str

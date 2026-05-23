@@ -147,42 +147,33 @@ export function usePruefungen(antragId: string | undefined) {
   }, [antragId, reload]);
 
   /** Löscht eine Prüfungs-Bewertung (typisch: Zweitprüfung zurücksetzen,
-   *  um sie neu zu starten — z.B. nach kaputtem KI-Lauf). Räumt
-   *  zusätzlich den Antrags-Status zurück nach 'in_pruefung', wenn er
-   *  durch diese Prüfung in einen zweitpruefung_*-Status verschoben war.
-   *  pruefprotokoll-Einträge bleiben erhalten — sie sind Audit-Trail. */
+   *  um sie neu zu starten — z.B. nach kaputtem KI-Lauf).
+   *
+   *  Läuft über pruefung-service, nicht direkt via Supabase: der Service
+   *  benutzt den SERVICE_ROLE_KEY und umgeht damit RLS-Probleme
+   *  (Owner-Issue der bescheide-Tabelle, fehlende DELETE-Policies etc.).
+   *  Der Backend-Endpoint kümmert sich auch um Status-Rollback. */
   const loesche = useCallback(
     async (pruefungId: string) => {
       if (!antragId) return { error: "Kein Antrag" };
-      // 1) pruefungen-Row löschen
-      // count: 'exact' deckt den stillen RLS-Block-Fall auf (kein Error,
-      // aber 0 betroffene Zeilen — sonst meldet die UI fälschlich Erfolg)
-      const { error: delErr, count } = await supabase
-        .from("pruefungen").delete({ count: "exact" }).eq("id", pruefungId);
-      if (delErr) {
-        setError(`Löschen fehlgeschlagen: ${delErr.message}`);
-        return { error: delErr.message };
-      }
-      if (count === 0) {
-        const msg = "Löschen wurde von der Datenbank verweigert (vermutlich RLS-Policy fehlt).";
+      try {
+        const res = await fetch(
+          `${PRUEFUNG_SERVICE}/api/pruefung/${pruefungId}`,
+          { method: "DELETE" },
+        );
+        if (!res.ok) {
+          const txt = await res.text();
+          const msg = `Löschen fehlgeschlagen: ${res.status} ${txt}`;
+          setError(msg);
+          return { error: msg };
+        }
+        await reload();
+        return {};
+      } catch (e) {
+        const msg = `Löschen fehlgeschlagen: ${(e as Error).message}`;
         setError(msg);
         return { error: msg };
       }
-      // 2) Falls Antrag im zweitpruefung_*-Status hängt, zurück auf
-      //    in_pruefung — sonst hängt der Workflow nach der Löschung
-      const { data: antrag } = await supabase
-        .from("antraege").select("status").eq("id", antragId).single();
-      if (
-        antrag?.status === "zweitpruefung_offen"
-        || antrag?.status === "zweitpruefung_dissens"
-      ) {
-        await supabase
-          .from("antraege")
-          .update({ status: "in_pruefung" })
-          .eq("id", antragId);
-      }
-      await reload();
-      return {};
     },
     [antragId, reload],
   );

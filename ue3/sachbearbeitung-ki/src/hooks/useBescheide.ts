@@ -113,28 +113,31 @@ export function useBescheide(antragId: string | undefined) {
   /** Bescheid löschen — entfernt DB-Eintrag (CASCADE löscht Storage-Object
    * NICHT automatisch, also separat). Nur zulässig, wenn der Bescheid noch
    * nicht verschickt wurde (in unserem Demo: jederzeit). */
+  /** Löscht einen Bescheid + sein PDF im Storage.
+   *
+   *  Läuft über pruefung-service (SERVICE_ROLE_KEY) — direkter
+   *  Frontend-Supabase-DELETE scheiterte still an fehlender RLS-Policy
+   *  / Owner-Problemen der bescheide-Tabelle. */
   const loeschBescheid = useCallback(
-    async (id: string, pdfStoragePath: string | null) => {
-      if (pdfStoragePath) {
-        await supabase.storage.from("bescheide").remove([pdfStoragePath]);
-      }
-      // count: 'exact' liefert die Anzahl betroffener Zeilen — wichtig,
-      // weil RLS bei fehlender Policy still 0 Zeilen löscht statt zu
-      // erroren. Ohne diesen Check würde die UI 'gelöscht' suggerieren
-      // obwohl die Zeile noch in der DB steht.
-      const { error, count } = await supabase
-        .from("bescheide").delete({ count: "exact" }).eq("id", id);
-      if (error) {
-        setError(`Löschen fehlgeschlagen: ${error.message}`);
-        return { error: error.message };
-      }
-      if (count === 0) {
-        const msg = "Löschen wurde von der Datenbank verweigert (vermutlich RLS-Policy fehlt).";
+    async (id: string, _pdfStoragePath: string | null) => {
+      try {
+        const res = await fetch(
+          `https://pruefung.butscher.cloud/api/bescheid/${id}`,
+          { method: "DELETE" },
+        );
+        if (!res.ok) {
+          const txt = await res.text();
+          const msg = `Löschen fehlgeschlagen: ${res.status} ${txt}`;
+          setError(msg);
+          return { error: msg };
+        }
+        await reload();
+        return {};
+      } catch (e) {
+        const msg = `Löschen fehlgeschlagen: ${(e as Error).message}`;
         setError(msg);
         return { error: msg };
       }
-      await reload();
-      return {};
     },
     [reload],
   );
