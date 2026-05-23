@@ -148,21 +148,63 @@ def _docx_set_cell_borders(
     tcPr.append(tcBorders)
 
 
-def _docx_paragraph_border_bottom(
-    paragraph, *, color: str = _CI_ROT, size: int = 12,
+def _docx_paragraph_border(
+    paragraph,
+    *,
+    side: str = "bottom",
+    color: str = _CI_ROT,
+    size: int = 12,
+    space: int = 4,
 ) -> None:
-    """Rote Trennlinie unter einem Absatz (z.B. unter dem Briefkopf)."""
+    """Border auf einer Seite eines Absatzes — z.B. Trennlinie unter dem
+    Briefkopf (side='bottom') oder farbiger Streifen links neben einem
+    Begründungs-Item (side='left'). size in 1/8-Punkt."""
     from docx.oxml import OxmlElement
     from docx.oxml.ns import qn
     pPr = paragraph._p.get_or_add_pPr()
-    pBdr = OxmlElement("w:pBdr")
-    bottom = OxmlElement("w:bottom")
-    bottom.set(qn("w:val"), "single")
-    bottom.set(qn("w:sz"), str(size))
-    bottom.set(qn("w:space"), "4")
-    bottom.set(qn("w:color"), color)
-    pBdr.append(bottom)
-    pPr.append(pBdr)
+    # pBdr muss vor anderen Children am richtigen Schema-Index stehen,
+    # sonst akzeptiert Word es nicht. Wir hängen vorhandenen pBdr wieder
+    # auf, statt blind anzuhängen.
+    existing = pPr.find(qn("w:pBdr"))
+    if existing is None:
+        pBdr = OxmlElement("w:pBdr")
+        pPr.insert(0, pBdr)
+    else:
+        pBdr = existing
+    border = OxmlElement(f"w:{side}")
+    border.set(qn("w:val"), "single")
+    border.set(qn("w:sz"), str(size))
+    border.set(qn("w:space"), str(space))
+    border.set(qn("w:color"), color)
+    pBdr.append(border)
+
+
+# Backwards-compat-Wrapper — Aufrufer aus älteren Edits.
+def _docx_paragraph_border_bottom(
+    paragraph, *, color: str = _CI_ROT, size: int = 12,
+) -> None:
+    _docx_paragraph_border(paragraph, side="bottom", color=color, size=size)
+
+
+def _docx_paragraph_left_indent(paragraph, cm: float) -> None:
+    """Setzt links-Einrückung — wird für 'Streifen-Item' kombiniert mit
+    border-left, sodass der Text-Inhalt rechts neben der farbigen Linie steht."""
+    from docx.shared import Cm
+    paragraph.paragraph_format.left_indent = Cm(cm)
+
+
+def _signature_name(value: str | None) -> str:
+    """Aus 'vorname.nachname@thws.de' wird 'Vorname Nachname'. Verhindert
+    dass dieselbe Email zweimal im Bescheid auftaucht (einmal im Briefkopf
+    rechts als Meta, einmal unter der Unterschrift). Wenn der Wert keine
+    Email ist, bleibt er unverändert."""
+    if not value:
+        return "Im Auftrag · Sachbearbeitung Sozialreferat"
+    if "@" in value:
+        local = value.split("@", 1)[0]
+        parts = [p.capitalize() for p in local.replace("_", ".").split(".") if p]
+        return " ".join(parts) if parts else value
+    return value
 
 
 def _docx_set_col_widths(table, widths_cm: list[float]) -> None:
@@ -268,7 +310,7 @@ def render_bescheid_docx(
     _add_meta(kopf_r, "Aktenzeichen", antrag.get("antragsnummer", "—"), monospace=True)
     _add_meta(kopf_r, "Datum", _format_date(ausgestellt_am))
     if ausgestellt_von:
-        _add_meta(kopf_r, "Sachbearbeitung", ausgestellt_von)
+        _add_meta(kopf_r, "Sachbearbeitung", _signature_name(ausgestellt_von))
 
     # Rote Trennlinie unter dem Briefkopf
     trenn = doc.add_paragraph()
@@ -288,6 +330,10 @@ def render_bescheid_docx(
 
     emp_p = doc.add_paragraph()
     emp_p.paragraph_format.space_before = Pt(3)
+    # Engerer Zeilenabstand für den Empfänger-Block — sieht im Brief
+    # eines Verwaltungsamts professioneller aus als der lockere
+    # Default-Abstand.
+    emp_p.paragraph_format.line_spacing = 1.15
     name_r = emp_p.add_run(antrag.get("traeger", ""))
     name_r.bold = True
     name_r.font.size = Pt(11)
@@ -330,10 +376,8 @@ def render_bescheid_docx(
     eroeff.add_run("zu Ihrem Antrag auf Förderung der Einrichtung ")
     eroeff.add_run(antrag.get("name", "")).bold = True
     eroeff.add_run(
-        f" ({antrag.get('strasse','')} {antrag.get('hausnummer','')}, "
-        f"{antrag.get('plz','')} {antrag.get('ort','')}) ergeht nach Prüfung "
-        f"gemäß der AHP-Förderrichtlinie der Stadt Würzburg folgende "
-        f"Entscheidung:"
+        " ergeht nach Prüfung gemäß der AHP-Förderrichtlinie der Stadt "
+        "Würzburg folgende Entscheidung:"
     )
 
     # ── 5. ENTSCHEIDUNGS-BLOCK (farbig gerahmt + Shading) ──────────
@@ -514,25 +558,21 @@ def render_bescheid_docx(
                 lbl_r.font.size = Pt(7.5)
                 lbl_r.font.color.rgb = RGBColor.from_string("777777")
                 lbl_r.bold = True
+                body_p = content.add_paragraph()
+                body_r = body_p.add_run(body)
+                body_r.font.size = Pt(10)
                 if framed:
-                    # eingerahmtes Norm-Zitat — 1-zellige Sub-Tabelle mit grauem Border-Left
-                    quote_tbl = doc.add_table(rows=1, cols=1)
-                    quote_tbl.autofit = False
-                    _docx_set_col_widths(quote_tbl, [15.8])
-                    q_cell = quote_tbl.rows[0].cells[0]
-                    _docx_set_cell_shading(q_cell, "FFFFFF")
-                    _docx_set_cell_borders(q_cell, color="888888", size=4, sides=("left",))
-                    q_p = q_cell.paragraphs[0]
-                    q_r = q_p.add_run(body)
-                    q_r.italic = True
-                    q_r.font.size = Pt(10)
-                    q_r.font.color.rgb = RGBColor.from_string("444444")
-                else:
-                    body_p = content.add_paragraph()
-                    body_r = body_p.add_run(body)
-                    body_r.font.size = Pt(10)
-                    if italic:
-                        body_r.italic = True
+                    # eingerahmtes Norm-Zitat: italic + linke graue Border
+                    # + Einrückung (alles via paragraph-properties, ohne
+                    # Sub-Tabelle — die würde im DOCX-Modell aus der
+                    # umschließenden Zelle herausspringen, da add_table
+                    # immer an doc.body anhängt).
+                    body_r.italic = True
+                    body_r.font.color.rgb = RGBColor.from_string("444444")
+                    _docx_paragraph_border(body_p, side="left", color="888888", size=8, space=8)
+                    _docx_paragraph_left_indent(body_p, 0.3)
+                elif italic:
+                    body_r.italic = True
 
             if b.get("sachverhalt"):
                 _feld("Sachverhalt im Einzelnen", b["sachverhalt"])
@@ -629,28 +669,18 @@ def render_bescheid_docx(
     schluss_p = doc.add_paragraph("Mit freundlichen Grüßen")
     schluss_p.paragraph_format.space_before = Pt(14)
 
-    # Drei Leerzeilen als Unterschriftraum
-    for _ in range(3):
+    # Zwei Leerzeilen als Unterschriftraum (statt vorher drei — sah zu
+    # luftig aus). Sachbearbeiter kann in Word zusätzliche Returns
+    # einfügen, falls er einen größeren Stempelraum braucht.
+    for _ in range(2):
         doc.add_paragraph()
 
     sig_p = doc.add_paragraph()
-    sig_r = sig_p.add_run(
-        ausgestellt_von or "Im Auftrag · Sachbearbeitung Sozialreferat"
-    )
+    sig_r = sig_p.add_run(_signature_name(ausgestellt_von))
     sig_r.font.size = Pt(9.5)
-    sig_r.font.color.rgb = RGBColor.from_string(_CI_GRAU)
+    sig_r.font.color.rgb = RGBColor.from_string(_CI_DUNKEL)
     # Trennlinie ÜBER dem Namen → simuliert Unterschriftslinie
-    from docx.oxml import OxmlElement as _OE
-    from docx.oxml.ns import qn as _qn
-    pPr = sig_p._p.get_or_add_pPr()
-    pBdr = _OE("w:pBdr")
-    top = _OE("w:top")
-    top.set(_qn("w:val"), "single")
-    top.set(_qn("w:sz"), "4")
-    top.set(_qn("w:space"), "4")
-    top.set(_qn("w:color"), _CI_DUNKEL)
-    pBdr.append(top)
-    pPr.append(pBdr)
+    _docx_paragraph_border(sig_p, side="top", color=_CI_DUNKEL, size=4)
 
     # ── 11. RECHTSBEHELFSBELEHRUNG (graue Box) ─────────────────────
     rb_tbl = doc.add_table(rows=1, cols=1)
