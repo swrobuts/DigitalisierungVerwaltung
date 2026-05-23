@@ -36,7 +36,10 @@ def test_rebuild_doctree_baut_tree_aus_mini_pdf(monkeypatch, tmp_path):
         http_ctx = MockHTTP.return_value.__aenter__.return_value
         http_ctx.delete = AsyncMock()
 
-        r = client.post("/api/rebuild-doctree")
+        # engine=regex zwingt den Legacy-Pfad (extract_text_blocks +
+        # build_tree), der OHNE Anthropic-Aufruf läuft. Sonst wäre der
+        # Test offline nicht ausführbar.
+        r = client.post("/api/rebuild-doctree?engine=regex")
 
     assert r.status_code == 200
     data = r.json()

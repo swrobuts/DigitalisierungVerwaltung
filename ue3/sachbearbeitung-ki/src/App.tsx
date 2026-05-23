@@ -6,6 +6,7 @@ import { AntragDetail } from "./pages/AntragDetail";
 import { OntologieInspector } from "./pages/OntologieInspector";
 import { AhpInspector } from "./pages/AhpInspector";
 import { NormStatementsInspector } from "./pages/NormStatementsInspector";
+import { AdoptionDashboard } from "./pages/AdoptionDashboard";
 import { AuthGuard } from "./components/AuthGuard";
 
 export default function App() {
@@ -51,6 +52,14 @@ export default function App() {
         element={
           <AuthGuard>
             <NormStatementsInspector />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/dashboard/adoption"
+        element={
+          <AuthGuard>
+            <AdoptionDashboard />
           </AuthGuard>
         }
       />

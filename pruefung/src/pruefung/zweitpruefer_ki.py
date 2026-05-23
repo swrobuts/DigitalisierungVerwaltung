@@ -11,11 +11,10 @@ demonstriert im Lehr-Kontext, dass KI-Variabilität nicht nur Bug,
 sondern auch nutzbares Korrektiv ist.
 """
 import json
-import os
 import re
 from typing import Any
-from anthropic import AsyncAnthropic
 from pruefung.doctree_navigate import get_section, list_sections, search_tree
+from pruefung.llm_client import UsageTracker, get_llm_client
 from pruefung.models import Befund
 
 
@@ -102,6 +101,7 @@ async def run_adversarielle_zweitpruefung(
     erst_befunde: list[dict],
     tree: dict,
     model: str = "claude-sonnet-4-5",
+    usage: UsageTracker | None = None,
 ) -> dict[str, Any]:
     """Führt die adversarielle Zweitprüfung durch.
 
@@ -113,8 +113,10 @@ async def run_adversarielle_zweitpruefung(
         "gesamt_vorschlag": str,
         "gesamt_begruendung": str
       }
+
+    Cost-Tracking optional via UsageTracker (s. llm_client.py).
     """
-    client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = get_llm_client(default_model=model)
     user_msg = (
         "Antrag-Payload:\n```json\n"
         + json.dumps(antrag, indent=2, ensure_ascii=False, default=str)
@@ -137,13 +139,15 @@ async def run_adversarielle_zweitpruefung(
     messages: list[dict] = [{"role": "user", "content": user_msg}]
 
     for _ in range(15):
-        resp = await client.messages.create(
-            model=model,
-            max_tokens=4096,
+        resp = await client.complete(
             system=ADVERSARIAL_SYSTEM_PROMPT,
-            tools=TOOLS,
             messages=messages,
+            tools=TOOLS,
+            max_tokens=4096,
+            model=model,
         )
+        if usage is not None:
+            usage.add(resp)
         if resp.stop_reason == "tool_use":
             tool_uses = [b for b in resp.content if b.type == "tool_use"]
             messages.append({"role": "assistant", "content": resp.content})

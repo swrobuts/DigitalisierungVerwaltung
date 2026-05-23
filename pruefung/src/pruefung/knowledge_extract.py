@@ -7,7 +7,7 @@ Sachbearbeiter im /normen-Inspector kuratieren kann.
 """
 import os
 from typing import Any
-from anthropic import AsyncAnthropic
+from pruefung.llm_client import LlmClient, get_llm_client
 from pruefung.db import SupabaseClient
 
 
@@ -97,15 +97,15 @@ _SUBMIT_STATEMENT_TOOL = {
 
 async def extract_from_section(
     section: dict[str, Any],
-    client: AsyncAnthropic,
+    client: LlmClient,
     model: str = "claude-sonnet-4-5",
 ) -> list[dict[str, Any]]:
     """Extrahiert Norm-Statements aus einer einzelnen Doctree-Section.
 
     Args:
         section: Doctree-Knoten mit title + content
-        client: bereits initialisierter AsyncAnthropic-Client
-        model: Anthropic-Modell
+        client: bereits initialisierter LlmClient (siehe llm_client.py)
+        model: LLM-Modell
 
     Returns:
         Liste der Tool-Inputs (jedes mit statement, statement_type, ...).
@@ -125,12 +125,12 @@ async def extract_from_section(
         "Falls keine vorhanden, antworte nur mit 'Keine Norm-Aussagen.'"
     )
 
-    response = await client.messages.create(
-        model=model,
-        max_tokens=4096,
+    response = await client.complete(
         system=_SYSTEM_PROMPT,
-        tools=[_SUBMIT_STATEMENT_TOOL],
         messages=[{"role": "user", "content": user_msg}],
+        tools=[_SUBMIT_STATEMENT_TOOL],
+        max_tokens=4096,
+        model=model,
     )
     statements: list[dict[str, Any]] = []
     for block in response.content:
@@ -173,8 +173,10 @@ async def extract_all_norms(
     version = rows[0]["version"]
     tree = rows[0]["tree_jsonb"]
 
-    # 2) Über alle Sections iterieren
-    client = AsyncAnthropic(api_key=api_key or os.environ["ANTHROPIC_API_KEY"])
+    # 2) Über alle Sections iterieren — Provider-Abstraktion liest
+    #    Credentials zentral via env; api_key-Override entfällt.
+    _ = api_key
+    client = get_llm_client(default_model=model)
     sections = _iter_sections(tree)
     stats = {
         "sections_processed": 0,

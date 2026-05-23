@@ -8,12 +8,11 @@ Strategie:
 Tests mocken `_run_claude_loop` — kein echter API-Call in Test-Suite.
 """
 import json
-import os
 import re
 from typing import Any
-from anthropic import AsyncAnthropic
 from pruefung.db import SupabaseClient
 from pruefung.doctree_navigate import list_sections, get_section, search_tree
+from pruefung.llm_client import UsageTracker, get_llm_client
 from pruefung.models import Befund
 from pruefung.voyage_embed import semantic_search
 
@@ -105,10 +104,16 @@ TOOLS = [
 ]
 
 
-async def _run_claude_loop(tree: dict, antrag: dict, model: str) -> dict[str, Any]:
-    """Tool-Use-Loop bis Claude eine final-message mit JSON liefert.
-    Max 15 Tool-Iterationen als Safety-Bound (typisch werden 3-7 reichen)."""
-    client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+async def _run_claude_loop(
+    tree: dict, antrag: dict, model: str,
+    usage: UsageTracker | None = None,
+) -> dict[str, Any]:
+    """Tool-Use-Loop bis das Modell eine final-message mit JSON liefert.
+    Max 15 Tool-Iterationen als Safety-Bound (typisch werden 3-7 reichen).
+
+    Falls ein UsageTracker übergeben wird, werden alle Calls für
+    Cost-Tracking aufaddiert (siehe pruefung/llm_client.py)."""
+    client = get_llm_client(default_model=model)
     # DB-Client für semantic_search (lazy: nur wenn das Tool aufgerufen wird)
     db: SupabaseClient | None = None
     messages: list[dict] = [
@@ -123,13 +128,15 @@ async def _run_claude_loop(tree: dict, antrag: dict, model: str) -> dict[str, An
     ]
 
     for _ in range(15):
-        resp = await client.messages.create(
-            model=model,
-            max_tokens=4096,
+        resp = await client.complete(
             system=SYSTEM_PROMPT,
-            tools=TOOLS,
             messages=messages,
+            tools=TOOLS,
+            max_tokens=4096,
+            model=model,
         )
+        if usage is not None:
+            usage.add(resp)
         if resp.stop_reason == "tool_use":
             tool_uses = [b for b in resp.content if b.type == "tool_use"]
             messages.append({"role": "assistant", "content": resp.content})
@@ -180,9 +187,14 @@ async def _run_claude_loop(tree: dict, antrag: dict, model: str) -> dict[str, An
     return {"befunde": []}
 
 
-async def check_rag(tree: dict, antrag: dict, model: str = "claude-sonnet-4-5") -> list[Befund]:
-    """Layer-C-Eintrittspunkt. Returnt list[Befund] mit layer='C'."""
-    raw = await _run_claude_loop(tree, antrag, model)
+async def check_rag(
+    tree: dict, antrag: dict,
+    model: str = "claude-sonnet-4-5",
+    usage: UsageTracker | None = None,
+) -> list[Befund]:
+    """Layer-C-Eintrittspunkt. Returnt list[Befund] mit layer='C'.
+    Optional: UsageTracker für Cost-Tracking (siehe llm_client.py)."""
+    raw = await _run_claude_loop(tree, antrag, model, usage=usage)
     out: list[Befund] = []
     for r in raw.get("befunde", []):
         out.append(Befund(

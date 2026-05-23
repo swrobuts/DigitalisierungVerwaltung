@@ -93,13 +93,18 @@ async def pruefen(req: PruefungsRequest) -> dict[str, Any]:
     db = SupabaseClient.from_env()
     antrag = await _fetch_antrag(req.antrag_id, db)
 
+    # UsageTracker sammelt Token-/Kosten-Daten aller LLM-Calls dieses
+    # Prüfungs-Laufs — wird ins pruefprotokoll mit persistiert.
+    from pruefung.llm_client import UsageTracker
+    usage = UsageTracker()
+
     befunde: list[Befund] = []
     befunde.extend(check_strukturell(antrag))
     befunde.extend(await check_ontologie(antrag, plan_id="APL2", db=db))
 
     tree, version = await _fetch_doctree(db)
     if tree.get("children"):
-        befunde.extend(await check_rag(tree, antrag))
+        befunde.extend(await check_rag(tree, antrag, usage=usage))
 
     duration_ms = int((time.monotonic() - start) * 1000)
     ergebnis = PruefungsErgebnis(
@@ -110,6 +115,8 @@ async def pruefen(req: PruefungsRequest) -> dict[str, Any]:
     # Reload des Protokolls verfügbar bleibt (UI + Bescheid-Generator)
     ergebnis_dict = ergebnis.model_dump()
     ergebnis_dict["empfehlung"] = ergebnis.empfehlung().model_dump()
+    # LLM-Cost-Aggregat in ergebnis_jsonb, sichtbar in der UI (z.B. KPI-Bar)
+    ergebnis_dict["llm_usage"] = usage.to_dict()
     protokoll = await db.insert("pruefprotokoll", {
         "antrag_id": req.antrag_id,
         "geprueft_von": req.geprueft_von,
@@ -358,14 +365,17 @@ async def trigger_ki_zweitpruefung(req: KiZweitpruefungRequest) -> dict[str, Any
 
     tree, version = await _fetch_doctree(db)
 
-    # Adversariellen Lauf ausführen
+    # Adversariellen Lauf ausführen (mit Cost-Tracking)
+    from pruefung.llm_client import UsageTracker
     from pruefung.zweitpruefer_ki import (
         run_adversarielle_zweitpruefung, zweitpruefung_zu_befunden,
     )
+    usage = UsageTracker()
     zweit_ergebnis = await run_adversarielle_zweitpruefung(
         antrag=antrag,
         erst_befunde=erst_befunde,
         tree=tree,
+        usage=usage,
     )
 
     # Dissens berechnen
@@ -387,6 +397,7 @@ async def trigger_ki_zweitpruefung(req: KiZweitpruefungRequest) -> dict[str, Any
     zweit_ergebnis_dict["modus"] = "adversariell"
     zweit_ergebnis_dict["zweit_ergebnis_raw"] = zweit_ergebnis  # vollständige Rohdaten
     zweit_ergebnis_dict["dissens"] = dissens
+    zweit_ergebnis_dict["llm_usage"] = usage.to_dict()
 
     pp_insert = await db.insert("pruefprotokoll", {
         "antrag_id": req.antrag_id,
@@ -528,13 +539,34 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
         or (tree_rows[0]["version"] if tree_rows else None)
     )
 
+    # Halluzinations-Schutz: VOR der Anreicherung prüfen, dass jeder
+    # Verstoß-Befund mit paragraph_ref eine echte AHP-Section referenziert
+    # und ein eventuelles Zitat tatsächlich im Wortlaut vorkommt. Wenn die
+    # KI etwas erfunden hat, blockieren wir den Bescheid mit 422.
+    from pruefung.quellen_validator import validiere_alle
+    verstoesse_raw = [b for b in befunde_raw if b.get("schwere") == "verstoss"]
+    halluzinations_fehler = validiere_alle(verstoesse_raw, tree)
+    if halluzinations_fehler:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "fehler": "Bescheid blockiert — KI-Quellen nicht verifizierbar",
+                "anzahl_betroffen": len(halluzinations_fehler),
+                "befunde": halluzinations_fehler,
+                "empfehlung": (
+                    "Erstprüfung mit aktuellem Doctree wiederholen "
+                    "(POST /api/pruefen) oder Bescheid manuell ohne diese "
+                    "Befunde erzeugen."
+                ),
+            },
+        )
+
     # 4) Befunde mit AHP-Wortlaut + Subsumtion anreichern.
     #    NUR Verstöße kommen in den Bescheid — Hinweise sind interne
     #    Bearbeiter-Aufgaben (z.B. "IBAN-Inhaberschaft manuell prüfen") und
     #    gehören NICHT in eine Bürger-Begründung.
     from pruefung.bescheid_subsumtion import build_subsumtion
     befunde_for_template: list[dict] = []
-    verstoesse_raw = [b for b in befunde_raw if b.get("schwere") == "verstoss"]
     for b in verstoesse_raw:
         ahp_path = _extract_ahp_path(b.get("paragraph_ref"))
         ahp_node = _find_section_by_path(tree, ahp_path) if ahp_path else None
@@ -780,6 +812,18 @@ async def validiere_extern(antrag_id: str) -> dict[str, Any]:
         "duration_ms": None,
     })
     return {"befunde": befunde, "summary": summary}
+
+
+@app.get("/api/dashboard/adoption")
+async def dashboard_adoption() -> dict[str, Any]:
+    """Adoption-Dashboard: zeigt, wie oft die finale Entscheidung der
+    KI-Empfehlung folgt. Macht Automation Bias sichtbar.
+
+    Healthy-Bandbreite (Literatur): 60-80% Übernahme. > 90% = Verdacht
+    auf blindes Folgen, < 40% = KI-Empfehlung nicht hilfreich."""
+    from pruefung.adoption_metrics import berechne_adoption
+    db = SupabaseClient.from_env()
+    return await berechne_adoption(db)
 
 
 @app.get("/api/antrag/{antrag_id}/risiko-score")

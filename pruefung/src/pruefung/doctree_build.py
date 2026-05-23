@@ -30,7 +30,7 @@ from typing import Any
 
 import pypdfium2 as pdfium
 import pytesseract
-from anthropic import AsyncAnthropic
+from pruefung.llm_client import get_llm_client
 
 # Section-Heading-Patterns (mehrere unterstützt):
 #   Form A: "§ 4.2.1 Titel"  (klassische juristische Form)
@@ -289,12 +289,16 @@ async def structure_with_claude(
     full_text = "\n\n=== SEITENGRENZE ===\n\n".join(
         f"--- Seite {i + 1} ---\n{p}" for i, p in enumerate(pages)
     )
-    client = AsyncAnthropic(api_key=api_key or os.environ["ANTHROPIC_API_KEY"])
-    response = await client.messages.create(
-        model=model,
-        max_tokens=16000,
+    # api_key wird via env (ANTHROPIC_API_KEY) gelesen — der Parameter
+    # bleibt aus Backwards-Compat in der Signatur, wird aber nicht mehr
+    # durchgereicht (Provider-Abstraktion liest env zentral)
+    _ = api_key
+    client = get_llm_client(default_model=model)
+    response = await client.complete(
         system=_STRUCTURE_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": full_text}],
+        max_tokens=16000,
+        model=model,
     )
     markdown = "".join(
         block.text for block in response.content if getattr(block, "type", "") == "text"

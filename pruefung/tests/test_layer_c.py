@@ -29,7 +29,7 @@ async def test_check_rag_returns_befunde_from_claude_output():
         ]
     }
 
-    async def fake_claude_loop(tree_arg, antrag_arg, model):
+    async def fake_claude_loop(tree_arg, antrag_arg, model, usage=None):
         return fake_response
 
     with patch("pruefung.layer_c_rag._run_claude_loop", fake_claude_loop):
@@ -46,7 +46,7 @@ async def test_check_rag_returns_befunde_from_claude_output():
 @pytest.mark.asyncio
 async def test_check_rag_handles_empty_befunde():
     """Claude meldet keine Befunde — Liste leer, kein Crash."""
-    async def fake_empty(tree_arg, antrag_arg, model):
+    async def fake_empty(tree_arg, antrag_arg, model, usage=None):
         return {"befunde": []}
 
     with patch("pruefung.layer_c_rag._run_claude_loop", fake_empty):
@@ -57,7 +57,7 @@ async def test_check_rag_handles_empty_befunde():
 @pytest.mark.asyncio
 async def test_check_rag_handles_missing_fields_gracefully():
     """Claude liefert teilweise unvollständige Befunde — keine KeyError."""
-    async def fake_partial(tree_arg, antrag_arg, model):
+    async def fake_partial(tree_arg, antrag_arg, model, usage=None):
         return {
             "befunde": [
                 {"schwere": "hinweis", "beschreibung": "minimal"},  # ohne feld/zitat/etc

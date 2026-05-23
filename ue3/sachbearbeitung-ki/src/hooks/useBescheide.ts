@@ -66,6 +66,31 @@ export function useBescheide(antragId: string | undefined) {
           }),
         });
         if (!res.ok) {
+          // Spezialfall: 422 = Quellen-Validierung hat halluzinierte
+          // AHP-Referenzen entdeckt. Wir extrahieren die strukturierte
+          // FastAPI-Antwort und zeigen sie verständlich an.
+          if (res.status === 422) {
+            try {
+              const body = await res.json();
+              const d = body?.detail ?? body;
+              const items = (d?.befunde ?? []) as Array<{
+                paragraph_ref?: string;
+                art?: string;
+                detail?: string;
+                befund_beschreibung?: string;
+              }>;
+              const liste = items.map((i) =>
+                `• ${i.paragraph_ref ?? "—"} (${i.art}): ${i.detail}`
+              ).join("\n");
+              const msg =
+                `Bescheid blockiert (Halluzinations-Schutz, ${items.length} Befund(e)):\n${liste}\n\n` +
+                (d?.empfehlung ?? "");
+              setError(msg);
+              return { error: msg };
+            } catch {
+              // fall through to generic handling
+            }
+          }
           const txt = await res.text();
           setError(`Bescheid-Erstellung fehlgeschlagen: ${res.status} ${txt}`);
           return { error: txt };
