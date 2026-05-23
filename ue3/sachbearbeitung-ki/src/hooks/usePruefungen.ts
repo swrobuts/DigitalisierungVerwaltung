@@ -146,6 +146,40 @@ export function usePruefungen(antragId: string | undefined) {
     }
   }, [antragId, reload]);
 
+  /** Löscht eine Prüfungs-Bewertung (typisch: Zweitprüfung zurücksetzen,
+   *  um sie neu zu starten — z.B. nach kaputtem KI-Lauf). Räumt
+   *  zusätzlich den Antrags-Status zurück nach 'in_pruefung', wenn er
+   *  durch diese Prüfung in einen zweitpruefung_*-Status verschoben war.
+   *  pruefprotokoll-Einträge bleiben erhalten — sie sind Audit-Trail. */
+  const loesche = useCallback(
+    async (pruefungId: string) => {
+      if (!antragId) return { error: "Kein Antrag" };
+      // 1) pruefungen-Row löschen
+      const { error: delErr } = await supabase
+        .from("pruefungen").delete().eq("id", pruefungId);
+      if (delErr) {
+        setError(`Löschen fehlgeschlagen: ${delErr.message}`);
+        return { error: delErr.message };
+      }
+      // 2) Falls Antrag im zweitpruefung_*-Status hängt, zurück auf
+      //    in_pruefung — sonst hängt der Workflow nach der Löschung
+      const { data: antrag } = await supabase
+        .from("antraege").select("status").eq("id", antragId).single();
+      if (
+        antrag?.status === "zweitpruefung_offen"
+        || antrag?.status === "zweitpruefung_dissens"
+      ) {
+        await supabase
+          .from("antraege")
+          .update({ status: "in_pruefung" })
+          .eq("id", antragId);
+      }
+      await reload();
+      return {};
+    },
+    [antragId, reload],
+  );
+
   const erstpruefung = pruefungen.find((p) => p.rolle === "erstpruefung");
   const zweitpruefung = pruefungen.find((p) => p.rolle === "zweitpruefung");
 
@@ -158,6 +192,7 @@ export function usePruefungen(antragId: string | undefined) {
     kiZweitpruefungRunning,
     upsert,
     triggerKiZweitpruefung,
+    loesche,
     reload,
   };
 }

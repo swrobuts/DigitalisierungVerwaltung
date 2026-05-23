@@ -9,7 +9,7 @@
  *  5. Dissens               → Befunde mit Widerspruch sind gelb umrandet
  */
 import { useEffect, useState } from "react";
-import { CheckCircle2, AlertTriangle, XCircle, HelpCircle, Sparkles, User } from "lucide-react";
+import { CheckCircle2, AlertTriangle, XCircle, HelpCircle, RotateCcw, Sparkles, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
@@ -61,6 +61,7 @@ export function ZweitpruefungsCard({
     upsert,
     triggerKiZweitpruefung,
     kiZweitpruefungRunning,
+    loesche,
     error,
   } = usePruefungen(antragId);
 
@@ -139,6 +140,17 @@ export function ZweitpruefungsCard({
         pruefer_typ: zweitpruefung.pruefer_typ, pruefer_id: zweitpruefung.pruefer_id,
         pruefer_modus: zweitpruefung.pruefer_modus,
         pruefprotokoll_id: zweitpruefung.pruefprotokoll_id, ...patch })}
+      onReset={async () => {
+        const confirmMsg =
+          zweitpruefung.pruefer_typ === "ki"
+            ? "KI-Zweitprüfung verwerfen und neu starten?\n\n"
+              + "Der bisherige Eintrag wird gelöscht. Das KI-Prüfprotokoll "
+              + "bleibt als Audit-Trail im Verlauf erhalten."
+            : "Zweitprüfung verwerfen?\n\nAlle Abhakungen, Kommentare "
+              + "und der Vorschlag gehen verloren.";
+        if (!confirm(confirmMsg)) return;
+        await loesche(zweitpruefung.id);
+      }}
     />
   );
 }
@@ -189,6 +201,7 @@ function ZweitpruefungsBody({
   zweitpruefung,
   letzteErstpruefung,
   onSave,
+  onReset,
 }: {
   zweitpruefung: PruefungRow;
   letzteErstpruefung: PruefProtokoll | null;
@@ -198,6 +211,7 @@ function ZweitpruefungsBody({
     entscheidungs_vorschlag: EntscheidungsVorschlag;
     abschliessen: boolean;
   }>) => Promise<unknown>;
+  onReset: () => Promise<void>;
 }) {
   const istAbgeschlossen = !!zweitpruefung.abgeschlossen_am;
   const istKi = zweitpruefung.pruefer_typ === "ki";
@@ -275,18 +289,33 @@ function ZweitpruefungsBody({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          {istAbgeschlossen ? (
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          ) : (
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-          )}
-          Zweitprüfung
-          <span className="text-xs font-normal text-slate-500 ml-2">
-            {istKi ? "🤖 KI" : "👤 Mensch"} ({zweitpruefung.pruefer_id})
-            {zweitpruefung.pruefer_modus === "adversariell" && " · adversariell"}
-          </span>
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+            {istAbgeschlossen ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            ) : (
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+            )}
+            Zweitprüfung
+            <span className="text-xs font-normal text-slate-500 ml-2">
+              {istKi ? "🤖 KI" : "👤 Mensch"} ({zweitpruefung.pruefer_id})
+              {zweitpruefung.pruefer_modus === "adversariell" && " · adversariell"}
+            </span>
+          </CardTitle>
+          <button
+            type="button"
+            onClick={onReset}
+            className="shrink-0 inline-flex items-center gap-1 text-xs text-slate-500 hover:text-rose-700 border border-slate-200 hover:border-rose-300 rounded px-2 py-1 transition-colors"
+            title={
+              istKi
+                ? "KI-Zweitprüfung verwerfen und Auswahl neu öffnen"
+                : "Zweitprüfung verwerfen — alle Abhakungen gehen verloren"
+            }
+          >
+            <RotateCcw className="h-3 w-3" />
+            Zurücksetzen
+          </button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {istAbgeschlossen && (
