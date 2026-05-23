@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { BookOpen, FileSearch, Network, Shield } from "lucide-react";
+import { BookOpen, FileSearch, Network, Settings, Shield } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
 import { useMeineZweitpruefungen } from "../hooks/useMeineZweitpruefungen";
 import { useUserRole } from "../hooks/useUserRole";
@@ -94,22 +94,54 @@ type GroupKey = "none" | "status" | "traeger" | "submitted_language" | "month";
 // im UI sichtbar war, welche Faktoren zugrunde lagen. Backend-Endpoint
 // /api/antrag/{id}/risiko-score bleibt für späteren Re-Use, wenn wir
 // eine bessere Erklärungs-UI bauen.
-const COLUMNS: Array<{ key: SortKey; label: string; align?: "right"; tooltip?: string }> = [
-  { key: "antragsnummer", label: "Antragsnummer" },
-  { key: "name", label: "Name" },
-  { key: "traeger", label: "Träger" },
-  { key: "submitted_at", label: "Eingegangen" },
-  { key: "submitted_language", label: "Sprache" },
-  { key: "status", label: "Status" },
-  { key: "antragssumme", label: "Antragssumme", align: "right",
+interface SpaltenDef {
+  key: SortKey;
+  label: string;
+  align?: "right";
+  tooltip?: string;
+  /** Pflicht-Spalten können nicht via Zahnrad versteckt werden — sie
+   *  sind die Mindest-Identifikation eines Antrags. */
+  pflicht?: boolean;
+  /** Sichtbar bei erstem Laden (wenn User nichts gespeichert hat). */
+  defaultVisible: boolean;
+}
+
+const COLUMNS: SpaltenDef[] = [
+  { key: "antragsnummer", label: "Antragsnummer", pflicht: true, defaultVisible: true },
+  { key: "name", label: "Name", defaultVisible: true },
+  { key: "traeger", label: "Träger", defaultVisible: true },
+  { key: "submitted_at", label: "Eingegangen", defaultVisible: true },
+  { key: "submitted_language", label: "Sprache", defaultVisible: false },
+  { key: "status", label: "Status", pflicht: true, defaultVisible: true },
+  { key: "antragssumme", label: "Antragssumme", align: "right", pflicht: true, defaultVisible: true,
     tooltip: "Aktuell beantragte Fördersumme (geforderte_foerdersumme_euro)" },
-  { key: "gesamt", label: "Aufwand VJ (Eigenangabe)", align: "right",
+  { key: "gesamt", label: "Aufwand VJ (Eigenangabe)", align: "right", defaultVisible: false,
     tooltip: "Im aktuellen Antrag angegebener Aufwand des Vorjahres (Betriebskosten + Personal + Miete)" },
-  { key: "vj", label: "Antrag VJ", align: "right",
+  { key: "vj", label: "Antrag VJ", align: "right", defaultVisible: true,
     tooltip: "Was derselbe Träger im Vorjahres-Antrag beantragt hatte (aus DB rekonstruiert)" },
-  { key: "diff", label: "Δ Antrag", align: "right",
+  { key: "diff", label: "Δ Antrag", align: "right", defaultVisible: true,
     tooltip: "Aktuelle Antragssumme − Vorjahres-Antragssumme" },
 ];
+
+const HIDDEN_COLUMNS_STORAGE_KEY = "inbox.hidden_columns.v1";
+
+function loadHiddenColumns(): Set<SortKey> {
+  if (typeof window === "undefined") return defaultHidden();
+  try {
+    const raw = window.localStorage.getItem(HIDDEN_COLUMNS_STORAGE_KEY);
+    if (!raw) return defaultHidden();
+    const arr = JSON.parse(raw) as SortKey[];
+    return new Set(arr.filter((k) => !COLUMNS.find((c) => c.key === k)?.pflicht));
+  } catch {
+    return defaultHidden();
+  }
+}
+
+function defaultHidden(): Set<SortKey> {
+  return new Set(
+    COLUMNS.filter((c) => !c.defaultVisible && !c.pflicht).map((c) => c.key),
+  );
+}
 
 const GROUP_OPTIONS: Array<{ key: GroupKey; label: string }> = [
   { key: "none", label: "Keine Gruppierung" },
@@ -189,6 +221,22 @@ export function Inbox() {
   // Anträge (z.B. für Vorjahres-Vergleich) sind über das Dropdown
   // explizit zuschaltbar.
   const [hjFilter, setHjFilter] = useState<number | null>(null);
+  // Spalten-Konfiguration: User kann via Zahnrad an/abwählen, was er
+  // sehen will. Default + Preset im localStorage.
+  const [hiddenCols, setHiddenCols] = useState<Set<SortKey>>(loadHiddenColumns);
+  const istSichtbar = (key: SortKey) => !hiddenCols.has(key);
+  const sichtbareSpalten = useMemo(() => COLUMNS.filter((c) => istSichtbar(c.key)), [hiddenCols]);
+  function toggleColumn(key: SortKey) {
+    setHiddenCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        window.localStorage.setItem(HIDDEN_COLUMNS_STORAGE_KEY, JSON.stringify(Array.from(next)));
+      } catch { /* ignore quota errors */ }
+      return next;
+    });
+  }
 
   // Verfügbare Haushaltsjahre — distinct, absteigend sortiert
   const verfuegbareHj = useMemo(() => {
@@ -359,7 +407,15 @@ export function Inbox() {
   const toneClass = (tone: "up" | "down" | "neutral") =>
     tone === "up" ? "text-emerald-700" : tone === "down" ? "text-rose-700" : "text-slate-400";
 
-  const COL_COUNT_BEFORE_GESAMT = 6; // antragsnr, name, traeger, datum, sprache, status
+  // Spalten-Gruppen für Footer/Group-Row Colspan-Berechnung:
+  // 'identitaet' = alle Spalten links der Antragssumme (Antragsnummer .. Status),
+  // hier kommt der Group-/Footer-Header rein. Antragssumme + die VJ-Spalten
+  // bekommen jeweils eigene Zellen mit Aggregaten.
+  const IDENT_KEYS: SortKey[] = ["antragsnummer", "name", "traeger", "submitted_at", "submitted_language", "status"];
+  const aggregatKeys: SortKey[] = ["antragssumme", "gesamt", "vj", "diff"];
+  const sichtbareIdentSpalten = IDENT_KEYS.filter(istSichtbar);
+  const sichtbareAggregatSpalten = aggregatKeys.filter(istSichtbar);
+  const COL_COUNT_BEFORE_GESAMT = sichtbareIdentSpalten.length;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -514,11 +570,17 @@ export function Inbox() {
                 ))}
               </select>
             </div>
-            <div className="ml-auto text-sm text-slate-500">
-              {filtered.length} von {antraege.length}
-              {effektivesHj !== null && (
-                <span className="text-slate-400"> (gefiltert HJ {effektivesHj})</span>
-              )}
+            <div className="ml-auto flex items-center gap-3 text-sm text-slate-500">
+              <span>
+                {filtered.length} von {antraege.length}
+                {effektivesHj !== null && (
+                  <span className="text-slate-400"> (gefiltert HJ {effektivesHj})</span>
+                )}
+              </span>
+              <SpaltenKonfig
+                hidden={hiddenCols}
+                onToggle={toggleColumn}
+              />
             </div>
           </div>
         </div>
@@ -530,7 +592,7 @@ export function Inbox() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {COLUMNS.map((col) => {
+                  {sichtbareSpalten.map((col) => {
                     const active = sortKey === col.key;
                     const arrow = active ? (sortDir === "asc" ? "▲" : "▼") : "";
                     return (
@@ -553,28 +615,38 @@ export function Inbox() {
                 {rendered.map((item, idx) =>
                   item.kind === "group" ? (
                     <TableRow key={`g-${idx}`} className="border-t border-slate-200 hover:bg-transparent">
-                      <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-3 pl-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <span className="inline-block w-[3px] h-5 bg-blue-700 rounded-sm" aria-hidden="true"></span>
-                          <span className="font-semibold text-[15px] text-slate-900">{item.label}</span>
-                          <span className="text-xs text-slate-500 font-normal">{item.count} {item.count === 1 ? "Antrag" : "Anträge"}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold text-[15px] text-slate-900 py-3 whitespace-nowrap">
-                        {formatEuro(item.antragsSumme)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm text-slate-600 py-3 whitespace-nowrap">
-                        {formatEuro(item.summe)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm text-slate-500 py-3 whitespace-nowrap">
-                        {item.vjSumme === null ? "—" : formatEuro(item.vjSumme)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm py-3 whitespace-nowrap">
-                        {/* Δ Antrag: aktuelle Forderung vs. VJ-Forderung (nicht Aufwand) */}
-                        <span className={toneClass(formatDiff(item.antragsSumme, item.vjSumme).tone)}>
-                          {formatDiff(item.antragsSumme, item.vjSumme).text}
-                        </span>
-                      </TableCell>
+                      {COL_COUNT_BEFORE_GESAMT > 0 && (
+                        <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-3 pl-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <span className="inline-block w-[3px] h-5 bg-blue-700 rounded-sm" aria-hidden="true"></span>
+                            <span className="font-semibold text-[15px] text-slate-900">{item.label}</span>
+                            <span className="text-xs text-slate-500 font-normal">{item.count} {item.count === 1 ? "Antrag" : "Anträge"}</span>
+                          </div>
+                        </TableCell>
+                      )}
+                      {istSichtbar("antragssumme") && (
+                        <TableCell className="text-right tabular-nums font-semibold text-[15px] text-slate-900 py-3 whitespace-nowrap">
+                          {formatEuro(item.antragsSumme)}
+                        </TableCell>
+                      )}
+                      {istSichtbar("gesamt") && (
+                        <TableCell className="text-right tabular-nums text-sm text-slate-600 py-3 whitespace-nowrap">
+                          {formatEuro(item.summe)}
+                        </TableCell>
+                      )}
+                      {istSichtbar("vj") && (
+                        <TableCell className="text-right tabular-nums text-sm text-slate-500 py-3 whitespace-nowrap">
+                          {item.vjSumme === null ? "—" : formatEuro(item.vjSumme)}
+                        </TableCell>
+                      )}
+                      {istSichtbar("diff") && (
+                        <TableCell className="text-right tabular-nums text-sm py-3 whitespace-nowrap">
+                          {/* Δ Antrag: aktuelle Forderung vs. VJ-Forderung (nicht Aufwand) */}
+                          <span className={toneClass(formatDiff(item.antragsSumme, item.vjSumme).tone)}>
+                            {formatDiff(item.antragsSumme, item.vjSumme).text}
+                          </span>
+                        </TableCell>
+                      )}
                       <TableCell></TableCell>
                     </TableRow>
                   ) : (
@@ -588,30 +660,50 @@ export function Inbox() {
                       );
                       return (
                         <TableRow key={item.antrag.id} className="hover:bg-blue-50/30">
-                          <TableCell className="font-mono text-xs text-slate-500 whitespace-nowrap">
-                            <Highlight text={item.antrag.antragsnummer} needle={search} />
-                          </TableCell>
-                          <TableCell className="text-slate-900 whitespace-nowrap">
-                            <Highlight text={item.antrag.name} needle={search} />
-                          </TableCell>
-                          <TableCell className="text-slate-600 whitespace-nowrap">
-                            <Highlight text={item.antrag.traeger} needle={search} />
-                          </TableCell>
-                          <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDateTime(item.antrag.submitted_at)}</TableCell>
-                          <TableCell className="whitespace-nowrap"><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
-                          <TableCell className="whitespace-nowrap"><StatusBadge status={item.antrag.status} /></TableCell>
-                          <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
-                            {item.antrag.geforderte_foerdersumme_euro !== null
-                              ? <span className="font-medium text-slate-900">{formatEuro(item.antrag.geforderte_foerdersumme_euro)}</span>
-                              : <span className="text-slate-400">—</span>}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">{formatEuro(totalEuro(item.antrag))}</TableCell>
-                          <TableCell className="text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
-                            {vj === null ? "—" : formatEuro(vj)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
-                            <span className={toneClass(diff.tone)}>{diff.text}</span>
-                          </TableCell>
+                          {istSichtbar("antragsnummer") && (
+                            <TableCell className="font-mono text-xs text-slate-500 whitespace-nowrap">
+                              <Highlight text={item.antrag.antragsnummer} needle={search} />
+                            </TableCell>
+                          )}
+                          {istSichtbar("name") && (
+                            <TableCell className="text-slate-900 whitespace-nowrap">
+                              <Highlight text={item.antrag.name} needle={search} />
+                            </TableCell>
+                          )}
+                          {istSichtbar("traeger") && (
+                            <TableCell className="text-slate-600 whitespace-nowrap">
+                              <Highlight text={item.antrag.traeger} needle={search} />
+                            </TableCell>
+                          )}
+                          {istSichtbar("submitted_at") && (
+                            <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDateTime(item.antrag.submitted_at)}</TableCell>
+                          )}
+                          {istSichtbar("submitted_language") && (
+                            <TableCell className="whitespace-nowrap"><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
+                          )}
+                          {istSichtbar("status") && (
+                            <TableCell className="whitespace-nowrap"><StatusBadge status={item.antrag.status} /></TableCell>
+                          )}
+                          {istSichtbar("antragssumme") && (
+                            <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
+                              {item.antrag.geforderte_foerdersumme_euro !== null
+                                ? <span className="font-medium text-slate-900">{formatEuro(item.antrag.geforderte_foerdersumme_euro)}</span>
+                                : <span className="text-slate-400">—</span>}
+                            </TableCell>
+                          )}
+                          {istSichtbar("gesamt") && (
+                            <TableCell className="text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">{formatEuro(totalEuro(item.antrag))}</TableCell>
+                          )}
+                          {istSichtbar("vj") && (
+                            <TableCell className="text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
+                              {vj === null ? "—" : formatEuro(vj)}
+                            </TableCell>
+                          )}
+                          {istSichtbar("diff") && (
+                            <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
+                              <span className={toneClass(diff.tone)}>{diff.text}</span>
+                            </TableCell>
+                          )}
                           <TableCell className="whitespace-nowrap pr-4">
                             <Link
                               to={`/antrag/${item.antrag.id}`}
@@ -628,28 +720,43 @@ export function Inbox() {
                 )}
                 {rendered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={COLUMNS.length + 1} className="text-center text-slate-500 py-8">
+                    <TableCell colSpan={sichtbareSpalten.length + 1} className="text-center text-slate-500 py-8">
                       Keine Anträge gefunden.
                     </TableCell>
                   </TableRow>
                 )}
                 {rendered.length > 0 && (
                   <TableRow className="border-t-2 border-blue-700 bg-blue-50/30 hover:bg-blue-50/30">
-                    <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-4 pl-4 text-sm text-slate-700 whitespace-nowrap">
-                      Gesamtsumme aller angezeigten Anträge
-                    </TableCell>
-                    <TableCell className="py-4 text-right tabular-nums text-lg font-bold text-slate-900 whitespace-nowrap">
-                      {formatEuro(gesamtAntragsSumme)}
-                    </TableCell>
-                    <TableCell className="py-4 text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
-                      {formatEuro(gesamtSumme)}
-                    </TableCell>
-                    <TableCell className="py-4 text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
-                      {gesamtVj.hasAny ? formatEuro(gesamtVj.sum) : "—"}
-                    </TableCell>
-                    <TableCell className="py-4 text-right tabular-nums text-sm whitespace-nowrap">
-                      <span className={toneClass(gesamtDiff.tone)}>{gesamtDiff.text}</span>
-                    </TableCell>
+                    {COL_COUNT_BEFORE_GESAMT > 0 ? (
+                      <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-4 pl-4 text-sm text-slate-700 whitespace-nowrap">
+                        Gesamtsumme aller angezeigten Anträge
+                      </TableCell>
+                    ) : (
+                      // Wenn alle Identitäts-Spalten ausgeblendet sind, hängen wir
+                      // das Label an die erste verfügbare Aggregat-Spalte (selten,
+                      // aber sonst verlieren wir den "Gesamtsumme"-Hinweis ganz).
+                      sichtbareAggregatSpalten.length === 0 && <TableCell />
+                    )}
+                    {istSichtbar("antragssumme") && (
+                      <TableCell className="py-4 text-right tabular-nums text-lg font-bold text-slate-900 whitespace-nowrap">
+                        {formatEuro(gesamtAntragsSumme)}
+                      </TableCell>
+                    )}
+                    {istSichtbar("gesamt") && (
+                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
+                        {formatEuro(gesamtSumme)}
+                      </TableCell>
+                    )}
+                    {istSichtbar("vj") && (
+                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
+                        {gesamtVj.hasAny ? formatEuro(gesamtVj.sum) : "—"}
+                      </TableCell>
+                    )}
+                    {istSichtbar("diff") && (
+                      <TableCell className="py-4 text-right tabular-nums text-sm whitespace-nowrap">
+                        <span className={toneClass(gesamtDiff.tone)}>{gesamtDiff.text}</span>
+                      </TableCell>
+                    )}
                     <TableCell></TableCell>
                   </TableRow>
                 )}
@@ -658,6 +765,107 @@ export function Inbox() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+/**
+ * Zahnrad-Popover zur Sichtbarkeits-Steuerung der Tabellenspalten.
+ * - Pflicht-Spalten (Antragsnummer, Status, Antragssumme) sind disabled,
+ *   sie identifizieren den Antrag und dürfen nicht weg.
+ * - Sichtbarkeit wird in localStorage persistiert (via onToggle im Parent).
+ * - Click-outside schließt das Popover; Escape ebenfalls.
+ */
+function SpaltenKonfig({
+  hidden,
+  onToggle,
+}: {
+  hidden: Set<SortKey>;
+  onToggle: (key: SortKey) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const versteckteAnzahl = hidden.size;
+
+  // Click-outside + Escape
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Spalten konfigurieren"
+        aria-label="Spalten konfigurieren"
+        aria-expanded={open}
+        className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 text-xs transition-colors ${
+          open
+            ? "bg-slate-900 text-white border-slate-900"
+            : "bg-white text-slate-600 border-slate-300 hover:text-slate-900 hover:border-slate-400"
+        }`}
+      >
+        <Settings className="h-3.5 w-3.5" />
+        Spalten
+        {versteckteAnzahl > 0 && (
+          <span className="ml-0.5 inline-flex items-center justify-center min-w-[1rem] h-4 px-1 rounded-full bg-amber-200 text-amber-900 text-[10px] font-semibold tabular-nums">
+            −{versteckteAnzahl}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-20 w-64 bg-white border border-slate-200 rounded shadow-lg p-2">
+          <div className="text-[11px] uppercase tracking-wide text-slate-500 px-2 pt-1 pb-2 border-b border-slate-100 mb-1">
+            Sichtbare Spalten
+          </div>
+          {COLUMNS.map((col) => {
+            const sichtbar = !hidden.has(col.key);
+            const disabled = !!col.pflicht;
+            return (
+              <label
+                key={col.key}
+                className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm ${
+                  disabled
+                    ? "text-slate-400 cursor-not-allowed"
+                    : "text-slate-700 hover:bg-slate-50 cursor-pointer"
+                }`}
+                title={
+                  disabled
+                    ? "Pflicht-Spalte — kann nicht ausgeblendet werden"
+                    : col.tooltip
+                }
+              >
+                <input
+                  type="checkbox"
+                  checked={sichtbar}
+                  disabled={disabled}
+                  onChange={() => onToggle(col.key)}
+                  className="accent-blue-700"
+                />
+                <span className="flex-1">{col.label}</span>
+                {disabled && (
+                  <span className="text-[10px] uppercase tracking-wide text-slate-400">
+                    Pflicht
+                  </span>
+                )}
+              </label>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
