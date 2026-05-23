@@ -151,6 +151,10 @@ def render_bescheid_pdf(
         doctree_version=doctree_version or "—",
         geprueft_gegen=geprueft_gegen or [],
         wappen_src=wappen_path.as_uri(),
+        # Förderbereichs-spezifische Höchstgrenze fürs Template (Anteils-
+        # Erläuterung). Bewusst hier resolved, damit das Template kein
+        # Mapping kennen muss.
+        hoechstgrenze=get_hoechstgrenze(antrag.get("foerderbereich")),
     )
     # base_url muss gesetzt sein, damit WeasyPrint relative/file-URLs auflöst.
     return HTML(string=html, base_url=str(wappen_path.parent)).write_pdf()

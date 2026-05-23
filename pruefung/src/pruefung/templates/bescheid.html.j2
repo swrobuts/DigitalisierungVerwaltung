@@ -318,6 +318,29 @@
   </div>
   {% if entscheidung == 'bewilligt' and bewilligte_summe_euro %}
   <div class="summe">Bewilligte Fördersumme: {{ format_euro(bewilligte_summe_euro) }}</div>
+  {# Anteils-Erläuterung bei FB III (Begegnungszentren / Bildungsträger).
+     Konsistent zum DOCX-Pfad (_render_anteils_erlaeuterung in pdf_render.py).
+     AHP 2.3 Pkt. 2/3: „Auszahlung des prozentualen Anteils". #}
+  {% if antrag.foerderbereich in ['begegnungszentren', 'bildungstraeger']
+        and antrag.stadtbewohner_anteil is not none
+        and hoechstgrenze is not none %}
+    {% set anteilige_grenze = hoechstgrenze * antrag.stadtbewohner_anteil %}
+    {% set anteil_pct = (antrag.stadtbewohner_anteil * 100) | round(1) %}
+  <div style="font-size: 8.5pt; font-style: italic; color: #555;
+              margin-top: 2mm; line-height: 1.4;">
+    Berechnung: AHP-Höchstgrenze {{ format_euro(hoechstgrenze) }}
+    × Stadtbewohner-Anteil {{ anteil_pct }} %
+    = {{ format_euro(anteilige_grenze) }} anteilige Höchstauszahlung.
+    {% if antrag.geforderte_foerdersumme_euro %}
+      Beantragt: {{ format_euro(antrag.geforderte_foerdersumme_euro) }}
+      {% if (antrag.geforderte_foerdersumme_euro - bewilligte_summe_euro) | abs < 0.01 %}
+        → in voller Höhe bewilligt.
+      {% else %}
+        , bewilligt: {{ format_euro(bewilligte_summe_euro) }}.
+      {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
   {% endif %}
 </div>
 
