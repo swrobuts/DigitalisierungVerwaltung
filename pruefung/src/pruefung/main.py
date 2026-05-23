@@ -814,6 +814,47 @@ async def validiere_extern(antrag_id: str) -> dict[str, Any]:
     return {"befunde": befunde, "summary": summary}
 
 
+class RegelkatalogToggleRequest(BaseModel):
+    """Body von PATCH /api/regelkatalog/{id}/toggle."""
+    aktiv: bool
+    geaendert_von: str   # Email der Sachbearbeitung (Admin-Rolle)
+    aenderungsgrund: str  # Pflicht-Begründung für Audit-Trail
+
+
+@app.patch("/api/regelkatalog/{rule_id}/toggle")
+async def regelkatalog_toggle(
+    rule_id: str, req: RegelkatalogToggleRequest,
+) -> dict[str, Any]:
+    """Schaltet eine Regel im Regelkatalog aktiv/inaktiv. Audit-Spalten
+    werden mitgeschrieben. Stufe-A-Edit nach Spec (Migration 041) —
+    Logik-Änderungen (Stufe C) sind weiterhin Code/Migration-Pflicht.
+
+    Läuft über Service-Role und umgeht damit das Owner-Problem (analog
+    bescheide DELETE)."""
+    if not req.aenderungsgrund.strip():
+        raise HTTPException(400, "Änderungsgrund ist Pflicht (Audit-Trail).")
+    db = SupabaseClient.from_env()
+    rows = await db.select("ontologie_rules", f"id=eq.{rule_id}&select=rule_name,aktiv")
+    if not rows:
+        raise HTTPException(404, f"Regel {rule_id} nicht gefunden")
+    patch = {
+        "aktiv": req.aktiv,
+        "geaendert_am": datetime.now(UTC).isoformat(),
+        "geaendert_von": req.geaendert_von,
+        "aenderungsgrund": req.aenderungsgrund,
+    }
+    updated = await db.update("ontologie_rules", f"id=eq.{rule_id}", patch)
+    return {
+        "rule_id": rule_id,
+        "rule_name": rows[0]["rule_name"],
+        "vorher": rows[0]["aktiv"],
+        "nachher": req.aktiv,
+        "geaendert_von": req.geaendert_von,
+        "aenderungsgrund": req.aenderungsgrund,
+        "updated": updated[0] if updated else None,
+    }
+
+
 @app.get("/api/compliance/status")
 async def compliance_status() -> dict[str, Any]:
     """AI-Act-/DSGVO-Compliance-Übersicht. Statische Konfig + Live-Metriken

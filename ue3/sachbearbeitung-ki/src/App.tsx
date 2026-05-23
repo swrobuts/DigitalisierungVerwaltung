@@ -58,8 +58,11 @@ export default function App() {
           </AuthGuard>
         }
       />
+      {/* Adoption-Dashboard ist jetzt im Compliance-Cockpit als 'Aufsichts-Metriken'-Tab
+          integriert; alter Pfad bleibt als Redirect erhalten für Bestandslinks. */}
+      <Route path="/dashboard/adoption" element={<Navigate to="/compliance" replace />} />
       <Route
-        path="/dashboard/adoption"
+        path="/dashboard/adoption-detail"
         element={
           <AuthGuard>
             <AdoptionDashboard />

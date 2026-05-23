@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { Activity, BookOpen, FileSearch, Network, Shield } from "lucide-react";
+import { BookOpen, FileSearch, Network, Shield } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
 import { useMeineZweitpruefungen } from "../hooks/useMeineZweitpruefungen";
 import { useUserRole } from "../hooks/useUserRole";
@@ -393,14 +393,6 @@ export function Inbox() {
               >
                 <FileSearch className="h-4 w-4" />
                 Regelkatalog
-              </NavLink>
-              <NavLink
-                to="/dashboard/adoption"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                title="Adoption-Dashboard — Übernahme-Quote KI-Empfehlung vs. finale Entscheidung"
-              >
-                <Activity className="h-4 w-4" />
-                Adoption
               </NavLink>
               <NavLink
                 to="/compliance"

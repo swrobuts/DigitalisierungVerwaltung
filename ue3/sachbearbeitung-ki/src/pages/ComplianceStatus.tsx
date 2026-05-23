@@ -14,7 +14,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  AlertCircle, ArrowLeft, CheckCircle2, Cloud, Cpu, Database, Eye,
+  Activity, AlertCircle, AlertTriangle, ArrowLeft, CheckCircle2, Cloud, Cpu, Database, Eye,
   FileText, HardDrive, Shield, Users,
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
@@ -62,26 +62,49 @@ interface ComplianceData {
   hinweis: string;
 }
 
-type Tab = "ki" | "datenflüsse" | "aufsicht" | "datenschutz" | "audit";
+type Tab = "ki" | "datenflüsse" | "aufsicht" | "metriken" | "datenschutz" | "audit";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "ki", label: "KI-Systeme", icon: <Cpu className="h-3.5 w-3.5" /> },
   { id: "datenflüsse", label: "Datenflüsse", icon: <Database className="h-3.5 w-3.5" /> },
   { id: "aufsicht", label: "Menschl. Aufsicht", icon: <Users className="h-3.5 w-3.5" /> },
+  { id: "metriken", label: "Aufsichts-Metriken", icon: <Activity className="h-3.5 w-3.5" /> },
   { id: "datenschutz", label: "Datenschutz", icon: <Shield className="h-3.5 w-3.5" /> },
   { id: "audit", label: "Audit-Trail", icon: <FileText className="h-3.5 w-3.5" /> },
 ];
 
+interface AufsichtsMetriken {
+  anzahl_bescheide_gesamt: number;
+  anzahl_mit_ki_empfehlung: number;
+  anzahl_ohne_ki_empfehlung: number;
+  anzahl_gefolgt: number;
+  anzahl_ueberstimmt: number;
+  uebernahme_quote: number;
+  health: "gesund" | "automation_bias_verdacht" | "ki_unzuverlaessig" | "keine_daten";
+  health_text: string;
+  per_aktion: Record<string, { gefolgt: number; ueberstimmt: number }>;
+}
+
 export function ComplianceStatus() {
   const [data, setData] = useState<ComplianceData | null>(null);
+  const [metriken, setMetriken] = useState<AufsichtsMetriken | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("ki");
 
   useEffect(() => {
-    fetch(`${PRUEFUNG_SERVICE}/api/compliance/status`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)))
-      .then(setData)
+    Promise.all([
+      fetch(`${PRUEFUNG_SERVICE}/api/compliance/status`).then((r) =>
+        r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`),
+      ),
+      fetch(`${PRUEFUNG_SERVICE}/api/dashboard/adoption`).then((r) =>
+        r.ok ? r.json() : null,
+      ),
+    ])
+      .then(([compliance, m]) => {
+        setData(compliance);
+        if (m) setMetriken(m);
+      })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
   }, []);
@@ -117,6 +140,7 @@ export function ComplianceStatus() {
                 {tab === "ki" && <KiSystemeTab systeme={data.ki_systeme} aktiverProvider={data.aktiver_llm_provider} />}
                 {tab === "datenflüsse" && <DatenfluesseTab datenfluesse={data.datenfluesse} />}
                 {tab === "aufsicht" && <AufsichtTab punkte={data.menschliche_aufsicht} />}
+                {tab === "metriken" && <AufsichtsMetrikenTab metriken={metriken} />}
                 {tab === "datenschutz" && <DatenschutzTab regeln={data.datenminimierung} />}
                 {tab === "audit" && <AuditTab quellen={data.audit_trail_quellen} />}
               </div>
@@ -464,6 +488,114 @@ function AuditTab({ quellen }: { quellen: ComplianceData["audit_trail_quellen"] 
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── Aufsichts-Metriken (vormals 'Adoption') ─────────────────────────
+
+function AufsichtsMetrikenTab({ metriken }: { metriken: AufsichtsMetriken | null }) {
+  if (!metriken) {
+    return <p className="text-xs text-slate-500 italic">Lade Aufsichts-Metriken …</p>;
+  }
+  if (metriken.health === "keine_daten") {
+    return (
+      <div className="text-sm text-slate-600">
+        <p>{metriken.health_text}</p>
+        <p className="text-xs text-slate-500 mt-2">
+          Sobald Bescheide ausgestellt werden, die auf KI-Empfehlungen basieren,
+          erscheint hier die Übernahme-Quote als Indikator für Automation Bias.
+        </p>
+      </div>
+    );
+  }
+
+  const healthPalette = {
+    gesund: { box: "bg-emerald-50 border-emerald-300", icon: <CheckCircle2 className="h-4 w-4 text-emerald-700" />, label: "Vier-Augen-Prinzip wirksam" },
+    automation_bias_verdacht: { box: "bg-rose-50 border-rose-300", icon: <AlertTriangle className="h-4 w-4 text-rose-700" />, label: "Verdacht auf Automation Bias" },
+    ki_unzuverlaessig: { box: "bg-amber-50 border-amber-300", icon: <AlertTriangle className="h-4 w-4 text-amber-700" />, label: "KI-Empfehlung wenig hilfreich" },
+    keine_daten: { box: "bg-slate-50 border-slate-300", icon: <Activity className="h-4 w-4 text-slate-500" />, label: "Keine Daten" },
+  }[metriken.health];
+
+  return (
+    <div className="space-y-4">
+      <div className={`border rounded-sm p-3 flex items-start gap-3 ${healthPalette.box}`}>
+        {healthPalette.icon}
+        <div>
+          <p className="font-semibold text-sm">{healthPalette.label}</p>
+          <p className="text-xs text-slate-700 mt-0.5">{metriken.health_text}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Tile
+          icon={<FileText className="h-3.5 w-3.5" />}
+          label="Bescheide mit KI"
+          wert={metriken.anzahl_mit_ki_empfehlung}
+          sub={metriken.anzahl_ohne_ki_empfehlung > 0 ? `+ ${metriken.anzahl_ohne_ki_empfehlung} ohne KI` : undefined}
+        />
+        <Tile
+          icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+          label="Empfehlung gefolgt"
+          wert={metriken.anzahl_gefolgt}
+          sub={`${(metriken.uebernahme_quote * 100).toFixed(0)} % Übernahme`}
+        />
+        <Tile
+          icon={<AlertTriangle className="h-3.5 w-3.5" />}
+          label="Überstimmt"
+          wert={metriken.anzahl_ueberstimmt}
+          sub={`${((1 - metriken.uebernahme_quote) * 100).toFixed(0)} % Override`}
+        />
+        <Tile
+          icon={<Activity className="h-3.5 w-3.5" />}
+          label="Healthy-Bandbreite"
+          wert="40-90 %"
+          sub="Literatur: Mensch entscheidet substanziell mit"
+        />
+      </div>
+
+      <div>
+        <h4 className="text-xs uppercase tracking-wider text-slate-500 font-medium mb-2">
+          Aufschlüsselung pro Empfehlungs-Aktion
+        </h4>
+        {Object.keys(metriken.per_aktion).length === 0 ? (
+          <p className="text-xs text-slate-500 italic">Noch keine Daten.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="text-xs uppercase tracking-wider text-slate-500">
+              <tr>
+                <th className="text-left py-1">KI empfahl</th>
+                <th className="text-right py-1">Gefolgt</th>
+                <th className="text-right py-1">Überstimmt</th>
+                <th className="text-right py-1">Quote</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(metriken.per_aktion).map(([k, v]) => {
+                const total = v.gefolgt + v.ueberstimmt;
+                const quote = total > 0 ? v.gefolgt / total : 0;
+                return (
+                  <tr key={k} className="border-t border-slate-100">
+                    <td className="py-1.5 capitalize">{k}</td>
+                    <td className="py-1.5 text-right tabular-nums">{v.gefolgt}</td>
+                    <td className="py-1.5 text-right tabular-nums">{v.ueberstimmt}</td>
+                    <td className="py-1.5 text-right tabular-nums font-medium">
+                      {(quote * 100).toFixed(0)} %
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <p className="text-[10px] text-slate-400 italic">
+        Macht Automation Bias sichtbar — wenn die finale Entscheidung in &gt;90 %
+        der Fälle der KI-Empfehlung folgt, läuft das Vier-Augen-Prinzip Gefahr
+        zur Hülle zu werden. Daten direkt aus pruefprotokoll + bescheide
+        abgeleitet, keine separate Telemetrie.
+      </p>
     </div>
   );
 }
