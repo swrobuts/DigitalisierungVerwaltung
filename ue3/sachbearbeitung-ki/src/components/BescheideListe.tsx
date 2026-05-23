@@ -57,7 +57,12 @@ export function BescheideListe({ bescheide, onOpen, onOpenDocx, onDelete }: Prop
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <CardTitle>Bescheide</CardTitle>
+          <CardTitle>
+            Bescheide
+            <span className="ml-1.5 text-sm font-normal text-slate-500 tabular-nums">
+              ({bescheide.length})
+            </span>
+          </CardTitle>
           <div className="flex items-center gap-1 text-xs">
             <SelectDropdown
               label="Gruppieren"
