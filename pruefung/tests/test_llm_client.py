@@ -68,3 +68,62 @@ def test_get_llm_client_default_ist_anthropic(monkeypatch):
     c = get_llm_client()
     # Default-Modell sollte sonnet sein
     assert c._default_model == "claude-sonnet-4-5"
+
+
+def test_get_llm_client_lmstudio(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "lmstudio")
+    monkeypatch.setenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+    c = get_llm_client()
+    # LM-Studio-Client hat eine base_url
+    assert hasattr(c, "_base_url")
+    assert c._base_url == "http://localhost:1234/v1"
+
+
+def test_provider_meta_anthropic(monkeypatch):
+    from pruefung.llm_client import provider_meta
+    monkeypatch.setenv("LLM_PROVIDER", "anthropic")
+    meta = provider_meta()
+    assert meta["provider"] == "anthropic"
+    assert meta["lokal"] is False
+    assert "USA" in meta["verarbeitungsort"]
+
+
+def test_provider_meta_lmstudio_ist_lokal(monkeypatch):
+    from pruefung.llm_client import provider_meta
+    monkeypatch.setenv("LLM_PROVIDER", "lmstudio")
+    meta = provider_meta()
+    assert meta["provider"] == "lmstudio"
+    assert meta["lokal"] is True
+    assert "lokal" in meta["verarbeitungsort"].lower() or "on-premise" in meta["verarbeitungsort"].lower()
+
+
+def test_anthropic_zu_openai_tool_mapping():
+    from pruefung.llm_client import _anthropic_to_openai_tool
+    anthropic_tool = {
+        "name": "get_section",
+        "description": "Section abrufen",
+        "input_schema": {"type": "object", "properties": {"id": {"type": "string"}}},
+    }
+    openai_tool = _anthropic_to_openai_tool(anthropic_tool)
+    assert openai_tool["type"] == "function"
+    assert openai_tool["function"]["name"] == "get_section"
+    assert openai_tool["function"]["parameters"]["properties"]["id"]["type"] == "string"
+
+
+def test_openai_response_zu_anthropic_blocks():
+    from pruefung.llm_client import _openai_to_anthropic_content
+    # Text + Tool-Call wie OpenAI sie liefert
+    msg = {
+        "content": "Hier ist mein Plan:",
+        "tool_calls": [{
+            "id": "call_123",
+            "function": {"name": "search", "arguments": '{"query": "frist"}'},
+        }],
+    }
+    blocks = _openai_to_anthropic_content(msg)
+    assert len(blocks) == 2
+    assert blocks[0].type == "text"
+    assert blocks[0].text == "Hier ist mein Plan:"
+    assert blocks[1].type == "tool_use"
+    assert blocks[1].name == "search"
+    assert blocks[1].input == {"query": "frist"}

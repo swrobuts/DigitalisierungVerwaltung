@@ -233,9 +233,12 @@ async def berechne_compliance_metriken(db: SupabaseClient) -> dict[str, Any]:
 
 async def status(db: SupabaseClient) -> dict[str, Any]:
     """Vollständiger Compliance-Status — statische Konfig + Live-Metriken."""
+    from pruefung.llm_client import provider_meta
     metriken = await berechne_compliance_metriken(db)
+    aktiver_provider = provider_meta()
     return {
         "system": SYSTEM_KLASSIFIKATION,
+        "aktiver_llm_provider": aktiver_provider,
         "ki_systeme": KI_SYSTEME,
         "datenfluesse": DATENFLUESSE,
         "menschliche_aufsicht": MENSCHLICHE_AUFSICHT,

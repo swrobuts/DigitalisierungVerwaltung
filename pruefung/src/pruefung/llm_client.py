@@ -14,6 +14,7 @@ Protocol-Klasse geschrieben werden.
 """
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -29,6 +30,23 @@ PREISE_USD_PRO_M = {
     "claude-haiku-4-5":       {"input": 0.8,  "output": 4.0},
     "gpt-4o":                 {"input": 2.5,  "output": 10.0},
     "gpt-4o-mini":            {"input": 0.15, "output": 0.6},
+}
+
+# Provider-Metadaten für die Compliance-Seite (was läuft wo, was geht
+# über externe APIs, was lokal). Wird über provider_meta() abgefragt.
+PROVIDER_META = {
+    "anthropic": {
+        "anbieter": "Anthropic PBC",
+        "verarbeitungsort": "USA (oder EU-Endpoint wenn konfiguriert)",
+        "datenfluss": "extern — Antrag-Payload + AHP-Sections gehen an Cloud-API",
+        "lokal": False,
+    },
+    "lmstudio": {
+        "anbieter": "LM Studio (lokal)",
+        "verarbeitungsort": "lokales Netzwerk / on-premise",
+        "datenfluss": "keine externe Übertragung — Modell läuft auf eigener Hardware",
+        "lokal": True,
+    },
 }
 
 
@@ -102,6 +120,227 @@ class AnthropicLlmClient:
         )
 
 
+# ── LM Studio (lokal, OpenAI-kompatibel) ─────────────────────────────
+
+class LMStudioLlmClient:
+    """Spricht ein lokal laufendes LM Studio über dessen OpenAI-kompatiblen
+    Endpoint (Default http://localhost:1234/v1/chat/completions). Keine
+    Cloud-Übertragung — Datenschutz-optimal.
+
+    Das interne Format ist weiterhin Anthropic-Stil (text + tool_use
+    Content-Blocks). Wir mappen beim Senden und Empfangen zwischen
+    Anthropic- und OpenAI-Schema:
+      - Anthropic messages [{role, content: str|list[block]}] → OpenAI
+        [{role, content/tool_calls/tool_call_id}]
+      - Anthropic tools [{name, input_schema}] → OpenAI tools
+        [{type:'function', function:{name, parameters}}]
+      - Response: OpenAI choices[0].message → Anthropic content blocks
+
+    Cost-Tracking: lokales Modell hat keine Token-Preise; wir tracken
+    nur die Token-Anzahl (cost = 0).
+    """
+
+    def __init__(
+        self,
+        default_model: str = "local-model",
+        base_url: str | None = None,
+    ):
+        self._default_model = (
+            default_model
+            or os.environ.get("LMSTUDIO_MODEL", "local-model")
+        )
+        self._base_url = (
+            base_url
+            or os.environ.get("LMSTUDIO_BASE_URL", "http://localhost:1234/v1")
+        ).rstrip("/")
+
+    async def complete(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]] | None = None,
+        max_tokens: int = 4096,
+        model: str | None = None,
+    ) -> LlmResponse:
+        import httpx
+        m = model or self._default_model
+        openai_messages = _anthropic_to_openai_messages(system, messages)
+        body: dict[str, Any] = {
+            "model": m,
+            "messages": openai_messages,
+            "max_tokens": max_tokens,
+        }
+        if tools:
+            body["tools"] = [_anthropic_to_openai_tool(t) for t in tools]
+            body["tool_choice"] = "auto"
+        async with httpx.AsyncClient(timeout=300) as c:
+            r = await c.post(f"{self._base_url}/chat/completions", json=body)
+            r.raise_for_status()
+            data = r.json()
+        msg = data["choices"][0]["message"]
+        finish_reason = data["choices"][0].get("finish_reason", "stop")
+        content_blocks = _openai_to_anthropic_content(msg)
+        # Anthropic-style stop_reason
+        if finish_reason == "tool_calls":
+            stop_reason = "tool_use"
+        elif finish_reason == "length":
+            stop_reason = "max_tokens"
+        else:
+            stop_reason = "end_turn"
+        usage_raw = data.get("usage") or {}
+        usage = {
+            "input_tokens": usage_raw.get("prompt_tokens", 0) or 0,
+            "output_tokens": usage_raw.get("completion_tokens", 0) or 0,
+        }
+        return LlmResponse(
+            content=content_blocks,
+            stop_reason=stop_reason,
+            model=m,
+            usage=usage,
+            cost_usd_estimate=0.0,  # lokales Modell — keine Kosten
+        )
+
+
+# ── Format-Mapping Anthropic ↔ OpenAI ────────────────────────────────
+
+def _anthropic_to_openai_tool(t: dict[str, Any]) -> dict[str, Any]:
+    """Anthropic-Tool-Schema → OpenAI-Function-Schema."""
+    return {
+        "type": "function",
+        "function": {
+            "name": t["name"],
+            "description": t.get("description", ""),
+            "parameters": t["input_schema"],
+        },
+    }
+
+
+def _anthropic_to_openai_messages(
+    system: str, messages: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """System-Prompt + Anthropic-Messages → OpenAI-Messages."""
+    out: list[dict[str, Any]] = [{"role": "system", "content": system}]
+    for m in messages:
+        role = m["role"]
+        content = m["content"]
+        if isinstance(content, str):
+            out.append({"role": role, "content": content})
+            continue
+        # content ist Liste von Blocks (text / tool_use / tool_result)
+        assistant_text_parts: list[str] = []
+        assistant_tool_calls: list[dict] = []
+        for block in content:
+            btype = _block_type(block)
+            if btype == "text":
+                assistant_text_parts.append(_block_text(block))
+            elif btype == "tool_use":
+                assistant_tool_calls.append({
+                    "id": _block_attr(block, "id"),
+                    "type": "function",
+                    "function": {
+                        "name": _block_attr(block, "name"),
+                        "arguments": json.dumps(
+                            _block_attr(block, "input") or {},
+                            ensure_ascii=False,
+                        ),
+                    },
+                })
+            elif btype == "tool_result":
+                # tool_result wird zu eigener user-Message mit role=tool
+                out.append({
+                    "role": "tool",
+                    "tool_call_id": _block_attr(block, "tool_use_id"),
+                    "content": _block_attr(block, "content") or "",
+                })
+        if role == "assistant" and (assistant_text_parts or assistant_tool_calls):
+            msg: dict[str, Any] = {"role": "assistant"}
+            if assistant_text_parts:
+                msg["content"] = "\n".join(assistant_text_parts)
+            else:
+                msg["content"] = None
+            if assistant_tool_calls:
+                msg["tool_calls"] = assistant_tool_calls
+            out.append(msg)
+        elif role == "user" and assistant_text_parts:
+            # falls user-Message tatsächlich nur Text in Blockform war
+            out.append({"role": "user", "content": "\n".join(assistant_text_parts)})
+    return out
+
+
+def _openai_to_anthropic_content(msg: dict[str, Any]) -> list[Any]:
+    """OpenAI-Antwort-Message → Anthropic-Content-Blocks. Dynamische
+    Klassen (statt anthropic.types) damit der Aufrufer .type/.text/.id/.input
+    wie bei Anthropic abfragen kann."""
+    blocks: list[Any] = []
+    text = msg.get("content")
+    if text:
+        blocks.append(_SimpleBlock(type="text", text=text))
+    for call in msg.get("tool_calls") or []:
+        fn = call.get("function") or {}
+        args_raw = fn.get("arguments") or "{}"
+        try:
+            inp = json.loads(args_raw) if isinstance(args_raw, str) else args_raw
+        except json.JSONDecodeError:
+            inp = {}
+        blocks.append(_SimpleBlock(
+            type="tool_use",
+            id=call.get("id") or "",
+            name=fn.get("name") or "",
+            input=inp,
+        ))
+    return blocks
+
+
+class _SimpleBlock:
+    """Anthropic-Block-kompatibles Stub-Objekt für LM-Studio-Antworten —
+    Aufrufer können wie gewohnt .type / .text / .id / .name / .input lesen."""
+    def __init__(self, **kwargs: Any) -> None:
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+
+def _block_type(block: Any) -> str | None:
+    return getattr(block, "type", None) or (
+        block.get("type") if isinstance(block, dict) else None
+    )
+
+
+def _block_text(block: Any) -> str:
+    return getattr(block, "text", None) or (
+        block.get("text", "") if isinstance(block, dict) else ""
+    )
+
+
+def _block_attr(block: Any, name: str) -> Any:
+    val = getattr(block, name, None)
+    if val is not None:
+        return val
+    if isinstance(block, dict):
+        return block.get(name)
+    return None
+
+
+def provider_meta(provider: str | None = None) -> dict[str, Any]:
+    """Liefert Metadaten zum aktuellen LLM-Provider — wird im
+    Compliance-Status angezeigt."""
+    p = (provider or os.environ.get("LLM_PROVIDER", "anthropic")).lower()
+    meta = PROVIDER_META.get(p, {
+        "anbieter": p,
+        "verarbeitungsort": "unbekannt",
+        "datenfluss": "unbekannt",
+        "lokal": False,
+    })
+    return {
+        "provider": p,
+        "model": os.environ.get(
+            "LMSTUDIO_MODEL" if p == "lmstudio" else "ANTHROPIC_MODEL",
+            "claude-sonnet-4-5" if p == "anthropic" else "local-model",
+        ),
+        **meta,
+    }
+
+
 def _cost_usd(model: str, usage: dict[str, int]) -> float | None:
     p = PREISE_USD_PRO_M.get(model)
     if not p:
@@ -121,11 +360,14 @@ def get_llm_client(default_model: str | None = None) -> LlmClient:
     provider = os.environ.get("LLM_PROVIDER", "anthropic").lower()
     if provider == "anthropic":
         return AnthropicLlmClient(default_model or "claude-sonnet-4-5")
-    # Weitere Provider hier (OpenAI, lokales Modell, …) wenn nötig.
+    if provider == "lmstudio":
+        # Lokales Modell via LM Studio — Default-Modell aus env (LM Studio
+        # listet das aktuell geladene Modell unter /v1/models).
+        return LMStudioLlmClient(default_model=default_model or "")
     raise ValueError(
         f"LLM_PROVIDER={provider!r} nicht unterstützt. "
-        f"Verfügbar: 'anthropic'. Für neue Provider eine neue Klasse "
-        f"implementieren, die LlmClient erfüllt."
+        f"Verfügbar: 'anthropic', 'lmstudio'. Für neue Provider eine "
+        f"neue Klasse implementieren, die LlmClient erfüllt."
     )
 
 

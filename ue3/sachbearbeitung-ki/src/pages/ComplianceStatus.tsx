@@ -1,22 +1,23 @@
 /**
- * AI-Act- / DSGVO-Compliance-Statusseite.
+ * AI-Act- / DSGVO-Compliance-Cockpit.
  *
- * Zeigt strukturiert, welche KI-Eingriffe wo passieren, welche Daten
- * wohin gehen, wie menschliche Aufsicht gewährleistet ist und wo
- * Audit-Trail geführt wird. Live-Metriken aus DB.
+ * Aufbau (von oben nach unten):
+ *  1. Hero — System-Klassifikation als Auf-einen-Blick-Header
+ *  2. Live-Kennzahlen — 4 große Tiles + LLM-Provider-Status
+ *  3. AI-Act-Pflichten-Checkliste — visuelle Übersicht ✓
+ *  4. Tab-Navigation für Details (KI-Systeme / Datenflüsse / Aufsicht /
+ *     Datenschutz / Audit-Trail)
  *
- * Adressaten:
- *  - Sachbearbeiter:innen (Selbst-Audit)
- *  - Datenschutzbeauftragte
- *  - Aufsichtsbehörden (LDA Bayern, ggf. BfDI)
- *  - Vortragspublikum / Lehrkontext
+ * Adressaten: Sachbearbeiter:innen, Datenschutzbeauftragte, Aufsichts-
+ * behörden, Vortragspublikum.
  */
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  AlertCircle, ArrowLeft, Database, Eye, FileText, Server, Shield, Users,
+  AlertCircle, ArrowLeft, CheckCircle2, Cloud, Cpu, Database, Eye,
+  FileText, HardDrive, Shield, Users,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 
 const PRUEFUNG_SERVICE = "https://pruefung.butscher.cloud";
 
@@ -28,6 +29,14 @@ interface ComplianceData {
     ai_act_grundlage: string;
     ai_act_pflichten: string[];
     rechtsgrundlage_verarbeitung: string;
+  };
+  aktiver_llm_provider: {
+    provider: string;
+    model: string;
+    anbieter: string;
+    verarbeitungsort: string;
+    datenfluss: string;
+    lokal: boolean;
   };
   ki_systeme: Array<{
     name: string; rolle: string; anbieter: string;
@@ -53,10 +62,21 @@ interface ComplianceData {
   hinweis: string;
 }
 
+type Tab = "ki" | "datenflüsse" | "aufsicht" | "datenschutz" | "audit";
+
+const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: "ki", label: "KI-Systeme", icon: <Cpu className="h-3.5 w-3.5" /> },
+  { id: "datenflüsse", label: "Datenflüsse", icon: <Database className="h-3.5 w-3.5" /> },
+  { id: "aufsicht", label: "Menschl. Aufsicht", icon: <Users className="h-3.5 w-3.5" /> },
+  { id: "datenschutz", label: "Datenschutz", icon: <Shield className="h-3.5 w-3.5" /> },
+  { id: "audit", label: "Audit-Trail", icon: <FileText className="h-3.5 w-3.5" /> },
+];
+
 export function ComplianceStatus() {
   const [data, setData] = useState<ComplianceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("ki");
 
   useEffect(() => {
     fetch(`${PRUEFUNG_SERVICE}/api/compliance/status`)
@@ -68,35 +88,43 @@ export function ComplianceStatus() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white px-6 py-3 flex items-center gap-4">
+      <header className="border-b border-slate-200 bg-white px-6 py-3 flex items-center gap-4 sticky top-0 z-10">
         <Link to="/inbox" className="text-slate-500 hover:text-slate-900 inline-flex items-center gap-1 text-sm">
           <ArrowLeft className="h-4 w-4" /> Inbox
         </Link>
         <span className="text-slate-300">·</span>
         <h1 className="text-lg font-bold flex items-center gap-2">
           <Shield className="h-5 w-5 text-wue-rot" />
-          Compliance-Status
+          Compliance-Cockpit
         </h1>
-        <span className="text-xs text-slate-500 ml-2">
-          EU AI Act + DSGVO
-        </span>
+        <span className="text-xs text-slate-500 ml-2">EU AI Act + DSGVO</span>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+      <main className="max-w-6xl mx-auto px-6 py-6 space-y-5">
         {loading && <p className="text-slate-500">Lade …</p>}
         {error && (
           <Card><CardContent className="pt-6 text-rose-700 text-sm">Fehler: {error}</CardContent></Card>
         )}
         {data && (
           <>
-            <SystemKlassifikationCard system={data.system} />
-            <LiveMetrikenCard metriken={data.live_metriken} />
-            <KiSystemeCard systeme={data.ki_systeme} />
-            <DatenfluesseCard datenfluesse={data.datenfluesse} />
-            <MenschlicheAufsichtCard punkte={data.menschliche_aufsicht} />
-            <DatenminimierungCard regeln={data.datenminimierung} />
-            <AuditTrailCard quellen={data.audit_trail_quellen} />
-            <HinweisCard text={data.hinweis} stand={data.stand} />
+            <Hero data={data} />
+            <KennzahlenStrip metriken={data.live_metriken} provider={data.aktiver_llm_provider} />
+            <PflichtenChecklist data={data} />
+
+            <div>
+              <TabBar tab={tab} setTab={setTab} />
+              <div className="bg-white border-x border-b border-slate-200 rounded-b-sm p-5">
+                {tab === "ki" && <KiSystemeTab systeme={data.ki_systeme} aktiverProvider={data.aktiver_llm_provider} />}
+                {tab === "datenflüsse" && <DatenfluesseTab datenfluesse={data.datenfluesse} />}
+                {tab === "aufsicht" && <AufsichtTab punkte={data.menschliche_aufsicht} />}
+                {tab === "datenschutz" && <DatenschutzTab regeln={data.datenminimierung} />}
+                {tab === "audit" && <AuditTab quellen={data.audit_trail_quellen} />}
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-500 italic mt-4">
+              {data.hinweis} · Stand: {data.stand}
+            </p>
           </>
         )}
       </main>
@@ -104,260 +132,349 @@ export function ComplianceStatus() {
   );
 }
 
-// ── Sektionen ────────────────────────────────────────────────────────
+// ── HERO ────────────────────────────────────────────────────────────
 
-function SystemKlassifikationCard({ system }: { system: ComplianceData["system"] }) {
+function Hero({ data }: { data: ComplianceData }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Server className="h-4 w-4 text-slate-600" />
-          System-Klassifikation
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="text-sm space-y-3">
-        <DefRow label="Name">{system.name}</DefRow>
-        <DefRow label="Betreiber">{system.betreiber}</DefRow>
-        <DefRow label="AI-Act-Risikoklasse">
-          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-300 px-2 py-0.5 rounded text-xs font-medium">
-            <AlertCircle className="h-3 w-3" />
-            {system.ai_act_risiko_klasse}
-          </span>
-        </DefRow>
-        <DefRow label="Klassifikations-Grundlage">{system.ai_act_grundlage}</DefRow>
-        <DefRow label="Rechtsgrundlage Verarbeitung">{system.rechtsgrundlage_verarbeitung}</DefRow>
+    <div className="bg-white border border-slate-200 rounded-sm p-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-slate-500 font-medium mb-1">
-            AI-Act-Pflichten für Hochrisiko-Systeme
+          <p className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+            System
+          </p>
+          <h2 className="text-lg font-bold text-slate-900 mt-0.5">{data.system.name}</h2>
+          <p className="text-xs text-slate-600 mt-0.5">
+            Betreiber: {data.system.betreiber}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+            AI-Act-Risikoklasse
+          </p>
+          <div className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-900 border border-amber-300 px-3 py-1 rounded mt-1">
+            <AlertCircle className="h-4 w-4" />
+            <span className="font-bold text-sm">{data.system.ai_act_risiko_klasse}</span>
           </div>
-          <ul className="text-xs text-slate-700 grid grid-cols-1 sm:grid-cols-2 gap-y-0.5 gap-x-3 list-disc list-inside">
-            {system.ai_act_pflichten.map((p, i) => (
-              <li key={i}>{p}</li>
-            ))}
-          </ul>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+      <details className="mt-3 group">
+        <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-700 list-none flex items-center gap-1">
+          <span className="text-slate-400 group-open:rotate-90 transition-transform">›</span>
+          Klassifikations- und Rechtsgrundlage
+        </summary>
+        <div className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs text-slate-700 pl-3 border-l-2 border-slate-100">
+          <div>
+            <p className="font-semibold text-slate-600 mb-0.5">Klassifikations-Grundlage</p>
+            <p>{data.system.ai_act_grundlage}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-slate-600 mb-0.5">Rechtsgrundlage Verarbeitung</p>
+            <p>{data.system.rechtsgrundlage_verarbeitung}</p>
+          </div>
+        </div>
+      </details>
+    </div>
   );
 }
 
-function LiveMetrikenCard({ metriken }: { metriken: ComplianceData["live_metriken"] }) {
+// ── KENNZAHLEN-STRIP ────────────────────────────────────────────────
+
+function KennzahlenStrip({
+  metriken, provider,
+}: {
+  metriken: ComplianceData["live_metriken"];
+  provider: ComplianceData["aktiver_llm_provider"];
+}) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Eye className="h-4 w-4 text-slate-600" />
-          Live-Metriken — was hat das System tatsächlich getan?
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Kennzahl label="KI-Läufe gesamt" wert={metriken.ki_laeufe_gesamt} />
-          <Kennzahl label="davon extern" wert={metriken.ki_laeufe_extern} />
-          <Kennzahl label="adversariell" wert={metriken.ki_laeufe_adversariell} />
-          <Kennzahl label="Bescheide" wert={metriken.bescheide_gesamt} />
-          <Kennzahl label="Zweitprüfungen" wert={metriken.zweitpruefungen_gesamt} />
-          <Kennzahl label="davon KI" wert={metriken.zweitpruefungen_durch_ki} />
-          <Kennzahl
-            label="LLM-Token"
-            wert={metriken.llm_token_gesamt.toLocaleString("de-DE")}
-            sub="Input + Output"
-          />
-          <Kennzahl
-            label="LLM-Kosten"
-            wert={`$ ${metriken.llm_kosten_usd_geschaetzt.toFixed(2)}`}
-            sub="geschätzt nach Listenpreis"
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+      <Tile
+        icon={<Cpu className="h-3.5 w-3.5" />}
+        label="KI-Läufe"
+        wert={metriken.ki_laeufe_gesamt}
+        sub={`${metriken.ki_laeufe_extern} extern · ${metriken.ki_laeufe_adversariell} adversariell`}
+      />
+      <Tile
+        icon={<FileText className="h-3.5 w-3.5" />}
+        label="Bescheide"
+        wert={metriken.bescheide_gesamt}
+      />
+      <Tile
+        icon={<Users className="h-3.5 w-3.5" />}
+        label="Zweitprüfungen"
+        wert={metriken.zweitpruefungen_gesamt}
+        sub={`${metriken.zweitpruefungen_durch_ki} durch KI`}
+      />
+      <Tile
+        icon={<Eye className="h-3.5 w-3.5" />}
+        label="LLM-Token"
+        wert={metriken.llm_token_gesamt.toLocaleString("de-DE")}
+        sub={`≈ $ ${metriken.llm_kosten_usd_geschaetzt.toFixed(2)}`}
+      />
+      <ProviderTile provider={provider} />
+    </div>
   );
 }
 
-function KiSystemeCard({ systeme }: { systeme: ComplianceData["ki_systeme"] }) {
+function Tile({
+  icon, label, wert, sub, tone = "neutral",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  wert: string | number;
+  sub?: string;
+  tone?: "neutral" | "lokal" | "extern";
+}) {
+  const palette = {
+    neutral: "bg-white border-slate-200",
+    lokal: "bg-emerald-50 border-emerald-300",
+    extern: "bg-sky-50 border-sky-300",
+  }[tone];
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Server className="h-4 w-4 text-slate-600" />
-          Eingesetzte KI-Systeme
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {systeme.map((s, i) => (
-          <div key={i} className="border border-slate-200 rounded p-3 bg-slate-50/40">
+    <div className={`border rounded-sm px-3 py-2.5 ${palette}`}>
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 font-medium">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className="text-xl font-semibold tabular-nums mt-1 text-slate-900">{wert}</div>
+      {sub && <div className="text-[10px] text-slate-500 mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+function ProviderTile({ provider }: { provider: ComplianceData["aktiver_llm_provider"] }) {
+  return (
+    <div className={`border rounded-sm px-3 py-2.5 ${
+      provider.lokal
+        ? "bg-emerald-50 border-emerald-300"
+        : "bg-sky-50 border-sky-300"
+    }`}>
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 font-medium">
+        {provider.lokal ? <HardDrive className="h-3.5 w-3.5" /> : <Cloud className="h-3.5 w-3.5" />}
+        <span>LLM-Provider</span>
+      </div>
+      <div className="text-sm font-semibold mt-1 text-slate-900 truncate" title={provider.anbieter}>
+        {provider.lokal ? "🟢 Lokal" : "☁️ Cloud"}
+      </div>
+      <div className="text-[10px] text-slate-600 mt-0.5 truncate" title={provider.model}>
+        {provider.anbieter}
+      </div>
+    </div>
+  );
+}
+
+// ── PFLICHTEN-CHECKLIST ─────────────────────────────────────────────
+
+function PflichtenChecklist({ data }: { data: ComplianceData }) {
+  // Heuristisches Mapping: wenn entsprechende menschliche_aufsicht-Punkte
+  // existieren, gilt die Pflicht als "umgesetzt" (sichtbar im UI). Für eine
+  // formelle Bewertung müsste das durch echte Konformitätsdokumente belegt
+  // werden, aber als Live-Indikator hilfreich.
+  const umgesetzt = new Set(
+    data.menschliche_aufsicht.flatMap((p) =>
+      p.ai_act_referenz.match(/Art\.\s*(\d+)/g) || []
+    ).map((a) => a.replace(/\s+/g, "").toLowerCase())
+  );
+  // Plus Art. 12 (Logging) ist immer umgesetzt durch Audit-Trail
+  if (data.audit_trail_quellen.length > 0) umgesetzt.add("art.12");
+  // Plus Art. 11 (Doku) ist umgesetzt durch diese Seite
+  umgesetzt.add("art.11");
+  // Art. 50 ist umgesetzt durch Bescheid-Hinweis
+  umgesetzt.add("art.50");
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-sm p-4">
+      <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+        <Shield className="h-4 w-4 text-slate-600" />
+        AI-Act-Pflichten für Hochrisiko-Systeme
+      </h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+        {data.system.ai_act_pflichten.map((p, i) => {
+          const m = p.match(/Art\.\s*(\d+)/);
+          const key = m ? `art.${m[1]}` : "";
+          const erfuellt = umgesetzt.has(key);
+          return (
+            <div
+              key={i}
+              className={`flex items-start gap-2 text-xs px-2 py-1.5 rounded ${
+                erfuellt ? "text-emerald-900" : "text-slate-700"
+              }`}
+            >
+              {erfuellt ? (
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+              ) : (
+                <span className="text-slate-300 shrink-0 mt-0.5">○</span>
+              )}
+              <span>{p}</span>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-slate-400 italic mt-3">
+        ✓ = im aktuellen System sichtbar umgesetzt · ○ = formelle Bewertung
+        durch die betreibende Stelle erforderlich
+      </p>
+    </div>
+  );
+}
+
+// ── TAB-BAR ─────────────────────────────────────────────────────────
+
+function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  return (
+    <div className="flex bg-white border border-slate-200 border-b-0 rounded-t-sm overflow-hidden">
+      {TABS.map((t) => (
+        <button
+          key={t.id}
+          onClick={() => setTab(t.id)}
+          className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-colors border-r border-slate-200 last:border-r-0 ${
+            tab === t.id
+              ? "bg-slate-900 text-white"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+          }`}
+        >
+          {t.icon}
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── TAB-INHALTE ─────────────────────────────────────────────────────
+
+function KiSystemeTab({
+  systeme, aktiverProvider,
+}: {
+  systeme: ComplianceData["ki_systeme"];
+  aktiverProvider: ComplianceData["aktiver_llm_provider"];
+}) {
+  return (
+    <div className="space-y-2">
+      {systeme.map((s, i) => {
+        const istAktiv =
+          s.name.toLowerCase().includes(aktiverProvider.provider) ||
+          aktiverProvider.anbieter.toLowerCase().includes(s.anbieter.toLowerCase().split(" ")[0].toLowerCase());
+        return (
+          <div
+            key={i}
+            className={`border rounded p-3 ${
+              istAktiv
+                ? "border-emerald-300 bg-emerald-50/30"
+                : "border-slate-200 bg-white"
+            }`}
+          >
             <div className="flex items-baseline justify-between gap-2 mb-1">
-              <h3 className="font-semibold text-sm">{s.name}</h3>
-              <span className="text-xs text-slate-500">{s.anbieter}</span>
+              <h4 className="font-semibold text-sm flex items-center gap-2">
+                {s.name}
+                {istAktiv && (
+                  <span className="text-[10px] uppercase tracking-wider bg-emerald-600 text-white px-1.5 py-0.5 rounded">
+                    Aktiv
+                  </span>
+                )}
+              </h4>
+              <span className="text-[10px] text-slate-500">{s.anbieter}</span>
             </div>
             <p className="text-xs text-slate-700 mb-2">{s.rolle}</p>
-            <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-xs">
-              <dt className="text-slate-500">Datenkategorien:</dt>
-              <dd>{s.datenkategorien.join(", ")}</dd>
-              <dt className="text-slate-500">Personenbezug:</dt>
-              <dd>{s.personenbezug}</dd>
-              <dt className="text-slate-500">Verarbeitungsort:</dt>
-              <dd>{s.verarbeitungsort}</dd>
-              <dt className="text-slate-500">AI-Act-Zweck:</dt>
-              <dd>{s.zweck_ai_act}</dd>
-            </dl>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function DatenfluesseCard({ datenfluesse }: { datenfluesse: ComplianceData["datenfluesse"] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Database className="h-4 w-4 text-slate-600" />
-          Datenflüsse
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <table className="w-full text-xs">
-          <thead className="text-slate-500 text-[11px] uppercase tracking-wider">
-            <tr>
-              <th className="text-left py-1.5">Von</th>
-              <th className="text-left py-1.5">→ Nach</th>
-              <th className="text-left py-1.5">Was</th>
-              <th className="text-left py-1.5">Wie oft</th>
-            </tr>
-          </thead>
-          <tbody>
-            {datenfluesse.map((d, i) => (
-              <tr key={i} className="border-t border-slate-100">
-                <td className="py-1.5 pr-3 font-mono text-[11px]">{d.von}</td>
-                <td className="py-1.5 pr-3 font-mono text-[11px]">{d.nach}</td>
-                <td className="py-1.5 pr-3">{d.was}</td>
-                <td className="py-1.5 text-slate-600">{d.wie_oft}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </CardContent>
-    </Card>
-  );
-}
-
-function MenschlicheAufsichtCard({ punkte }: { punkte: ComplianceData["menschliche_aufsicht"] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Users className="h-4 w-4 text-slate-600" />
-          Menschliche Aufsicht (AI Act Art. 14)
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {punkte.map((p, i) => (
-          <div key={i} className="border-l-2 border-emerald-400 bg-emerald-50/40 px-3 py-2">
-            <div className="flex items-baseline justify-between gap-2">
-              <h3 className="font-semibold text-sm text-slate-900">{p.punkt}</h3>
-              <span className="text-[10px] uppercase tracking-wider text-emerald-700 bg-white border border-emerald-200 rounded px-1.5 py-0.5">
-                {p.ai_act_referenz}
-              </span>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
+              <KvRow label="Daten">{s.datenkategorien.join(", ")}</KvRow>
+              <KvRow label="Ort">{s.verarbeitungsort}</KvRow>
+              <KvRow label="Personenbezug">{s.personenbezug}</KvRow>
+              <KvRow label="Zweck">{s.zweck_ai_act}</KvRow>
             </div>
-            <p className="text-xs text-slate-700 mt-0.5">{p.umsetzung}</p>
           </div>
-        ))}
-      </CardContent>
-    </Card>
+        );
+      })}
+      {aktiverProvider.lokal && (
+        <div className="border border-emerald-300 bg-emerald-50 rounded p-3 text-xs">
+          <p className="font-semibold text-emerald-900 mb-1">
+            🟢 Lokales Modell aktiv ({aktiverProvider.anbieter})
+          </p>
+          <p className="text-emerald-800">
+            {aktiverProvider.datenfluss} Modell: <code className="bg-white border border-emerald-200 px-1 py-0.5 rounded">{aktiverProvider.model}</code>
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
-function DatenminimierungCard({ regeln }: { regeln: ComplianceData["datenminimierung"] }) {
+function DatenfluesseTab({ datenfluesse }: { datenfluesse: ComplianceData["datenfluesse"] }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Shield className="h-4 w-4 text-slate-600" />
-          Datenminimierung (DSGVO Art. 5)
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {regeln.map((r, i) => (
-          <div key={i} className="border-l-2 border-sky-400 bg-sky-50/40 px-3 py-2">
-            <h3 className="font-semibold text-sm">{r.kontext}</h3>
-            <p className="text-xs text-slate-700 mt-0.5">{r.regel}</p>
-            <p className="text-[10px] text-slate-500 italic mt-1">
-              Rechtsgrundlage: {r.rechtsgrundlage}
-            </p>
+    <div className="space-y-1.5">
+      {datenfluesse.map((d, i) => (
+        <div key={i} className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center text-xs">
+          <div className="bg-slate-50 border border-slate-200 rounded px-2 py-1.5 font-mono">{d.von}</div>
+          <span className="text-slate-400">→</span>
+          <div className="bg-sky-50 border border-sky-200 rounded px-2 py-1.5 font-mono">{d.nach}</div>
+          <div className="col-span-3 text-slate-600 pl-2 pb-2 border-b border-slate-100">
+            <strong className="text-slate-800">Inhalt:</strong> {d.was}<br />
+            <strong className="text-slate-800">Frequenz:</strong> {d.wie_oft}
           </div>
-        ))}
-      </CardContent>
-    </Card>
+        </div>
+      ))}
+    </div>
   );
 }
 
-function AuditTrailCard({ quellen }: { quellen: ComplianceData["audit_trail_quellen"] }) {
+function AufsichtTab({ punkte }: { punkte: ComplianceData["menschliche_aufsicht"] }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <FileText className="h-4 w-4 text-slate-600" />
-          Audit-Trail-Quellen
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <table className="w-full text-xs">
-          <thead className="text-slate-500 text-[11px] uppercase tracking-wider">
-            <tr>
-              <th className="text-left py-1.5">Tabelle</th>
-              <th className="text-left py-1.5">Inhalt</th>
-              <th className="text-left py-1.5">AI-Act-Bezug</th>
-            </tr>
-          </thead>
-          <tbody>
-            {quellen.map((q, i) => (
-              <tr key={i} className="border-t border-slate-100">
-                <td className="py-1.5 pr-3 font-mono text-[11px]">{q.tabelle}</td>
-                <td className="py-1.5 pr-3">{q.inhalt}</td>
-                <td className="py-1.5 text-slate-500 text-[11px]">{q.ai_act_referenz}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </CardContent>
-    </Card>
+    <div className="space-y-2">
+      {punkte.map((p, i) => (
+        <div key={i} className="border-l-2 border-emerald-500 bg-emerald-50/40 pl-3 py-2 pr-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <h4 className="font-semibold text-sm">{p.punkt}</h4>
+            <span className="text-[10px] uppercase tracking-wider bg-white border border-emerald-200 text-emerald-700 rounded px-1.5 py-0.5">
+              {p.ai_act_referenz}
+            </span>
+          </div>
+          <p className="text-xs text-slate-700 mt-1">{p.umsetzung}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 
-function HinweisCard({ text, stand }: { text: string; stand: string }) {
+function DatenschutzTab({ regeln }: { regeln: ComplianceData["datenminimierung"] }) {
   return (
-    <Card>
-      <CardContent className="pt-5 text-xs text-slate-600 italic leading-relaxed">
-        <p>{text}</p>
-        <p className="mt-2 text-slate-400 not-italic">Stand: {stand}</p>
-      </CardContent>
-    </Card>
+    <div className="space-y-2">
+      {regeln.map((r, i) => (
+        <div key={i} className="border-l-2 border-sky-500 bg-sky-50/40 pl-3 py-2 pr-3">
+          <h4 className="font-semibold text-sm">{r.kontext}</h4>
+          <p className="text-xs text-slate-700 mt-1">{r.regel}</p>
+          <p className="text-[10px] text-slate-500 italic mt-1">
+            Rechtsgrundlage: {r.rechtsgrundlage}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AuditTab({ quellen }: { quellen: ComplianceData["audit_trail_quellen"] }) {
+  return (
+    <div className="space-y-1.5">
+      {quellen.map((q, i) => (
+        <div key={i} className="flex items-start gap-3 text-xs border border-slate-200 rounded p-2.5">
+          <code className="font-mono bg-slate-100 px-1.5 py-0.5 rounded shrink-0 text-[11px]">
+            {q.tabelle}
+          </code>
+          <div className="flex-1">
+            <p className="text-slate-700">{q.inhalt}</p>
+            <p className="text-[10px] text-emerald-700 mt-0.5">{q.ai_act_referenz}</p>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
 // ── Hilfs-Komponenten ────────────────────────────────────────────────
 
-function DefRow({ label, children }: { label: string; children: React.ReactNode }) {
+function KvRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5">
-      <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-medium pt-0.5">
-        {label}
-      </dt>
-      <dd className="text-sm text-slate-800">{children}</dd>
-    </div>
-  );
-}
-
-function Kennzahl({ label, wert, sub }: { label: string; wert: string | number; sub?: string }) {
-  return (
-    <div className="border border-slate-200 rounded px-3 py-2 bg-white">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-medium">
-        {label}
-      </div>
-      <div className="text-xl font-semibold tabular-nums mt-0.5">{wert}</div>
-      {sub && <div className="text-[10px] text-slate-400">{sub}</div>}
-    </div>
+    <>
+      <span className="text-slate-500">{label}:</span>
+      <span className="text-slate-800">{children}</span>
+    </>
   );
 }
