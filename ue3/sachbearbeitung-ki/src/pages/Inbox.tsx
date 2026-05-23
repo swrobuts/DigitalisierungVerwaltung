@@ -122,8 +122,13 @@ const COLUMNS: SpaltenDef[] = [
   { key: "status", label: "Status", pflicht: true, defaultVisible: true },
   { key: "antragssumme", label: "Antragssumme", align: "right", pflicht: true, defaultVisible: true,
     tooltip: "Beantragte Fördersumme im aktuellen Haushaltsjahr (geforderte_foerdersumme_euro)" },
-  { key: "gesamt", label: "Aufwand (Eigenangabe)", align: "right", defaultVisible: false,
-    tooltip: "Im aktuellen Antrag angegebener Aufwand des Vorjahres (Betriebskosten + Personal + Miete)" },
+  { key: "gesamt", label: "Aufwand Vorjahr (Eigenangabe)", align: "right", defaultVisible: false,
+    tooltip:
+      "Im Antrag angegebener Aufwand des jeweiligen Vorjahres " +
+      "(Betriebskosten + Personal + Miete). Bewusst ohne konkrete " +
+      "Jahreszahl im Header: Ein Antrag enthält definitionsgemäß " +
+      "nur den Vorjahres-Aufwand — der Aufwand des Förderjahres " +
+      "selbst steht zum Antragszeitpunkt noch nicht fest." },
   { key: "vj", label: "Antragssumme Vorjahr", align: "right", defaultVisible: true,
     tooltip: "Was derselbe Träger im Vorjahres-Antrag beantragt hatte (aus DB rekonstruiert)" },
   { key: "diff", label: "Δ Antragssumme", align: "right", defaultVisible: true,
@@ -150,8 +155,11 @@ function spaltenFuerHaushaltsjahr(hj: number | null): SpaltenDef[] {
         return { ...c, label: `Antragssumme (${hj})` };
       case "vj":
         return { ...c, label: `Antragssumme (${vj})` };
-      case "gesamt":
-        return { ...c, label: `Aufwand ${vj} (Eigenangabe)` };
+      // 'gesamt' (Aufwand-Eigenangabe) bekommt BEWUSST keine Jahreszahl:
+      // Ein Antrag enthält definitionsgemäß nur die Vorjahres-Aufwand-
+      // Eigenangabe — einen "Aufwand 2026"-Wert gibt es nicht, weil das
+      // Förderjahr zum Antragszeitpunkt noch läuft. Ein Jahres-Suffix
+      // würde fälschlich ein Pendant suggerieren, das nie kommen wird.
       case "diff":
         return { ...c, label: `Δ ${hj} − ${vj}` };
       default:
