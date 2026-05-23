@@ -23,8 +23,10 @@ export function renderStep2(stateSig: Signal<FormState>): HTMLElement {
     id: "ansprechpartner", label: t("form.label.ansprechpartner"), required: true, full: true,
     value: stateSig.value.ansprechpartner, onChange: (v) => set({ ansprechpartner: v }),
   }));
+  // Telefon ist seit Abspeckung 2026-05 optional — Email reicht für
+  // die rechtssichere Korrespondenz, Telefon ist nice-to-have.
   fields.appendChild(renderFieldInput({
-    id: "telefon", label: t("form.label.telefon"), type: "tel", required: true,
+    id: "telefon", label: t("form.label.telefon"), type: "tel", required: false,
     value: stateSig.value.telefon, onChange: (v) => set({ telefon: v }),
   }));
   fields.appendChild(renderFieldInput({
@@ -32,8 +34,10 @@ export function renderStep2(stateSig: Signal<FormState>): HTMLElement {
     value: stateSig.value.email, onChange: (v) => set({ email: v }),
     validate: (v) => (v.length > 0 && !isValidEmail(v) ? t("validation.email_ungueltig") : null),
   }));
+  // Bankname optional — ist aus IBAN ableitbar; Pflicht ist nur die IBAN
+  // selbst (AHP 3.6: Auszahlung auf Konto des Antragsberechtigten).
   fields.appendChild(renderFieldInput({
-    id: "bankverbindung", label: t("form.label.bankverbindung"), required: true, full: true,
+    id: "bankverbindung", label: t("form.label.bankverbindung"), required: false, full: true,
     value: stateSig.value.bankverbindung, onChange: (v) => set({ bankverbindung: v }),
   }));
   fields.appendChild(renderFieldInput({

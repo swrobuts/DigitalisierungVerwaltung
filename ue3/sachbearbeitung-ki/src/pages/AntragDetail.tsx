@@ -245,12 +245,26 @@ export function AntragDetail() {
 
             <DocSection num="§ 2" title="Räumlichkeiten">
               <FieldGrid>
-                <DocField label="Räume vorhanden">
-                  <YesNo value={antrag.raeume_vorhanden} />
-                </DocField>
-                <DocField label="Räume unentgeltlich überlassen">
-                  <YesNo value={antrag.raeume_unentgeltlich} />
-                </DocField>
+                {/* Räume-Fragen sind seit Abspeckung 2026-05 nicht mehr Pflicht
+                    im Antragsformular (AHP 3.8: Belege nur auf Anfrage). Bei
+                    NULL eine erklärende Zeile statt einer ja/nein-Box mit
+                    irreführendem Default. */}
+                {antrag.raeume_vorhanden !== null ? (
+                  <DocField label="Räume vorhanden">
+                    <YesNo value={antrag.raeume_vorhanden} />
+                  </DocField>
+                ) : (
+                  <DocField label="Räume vorhanden" className="sm:col-span-2">
+                    <span className="text-slate-400 italic text-sm">
+                      Nicht abgefragt — gem. AHP 3.8 keine Detailerhebung erforderlich
+                    </span>
+                  </DocField>
+                )}
+                {antrag.raeume_unentgeltlich !== null && (
+                  <DocField label="Räume unentgeltlich überlassen">
+                    <YesNo value={antrag.raeume_unentgeltlich} />
+                  </DocField>
+                )}
                 <DocField label="Anschrift Einrichtung" className="sm:col-span-2">
                   {formatAdresse(antrag.strasse, antrag.hausnummer, antrag.plz, antrag.ort)}
                 </DocField>
@@ -661,7 +675,15 @@ function KostenTabelle({
   pauschalHinweis?: boolean;
 }) {
   if (items.length === 0) {
-    return <p className="text-sm text-slate-500 italic">Keine Kostenpositionen angegeben.</p>;
+    return (
+      <div className="text-sm text-slate-600 bg-slate-50 border-l-2 border-slate-300 px-3 py-2 rounded-r">
+        <strong>Keine Belegpositionen erfasst.</strong> Das ist für
+        Förderbereich III gem. <strong>AHP 3.8</strong> regelkonform:
+        „Belege sind nur auf Anfrage einzureichen". Bei Bedarf können
+        die Belege im Verwendungsnachweis (1. April Folgejahr)
+        nachgefordert werden.
+      </div>
+    );
   }
   const gruppen = (["miete", "personalkosten", "betriebskosten"] as const)
     .map((typ) => {

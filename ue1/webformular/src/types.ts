@@ -64,7 +64,7 @@ export interface OeffnungszeitEntry {
 }
 
 export interface FormState {
-  step: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  step: 1 | 2 | 3 | 4 | 5 | 6;
   haushaltsjahr: number;
   name: string;
   traeger: string;
@@ -73,8 +73,10 @@ export interface FormState {
   plz: string;
   ort: string;
   ansprechpartner: string;
+  /** Optional seit Abspeckung 2026-05 — Email-Korrespondenz reicht. */
   telefon: string;
   email: string;
+  /** Optional seit Abspeckung 2026-05 — Bankname ist aus IBAN ableitbar. */
   bankverbindung: string;
   iban: string;
   bic: string;

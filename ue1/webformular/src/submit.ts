@@ -32,14 +32,20 @@ export async function submitAntrag(state: FormState): Promise<{ antragsnummer: s
     hausnummer: state.hausnummer,
     plz: state.plz,
     ort: state.ort,
-    bankverbindung: state.bankverbindung,
+    // Bankname und Telefon sind seit Abspeckung 2026-05 optional —
+    // leerer String wird hier auf null gesetzt (DB akzeptiert beides,
+    // null ist sauberer Audit-Wert).
+    bankverbindung: state.bankverbindung.trim() || null,
     iban: state.iban.replace(/\s+/g, ""),
     bic: state.bic.trim() || null,
     ansprechpartner: state.ansprechpartner,
-    telefon: state.telefon,
+    telefon: state.telefon.trim() || null,
     email: state.email,
-    raeume_vorhanden: state.raeume_vorhanden!,
-    raeume_unentgeltlich: state.raeume_unentgeltlich!,
+    // Räume-Fragen entfallen mit der Abspeckung (AHP 3.8: Belege nur
+    // auf Anfrage). Bleibt als nullable DB-Spalte erhalten, hier
+    // explizit null mitsenden.
+    raeume_vorhanden: state.raeume_vorhanden ?? null,
+    raeume_unentgeltlich: state.raeume_unentgeltlich ?? null,
     antragsdatum: new Date().toISOString().slice(0, 10),
     submitted_language: state.language,
     // Bemessungsgrundlage gem. AHP 2.3 FB III Pkt. 2 (Begegnungszentren).

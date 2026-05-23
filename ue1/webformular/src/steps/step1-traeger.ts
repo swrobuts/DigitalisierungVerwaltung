@@ -12,6 +12,16 @@ export function renderStep1(stateSig: Signal<FormState>): HTMLElement {
   legend.textContent = t("form.legend.traeger");
   root.appendChild(legend);
 
+  // Haushaltsjahr-Hinweis (auto-abgeleitet, kein Pflichtfeld mehr seit
+  // Abspeckung 2026-05 — Logik in state.autoHaushaltsjahr berücksichtigt
+  // die AHP-Frist 1. April).
+  const hjHint = document.createElement("p");
+  hjHint.className = "field-hint";
+  hjHint.style.marginBottom = "0.6rem";
+  hjHint.textContent =
+    `Antrag für Haushaltsjahr ${stateSig.value.haushaltsjahr} (Frist 1. April ${stateSig.value.haushaltsjahr}, AHP 3.3).`;
+  root.appendChild(hjHint);
+
   const set = (patch: Partial<FormState>) => {
     stateSig.value = { ...stateSig.value, ...patch };
   };
@@ -19,11 +29,6 @@ export function renderStep1(stateSig: Signal<FormState>): HTMLElement {
   const fields = document.createElement("div");
   fields.className = "fields";
 
-  fields.appendChild(renderFieldInput({
-    id: "haushaltsjahr", label: t("form.label.haushaltsjahr"), type: "number",
-    required: true, value: String(stateSig.value.haushaltsjahr),
-    onChange: (v) => set({ haushaltsjahr: Number(v) || 0 }),
-  }));
   fields.appendChild(renderFieldInput({
     id: "name", label: t("form.label.name"), required: true, full: true,
     value: stateSig.value.name, onChange: (v) => set({ name: v }),

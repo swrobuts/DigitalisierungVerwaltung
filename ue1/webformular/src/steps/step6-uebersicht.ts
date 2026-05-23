@@ -7,13 +7,12 @@ const SECTION_LABELS: Record<number, string> = {
   1: "Träger & Einrichtung",
   2: "Kontakt & Bank",
   4: "Bemessungsgrundlage Vorjahr (Teilnehmer, Stadt-Anteil, Veranstaltungen)",
-  5: "Räume + Kosten + Belege",
-  6: "Anlage 1 (Wochenplan oder Programm-Flyer)",
-  7: "Bestätigung",
+  5: "Programm-Nachweis (Wochenplan oder Programm-Flyer)",
+  6: "Bestätigung",
 };
 
 /**
- * Step 7 — Senden.
+ * Step 6 — Senden.
  * Im Long-Form-Layout sind alle Eingaben oben sichtbar — eine Pre-Submit-
  * Übersicht wäre redundant. Hier nur noch:
  *   - DSGVO-Bestätigung (Checkbox)
@@ -22,15 +21,15 @@ const SECTION_LABELS: Record<number, string> = {
  *     und bei fehlenden Pflichtfeldern eine konkrete Liste angezeigt)
  *   - Hinweis-Zeile darüber, was noch fehlt (live, ohne Klick)
  */
-export function renderStep7(
+export function renderStep6(
   stateSig: Signal<FormState>,
   onSubmit: () => Promise<void>,
 ): HTMLElement {
   const root = document.createElement("fieldset");
-  root.dataset.section = "7";
+  root.dataset.section = "6";
 
   const legend = document.createElement("legend");
-  legend.textContent = t("stepper.7.titel");
+  legend.textContent = t("stepper.6.titel");
   root.appendChild(legend);
 
   // Bestätigung-Checkbox
@@ -54,7 +53,7 @@ export function renderStep7(
   root.appendChild(fehlend);
 
   function missingSections(s: FormState): number[] {
-    return [1, 2, 4, 5, 6, 7].filter((step) => !isStepComplete(step, s));
+    return [1, 2, 4, 5, 6].filter((step) => !isStepComplete(step, s));
   }
 
   const updateFehlend = () => {

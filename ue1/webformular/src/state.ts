@@ -8,11 +8,23 @@ import { isValidIBAN, isValidEmail, isValidPLZ } from "./validation";
  *   damit das UI direkt darüber iterieren kann.
  * - Sprache wird aus navigator.language abgeleitet (Fallback "de").
  */
+/**
+ * Haushaltsjahr für einen neuen Antrag automatisch ableiten.
+ * AHP 3.3: Anträge müssen bis zum 1. April des Antragsjahres vorliegen.
+ * Daraus: vor 1. April aktuelles Jahr; danach gilt der Antrag für das
+ * Folgejahr (für das aktuelle Jahr wäre er ohnehin verfristet).
+ */
+function autoHaushaltsjahr(now: Date = new Date()): number {
+  const monat = now.getMonth(); // 0 = Januar
+  const aprilStichtag = 3;       // 0-indexed: 3 = April
+  return monat < aprilStichtag ? now.getFullYear() : now.getFullYear() + 1;
+}
+
 export function initialState(): FormState {
   const wochentage: Wochentag[] = ["mo", "di", "mi", "do", "fr", "sa", "so"];
   return {
     step: 1,
-    haushaltsjahr: new Date().getFullYear(),
+    haushaltsjahr: autoHaushaltsjahr(),
     name: "",
     traeger: "",
     strasse: "",
@@ -67,11 +79,13 @@ export function isStepComplete(step: number, s: FormState): boolean {
         s.haushaltsjahr <= 2030
       );
     case 2: {
+      // Pflicht: Ansprechpartner (für Korrespondenz), Email (Korrespondenz-
+      // Kanal), IBAN (Auszahlungskanal). Telefon und Bankname sind seit
+      // Abspeckung 2026-05 optional — Email reicht für Korrespondenz, der
+      // Bankname ist aus der IBAN ableitbar.
       if (
         s.ansprechpartner.trim().length < 1 ||
-        s.telefon.trim().length < 1 ||
         !isValidEmail(s.email) ||
-        s.bankverbindung.trim().length < 1 ||
         !isValidIBAN(s.iban)
       ) return false;
       const ibanCountry = s.iban.replace(/\s+/g, "").slice(0, 2).toUpperCase();
@@ -97,23 +111,16 @@ export function isStepComplete(step: number, s: FormState): boolean {
       return true;
     }
     case 5: {
-      if (s.raeume_vorhanden === null || s.raeume_unentgeltlich === null) return false;
-      if (s.raeume_unentgeltlich === "ja") return true;
-      const mietePos = s.belegpositionen.filter((b) => b.belegtyp === "miete");
-      if (mietePos.length === 0) return false;
-      return mietePos.every(
-        (p) => p.bezeichnung.trim().length > 0 && p.betrag_euro > 0 && p.file !== null,
-      );
-    }
-    case 6: {
-      // Anlage 1 (Wochenplan) ODER Programm-Flyer reicht — beide decken
-      // dieselbe Pflicht („Programm der Tagesstätte angeben") ab.
+      // Programm-Nachweis (vormals Step 6): Anlage 1 (Wochenplan) ODER
+      // Programm-Flyer reicht — beide decken dieselbe Pflicht
+      // („Programm der Tagesstätte angeben") ab.
       const hatWochenplan = s.oeffnungszeiten.some(
         (o) => o.oeffnungszeit.trim().length > 0 || o.angebot.trim().length > 0,
       );
       return s.programm_flyer !== null || hatWochenplan;
     }
-    case 7:
+    case 6:
+      // Bestätigung (vormals Step 7).
       return s.bestaetigt === true;
     default:
       return false;
@@ -122,7 +129,14 @@ export function isStepComplete(step: number, s: FormState): boolean {
 
 /**
  * Form-Completion-Prüfung. True nur, wenn alle Pflicht-Sections grün sind.
- * Step 3 (Wochenplan) ist optional und liefert immer true (siehe oben).
+ *
+ * Seit Abspeckung 2026-05 sind das nur noch 5 Pflicht-Steps:
+ *   1 Träger · 2 Kontakt+Bank · 4 Bemessung · 5 Programm · 6 Bestätigung.
+ * Step 3 (Wochenplan) ist optional und liefert immer true.
+ *
+ * Der frühere Step 5 'Räume + Belege' ist entfallen (AHP 3.8 sagt
+ * wörtlich: „Belege sind nur auf Anfrage einzureichen"). Bisherige
+ * Steps 6 und 7 sind dadurch auf 5 und 6 verschoben.
  */
 export function isFormComplete(s: FormState): boolean {
   return (
@@ -131,7 +145,6 @@ export function isFormComplete(s: FormState): boolean {
     isStepComplete(3, s) &&
     isStepComplete(4, s) &&
     isStepComplete(5, s) &&
-    isStepComplete(6, s) &&
-    isStepComplete(7, s)
+    isStepComplete(6, s)
   );
 }

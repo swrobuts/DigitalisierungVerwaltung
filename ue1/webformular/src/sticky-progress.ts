@@ -7,15 +7,15 @@ import { isStepComplete } from "./state";
  * Bedient die Fortschritt-DOM-Elemente aus index.html
  * (#fortschritt-fill und #fortschritt-text) — keine eigene Navigation.
  *
- * Pflicht-Sections sind 1, 2, 4, 5, 6, 7. Step 3 (Wochenplan) ist
- * laut AHP-PDF optional und zählt nicht in die Quote.
+ * Pflicht-Sections sind 1, 2, 4, 5, 6 — fünf Pflicht-Steps. Step 3
+ * (Wochenplan) ist laut AHP-PDF optional und zählt nicht in die Quote.
  *
- * Step 4 (Bemessungsgrundlage Vorjahr) ist seit dem Refactor 2026-05
- * Pflicht — gem. AHP 2.3 FB III Pkt. 2 (Stadt-Anteil bestimmt die
- * Auszahlung, Teilnehmer + Veranstaltungen die Gewichtung). Die alten
- * Steps 4/5/6 sind dadurch auf 5/6/7 verschoben.
+ * Bei der Abspeckung 2026-05 ist der frühere Step 5 'Räume + Belege'
+ * komplett entfallen (AHP 3.8: „Belege sind nur auf Anfrage einzureichen").
+ * Die alten Steps 6 (Flyer) und 7 (Bestätigung) sind dadurch auf
+ * 5 und 6 verschoben.
  */
-const PFLICHT_STEPS: ReadonlyArray<1 | 2 | 4 | 5 | 6 | 7> = [1, 2, 4, 5, 6, 7];
+const PFLICHT_STEPS: ReadonlyArray<1 | 2 | 4 | 5 | 6> = [1, 2, 4, 5, 6];
 
 export function attachStickyProgress(stateSig: Signal<FormState>): void {
   const fill = document.getElementById("fortschritt-fill") as HTMLElement | null;
