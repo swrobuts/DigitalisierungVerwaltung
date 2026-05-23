@@ -17,6 +17,7 @@ import { PruefungsCard } from "../components/PruefungsCard";
 import { ZweitpruefungsCard } from "../components/ZweitpruefungsCard";
 import { BescheideListe } from "../components/BescheideListe";
 import { VorjahresVergleich } from "../components/VorjahresVergleich";
+import { AntragMetricsBar } from "../components/AntragMetricsBar";
 import {
   Dialog,
   DialogContent,
@@ -138,9 +139,17 @@ export function AntragDetail() {
         </div>
       </header>
 
-      {/* Prozess-Indikator: zeigt, wo der Antrag im Workflow steht */}
+      {/* Prozess-Indikator: zeigt, wo der Antrag im Workflow steht
+          + KPI-Streifen mit Bearbeitungsmetriken (Tage seit Einreichung,
+          aktive Bearbeitung, KI-Läufe etc.). Bewusst Prozess- statt
+          Personen-Sicht. */}
       <div className="w-full px-4 lg:px-8 pt-6">
         <StatusFlow status={antrag.status} />
+        <AntragMetricsBar
+          antrag={antrag}
+          history={history}
+          bescheideCount={bescheide.length}
+        />
       </div>
 
       <main className="w-full px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
