@@ -177,6 +177,27 @@ export function Inbox() {
   const [sortKey, setSortKey] = useState<SortKey>("submitted_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [groupBy, setGroupBy] = useState<GroupKey>("none");
+  // null = "alle Jahre", default = das jüngste vorhandene Haushaltsjahr.
+  // Sachbearbeiter:innen sehen primär das laufende Förderjahr; ältere
+  // Anträge (z.B. für Vorjahres-Vergleich) sind über das Dropdown
+  // explizit zuschaltbar.
+  const [hjFilter, setHjFilter] = useState<number | null>(null);
+
+  // Verfügbare Haushaltsjahre — distinct, absteigend sortiert
+  const verfuegbareHj = useMemo(() => {
+    const set = new Set<number>();
+    for (const a of antraege) if (a.haushaltsjahr) set.add(a.haushaltsjahr);
+    return Array.from(set).sort((a, b) => b - a);
+  }, [antraege]);
+
+  // Default-HJ einmalig setzen sobald Anträge geladen sind. Wir tun das
+  // im useMemo des effektiven Filters, nicht in einem useEffect, damit es
+  // ohne extra Render-Zyklus passiert. Sobald der User explizit etwas
+  // wählt (auch "alle"), wird der eigene State respektiert.
+  const [hjFilterDirty, setHjFilterDirty] = useState(false);
+  const effektivesHj: number | null = hjFilterDirty
+    ? hjFilter
+    : (verfuegbareHj[0] ?? null);
 
   // VJ-Map über ALLE Anträge (nicht nur gefilterte) — sonst falscher Vergleich
   const vjMap = useMemo(() => buildVjMap(antraege), [antraege]);
@@ -185,11 +206,12 @@ export function Inbox() {
   const filtered = useMemo(() => {
     const s = search.toLowerCase().trim();
     return antraege.filter((a) => {
+      if (effektivesHj !== null && a.haushaltsjahr !== effektivesHj) return false;
       if (filter.size > 0 && !filter.has(a.status)) return false;
       if (s && !`${a.antragsnummer} ${a.name} ${a.traeger}`.toLowerCase().includes(s)) return false;
       return true;
     });
-  }, [antraege, filter, search]);
+  }, [antraege, effektivesHj, filter, search]);
 
   function groupKeyOf(a: AntragRow): string {
     if (groupBy === "month") return monthKey(a.submitted_at);
@@ -446,6 +468,23 @@ export function Inbox() {
               ))}
             </div>
             <div className="flex items-center gap-2 text-sm">
+              <label htmlFor="hj-filter" className="text-slate-600">Haushaltsjahr:</label>
+              <select
+                id="hj-filter"
+                value={effektivesHj === null ? "all" : String(effektivesHj)}
+                onChange={(e) => {
+                  setHjFilterDirty(true);
+                  setHjFilter(e.target.value === "all" ? null : Number(e.target.value));
+                }}
+                className="border border-slate-300 rounded px-2 py-1 text-sm tabular-nums"
+              >
+                {verfuegbareHj.map((hj) => (
+                  <option key={hj} value={String(hj)}>{hj}</option>
+                ))}
+                <option value="all">Alle Jahre</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
               <label htmlFor="group-by" className="text-slate-600">Gruppieren:</label>
               <select
                 id="group-by"
@@ -458,7 +497,12 @@ export function Inbox() {
                 ))}
               </select>
             </div>
-            <div className="ml-auto text-sm text-slate-500">{filtered.length} von {antraege.length}</div>
+            <div className="ml-auto text-sm text-slate-500">
+              {filtered.length} von {antraege.length}
+              {effektivesHj !== null && (
+                <span className="text-slate-400"> (gefiltert HJ {effektivesHj})</span>
+              )}
+            </div>
           </div>
         </div>
 
