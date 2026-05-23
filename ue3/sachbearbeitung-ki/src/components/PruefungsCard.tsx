@@ -277,11 +277,13 @@ export function PruefungsCard({
           {running ? "Prüfung läuft …" : "Konformität per KI prüfen"}
         </Button>
         <p className="text-xs text-slate-500 leading-relaxed">
-          Dreistufige Prüfung gegen die <strong>AHP-Förderrichtlinie der Stadt
-          Würzburg</strong> (Beschluss 27.03.2025): formal-strukturell,
-          Ontologie-basiert und KI-gestützter Wortlaut-Abgleich (Layer A/B/C).
-          Empfehlung der KI, finale Entscheidung trifft die Sachbearbeitung
-          bzw. der Sozialausschuss (AHP 3.4).
+          Die KI vergleicht den Antrag mit der <strong>AHP-Förderrichtlinie
+          der Stadt Würzburg</strong> (27.03.2025) und meldet
+          Auffälligkeiten — etwa fehlende Pflichtangaben, IBAN-Fehler,
+          überschrittene Förderhöchstgrenzen oder Abweichungen vom
+          Richtlinien-Wortlaut. Das Ergebnis ist ein Vorschlag, die
+          Entscheidung trifft die Sachbearbeitung bzw. der Sozialausschuss
+          (AHP 3.4).
         </p>
         {!latest && onManuellStarten && (
           <button
