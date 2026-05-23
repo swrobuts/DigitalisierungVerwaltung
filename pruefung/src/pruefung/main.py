@@ -814,6 +814,16 @@ async def validiere_extern(antrag_id: str) -> dict[str, Any]:
     return {"befunde": befunde, "summary": summary}
 
 
+@app.get("/api/compliance/status")
+async def compliance_status() -> dict[str, Any]:
+    """AI-Act-/DSGVO-Compliance-Übersicht. Statische Konfig + Live-Metriken
+    aus DB. Dient als Selbst-Audit + externe Transparenz, ersetzt aber
+    keine formelle Konformitätsbewertung."""
+    from pruefung.compliance import status
+    db = SupabaseClient.from_env()
+    return await status(db)
+
+
 @app.get("/api/dashboard/adoption")
 async def dashboard_adoption() -> dict[str, Any]:
     """Adoption-Dashboard: zeigt, wie oft die finale Entscheidung der

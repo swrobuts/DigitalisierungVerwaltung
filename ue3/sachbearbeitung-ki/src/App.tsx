@@ -7,6 +7,7 @@ import { OntologieInspector } from "./pages/OntologieInspector";
 import { AhpInspector } from "./pages/AhpInspector";
 import { NormStatementsInspector } from "./pages/NormStatementsInspector";
 import { AdoptionDashboard } from "./pages/AdoptionDashboard";
+import { ComplianceStatus } from "./pages/ComplianceStatus";
 import { AuthGuard } from "./components/AuthGuard";
 
 export default function App() {
@@ -62,6 +63,14 @@ export default function App() {
         element={
           <AuthGuard>
             <AdoptionDashboard />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/compliance"
+        element={
+          <AuthGuard>
+            <ComplianceStatus />
           </AuthGuard>
         }
       />

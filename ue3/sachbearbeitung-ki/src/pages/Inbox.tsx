@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { Activity, BookOpen, FileSearch, Network } from "lucide-react";
+import { Activity, BookOpen, FileSearch, Network, Shield } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
 import { useMeineZweitpruefungen } from "../hooks/useMeineZweitpruefungen";
 import { useUserRole } from "../hooks/useUserRole";
@@ -401,6 +401,14 @@ export function Inbox() {
               >
                 <Activity className="h-4 w-4" />
                 Adoption
+              </NavLink>
+              <NavLink
+                to="/compliance"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                title="AI-Act- + DSGVO-Compliance-Statusseite"
+              >
+                <Shield className="h-4 w-4" />
+                Compliance
               </NavLink>
               <span className="h-6 w-px bg-slate-200 mx-1" aria-hidden="true" />
             </nav>

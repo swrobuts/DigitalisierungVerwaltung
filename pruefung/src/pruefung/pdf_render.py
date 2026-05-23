@@ -714,9 +714,33 @@ def render_bescheid_docx(
     )
     rb_p2_body.font.size = Pt(9)
 
-    # ── 12. FOOTER (Bescheid-ID + Doctree-Version) ─────────────────
+    # ── 12. KI-TRANSPARENZ-HINWEIS (AI Act Art. 50) ───────────────
+    ki_hinweis_tbl = doc.add_table(rows=1, cols=1)
+    ki_hinweis_tbl.autofit = False
+    _docx_set_col_widths(ki_hinweis_tbl, [16.5])
+    ki_cell = ki_hinweis_tbl.rows[0].cells[0]
+    _docx_set_cell_shading(ki_cell, "F7F6F4")
+    _docx_set_cell_borders(ki_cell, color="888888", size=2, sides=("left",))
+    ki_lbl_p = ki_cell.paragraphs[0]
+    ki_lbl_r = ki_lbl_p.add_run("Hinweis zur Verwendung von KI (EU AI Act Art. 50):")
+    ki_lbl_r.bold = True
+    ki_lbl_r.font.size = Pt(8.5)
+    ki_lbl_r.font.color.rgb = RGBColor.from_string(_CI_DUNKEL)
+    ki_body_p = ki_cell.add_paragraph()
+    ki_body_r = ki_body_p.add_run(
+        "Bei der Vorbereitung dieses Bescheids wurde Künstliche Intelligenz "
+        "als Hilfsmittel eingesetzt (regelbasierte Konformitätsprüfung und "
+        "KI-gestützter Wortlaut-Abgleich mit der AHP-Förderrichtlinie). Die "
+        "KI liefert eine Empfehlung, die finale Entscheidung wurde durch "
+        "die oben genannte Sachbearbeitung getroffen. Detaillierte Übersicht "
+        "der KI-Eingriffe unter amt-ki.butscher.cloud/compliance."
+    )
+    ki_body_r.font.size = Pt(8.5)
+    ki_body_r.font.color.rgb = RGBColor.from_string(_CI_GRAU)
+
+    # ── 13. FOOTER (Bescheid-ID + AHP-Stand) ──────────────────────
     foot_p = doc.add_paragraph()
-    foot_p.paragraph_format.space_before = Pt(8)
+    foot_p.paragraph_format.space_before = Pt(4)
     foot_r = foot_p.add_run(
         f"Bescheid-ID: {bescheid_id} · "
         f"Erstellt auf Basis des Prüfprotokolls vom "
