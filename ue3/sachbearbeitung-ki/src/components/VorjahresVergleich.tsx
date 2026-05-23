@@ -133,8 +133,12 @@ export function VorjahresVergleich({ antragId }: Props) {
                 <thead className="bg-slate-50 text-slate-600">
                   <tr>
                     <th className="text-left px-2 py-1.5 font-medium">Position</th>
-                    <th className="text-left px-2 py-1.5 font-medium">Vorjahr</th>
-                    <th className="text-left px-2 py-1.5 font-medium">Aktuell</th>
+                    <th className="text-left px-2 py-1.5 font-medium">
+                      Vorjahr{data.vorjahr ? ` (${data.vorjahr.haushaltsjahr})` : ""}
+                    </th>
+                    <th className="text-left px-2 py-1.5 font-medium">
+                      Aktuell{data.aktuell_hj ? ` (${data.aktuell_hj})` : ""}
+                    </th>
                     <th className="text-right px-2 py-1.5 font-medium">Δ</th>
                   </tr>
                 </thead>
