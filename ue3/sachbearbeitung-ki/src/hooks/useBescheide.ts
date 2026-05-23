@@ -118,10 +118,20 @@ export function useBescheide(antragId: string | undefined) {
       if (pdfStoragePath) {
         await supabase.storage.from("bescheide").remove([pdfStoragePath]);
       }
-      const { error } = await supabase.from("bescheide").delete().eq("id", id);
+      // count: 'exact' liefert die Anzahl betroffener Zeilen — wichtig,
+      // weil RLS bei fehlender Policy still 0 Zeilen löscht statt zu
+      // erroren. Ohne diesen Check würde die UI 'gelöscht' suggerieren
+      // obwohl die Zeile noch in der DB steht.
+      const { error, count } = await supabase
+        .from("bescheide").delete({ count: "exact" }).eq("id", id);
       if (error) {
         setError(`Löschen fehlgeschlagen: ${error.message}`);
         return { error: error.message };
+      }
+      if (count === 0) {
+        const msg = "Löschen wurde von der Datenbank verweigert (vermutlich RLS-Policy fehlt).";
+        setError(msg);
+        return { error: msg };
       }
       await reload();
       return {};

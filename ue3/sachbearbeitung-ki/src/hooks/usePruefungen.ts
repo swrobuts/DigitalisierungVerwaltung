@@ -155,11 +155,18 @@ export function usePruefungen(antragId: string | undefined) {
     async (pruefungId: string) => {
       if (!antragId) return { error: "Kein Antrag" };
       // 1) pruefungen-Row löschen
-      const { error: delErr } = await supabase
-        .from("pruefungen").delete().eq("id", pruefungId);
+      // count: 'exact' deckt den stillen RLS-Block-Fall auf (kein Error,
+      // aber 0 betroffene Zeilen — sonst meldet die UI fälschlich Erfolg)
+      const { error: delErr, count } = await supabase
+        .from("pruefungen").delete({ count: "exact" }).eq("id", pruefungId);
       if (delErr) {
         setError(`Löschen fehlgeschlagen: ${delErr.message}`);
         return { error: delErr.message };
+      }
+      if (count === 0) {
+        const msg = "Löschen wurde von der Datenbank verweigert (vermutlich RLS-Policy fehlt).";
+        setError(msg);
+        return { error: msg };
       }
       // 2) Falls Antrag im zweitpruefung_*-Status hängt, zurück auf
       //    in_pruefung — sonst hängt der Workflow nach der Löschung
