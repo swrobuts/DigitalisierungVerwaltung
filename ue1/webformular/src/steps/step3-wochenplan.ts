@@ -12,11 +12,21 @@ export function renderStep3(stateSig: Signal<FormState>): HTMLElement {
   legend.textContent = t("stepper.3.titel");
   root.appendChild(legend);
 
+  // Pflicht-Hinweis: erscheint live, wenn (noch) kein Tag vollständig ausgefüllt.
   const hint = document.createElement("p");
   hint.className = "field-hint";
   hint.style.marginBottom = "0.6rem";
   hint.textContent = t("wochenplan.hinweis");
   root.appendChild(hint);
+
+  const updateHint = () => {
+    const ok = stateSig.value.oeffnungszeiten.some(
+      (o) => o.oeffnungszeit.trim().length > 0 && o.angebot.trim().length > 0,
+    );
+    hint.style.display = ok ? "none" : "";
+  };
+  updateHint();
+  stateSig.subscribe(updateHint);
 
   const table = document.createElement("table");
   table.className = "wochenplan-table";

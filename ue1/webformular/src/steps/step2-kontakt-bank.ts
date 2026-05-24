@@ -23,10 +23,9 @@ export function renderStep2(stateSig: Signal<FormState>): HTMLElement {
     id: "ansprechpartner", label: t("form.label.ansprechpartner"), required: true, full: true,
     value: stateSig.value.ansprechpartner, onChange: (v) => set({ ansprechpartner: v }),
   }));
-  // Telefon ist seit Abspeckung 2026-05 optional — Email reicht für
-  // die rechtssichere Korrespondenz, Telefon ist nice-to-have.
+  // PDF-Voll-Sync: Telefon ist Pflicht (PDF H8).
   fields.appendChild(renderFieldInput({
-    id: "telefon", label: t("form.label.telefon"), type: "tel", required: false,
+    id: "telefon", label: t("form.label.telefon"), type: "tel", required: true,
     value: stateSig.value.telefon, onChange: (v) => set({ telefon: v }),
   }));
   fields.appendChild(renderFieldInput({
@@ -34,10 +33,9 @@ export function renderStep2(stateSig: Signal<FormState>): HTMLElement {
     value: stateSig.value.email, onChange: (v) => set({ email: v }),
     validate: (v) => (v.length > 0 && !isValidEmail(v) ? t("validation.email_ungueltig") : null),
   }));
-  // Bankname optional — ist aus IBAN ableitbar; Pflicht ist nur die IBAN
-  // selbst (AHP 3.6: Auszahlung auf Konto des Antragsberechtigten).
+  // PDF-Voll-Sync: Bankverbindung (Bankname) ist Pflicht (PDF H9).
   fields.appendChild(renderFieldInput({
-    id: "bankverbindung", label: t("form.label.bankverbindung"), required: false, full: true,
+    id: "bankverbindung", label: t("form.label.bankverbindung"), required: true, full: true,
     value: stateSig.value.bankverbindung, onChange: (v) => set({ bankverbindung: v }),
   }));
   fields.appendChild(renderFieldInput({
@@ -46,21 +44,15 @@ export function renderStep2(stateSig: Signal<FormState>): HTMLElement {
     onChange: (v) => set({ iban: v }),
     validate: (v) => (v.length > 0 && !isValidIBAN(v) ? t("validation.iban_ungueltig") : null),
   }));
-
-  // BIC nur wenn nicht-DE: <label> selbst togglen (kein zusätzliches <div>,
-  // damit das Grid-Layout sauber bleibt).
+  // PDF-Voll-Sync: BIC ist IMMER Pflicht (PDF H9) — kein conditional rendering.
   const bicField = renderFieldInput({
-    id: "bic", label: t("form.label.bic"), required: false,
+    id: "bic", label: t("form.label.bic"), required: true, full: true,
     value: stateSig.value.bic, onChange: (v) => set({ bic: v }),
   });
-  bicField.classList.add("full");
-  const updateBic = () => {
-    const ibanCountry = stateSig.value.iban.replace(/\s+/g, "").slice(0, 2).toUpperCase();
-    const show = ibanCountry.length === 2 && ibanCountry !== "DE";
-    bicField.style.display = show ? "" : "none";
-  };
-  updateBic();
-  stateSig.subscribe(updateBic);
+  const bicHint = document.createElement("span");
+  bicHint.className = "field-hint";
+  bicHint.textContent = t("form.hint.bic");
+  bicField.appendChild(bicHint);
   fields.appendChild(bicField);
 
   root.appendChild(fields);

@@ -5,16 +5,17 @@ import { attachStickyProgress } from "./sticky-progress";
 import { renderStep1 } from "./steps/step1-traeger";
 import { renderStep2 } from "./steps/step2-kontakt-bank";
 import { renderStep3 } from "./steps/step3-wochenplan";
-import { renderStep4 } from "./steps/step4-bemessung";
-import { renderStep5 } from "./steps/step5-flyer";
-import { renderStep6 } from "./steps/step6-uebersicht";
+import { renderStep4RaeumeKosten } from "./steps/step4-raeume-kosten";
+import { renderStep5Bemessung } from "./steps/step5-bemessung";
+import { renderStep6Flyer } from "./steps/step6-flyer";
+import { renderStep7Uebersicht } from "./steps/step7-uebersicht";
 import { submitAntrag } from "./submit";
 import { setSprache, applyTranslations, t } from "./i18n";
 import type { FormState, Sprache } from "./types";
 
 /**
- * Long-Form-Orchestrierung (UE1-v2).
- * Alle Sections untereinander als <fieldset>s in einem <form>,
+ * Long-Form-Orchestrierung (UE1-v3 — PDF-Voll-Sync).
+ * Alle 7 Sections untereinander als <fieldset>s in einem <form>,
  * sticky-Fortschrittsbar oben (im HTML schon angelegt).
  * Würzburg-CI komplett aus styles.css — kein Tailwind im Markup.
  */
@@ -85,7 +86,7 @@ function renderSections(): void {
   head.appendChild(sub);
   root!.appendChild(head);
 
-  // Semantisches <form>-Element — Steps sind <fieldset>s.
+  // Semantisches <form>-Element — Steps sind <fieldset>s (1..7).
   const form = document.createElement("form");
   form.id = "antrag-form";
   form.noValidate = true;
@@ -93,19 +94,11 @@ function renderSections(): void {
 
   form.appendChild(renderStep1(state));
   form.appendChild(renderStep2(state));
-
-  // Optional-Hinweis vor Wochenplan
-  const optHint = document.createElement("p");
-  optHint.className = "field-hint";
-  optHint.style.margin = "0.6rem 0 0.3rem";
-  optHint.style.fontStyle = "italic";
-  optHint.textContent = t("wochenplan.optional");
-  form.appendChild(optHint);
-
   form.appendChild(renderStep3(state));
-  form.appendChild(renderStep4(state));
-  form.appendChild(renderStep5(state));
-  form.appendChild(renderStep6(state, onSubmit));
+  form.appendChild(renderStep4RaeumeKosten(state));
+  form.appendChild(renderStep5Bemessung(state));
+  form.appendChild(renderStep6Flyer(state));
+  form.appendChild(renderStep7Uebersicht(state, onSubmit));
 
   root!.appendChild(form);
 }

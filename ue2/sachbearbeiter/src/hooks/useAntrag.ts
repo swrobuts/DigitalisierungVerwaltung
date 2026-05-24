@@ -27,19 +27,17 @@ export interface AntragFull {
   hausnummer: string;
   plz: string;
   ort: string;
-  /** NULL erlaubt seit Migration 045 — UE1-Formular markiert Bank-
-   *  Klartextname als optional (IBAN reicht gem. AHP 3.6). */
-  bankverbindung: string | null;
+  /** Pflicht seit Migration 048 (PDF-Konformität, Voll-Sync 2026-05-24). */
+  bankverbindung: string;
   iban: string;
   bic: string | null;
   ansprechpartner: string;
-  /** NULL erlaubt seit Migration 045 — Telefon optional (Email reicht). */
-  telefon: string | null;
+  /** Pflicht seit Migration 048 (PDF H8). */
+  telefon: string;
   email: string;
-  /** NULL erlaubt seit Migration 044 — Räume-Fragen entfielen mit der
-   *  Abspeckung des Antragsformulars (AHP 3.8: Belege nur auf Anfrage). */
-  raeume_vorhanden: "ja" | "nein" | null;
-  raeume_unentgeltlich: "ja" | "nein" | null;
+  /** Pflicht seit Migration 048 (PDF H13/H14, Voll-Sync 2026-05-24). */
+  raeume_vorhanden: "ja" | "nein";
+  raeume_unentgeltlich: "ja" | "nein";
   antragsdatum: string;
   submitted_language: string;
   submitted_at: string;

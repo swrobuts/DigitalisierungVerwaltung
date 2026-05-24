@@ -12,22 +12,47 @@ export function renderStep1(stateSig: Signal<FormState>): HTMLElement {
   legend.textContent = t("form.legend.traeger");
   root.appendChild(legend);
 
-  // Haushaltsjahr-Hinweis (auto-abgeleitet, kein Pflichtfeld mehr seit
-  // Abspeckung 2026-05 — Logik in state.autoHaushaltsjahr berücksichtigt
-  // die AHP-Frist 1. April).
-  const hjHint = document.createElement("p");
-  hjHint.className = "field-hint";
-  hjHint.style.marginBottom = "0.6rem";
-  hjHint.textContent =
-    `Antrag für Haushaltsjahr ${stateSig.value.haushaltsjahr} (Frist 1. April ${stateSig.value.haushaltsjahr}, AHP 3.3).`;
-  root.appendChild(hjHint);
-
   const set = (patch: Partial<FormState>) => {
     stateSig.value = { ...stateSig.value, ...patch };
   };
 
   const fields = document.createElement("div");
   fields.className = "fields";
+
+  // Haushaltsjahr editierbar (PDF-Voll-Sync); Default kommt aus
+  // autoHaushaltsjahr() im initialState. Range 2020–2030.
+  const hjWrap = document.createElement("label");
+  hjWrap.htmlFor = "haushaltsjahr";
+  hjWrap.className = "full";
+  const hjLblSpan = document.createElement("span");
+  hjLblSpan.className = "field-label";
+  const hjLblTxt = document.createElement("span");
+  hjLblTxt.textContent = t("form.label.haushaltsjahr");
+  hjLblSpan.appendChild(hjLblTxt);
+  const hjStar = document.createElement("span");
+  hjStar.className = "pflicht";
+  hjStar.textContent = " *";
+  hjLblSpan.appendChild(hjStar);
+  hjWrap.appendChild(hjLblSpan);
+  const hjInput = document.createElement("input");
+  hjInput.id = "haushaltsjahr";
+  hjInput.name = "haushaltsjahr";
+  hjInput.type = "number";
+  hjInput.min = "2020";
+  hjInput.max = "2030";
+  hjInput.step = "1";
+  hjInput.required = true;
+  hjInput.value = String(stateSig.value.haushaltsjahr);
+  hjInput.addEventListener("input", () => {
+    const v = parseInt(hjInput.value, 10);
+    if (!Number.isNaN(v)) set({ haushaltsjahr: v });
+  });
+  hjWrap.appendChild(hjInput);
+  const hjHint = document.createElement("span");
+  hjHint.className = "field-hint";
+  hjHint.textContent = t("form.label.haushaltsjahr_hint");
+  hjWrap.appendChild(hjHint);
+  fields.appendChild(hjWrap);
 
   fields.appendChild(renderFieldInput({
     id: "name", label: t("form.label.name"), required: true, full: true,

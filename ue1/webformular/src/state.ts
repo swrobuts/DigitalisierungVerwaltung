@@ -2,10 +2,10 @@ import type { FormState, Sprache, Wochentag } from "./types";
 import { isValidIBAN, isValidEmail, isValidPLZ } from "./validation";
 
 /**
- * Initial-State für den belegezentrierten Stepper-Flow (v2).
- * - Haushaltsjahr defaults auf das aktuelle Kalenderjahr.
- * - 7 Wochentage werden als leere OeffnungszeitEntries vorbelegt,
- *   damit das UI direkt darüber iterieren kann.
+ * Initial-State für den belegezentrierten Stepper-Flow (v3 — Voll-Sync mit PDF).
+ * - Haushaltsjahr defaults auf das per Stichtag (1. April) abgeleitete Jahr,
+ *   bleibt aber im UI editierbar.
+ * - 7 Wochentage werden als leere OeffnungszeitEntries vorbelegt.
  * - Sprache wird aus navigator.language abgeleitet (Fallback "de").
  */
 /**
@@ -14,7 +14,7 @@ import { isValidIBAN, isValidEmail, isValidPLZ } from "./validation";
  * Daraus: vor 1. April aktuelles Jahr; danach gilt der Antrag für das
  * Folgejahr (für das aktuelle Jahr wäre er ohnehin verfristet).
  */
-function autoHaushaltsjahr(now: Date = new Date()): number {
+export function autoHaushaltsjahr(now: Date = new Date()): number {
   const monat = now.getMonth(); // 0 = Januar
   const aprilStichtag = 3;       // 0-indexed: 3 = April
   return monat < aprilStichtag ? now.getFullYear() : now.getFullYear() + 1;
@@ -45,8 +45,15 @@ export function initialState(): FormState {
     anzahl_teilnehmer_vorjahr: null,
     stadtbewohner_anteil_vorjahr: null,
     anzahl_veranstaltungen_vorjahr: null,
-    raeume_vorhanden: null,
-    raeume_unentgeltlich: null,
+    // "" = „noch nicht gewählt"-Marker fürs Select-UI; Step-4-Validation
+    // verlangt explizit "ja" oder "nein".
+    raeume_vorhanden: "",
+    raeume_unentgeltlich: "",
+    betriebskosten_vorjahr_euro: null,
+    personalkosten_vorjahr_euro: null,
+    monatliche_miete_euro: null,
+    antragsdatum: new Date().toISOString().slice(0, 10),
+    mietvertrag_file: null,
     belegpositionen: [],
     programm_flyer: null,
     bestaetigt: false,
@@ -64,6 +71,10 @@ function detectLanguage(): Sprache {
 /**
  * Step-Completion-Prüfung. Entscheidet, ob „Weiter" aktivierbar ist.
  * Reine Funktion über FormState — kein Side-Effect, keine UI.
+ *
+ * Schritt-Reihenfolge (v3, 7 Schritte, PDF-Voll-Sync):
+ *   1 Einrichtung · 2 Kontakt & Bank · 3 Wochenplan · 4 Räume & Kosten ·
+ *   5 Bemessung Vorjahr · 6 Programm · 7 Senden
  */
 export function isStepComplete(step: number, s: FormState): boolean {
   switch (step) {
@@ -79,24 +90,38 @@ export function isStepComplete(step: number, s: FormState): boolean {
         s.haushaltsjahr <= 2030
       );
     case 2: {
-      // Pflicht: Ansprechpartner (für Korrespondenz), Email (Korrespondenz-
-      // Kanal), IBAN (Auszahlungskanal). Telefon und Bankname sind seit
-      // Abspeckung 2026-05 optional — Email reicht für Korrespondenz, der
-      // Bankname ist aus der IBAN ableitbar.
+      // PDF-Voll-Sync: Telefon, Bankverbindung, BIC sind alle Pflicht
+      // (PDF H8, H9). Email + IBAN ohnehin.
       if (
         s.ansprechpartner.trim().length < 1 ||
         !isValidEmail(s.email) ||
-        !isValidIBAN(s.iban)
+        !isValidIBAN(s.iban) ||
+        s.telefon.trim().length < 3 ||
+        s.bankverbindung.trim().length < 1 ||
+        s.bic.trim().length < 8
       ) return false;
-      const ibanCountry = s.iban.replace(/\s+/g, "").slice(0, 2).toUpperCase();
-      if (ibanCountry !== "DE" && s.bic.trim().length < 8) return false;
       return true;
     }
-    case 3:
-      // Wochenplan ist OPTIONAL — kein Pflicht-Block laut AHP-PDF.
-      // Im Long-Form-Layout zählt Step 3 deshalb nicht zur Pflicht-Quote.
-      return true;
+    case 3: {
+      // Wochenplan ist Pflicht (PDF-Voll-Sync). Mindestens 1 Wochentag
+      // mit gefüllter Öffnungszeit UND gefülltem Angebot.
+      return s.oeffnungszeiten.some(
+        (o) => o.oeffnungszeit.trim().length > 0 && o.angebot.trim().length > 0,
+      );
+    }
     case 4: {
+      // PDF H11/H12/H13/H14/H15 — Räume & Kosten Vorjahr.
+      if (s.betriebskosten_vorjahr_euro === null || s.betriebskosten_vorjahr_euro < 0) return false;
+      if (s.personalkosten_vorjahr_euro === null || s.personalkosten_vorjahr_euro < 0) return false;
+      if (s.raeume_vorhanden !== "ja" && s.raeume_vorhanden !== "nein") return false;
+      if (s.raeume_unentgeltlich !== "ja" && s.raeume_unentgeltlich !== "nein") return false;
+      // Cross-Field: kein eigener und kein unentgeltlicher Raum → Miete > 0 Pflicht.
+      if (s.raeume_vorhanden === "nein" && s.raeume_unentgeltlich === "nein") {
+        if (s.monatliche_miete_euro === null || s.monatliche_miete_euro <= 0) return false;
+      }
+      return true;
+    }
+    case 5: {
       // Bemessungsgrundlage Vorjahr gem. AHP 2.3 Förderbereich III, Pkt. 2.
       // Alle drei Felder Pflicht: Stadt-Anteil weil die Auszahlung
       // anteilig danach erfolgt; Teilnehmer + Veranstaltungen weil die
@@ -110,17 +135,15 @@ export function isStepComplete(step: number, s: FormState): boolean {
       if (s.anzahl_veranstaltungen_vorjahr === null || s.anzahl_veranstaltungen_vorjahr < 0) return false;
       return true;
     }
-    case 5: {
-      // Programm-Nachweis (vormals Step 6): Anlage 1 (Wochenplan) ODER
-      // Programm-Flyer reicht — beide decken dieselbe Pflicht
-      // („Programm der Tagesstätte angeben") ab.
+    case 6: {
+      // Programm-Nachweis: Wochenplan ODER Programm-Flyer reicht.
       const hatWochenplan = s.oeffnungszeiten.some(
         (o) => o.oeffnungszeit.trim().length > 0 || o.angebot.trim().length > 0,
       );
       return s.programm_flyer !== null || hatWochenplan;
     }
-    case 6:
-      // Bestätigung (vormals Step 7).
+    case 7:
+      // Bestätigung.
       return s.bestaetigt === true;
     default:
       return false;
@@ -128,23 +151,11 @@ export function isStepComplete(step: number, s: FormState): boolean {
 }
 
 /**
- * Form-Completion-Prüfung. True nur, wenn alle Pflicht-Sections grün sind.
- *
- * Seit Abspeckung 2026-05 sind das nur noch 5 Pflicht-Steps:
- *   1 Träger · 2 Kontakt+Bank · 4 Bemessung · 5 Programm · 6 Bestätigung.
- * Step 3 (Wochenplan) ist optional und liefert immer true.
- *
- * Der frühere Step 5 'Räume + Belege' ist entfallen (AHP 3.8 sagt
- * wörtlich: „Belege sind nur auf Anfrage einzureichen"). Bisherige
- * Steps 6 und 7 sind dadurch auf 5 und 6 verschoben.
+ * Form-Completion-Prüfung. True nur, wenn alle 7 Pflicht-Sections grün sind.
  */
 export function isFormComplete(s: FormState): boolean {
-  return (
-    isStepComplete(1, s) &&
-    isStepComplete(2, s) &&
-    isStepComplete(3, s) &&
-    isStepComplete(4, s) &&
-    isStepComplete(5, s) &&
-    isStepComplete(6, s)
-  );
+  for (let step = 1; step <= 7; step++) {
+    if (!isStepComplete(step, s)) return false;
+  }
+  return true;
 }

@@ -255,5 +255,21 @@ Deno.serve(async (req: Request) => {
     return json({ error: `flyer upload failed, rolled back: ${(e as Error).message}` }, 500, origin);
   }
 
+  // 5) Mietvertrag (optional; nur falls Bürger ihn aus dem PDF-Hinweis
+  //    „(Kopie Mietvertrag)" hochlädt — AHP 3.8: Belege nur auf Anfrage,
+  //    daher nicht erzwungen, aber wenn vorhanden persistieren).
+  try {
+    const mietvertrag = form.get("mietvertrag");
+    if (mietvertrag instanceof File) {
+      if (mietvertrag.size > MAX_BYTES) throw new Error(`mietvertrag > 10 MB`);
+      if (!ALLOWED_MIME.includes(mietvertrag.type)) throw new Error(`mietvertrag mime: ${mietvertrag.type}`);
+      const mvHash = await sha256Hex(mietvertrag);
+      await ensureAnlage(row.id, "mietvertrag", mietvertrag, mvHash);
+    }
+  } catch (e) {
+    await deleteAntrag(row.id);
+    return json({ error: `mietvertrag upload failed, rolled back: ${(e as Error).message}` }, 500, origin);
+  }
+
   return json({ antragsnummer: row.antragsnummer, id: row.id }, 200, origin);
 });

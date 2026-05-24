@@ -1,42 +1,23 @@
-import type { APL2Antrag, ValidationErrors, AnlagenTyp } from "./types";
+import type { FormState } from "./types";
 
-const ANLAGEN_LABEL: Record<AnlagenTyp, string> = {
-  "programm-altentagesstaette": "Programm der Altentagesstätte",
-  "anlage-1-kostennachweis": "Anlage 1 — Kostennachweis",
-  "personalkostenbelege": "Personalkostenbelege",
-  "mietvertrag": "Kopie Mietvertrag",
-};
+/**
+ * Cross-Field-Validierung, die mehrere Felder gleichzeitig konsultiert.
+ * Hauptfälle:
+ *  - „kein eigener Raum" + „keine unentgeltlichen Räume" → Miete > 0 Pflicht
+ *    (PDF H13/H14/H15 in Kombination).
+ */
+export type CrossFieldErrors = Partial<Record<keyof FormState, string>>;
 
-const PFLICHT_ANLAGEN: AnlagenTyp[] = [
-  "programm-altentagesstaette",
-  "anlage-1-kostennachweis",
-  "personalkostenbelege",
-];
-
-export function validateCrossField(antrag: APL2Antrag): ValidationErrors {
-  const errors: ValidationErrors = {};
+export function validateCrossField(s: FormState): CrossFieldErrors {
+  const errors: CrossFieldErrors = {};
 
   if (
-    antrag.raeumeVorhanden === "nein" &&
-    antrag.raeumeUnentgeltlich === "nein" &&
-    antrag.monatlicheMieteEuro <= 0
+    s.raeume_vorhanden === "nein" &&
+    s.raeume_unentgeltlich === "nein" &&
+    (s.monatliche_miete_euro === null || s.monatliche_miete_euro <= 0)
   ) {
-    errors.monatlicheMieteEuro =
+    errors.monatliche_miete_euro =
       "Ohne eigene oder unentgeltliche Räume muss eine monatliche Miete angegeben werden.";
-  }
-
-  if (antrag.monatlicheMieteEuro > 0) {
-    const hatMietvertrag = antrag.anlagen.some((a) => a.typ === "mietvertrag");
-    if (!hatMietvertrag) {
-      errors.mietvertrag = "Bei angegebener Miete ist eine Kopie des Mietvertrags Pflicht.";
-    }
-  }
-
-  for (const typ of PFLICHT_ANLAGEN) {
-    const dabei = antrag.anlagen.some((a) => a.typ === typ);
-    if (!dabei) {
-      errors[typ] = `Pflichtanlage fehlt: ${ANLAGEN_LABEL[typ]}`;
-    }
   }
 
   return errors;

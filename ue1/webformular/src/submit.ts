@@ -11,9 +11,10 @@ const ANON_KEY =
   "";
 
 /**
- * Sendet den Stepper-State an die submit-antrag-Edge-Function (v2).
- * - FormData mit `antrag` (JSON), `file_<sha256>` pro Beleg, `flyer` separat.
- * - Files werden anhand des file_hash dedupliziert (selber Hash → 1× upload).
+ * Sendet den Stepper-State an die submit-antrag-Edge-Function (v3 — PDF-Voll-Sync).
+ * - FormData mit `antrag` (JSON), `file_<sha256>` pro Beleg, `flyer` + `mietvertrag` separat.
+ * - Belegpositionen werden zusätzlich aus den primitiven Vorjahres-Feldern
+ *   (Betriebskosten, Personalkosten, Miete×12) synthetisch erzeugt.
  * - Wirft bei Non-2xx-Response; Aufrufer entscheidet über UI-Behandlung.
  */
 export async function submitAntrag(state: FormState): Promise<{ antragsnummer: string; id: string }> {
@@ -24,6 +25,48 @@ export async function submitAntrag(state: FormState): Promise<{ antragsnummer: s
   }
   const form = new FormData();
 
+  // Belegpositionen aus primitiven Feldern erzeugen (PDF-Voll-Sync).
+  const synthetischeBelege: Array<{
+    belegtyp: "betriebskosten" | "personalkosten" | "miete";
+    bezeichnung: string;
+    betrag_euro: number;
+    file_hash: null;
+  }> = [];
+  if (state.betriebskosten_vorjahr_euro !== null && state.betriebskosten_vorjahr_euro > 0) {
+    synthetischeBelege.push({
+      belegtyp: "betriebskosten",
+      bezeichnung: "Betriebskosten Vorjahr (aus Antragsformular)",
+      betrag_euro: state.betriebskosten_vorjahr_euro,
+      file_hash: null,
+    });
+  }
+  if (state.personalkosten_vorjahr_euro !== null && state.personalkosten_vorjahr_euro > 0) {
+    synthetischeBelege.push({
+      belegtyp: "personalkosten",
+      bezeichnung: "Personalkosten Vorjahr (aus Antragsformular)",
+      betrag_euro: state.personalkosten_vorjahr_euro,
+      file_hash: null,
+    });
+  }
+  if (state.monatliche_miete_euro !== null && state.monatliche_miete_euro > 0) {
+    synthetischeBelege.push({
+      belegtyp: "miete",
+      bezeichnung: "Jahresmiete (12 × Monatsmiete)",
+      betrag_euro: state.monatliche_miete_euro * 12,
+      file_hash: null,
+    });
+  }
+
+  const belegpositionen = [
+    ...synthetischeBelege,
+    ...state.belegpositionen.map((b) => ({
+      belegtyp: b.belegtyp,
+      bezeichnung: b.bezeichnung,
+      betrag_euro: b.betrag_euro,
+      file_hash: b.file_hash,
+    })),
+  ];
+
   const antragPayload = {
     haushaltsjahr: state.haushaltsjahr,
     name: state.name,
@@ -32,21 +75,17 @@ export async function submitAntrag(state: FormState): Promise<{ antragsnummer: s
     hausnummer: state.hausnummer,
     plz: state.plz,
     ort: state.ort,
-    // Bankname und Telefon sind seit Abspeckung 2026-05 optional —
-    // leerer String wird hier auf null gesetzt (DB akzeptiert beides,
-    // null ist sauberer Audit-Wert).
-    bankverbindung: state.bankverbindung.trim() || null,
+    // PDF-Voll-Sync: telefon, bankverbindung, bic sind Pflicht — keine
+    // null-Toleranz mehr.
+    bankverbindung: state.bankverbindung,
     iban: state.iban.replace(/\s+/g, ""),
-    bic: state.bic.trim() || null,
+    bic: state.bic,
     ansprechpartner: state.ansprechpartner,
-    telefon: state.telefon.trim() || null,
+    telefon: state.telefon,
     email: state.email,
-    // Räume-Fragen entfallen mit der Abspeckung (AHP 3.8: Belege nur
-    // auf Anfrage). Bleibt als nullable DB-Spalte erhalten, hier
-    // explizit null mitsenden.
-    raeume_vorhanden: state.raeume_vorhanden ?? null,
-    raeume_unentgeltlich: state.raeume_unentgeltlich ?? null,
-    antragsdatum: new Date().toISOString().slice(0, 10),
+    raeume_vorhanden: state.raeume_vorhanden,
+    raeume_unentgeltlich: state.raeume_unentgeltlich,
+    antragsdatum: state.antragsdatum,
     submitted_language: state.language,
     // Bemessungsgrundlage gem. AHP 2.3 FB III Pkt. 2 (Begegnungszentren).
     // DB-Spaltennamen tragen kein '_vorjahr'-Suffix; im FormState heißen
@@ -59,12 +98,7 @@ export async function submitAntrag(state: FormState): Promise<{ antragsnummer: s
     oeffnungszeiten: state.oeffnungszeiten.filter(
       (o) => o.oeffnungszeit.trim() || o.angebot.trim(),
     ),
-    belegpositionen: state.belegpositionen.map((b) => ({
-      belegtyp: b.belegtyp,
-      bezeichnung: b.bezeichnung,
-      betrag_euro: b.betrag_euro,
-      file_hash: b.file_hash,
-    })),
+    belegpositionen,
   };
   form.append("antrag", JSON.stringify(antragPayload));
 
@@ -79,6 +113,10 @@ export async function submitAntrag(state: FormState): Promise<{ antragsnummer: s
 
   if (state.programm_flyer) {
     form.append("flyer", state.programm_flyer, state.programm_flyer.name);
+  }
+
+  if (state.mietvertrag_file) {
+    form.append("mietvertrag", state.mietvertrag_file, state.mietvertrag_file.name);
   }
 
   const r = await fetch(FUNCTION_URL, {

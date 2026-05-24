@@ -7,15 +7,11 @@ import { isStepComplete } from "./state";
  * Bedient die Fortschritt-DOM-Elemente aus index.html
  * (#fortschritt-fill und #fortschritt-text) — keine eigene Navigation.
  *
- * Pflicht-Sections sind 1, 2, 4, 5, 6 — fünf Pflicht-Steps. Step 3
- * (Wochenplan) ist laut AHP-PDF optional und zählt nicht in die Quote.
- *
- * Bei der Abspeckung 2026-05 ist der frühere Step 5 'Räume + Belege'
- * komplett entfallen (AHP 3.8: „Belege sind nur auf Anfrage einzureichen").
- * Die alten Steps 6 (Flyer) und 7 (Bestätigung) sind dadurch auf
- * 5 und 6 verschoben.
+ * v3 (PDF-Voll-Sync): 7 Pflicht-Steps — alle zählen in die Quote.
+ *   1 Einrichtung · 2 Kontakt & Bank · 3 Wochenplan · 4 Räume & Kosten ·
+ *   5 Bemessung · 6 Programm · 7 Senden.
  */
-const PFLICHT_STEPS: ReadonlyArray<1 | 2 | 4 | 5 | 6> = [1, 2, 4, 5, 6];
+const PFLICHT_STEPS: ReadonlyArray<1 | 2 | 3 | 4 | 5 | 6 | 7> = [1, 2, 3, 4, 5, 6, 7];
 
 export function attachStickyProgress(stateSig: Signal<FormState>): void {
   const fill = document.getElementById("fortschritt-fill") as HTMLElement | null;
@@ -27,7 +23,7 @@ export function attachStickyProgress(stateSig: Signal<FormState>): void {
     const done = PFLICHT_STEPS.filter((s) => isStepComplete(s, stateSig.value)).length;
     const pct = Math.round((done / total) * 100);
     fill.style.width = `${pct}%`;
-    text.textContent = `${done} / ${total}`;
+    text.textContent = `${done} / ${total}`;
   };
   update();
   stateSig.subscribe(update);

@@ -245,26 +245,14 @@ export function AntragDetail() {
 
             <DocSection num="§ 2" title="Räumlichkeiten">
               <FieldGrid>
-                {/* Räume-Fragen sind seit Abspeckung 2026-05 nicht mehr Pflicht
-                    im Antragsformular (AHP 3.8: Belege nur auf Anfrage). Bei
-                    NULL eine erklärende Zeile statt einer ja/nein-Box mit
-                    irreführendem Default. */}
-                {antrag.raeume_vorhanden !== null ? (
-                  <DocField label="Räume vorhanden">
-                    <YesNo value={antrag.raeume_vorhanden} />
-                  </DocField>
-                ) : (
-                  <DocField label="Räume vorhanden" className="sm:col-span-2">
-                    <span className="text-slate-400 italic text-sm">
-                      Nicht abgefragt — gem. AHP 3.8 keine Detailerhebung erforderlich
-                    </span>
-                  </DocField>
-                )}
-                {antrag.raeume_unentgeltlich !== null && (
-                  <DocField label="Räume unentgeltlich überlassen">
-                    <YesNo value={antrag.raeume_unentgeltlich} />
-                  </DocField>
-                )}
+                {/* Seit Migration 048 (Voll-Sync zum PDF, 2026-05-24) sind beide
+                    Räume-Felder wieder Pflicht — direkter Render ohne NULL-Fallback. */}
+                <DocField label="Räume vorhanden">
+                  <YesNo value={antrag.raeume_vorhanden} />
+                </DocField>
+                <DocField label="Räume unentgeltlich überlassen">
+                  <YesNo value={antrag.raeume_unentgeltlich} />
+                </DocField>
                 <DocField label="Anschrift Einrichtung" className="sm:col-span-2">
                   {formatAdresse(antrag.strasse, antrag.hausnummer, antrag.plz, antrag.ort)}
                 </DocField>

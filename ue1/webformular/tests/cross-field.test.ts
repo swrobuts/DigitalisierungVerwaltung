@@ -1,68 +1,37 @@
 import { describe, expect, it } from "vitest";
 import { validateCrossField } from "../src/cross-field";
-import type { APL2Antrag } from "../src/types";
+import { initialState } from "../src/state";
+import type { FormState } from "../src/types";
 
-const minimalValid: APL2Antrag = {
-  haushaltsjahr: 2026,
-  name: "Test-Altentagesstätte",
-  strasse:    "Musterstraße",
-  hausnummer: "1",
-  plz:        "97070",
-  ort:        "Würzburg",
-  traeger: "Diakonie e.V.",
-  bankverbindung: "Sparkasse Mainfranken",
-  iban: "DE89 3704 0044 0532 0130 00",
-  bic: "",
-  ansprechpartner: "Erika Mustermann",
-  telefon: "0931 1234567",
-  email: "kontakt@test.de",
-  betriebskostenVorjahrEuro: 10000,
-  personalkostenVorjahrEuro: 50000,
-  raeumeVorhanden: "ja",
-  raeumeUnentgeltlich: "nein",
-  monatlicheMieteEuro: 0,
-  antragsdatum: new Date().toISOString().slice(0, 10),
-  anlagen: [
-    { typ: "programm-altentagesstaette", dateiname: "p.pdf", groesseBytes: 1000, mimeType: "application/pdf" },
-    { typ: "anlage-1-kostennachweis", dateiname: "a.pdf", groesseBytes: 1000, mimeType: "application/pdf" },
-    { typ: "personalkostenbelege", dateiname: "b.pdf", groesseBytes: 1000, mimeType: "application/pdf" },
-  ],
-};
+function makeState(overrides: Partial<FormState> = {}): FormState {
+  return { ...initialState(), ...overrides };
+}
 
 describe("validateCrossField", () => {
-  it("akzeptiert minimal validen Antrag (Räume vorhanden, keine Miete)", () => {
-    expect(validateCrossField(minimalValid)).toEqual({});
+  it("liefert keinen Fehler, wenn eigene Räume vorhanden sind", () => {
+    const s = makeState({ raeume_vorhanden: "ja", raeume_unentgeltlich: "nein", monatliche_miete_euro: 0 });
+    expect(validateCrossField(s)).toEqual({});
+  });
+
+  it("liefert keinen Fehler, wenn unentgeltliche Räume bereitgestellt sind", () => {
+    const s = makeState({ raeume_vorhanden: "nein", raeume_unentgeltlich: "ja", monatliche_miete_euro: 0 });
+    expect(validateCrossField(s)).toEqual({});
   });
 
   it("fordert Miete > 0, wenn weder eigene noch unentgeltliche Räume", () => {
-    const antrag = { ...minimalValid, raeumeVorhanden: "nein" as const, raeumeUnentgeltlich: "nein" as const, monatlicheMieteEuro: 0 };
-    const errors = validateCrossField(antrag);
-    expect(errors.monatlicheMieteEuro).toBeDefined();
+    const s = makeState({ raeume_vorhanden: "nein", raeume_unentgeltlich: "nein", monatliche_miete_euro: 0 });
+    const errors = validateCrossField(s);
+    expect(errors.monatliche_miete_euro).toBeDefined();
   });
 
-  it("fordert Mietvertrags-Anlage, wenn Miete > 0", () => {
-    const antrag = { ...minimalValid, monatlicheMieteEuro: 500 };
-    const errors = validateCrossField(antrag);
-    expect(errors.mietvertrag).toBeDefined();
+  it("akzeptiert null-Miete als Fehlerfall, wenn keine Räume", () => {
+    const s = makeState({ raeume_vorhanden: "nein", raeume_unentgeltlich: "nein", monatliche_miete_euro: null });
+    const errors = validateCrossField(s);
+    expect(errors.monatliche_miete_euro).toBeDefined();
   });
 
-  it("akzeptiert Miete + Mietvertrags-Anlage", () => {
-    const antrag = {
-      ...minimalValid,
-      monatlicheMieteEuro: 500,
-      anlagen: [
-        ...minimalValid.anlagen,
-        { typ: "mietvertrag" as const, dateiname: "m.pdf", groesseBytes: 1000, mimeType: "application/pdf" },
-      ],
-    };
-    expect(validateCrossField(antrag)).toEqual({});
-  });
-
-  it("fordert Pflicht-Anlagen", () => {
-    const antrag = { ...minimalValid, anlagen: [] };
-    const errors = validateCrossField(antrag);
-    expect(errors["programm-altentagesstaette"]).toBeDefined();
-    expect(errors["anlage-1-kostennachweis"]).toBeDefined();
-    expect(errors["personalkostenbelege"]).toBeDefined();
+  it("akzeptiert positive Miete bei fehlenden Räumen", () => {
+    const s = makeState({ raeume_vorhanden: "nein", raeume_unentgeltlich: "nein", monatliche_miete_euro: 500 });
+    expect(validateCrossField(s)).toEqual({});
   });
 });

@@ -4,45 +4,6 @@ export type Sprache = "de" | "it" | "tr" | "es";
 
 export const ALLE_SPRACHEN: Sprache[] = ["de", "it", "tr", "es"];
 
-export interface APL2Antrag {
-  haushaltsjahr: number;
-  name: string;
-  strasse:    string;
-  hausnummer: string;
-  plz:        string;
-  ort:        string;
-  traeger: string;
-  bankverbindung: string;
-  iban: string;
-  bic: string;
-  ansprechpartner: string;
-  telefon: string;
-  email: string;
-  betriebskostenVorjahrEuro: number;
-  personalkostenVorjahrEuro: number;
-  raeumeVorhanden: JaNein;
-  raeumeUnentgeltlich: JaNein;
-  monatlicheMieteEuro: number;
-  antragsdatum: string;          // ISO YYYY-MM-DD
-  anlagen: Anlage[];
-}
-
-export type AnlagenTyp =
-  | "mietvertrag"
-  | "programm-altentagesstaette"
-  | "anlage-1-kostennachweis"
-  | "personalkostenbelege";
-
-export interface Anlage {
-  typ: AnlagenTyp;
-  dateiname: string;
-  groesseBytes: number;
-  mimeType: string;
-  file?: File;
-}
-
-export type ValidationErrors = Partial<Record<keyof APL2Antrag | AnlagenTyp, string>>;
-
 // ----- v2: Belegezentrierter Stepper-Flow ----------------------------------
 
 export type Wochentag = "mo" | "di" | "mi" | "do" | "fr" | "sa" | "so";
@@ -63,8 +24,16 @@ export interface OeffnungszeitEntry {
   angebot: string;
 }
 
+/**
+ * UE1-v3 — Voll-Sync mit PDF-Antrag „AHP Nr. 2".
+ *
+ * Hinweis zu raeume_vorhanden / raeume_unentgeltlich:
+ * UI-Konvention für „noch nicht gewählt" ist der leere String "".
+ * Der State-Typ erlaubt "" temporär; die DB-Submit-Payload (siehe submit.ts)
+ * und isStepComplete() verlangen einen der beiden konkreten Werte ja|nein.
+ */
 export interface FormState {
-  step: 1 | 2 | 3 | 4 | 5 | 6;
+  step: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   haushaltsjahr: number;
   name: string;
   traeger: string;
@@ -73,12 +42,13 @@ export interface FormState {
   plz: string;
   ort: string;
   ansprechpartner: string;
-  /** Optional seit Abspeckung 2026-05 — Email-Korrespondenz reicht. */
+  /** PDF H8. Pflicht. */
   telefon: string;
   email: string;
-  /** Optional seit Abspeckung 2026-05 — Bankname ist aus IBAN ableitbar. */
+  /** PDF H9. Pflicht — Bankname. */
   bankverbindung: string;
   iban: string;
+  /** PDF H9. Pflicht. */
   bic: string;
   oeffnungszeiten: OeffnungszeitEntry[];
   // Bemessungsgrundlage gem. AHP 2.3 Förderbereich III, Pkt. 2
@@ -93,8 +63,21 @@ export interface FormState {
    *  prozentualen Auszahlungsanteil. */
   stadtbewohner_anteil_vorjahr: number | null;
   anzahl_veranstaltungen_vorjahr: number | null;
-  raeume_vorhanden: "ja" | "nein" | null;
-  raeume_unentgeltlich: "ja" | "nein" | null;
+  /** PDF H13. Pflicht. "" = noch nicht gewählt; final "ja" | "nein". */
+  raeume_vorhanden: "ja" | "nein" | "";
+  /** PDF H14. Pflicht. "" = noch nicht gewählt; final "ja" | "nein". */
+  raeume_unentgeltlich: "ja" | "nein" | "";
+  /** PDF H11. Pflicht. Wird beim Submit als belegposition mit belegtyp='betriebskosten' angelegt. */
+  betriebskosten_vorjahr_euro: number | null;
+  /** PDF H12. Pflicht. Wird als belegposition belegtyp='personalkosten' angelegt. */
+  personalkosten_vorjahr_euro: number | null;
+  /** PDF H15. Monatswert. Beim Submit × 12 = Jahressumme als belegposition belegtyp='miete'.
+   *  Pflicht wenn raeume_vorhanden='nein' UND raeume_unentgeltlich='nein'. */
+  monatliche_miete_euro: number | null;
+  /** PDF H16. Editierbares Datum, default heute. */
+  antragsdatum: string;
+  /** PDF H15-Hinweis: Kopie Mietvertrag. Optional (AHP 3.8: Belege nur auf Anfrage). */
+  mietvertrag_file: File | null;
   belegpositionen: BelegpositionEntry[];
   programm_flyer: File | null;
   bestaetigt: boolean;

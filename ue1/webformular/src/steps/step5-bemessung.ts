@@ -3,7 +3,7 @@ import type { FormState } from "../types";
 import { t } from "../i18n";
 
 /**
- * Step 4 — Bemessungsgrundlage gem. AHP 2.3 Förderbereich III, Pkt. 2
+ * Step 5 — Bemessungsgrundlage gem. AHP 2.3 Förderbereich III, Pkt. 2
  * (Begegnungszentren). Drei Pflichtfelder:
  *
  *   1. anzahl_teilnehmer_vorjahr     — Zahl der Teilnehmer:innen
@@ -25,12 +25,12 @@ import { t } from "../i18n";
  *   Vorjahres-Wert ist, „noch nichts eingegeben" ist semantisch
  *   etwas anderes).
  */
-export function renderStep4(stateSig: Signal<FormState>): HTMLElement {
+export function renderStep5Bemessung(stateSig: Signal<FormState>): HTMLElement {
   const root = document.createElement("fieldset");
-  root.dataset.section = "4";
+  root.dataset.section = "5";
 
   const legend = document.createElement("legend");
-  legend.textContent = t("stepper.4.titel");
+  legend.textContent = t("stepper.5.titel");
   root.appendChild(legend);
 
   const hint = document.createElement("p");

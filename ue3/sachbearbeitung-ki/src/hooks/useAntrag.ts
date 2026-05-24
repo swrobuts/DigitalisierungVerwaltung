@@ -18,10 +18,9 @@ export interface AntragFull {
   ansprechpartner: string;
   telefon: string;
   email: string;
-  /** NULL erlaubt seit Abspeckung 2026-05 — UE1-Formular fragt es
-   *  nicht mehr zwingend ab (AHP 3.8: Belege nur auf Anfrage). */
-  raeume_vorhanden: "ja" | "nein" | null;
-  raeume_unentgeltlich: "ja" | "nein" | null;
+  /** Pflicht seit Migration 048 (PDF H13/H14, Voll-Sync 2026-05-24). */
+  raeume_vorhanden: "ja" | "nein";
+  raeume_unentgeltlich: "ja" | "nein";
   antragsdatum: string;
   submitted_language: string;
   submitted_at: string;
