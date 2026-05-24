@@ -272,6 +272,37 @@ a:hover {
   font-weight: 600;
 }
 
+/* Globaler OCR-Hinweis — einmalig oberhalb beider Anträge */
+.upload-hint-global {
+  margin: 0.4rem 0 1.2rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--color-wue-rot-soft);
+  border-left: 3px solid var(--color-wue-rot);
+  font-size: 13.5px;
+  color: #333;
+  line-height: 1.5;
+}
+.upload-hint-global em {
+  color: var(--color-wue-rot);
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* Eine Antrag-Zeile: PDF-Link + Upload-Button direkt darunter */
+.antrag-row {
+  margin: 0.6rem 0 1.4rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid #eee;
+}
+.antrag-row:last-of-type {
+  border-bottom: none;
+}
+.antrag-row .upload-zone {
+  margin-top: 0.5rem;
+  margin-left: 40px;  /* mit PDF-Label bündig */
+  padding: 1.1rem 1.2rem;
+}
+
 .upload-zone {
   display: block;
   border: 2px dashed #b0b0b0;

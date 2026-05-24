@@ -65,39 +65,46 @@ function renderUploadView(): HTMLElement {
     <h2>Formulare und/oder Online-Service zum Thema:</h2>
   `;
 
-  // Antrag-Block: PDF-Download-Link + direkt darunter der Upload-Button
-  const antragBlock = document.createElement("div");
-  antragBlock.className = "antrag-block";
-  antragBlock.innerHTML = `
-    <a class="pdf-link" href="https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/antrag-apl2.pdf" target="_blank" rel="noopener noreferrer">
-      <span class="pdf-icon">PDF</span>
-      Antrag APL 2 - Altentagesstätten - Betriebs- und Personalkostenzuschüsse
-    </a>
-    <p class="upload-hint">
-      📤 <em>Demo-Service:</em> Ausgefülltes PDF (auch handschriftlich) hier hochladen —
-      ein KI-Workflow liest die Felder per OCR aus und übermittelt sie automatisch
-      an die Sachbearbeitung.
-    </p>
+  // Gemeinsamer OCR-Hinweis für beide Anträge — nur einmal angezeigt
+  const ocrHint = document.createElement("p");
+  ocrHint.className = "upload-hint-global";
+  ocrHint.innerHTML = `
+    📤 <em>Demo-Service:</em> Ausgefüllte PDFs (auch handschriftlich) können Sie
+    jeweils direkt über den Button hinter dem Download-Link hochladen. Ein KI-Workflow
+    liest die Felder per OCR aus und übermittelt sie an die Sachbearbeitung.
   `;
-  antragBlock.appendChild(renderUpload((trackingId) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("status", trackingId);
-    window.history.pushState({}, "", url);
-    route();
-  }));
-  main.appendChild(antragBlock);
+  main.appendChild(ocrHint);
 
-  // Zweiter Antrag-Link (Anlage) ohne Upload — die Anlage wird ggf. zusammen mit
-  // dem Hauptantrag eingereicht.
-  const anlageWrap = document.createElement("div");
-  anlageWrap.style.marginTop = "1rem";
-  anlageWrap.innerHTML = `
-    <a class="pdf-link" href="https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/anlage-antrag-apl2.pdf" target="_blank" rel="noopener noreferrer">
-      <span class="pdf-icon">PDF</span>
-      Anlage Antrag APL 2 - Altentagesstätten - Betriebs- und Personalkostenzuschüsse
-    </a>
-  `;
-  main.appendChild(anlageWrap);
+  // Helper: jeder Antrag bekommt PDF-Link + Upload-Button im gleichen Pattern
+  function antragRow(downloadUrl: string, label: string): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "antrag-row";
+    row.innerHTML = `
+      <a class="pdf-link" href="${downloadUrl}" target="_blank" rel="noopener noreferrer">
+        <span class="pdf-icon">PDF</span>
+        ${label}
+      </a>
+    `;
+    row.appendChild(renderUpload((trackingId) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set("status", trackingId);
+      window.history.pushState({}, "", url);
+      route();
+    }));
+    return row;
+  }
+
+  // Hauptantrag
+  main.appendChild(antragRow(
+    "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/antrag-apl2.pdf",
+    "Antrag APL 2 - Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
+  ));
+
+  // Anlage 1 (Wochenplan)
+  main.appendChild(antragRow(
+    "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/anlage-antrag-apl2.pdf",
+    "Anlage Antrag APL 2 - Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
+  ));
 
   // Trenner + Weiterführende Informationen
   const weiter = document.createElement("div");
