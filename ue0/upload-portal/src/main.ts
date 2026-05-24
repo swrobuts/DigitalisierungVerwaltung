@@ -75,54 +75,12 @@ function renderUploadView(): HTMLElement {
   `;
   main.appendChild(ocrHint);
 
-  // Hinweis (Final-Sweep 2026-05-24): Bis vorher gab es zwei getrennte
-  // antragRow()-Aufrufe mit jeweils eigenem Upload (zwei tracking_ids).
-  // Jetzt: EINE Upload-Komponente, beide PDFs in einem Submit, ein
-  // tracking_id — Hauptantrag + Anlage 1 logisch zusammengehörig.
-
-  // Hauptantrag (Pflicht) + Anlage 1 (optional) in EINER Upload-Komponente.
+  // Upload-Komponente rendert selbst zwei optisch klar getrennte Boxen:
+  //   ① Hauptantrag (rot, Pflicht)
+  //   ② Anlage 1 — Wochenplan (grau, Optional)
   // Beide Files werden in einem POST gesendet (FormData: datei + anlage_1)
-  // → ein gemeinsamer tracking_id, n8n erkennt Anlage-1-Pfad und
-  // extrahiert dort den Wochenplan (Final-Sweep 2026-05-24).
-  const hauptantragRow = document.createElement("div");
-  hauptantragRow.className = "antrag-row";
-
-  // Section-Header
-  const head1 = document.createElement("div");
-  head1.className = "antrag-section-head";
-  const num1 = document.createElement("span");
-  num1.className = "antrag-section-num";
-  num1.textContent = "1";
-  const title1 = document.createElement("h2");
-  title1.className = "antrag-section-title";
-  title1.textContent = "Antrag APL 2 (mit optionaler Anlage 1)";
-  const badge1 = document.createElement("span");
-  badge1.className = "antrag-section-badge";
-  badge1.textContent = "Pflicht";
-  head1.append(num1, title1, badge1);
-  hauptantragRow.appendChild(head1);
-
-  // Zwei PDF-Download-Links untereinander — Bürger lädt sich beide Vorlagen
-  const pdfBlock = document.createElement("div");
-  pdfBlock.style.cssText = "display:flex; flex-direction:column; gap:0.4rem;";
-  const linkMain = document.createElement("a");
-  linkMain.className = "pdf-link";
-  linkMain.href = "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/antrag-apl2.pdf";
-  linkMain.target = "_blank";
-  linkMain.rel = "noopener noreferrer";
-  linkMain.innerHTML = `<span class="pdf-icon">PDF</span> Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse`;
-  pdfBlock.appendChild(linkMain);
-  const linkAnlage = document.createElement("a");
-  linkAnlage.className = "pdf-link";
-  linkAnlage.href = "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/anlage-antrag-apl2.pdf";
-  linkAnlage.target = "_blank";
-  linkAnlage.rel = "noopener noreferrer";
-  linkAnlage.innerHTML = `<span class="pdf-icon">PDF</span> Anlage 1 — Wochenplan (optional, Öffnungszeiten + Angebot)`;
-  pdfBlock.appendChild(linkAnlage);
-  hauptantragRow.appendChild(pdfBlock);
-
-  // Upload-Komponente mit zwei Drop-Zonen (Hauptantrag Pflicht + Anlage 1 optional)
-  hauptantragRow.appendChild(renderUpload(
+  // → ein gemeinsamer tracking_id, n8n verarbeitet beide.
+  main.appendChild(renderUpload(
     (trackingId) => {
       const url = new URL(window.location.href);
       url.searchParams.set("status", trackingId);
@@ -132,14 +90,23 @@ function renderUploadView(): HTMLElement {
     {
       dokumentBeschreibung: "Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
       ueberschrift: "So funktioniert der digitale Antrag",
-      secondaryFile: {
+      primary: {
+        nummer: 1,
+        sektionTitel: "Hauptantrag",
+        pdfUrl: "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/antrag-apl2.pdf",
+        pdfLabel: "Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
+        hint: "Nur PDF, max. 10 MB",
+      },
+      secondary: {
         fieldName: "anlage_1",
-        label: "Anlage 1 — Wochenplan (optional)",
-        hint: "PDF, max. 10 MB — wenn vorhanden, extrahiert die KI auch die Öffnungszeiten.",
+        nummer: 2,
+        sektionTitel: "Anlage 1 — Wochenplan",
+        pdfUrl: "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/anlage-antrag-apl2.pdf",
+        pdfLabel: "Anlage 1 — Wochenplan (Öffnungszeiten + Angebot)",
+        hint: "PDF, max. 10 MB — wenn vorhanden, extrahiert die KI auch die Öffnungszeiten",
       },
     },
   ));
-  main.appendChild(hauptantragRow);
 
   // Trenner + Weiterführende Informationen
   const weiter = document.createElement("div");
