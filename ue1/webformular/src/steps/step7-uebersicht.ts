@@ -1,6 +1,7 @@
 import type { Signal } from "../signals";
 import type { FormState } from "../types";
 import { isStepComplete, isFormComplete } from "../state";
+import { antragsfristHinweis } from "../cross-field";
 import { t } from "../i18n";
 
 const SECTION_LABELS: Record<number, string> = {
@@ -8,12 +9,14 @@ const SECTION_LABELS: Record<number, string> = {
   2: "Kontakt & Bank",
   3: "Wochenplan (mind. 1 Tag mit Öffnungszeit + Angebot)",
   4: "Räume & Kosten Vorjahr",
-  5: "Bemessungsgrundlage Vorjahr (Teilnehmer, Stadt-Anteil, Veranstaltungen)",
   6: "Programm-Nachweis (Wochenplan oder Programm-Flyer)",
   7: "Bestätigung",
 };
 
-const PFLICHT_STEPS = [1, 2, 3, 4, 5, 6, 7] as const;
+// Step 5 (Bemessung) ist optional — nur Pflicht, wenn Sozialreferat
+// den Antrag als FB-III.2/III.3 klassifiziert. Daher nicht in der
+// Pflicht-Quote.
+const PFLICHT_STEPS = [1, 2, 3, 4, 6, 7] as const;
 
 /**
  * Step 7 — Senden.
@@ -35,6 +38,34 @@ export function renderStep7Uebersicht(
   const legend = document.createElement("legend");
   legend.textContent = t("stepper.7.titel");
   root.appendChild(legend);
+
+  // Cross-Field-Warnhinweis (nicht-blockierend) zur 1.-April-Frist
+  // gem. AHP 3.3. Live aktualisiert, kein Submit-Blocker (AHP sagt
+  // „grundsätzlich"; finale Bewertung liegt beim Sozialreferat).
+  const fristBox = document.createElement("div");
+  fristBox.className = "frist-hinweis";
+  fristBox.style.marginBottom = "0.8rem";
+  fristBox.style.padding = "0.6rem 0.8rem";
+  fristBox.style.borderLeft = "3px solid #b07b00";
+  fristBox.style.background = "#fff8e6";
+  fristBox.hidden = true;
+  root.appendChild(fristBox);
+
+  const updateFristHinweis = () => {
+    const h = antragsfristHinweis(
+      stateSig.value.antragsdatum,
+      stateSig.value.haushaltsjahr,
+    );
+    if (h === null) {
+      fristBox.hidden = true;
+      fristBox.textContent = "";
+    } else {
+      fristBox.hidden = false;
+      fristBox.textContent = h;
+    }
+  };
+  updateFristHinweis();
+  stateSig.subscribe(updateFristHinweis);
 
   // Bestätigung-Checkbox
   const checkWrap = document.createElement("label");

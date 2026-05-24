@@ -122,17 +122,24 @@ export function isStepComplete(step: number, s: FormState): boolean {
       return true;
     }
     case 5: {
-      // Bemessungsgrundlage Vorjahr gem. AHP 2.3 Förderbereich III, Pkt. 2.
-      // Alle drei Felder Pflicht: Stadt-Anteil weil die Auszahlung
-      // anteilig danach erfolgt; Teilnehmer + Veranstaltungen weil die
-      // Richtlinie sie als „Gewichtung der möglichen Zuwendung aus dem
-      // Budget" verlangt — ohne diese Werte kann der Sozialausschuss
-      // keine vergleichende Bewertung vornehmen.
-      if (s.anzahl_teilnehmer_vorjahr === null || s.anzahl_teilnehmer_vorjahr < 0) return false;
-      if (s.stadtbewohner_anteil_vorjahr === null
-          || s.stadtbewohner_anteil_vorjahr < 0
-          || s.stadtbewohner_anteil_vorjahr > 1) return false;
-      if (s.anzahl_veranstaltungen_vorjahr === null || s.anzahl_veranstaltungen_vorjahr < 0) return false;
+      // Bemessungsgrundlage Vorjahr — OPTIONAL.
+      // PDF (antrag-apl2.pdf) fragt diese Werte NICHT ab. Die Felder
+      // stammen aus AHP 2.3 Pkt. 2 (Begegnungszentren) und Pkt. 3
+      // (Bildungsträger). Für alle anderen Förderbereiche sind sie
+      // irrelevant; die endgültige Klassifizierung erfolgt erst durch
+      // das Sozialreferat. Daher: leer = OK; befüllt = Validierung.
+      const tn = s.anzahl_teilnehmer_vorjahr;
+      const anteil = s.stadtbewohner_anteil_vorjahr;
+      const va = s.anzahl_veranstaltungen_vorjahr;
+      const alleLeer = tn === null && anteil === null && va === null;
+      if (alleLeer) return true;
+      // Wenn mindestens ein Feld befüllt ist: jedes nicht-null-Feld
+      // muss valide sein. null-Felder bleiben weiterhin zulässig
+      // (Teil-Befüllung erlaubt; harte Tripel-Pflicht erst dann, wenn
+      // das Sozialreferat den Antrag als FB-III.2/III.3 klassifiziert).
+      if (tn !== null && tn < 0) return false;
+      if (anteil !== null && (anteil < 0 || anteil > 1)) return false;
+      if (va !== null && va < 0) return false;
       return true;
     }
     case 6: {
@@ -151,7 +158,9 @@ export function isStepComplete(step: number, s: FormState): boolean {
 }
 
 /**
- * Form-Completion-Prüfung. True nur, wenn alle 7 Pflicht-Sections grün sind.
+ * Form-Completion-Prüfung. Iteriert über alle 7 Steps; Step 5
+ * (Bemessung) ist optional — `isStepComplete(5, …)` liefert bei
+ * leeren Feldern bereits `true`, daher hier ohne Sonderfall.
  */
 export function isFormComplete(s: FormState): boolean {
   for (let step = 1; step <= 7; step++) {

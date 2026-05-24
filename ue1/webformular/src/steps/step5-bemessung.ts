@@ -4,15 +4,23 @@ import { t } from "../i18n";
 
 /**
  * Step 5 — Bemessungsgrundlage gem. AHP 2.3 Förderbereich III, Pkt. 2
- * (Begegnungszentren). Drei Pflichtfelder:
+ * (Begegnungszentren) und Pkt. 3 (Bildungsträger). OPTIONAL.
+ *
+ * Hintergrund: Das Antrags-PDF (antrag-apl2.pdf) fragt diese drei
+ * Werte NICHT ab. Sie sind nur dann tatsächlich erforderlich, wenn das
+ * Sozialreferat den Antrag als FB-III.2 (Begegnungszentren) oder
+ * FB-III.3 (Bildungsträger) einstuft — für diese beiden gilt die
+ * anteilige Auszahlung nach Stadtbewohner-Anteil. Da die finale
+ * Klassifizierung beim Sozialreferat liegt, sind die Felder im
+ * Webformular optional ausgewiesen.
  *
  *   1. anzahl_teilnehmer_vorjahr     — Zahl der Teilnehmer:innen
  *      gesamt im Vorjahr
  *   2. stadtbewohner_anteil_vorjahr  — Anteil 0…1 (UI: 0…100 %) der
  *      Würzburger Stadtbewohner:innen an allen Teilnehmer:innen des
- *      Vorjahres. Bestimmt direkt den prozentualen Auszahlungsanteil
- *      gem. AHP-Wortlaut „erfolgt die Auszahlung des prozentualen
- *      Anteils".
+ *      Vorjahres. Bestimmt — falls FB-III.2/III.3 — den prozentualen
+ *      Auszahlungsanteil (AHP-Wortlaut „erfolgt die Auszahlung des
+ *      prozentualen Anteils").
  *   3. anzahl_veranstaltungen_vorjahr — Anzahl durchgeführter Ver-
  *      anstaltungen im Vorjahr. Geht in die Gewichtung der Zuwendung
  *      aus dem zur Verfügung stehenden Budget ein.
@@ -24,6 +32,7 @@ import { t } from "../i18n";
  * - Leerer Input ⇒ null im State (NICHT 0, weil 0 ein gültiger
  *   Vorjahres-Wert ist, „noch nichts eingegeben" ist semantisch
  *   etwas anderes).
+ * - Keine Pflicht-Sterne, kein `required`-Attribut.
  */
 export function renderStep5Bemessung(stateSig: Signal<FormState>): HTMLElement {
   const root = document.createElement("fieldset");
@@ -32,6 +41,17 @@ export function renderStep5Bemessung(stateSig: Signal<FormState>): HTMLElement {
   const legend = document.createElement("legend");
   legend.textContent = t("stepper.5.titel");
   root.appendChild(legend);
+
+  // Optional-Hinweis prominent oberhalb des fieldset-Inhalts, analog
+  // zur früheren Wochenplan-Optional-Box.
+  const optionalBox = document.createElement("p");
+  optionalBox.className = "field-hint field-hint-optional";
+  optionalBox.style.marginBottom = "0.8rem";
+  optionalBox.style.padding = "0.6rem 0.8rem";
+  optionalBox.style.borderLeft = "3px solid #888";
+  optionalBox.style.background = "#f6f6f6";
+  optionalBox.textContent = t("form.hint.bemessung_optional");
+  root.appendChild(optionalBox);
 
   const hint = document.createElement("p");
   hint.className = "field-hint";
@@ -71,7 +91,10 @@ export function renderStep5Bemessung(stateSig: Signal<FormState>): HTMLElement {
     inp.min = String(opts.min);
     if (opts.max !== undefined) inp.max = String(opts.max);
     inp.step = opts.step;
-    inp.required = true;
+    // Optional — kein required, da die Felder nur bei FB-III.2/III.3
+    // tatsächlich erforderlich sind und die Klassifizierung erst vom
+    // Sozialreferat vorgenommen wird.
+    inp.required = false;
     inp.inputMode = "decimal";
     const v = opts.getValue(stateSig.value);
     inp.value = v === null ? "" : String(v);

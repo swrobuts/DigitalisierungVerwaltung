@@ -144,9 +144,11 @@ describe("isStepComplete", () => {
     expect(isStepComplete(4, s)).toBe(false);
   });
 
-  // Step 5 — Bemessung Vorjahr.
-  it("Step 5 (Bemessung) ohne Werte ist nicht complete", () => {
-    expect(isStepComplete(5, initialState())).toBe(false);
+  // Step 5 — Bemessung Vorjahr. OPTIONAL: PDF fragt diese Werte nicht
+  // ab; nur bei FB-III.2 (Begegnungszentren) und FB-III.3 (Bildungs-
+  // träger) faktisch erforderlich. Klassifizierung durch Sozialreferat.
+  it("Step 5 (Bemessung) leer ist jetzt complete (optional)", () => {
+    expect(isStepComplete(5, initialState())).toBe(true);
   });
   it("Step 5 (Bemessung) mit allen drei Werten ist complete", () => {
     const s = makeState({
@@ -156,7 +158,7 @@ describe("isStepComplete", () => {
     });
     expect(isStepComplete(5, s)).toBe(true);
   });
-  it("Step 5 (Bemessung) lehnt Stadt-Anteil > 1 ab", () => {
+  it("Step 5 (Bemessung) lehnt Stadt-Anteil > 1 ab, wenn befüllt", () => {
     const s = makeState({
       anzahl_teilnehmer_vorjahr: 35,
       stadtbewohner_anteil_vorjahr: 1.5,
@@ -171,6 +173,22 @@ describe("isStepComplete", () => {
       anzahl_veranstaltungen_vorjahr: 0,
     });
     expect(isStepComplete(5, s)).toBe(true);
+  });
+  it("Step 5 mit Teil-Befüllung (nur Stadt-Anteil, Rest null) ist complete", () => {
+    const s = makeState({
+      anzahl_teilnehmer_vorjahr: null,
+      stadtbewohner_anteil_vorjahr: 0.7,
+      anzahl_veranstaltungen_vorjahr: null,
+    });
+    expect(isStepComplete(5, s)).toBe(true);
+  });
+  it("Step 5 mit negativem Teilnehmer-Wert ist nicht complete", () => {
+    const s = makeState({
+      anzahl_teilnehmer_vorjahr: -1,
+      stadtbewohner_anteil_vorjahr: null,
+      anzahl_veranstaltungen_vorjahr: null,
+    });
+    expect(isStepComplete(5, s)).toBe(false);
   });
 
   // Step 6 — Programm.
@@ -201,6 +219,26 @@ describe("isFormComplete", () => {
   it("nur Bestätigung reicht nicht — alle Pflicht-Sections müssen grün sein", () => {
     const s = makeState({ bestaetigt: true });
     expect(isFormComplete(s)).toBe(false);
+  });
+  it("State ohne Bemessungs-Werte ist trotzdem complete (Step 5 optional)", () => {
+    const s = makeState({
+      name: "Test", traeger: "X", strasse: "Hauptstr", hausnummer: "1",
+      plz: "97070", ort: "Würzburg", haushaltsjahr: 2026,
+      ansprechpartner: "M", telefon: "0931", email: "m@x.de",
+      bankverbindung: "Sparkasse",
+      iban: "DE89370400440532013000", bic: "BYLADEM1SWU",
+      oeffnungszeiten: FULL_WOCHENPLAN,
+      betriebskosten_vorjahr_euro: 10000,
+      personalkosten_vorjahr_euro: 50000,
+      raeume_vorhanden: "ja",
+      raeume_unentgeltlich: "nein",
+      // Bemessung: alles leer
+      anzahl_teilnehmer_vorjahr: null,
+      stadtbewohner_anteil_vorjahr: null,
+      anzahl_veranstaltungen_vorjahr: null,
+      bestaetigt: true,
+    });
+    expect(isFormComplete(s)).toBe(true);
   });
   it("voll ausgefüllter State ist complete", () => {
     const s = makeState({
