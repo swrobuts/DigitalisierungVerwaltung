@@ -12,21 +12,15 @@ export function renderStep3(stateSig: Signal<FormState>): HTMLElement {
   legend.textContent = t("stepper.3.titel");
   root.appendChild(legend);
 
-  // Pflicht-Hinweis: erscheint live, wenn (noch) kein Tag vollständig ausgefüllt.
+  // Optional-Hinweis: Wochenplan-Tabelle ist nicht pflichtig — entweder
+  // hier ausfüllen oder per Programm-Flyer (Step 5) mitliefern. Wenn der
+  // Antrag aus UE0 mit Anlage-1-PDF kam, ist die Tabelle bereits durch OCR
+  // gefüllt; der Bürger korrigiert/ergänzt nur noch.
   const hint = document.createElement("p");
   hint.className = "field-hint";
   hint.style.marginBottom = "0.6rem";
-  hint.textContent = t("wochenplan.hinweis");
+  hint.textContent = t("wochenplan.optional");
   root.appendChild(hint);
-
-  const updateHint = () => {
-    const ok = stateSig.value.oeffnungszeiten.some(
-      (o) => o.oeffnungszeit.trim().length > 0 && o.angebot.trim().length > 0,
-    );
-    hint.style.display = ok ? "none" : "";
-  };
-  updateHint();
-  stateSig.subscribe(updateHint);
 
   const table = document.createElement("table");
   table.className = "wochenplan-table";

@@ -1,5 +1,4 @@
 {
-  "name": "UE0 — Antrag-PDF OCR + Extraktion (Claude Vision)",
   "nodes": [
     {
       "parameters": {
@@ -26,11 +25,11 @@
           "parameters": [
             {
               "name": "apikey",
-              "value": "{{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             },
             {
               "name": "Authorization",
-              "value": "Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             }
           ]
         },
@@ -73,7 +72,7 @@
           "parameters": [
             {
               "name": "x-api-key",
-              "value": "{{ $env.ANTHROPIC_API_KEY }}"
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
             },
             {
               "name": "anthropic-version",
@@ -123,11 +122,11 @@
           "parameters": [
             {
               "name": "apikey",
-              "value": "{{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             },
             {
               "name": "Authorization",
-              "value": "Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
             },
             {
               "name": "Content-Type",
@@ -156,6 +155,135 @@
         2080,
         208
       ]
+    },
+    {
+      "id": "if-anlage-exists",
+      "name": "IF Anlage 1 vorhanden?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [
+        928,
+        504
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $('Webhook Trigger (Supabase NOTIFY)').first().json.body.anlage_1_storage_path }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "anlage-1-storage",
+      "name": "Anlage-1 aus Storage holen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1148,
+        444
+      ],
+      "parameters": {
+        "url": "=http://kong:8000/storage/v1/object/antragseingang-pdf/{{ $('Webhook Trigger (Supabase NOTIFY)').first().json.body.anlage_1_storage_path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "anlage-1-b64",
+      "name": "Anlage-1 → Base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1368,
+        444
+      ],
+      "parameters": {
+        "jsCode": "// Gleich wie Hauptantrag-B64, aber für den Anlage-1-PDF-Buffer.\nconst buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst b64 = buffer.toString('base64');\nconst bin = $input.first().binary.data;\nreturn [{ json: { pdf_base64: b64, mime_type: bin.mimeType || 'application/pdf' } }];"
+      }
+    },
+    {
+      "id": "anlage-1-claude",
+      "name": "Claude Vision — Wochenplan-OCR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1588,
+        444
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5\",\n  \"max_tokens\": 2048,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"document\",\n          \"source\": {\n            \"type\": \"base64\",\n            \"media_type\": \"application/pdf\",\n            \"data\": \"{{ $json.pdf_base64 }}\"\n          }\n        },\n        {\n          \"type\": \"text\",\n          \"text\": \"Du bekommst ein ausgefülltes 'Anlage 1' zum Antrag Altenhilfeplan Nr. 2 der Stadt Würzburg. Es ist eine Wochenplan-Tabelle mit den Spalten 'Wochentag', 'Öffnungszeiten' und 'Angebot'. Die Einträge können maschinell oder handschriftlich sein. Extrahiere ALLE ausgefüllten Zeilen als JSON-Array.\\n\\nFormat pro Zeile: {\\\"wochentag\\\": \\\"mo|di|mi|do|fr|sa|so\\\", \\\"oeffnungszeit\\\": \\\"<Original-Text z.B. '09:30 – 11:30'>\\\", \\\"angebot\\\": \\\"<Original-Text>\\\"}\\n\\nWICHTIG:\\n- 'mo' für Montag, 'di' für Dienstag, 'mi' für Mittwoch, 'do' für Donnerstag, 'fr' für Freitag, 'sa' für Samstag, 'so' für Sonntag.\\n- Wenn eine Zelle (Öffnungszeit ODER Angebot) leer ist, lass den Eintrag WEG (nicht 'null' ausgeben, sondern komplett überspringen).\\n- Bei handschriftlichen Einträgen: erkenne so gut wie möglich. Bei totaler Unlesbarkeit kann das Feld leer bleiben (und somit die Zeile wegfallen).\\n- Erfinde NICHTS. Wenn das PDF keine Wochenplan-Tabelle enthält, gib [] zurück.\\n\\nAntworte mit REINEM JSON (Array). Kein Fließtext, keine Markdown-Code-Fence.\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "parse-wochenplan-merge",
+      "name": "Parse Wochenplan + Merge in extrahiert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        444
+      ],
+      "parameters": {
+        "jsCode": "// Parsed Claude-Antwort (JSON-Array von Wochenplan-Einträgen) und merged\n// sie in extrahiert.oeffnungszeiten. Die Hauptantrag-Daten kommen vom\n// Parse-JSON-Defaults-Node (über $()-Referenz), nicht vom direkten Input.\nconst claude = $input.first().json;\nconst content = claude.content?.[0]?.text;\nif (!content) throw new Error('Claude(Wochenplan) lieferte keinen Text: ' + JSON.stringify(claude));\nlet oeffnungszeiten;\ntry {\n  const cleaned = content.trim().replace(/^```json\\n?/, '').replace(/\\n?```$/, '');\n  oeffnungszeiten = JSON.parse(cleaned);\n  if (!Array.isArray(oeffnungszeiten)) {\n    throw new Error('Claude lieferte kein Array, sondern: ' + typeof oeffnungszeiten);\n  }\n} catch (e) {\n  // Soft-Fail: leerer Wochenplan, Hauptantrag-Daten gehen trotzdem durch.\n  console.error('Wochenplan-Parse fehlgeschlagen: ' + e.message + ' — Content: ' + content.slice(0, 300));\n  oeffnungszeiten = [];\n}\nconst parseNode = $('Parse JSON + Defaults').first().json;\nconst extrahiert = { ...parseNode.extrahiert, oeffnungszeiten };\nreturn [{\n  json: {\n    extrahiert,\n    einreichung_id: parseNode.einreichung_id,\n  }\n}];"
+      }
     }
   ],
   "connections": {
@@ -207,6 +335,68 @@
       "main": [
         [
           {
+            "node": "IF Anlage 1 vorhanden?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Anlage 1 vorhanden?": {
+      "main": [
+        [
+          {
+            "node": "Anlage-1 aus Storage holen",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "UPDATE antrag_einreichung status=fertig",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anlage-1 aus Storage holen": {
+      "main": [
+        [
+          {
+            "node": "Anlage-1 → Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anlage-1 → Base64": {
+      "main": [
+        [
+          {
+            "node": "Claude Vision — Wochenplan-OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Vision — Wochenplan-OCR": {
+      "main": [
+        [
+          {
+            "node": "Parse Wochenplan + Merge in extrahiert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Wochenplan + Merge in extrahiert": {
+      "main": [
+        [
+          {
             "node": "UPDATE antrag_einreichung status=fertig",
             "type": "main",
             "index": 0
@@ -214,12 +404,5 @@
         ]
       ]
     }
-  },
-  "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "timeSavedMode": "fixed",
-    "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
   }
 }

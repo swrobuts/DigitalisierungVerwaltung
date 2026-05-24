@@ -7,9 +7,9 @@ import { t } from "../i18n";
 const SECTION_LABELS: Record<number, string> = {
   1: "Träger & Einrichtung",
   2: "Kontakt & Bank",
-  3: "Wochenplan (mind. 1 Tag mit Öffnungszeit + Angebot)",
+  3: "Wochenplan (optional — Tabelle oder Programm-Flyer in Schritt 5)",
   4: "Räume & Kosten Vorjahr",
-  5: "Programm-Nachweis (Wochenplan oder Programm-Flyer)",
+  5: "Programm-Nachweis (Wochenplan, Programm-Flyer oder Anlage 1 aus PDF-Upload)",
   6: "Bestätigung",
 };
 

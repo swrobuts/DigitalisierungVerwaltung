@@ -82,20 +82,20 @@ describe("isStepComplete", () => {
     expect(isStepComplete(2, s)).toBe(false);
   });
 
-  // Step 3 — PDF-Voll-Sync: Wochenplan ist jetzt Pflicht.
-  it("Step 3 leer ist NICHT complete (Wochenplan ist Pflicht)", () => {
-    expect(isStepComplete(3, initialState())).toBe(false);
+  // Step 3 — Wochenplan ist optional (Pflicht-Erfüllung in Step 5).
+  it("Step 3 ist immer complete (Wochenplan optional)", () => {
+    expect(isStepComplete(3, initialState())).toBe(true);
   });
-  it("Step 3 mit nur Zeit ohne Angebot ist NICHT complete", () => {
+  it("Step 3 mit teilweise gefülltem Wochenplan bleibt complete", () => {
     const s = makeState({
       oeffnungszeiten: [
         { wochentag: "mo", oeffnungszeit: "10:00-16:00", angebot: "" },
         ...FULL_WOCHENPLAN.slice(1),
       ],
     });
-    expect(isStepComplete(3, s)).toBe(false);
+    expect(isStepComplete(3, s)).toBe(true);
   });
-  it("Step 3 mit mind. 1 Tag (Zeit + Angebot) ist complete", () => {
+  it("Step 3 mit voll ausgefülltem Wochenplan ist complete", () => {
     const s = makeState({ oeffnungszeiten: FULL_WOCHENPLAN });
     expect(isStepComplete(3, s)).toBe(true);
   });
@@ -156,6 +156,10 @@ describe("isStepComplete", () => {
   });
   it("Step 5 mit ausgefülltem Wochenplan reicht auch", () => {
     const s = makeState({ oeffnungszeiten: FULL_WOCHENPLAN });
+    expect(isStepComplete(5, s)).toBe(true);
+  });
+  it("Step 5 ist auto-complete, wenn Antrag aus UE0 (einreichung_id) kommt — Anlage 1 zählt als Programm-Nachweis", () => {
+    const s = makeState({ einreichung_id: "abc-123" });
     expect(isStepComplete(5, s)).toBe(true);
   });
 

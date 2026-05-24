@@ -105,11 +105,12 @@ export function isStepComplete(step: number, s: FormState): boolean {
       return true;
     }
     case 3: {
-      // Wochenplan ist Pflicht (PDF-Voll-Sync). Mindestens 1 Wochentag
-      // mit gefüllter Öffnungszeit UND gefülltem Angebot.
-      return s.oeffnungszeiten.some(
-        (o) => o.oeffnungszeit.trim().length > 0 && o.angebot.trim().length > 0,
-      );
+      // Wochenplan ist OPTIONAL. Wenn der Antrag aus UE0 mit Anlage-1-PDF
+      // kam, liefert die OCR die Öffnungszeiten — sonst kann der Bürger
+      // sie hier eintragen oder leer lassen und einen Programm-Flyer
+      // in Step 5 mitliefern. Die Förder-Pflicht „Programm-Nachweis"
+      // ist Sache von Step 5, nicht von Step 3.
+      return true;
     }
     case 4: {
       // PDF H11/H12/H13/H14/H15 — Räume & Kosten Vorjahr.
@@ -125,6 +126,10 @@ export function isStepComplete(step: number, s: FormState): boolean {
     }
     case 5: {
       // Programm-Nachweis: Wochenplan ODER Programm-Flyer reicht.
+      // Wenn der Antrag aus UE0 prefilled wurde (einreichung_id gesetzt),
+      // hat der Bürger den Programm-Nachweis bereits beim PDF-Upload als
+      // Anlage-1 mitgeliefert — Step gilt automatisch als erfüllt.
+      if (s.einreichung_id !== null) return true;
       const hatWochenplan = s.oeffnungszeiten.some(
         (o) => o.oeffnungszeit.trim().length > 0 || o.angebot.trim().length > 0,
       );
