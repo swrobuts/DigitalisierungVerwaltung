@@ -1,6 +1,6 @@
 # UE1 — Intelligentes Webformular (APL 2)
 
-> **Reifegradstufe 1**: Das gleiche PDF-Formular der Stadt Würzburg, aber als Webformular mit Validierung, Anlagen-Prüfung, Druckansicht und **mehrsprachig** (DE/IT/TR/ES). Optisch an der Corporate-Identity der Stadt Würzburg orientiert. **Noch ohne Backend** — die Daten bleiben in Ihrem Browser.
+> **Reifegradstufe 1**: Das gleiche PDF-Formular der Stadt Würzburg, aber als Webformular mit Validierung, Anlagen-Prüfung, Druckansicht und **mehrsprachig** (DE/IT/TR/ES). Optisch an der Corporate-Identity der Stadt Würzburg orientiert. Der abgesendete Antrag wird über eine Supabase-Edge-Function (`submit-antrag`) ins gemeinsame Backend geschrieben, das UE2 und UE3 lesen — **gleiche Datenquelle für alle drei Reifegradstufen**.
 
 ## Schnellstart
 

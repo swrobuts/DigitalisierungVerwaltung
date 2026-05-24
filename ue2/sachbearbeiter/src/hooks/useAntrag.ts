@@ -2,6 +2,21 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import type { Status } from "../lib/workflow";
 
+/**
+ * Antrags-Vollansicht — Interface synchron zu UE3.
+ *
+ * UE2 lädt seit jeher `select("*")` auf `antrag_mit_summen`, bekam also
+ * physisch dieselben Spalten wie UE3. Aber die TypeScript-Typen hingen
+ * hinter Migration 029/044/045 zurück. Damit zukünftige Render-Stellen
+ * (z.B. die abgespeckten 'raeume_*'-NULL-Fälle aus Migration 044) ohne
+ * non-null-assertion auskommen, ist das Interface jetzt strikt mit
+ * UE3 angeglichen.
+ *
+ * Geschrieben wird in UE2 weiterhin nur `antraege.status` und
+ * `antrag_history.kommentar`. KI-Felder (Förderbereich-Bemessung gem.
+ * Migration 029) liest UE2 mit, nutzt sie aber UI-seitig nicht — das
+ * ist der gewollte Funktional-Unterschied zwischen UE2 und UE3.
+ */
 export interface AntragFull {
   id: string;
   antragsnummer: string;
@@ -12,14 +27,19 @@ export interface AntragFull {
   hausnummer: string;
   plz: string;
   ort: string;
-  bankverbindung: string;
+  /** NULL erlaubt seit Migration 045 — UE1-Formular markiert Bank-
+   *  Klartextname als optional (IBAN reicht gem. AHP 3.6). */
+  bankverbindung: string | null;
   iban: string;
   bic: string | null;
   ansprechpartner: string;
-  telefon: string;
+  /** NULL erlaubt seit Migration 045 — Telefon optional (Email reicht). */
+  telefon: string | null;
   email: string;
-  raeume_vorhanden: "ja" | "nein";
-  raeume_unentgeltlich: "ja" | "nein";
+  /** NULL erlaubt seit Migration 044 — Räume-Fragen entfielen mit der
+   *  Abspeckung des Antragsformulars (AHP 3.8: Belege nur auf Anfrage). */
+  raeume_vorhanden: "ja" | "nein" | null;
+  raeume_unentgeltlich: "ja" | "nein" | null;
   antragsdatum: string;
   submitted_language: string;
   submitted_at: string;
@@ -28,6 +48,35 @@ export interface AntragFull {
   betriebskosten_vorjahr_euro: number;
   personalkosten_vorjahr_euro: number;
   miete_jahr_euro: number;
+  /** Beantragter Zuschuss (Migration 025). NULL = noch nicht beziffert. */
+  geforderte_foerdersumme_euro: number | null;
+
+  // ── Migration 029 — Förderbereich-spezifische Felder ────────────────
+  // Diese werden in UE2 zwar gelesen (select("*")), aber nicht direkt
+  // im UI verwendet — die KI-gestützte Auswertung dieser Bemessungs-
+  // größen ist Feature von UE3. In UE2 könnten sie für eine spätere
+  // Erweiterung (z.B. einfache Übersichtstabelle) zur Verfügung stehen.
+  foerderbereich:
+    | "aufbau_niedrigschwellige_angebote"
+    | "buergerschaftliches_engagement"
+    | "mehrgenerationenhaeuser"
+    | "begegnungszentren"
+    | "bildungstraeger"
+    | "seniorenkreise"
+    | "quartiersmanagement_altenarbeit"
+    | "struktur_schwerpunktfoerderung"
+    | null;
+  anzahl_treffen_jahr: number | null;
+  anzahl_teilnehmer: number | null;
+  stadtbewohner_anteil: number | null;
+  anzahl_ehrenamtliche: number | null;
+  geleistete_stunden_jahr: number | null;
+  foerderbereich_seit_jahren: number | null;
+  zuwendungszweck: string | null;
+  finanzplanung_vorhanden: boolean | null;
+  projektskizze_eingereicht: boolean | null;
+  logo_verwendet: boolean | null;
+
   status: Status;
 }
 
