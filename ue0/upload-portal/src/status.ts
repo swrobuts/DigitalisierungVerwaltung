@@ -27,8 +27,10 @@ interface Einreichung {
 }
 
 // Felder, die wir in der Vorschau anzeigen — Reihenfolge wie auf dem Original-PDF.
+// `format` darf gesetzt sein, um den Default-Number-Formatter (de-DE 2 Nachkommastellen)
+// zu überschreiben — z.B. für Jahreszahlen ("2026" statt "2.026,00").
 const PREVIEW_FIELDS: Array<{ key: string; label: string; format?: (v: unknown) => string }> = [
-  { key: "haushaltsjahr", label: "Haushaltsjahr" },
+  { key: "haushaltsjahr", label: "Haushaltsjahr", format: formatYear },
   { key: "name", label: "Name der Einrichtung" },
   { key: "traeger", label: "Träger" },
   { key: "strasse", label: "Straße / Hausnummer", format: (_) => "" },
@@ -47,9 +49,16 @@ const PREVIEW_FIELDS: Array<{ key: string; label: string; format?: (v: unknown) 
   { key: "antragsdatum", label: "Antragsdatum (lt. Bürger)" },
 ];
 
+/** Geldbeträge: deutsche Notation mit 2 Nachkommastellen. */
 function formatNumber(v: unknown): string {
   if (typeof v !== "number") return String(v);
   return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Jahreszahlen: 4-stellig ohne Tausender-Trennung, keine Nachkommastellen. */
+function formatYear(v: unknown): string {
+  if (typeof v !== "number") return String(v);
+  return String(Math.trunc(v));
 }
 
 export function renderStatus(trackingId: string): HTMLElement {
