@@ -55,6 +55,7 @@ export function initialState(): FormState {
     programm_flyer: null,
     bestaetigt: false,
     language: detectLanguage(),
+    einreichung_id: null,
   };
 }
 

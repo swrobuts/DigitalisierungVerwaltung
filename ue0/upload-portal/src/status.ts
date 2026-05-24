@@ -3,9 +3,12 @@
  * Änderungen in `apl2.antrag_einreichung`. Drei sichtbare Zustände:
  *
  *   wartend / in_verarbeitung → Spinner mit „Wird verarbeitet"
- *   fertig                    → Erfolgs-Card mit Antragsnummer +
- *                                Vorschau der extrahierten Daten
+ *   fertig                    → Kurze „Wird weitergeleitet"-Card,
+ *                                dann window.location.href = UE1?prefill=<id>
  *   fehler                    → Fehler-Card mit Hinweis
+ *
+ * Architektur A (2026-05-24): OCR-Daten bleiben in antrag_einreichung.extrahiert_jsonb.
+ * Erst der finale UE1-Submit erzeugt einen Antrag in apl2.antraege.
  */
 
 const SUPABASE_URL =
@@ -13,6 +16,14 @@ const SUPABASE_URL =
 const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
+// UE1-URL fürs Prefill-Redirect. Production-Default zeigt auf GH Pages;
+// Dev-Override via VITE_UE1_URL (z.B. http://localhost:5173).
+const UE1_BASE_URL =
+  (import.meta.env.VITE_UE1_URL as string | undefined) ??
+  "https://swrobuts.github.io/DigitalisierungVerwaltung/ue1/webformular";
+
+const REDIRECT_DELAY_MS = 2000;
 
 interface Einreichung {
   id: string;
@@ -24,56 +35,6 @@ interface Einreichung {
   antrag_id: string | null;
   extrahiert_jsonb: Record<string, unknown> | null;
   fehler_text: string | null;
-}
-
-// Felder, die wir in der Vorschau anzeigen — Reihenfolge folgt dem Original-PDF.
-// `format` darf gesetzt sein, um den Default-Number-Formatter (de-DE 2 Nachkommastellen)
-// zu überschreiben — z.B. für Jahreszahlen oder ja/nein-Optionsfelder.
-// Reihenfolge folgt streng dem Original-PDF (Final-Sweep 2026-05-24).
-// Träger steht im PDF HINTER E-Mail, nicht direkt neben Name —
-// hier 1:1 gespiegelt, damit Bürger die OCR-Vorschau neben das PDF
-// legen kann. Kostenlabels wörtlich „Nachgewiesene Höhe der … des Vorjahres".
-const PREVIEW_FIELDS: Array<{ key: string; label: string; format?: (v: unknown) => string }> = [
-  { key: "haushaltsjahr", label: "Haushaltsjahr", format: formatYear },
-  { key: "name", label: "Name der Einrichtung" },
-  { key: "strasse", label: "Straße / Hausnummer", format: (_) => "" },
-  { key: "plz", label: "PLZ / Ort", format: (_) => "" },
-  { key: "bankverbindung", label: "Bankverbindung" },
-  { key: "iban", label: "IBAN" },
-  { key: "bic", label: "BIC" },
-  { key: "ansprechpartner", label: "Ansprechpartner/in" },
-  { key: "telefon", label: "Telefon / Handy" },
-  { key: "email", label: "E-Mail" },
-  { key: "traeger", label: "Träger" },
-  { key: "betriebskosten_vorjahr_euro", label: "Nachgewiesene Höhe der Betriebskosten des Vorjahres (€)" },
-  { key: "personalkosten_vorjahr_euro", label: "Nachgewiesene Höhe der Personalkosten des Vorjahres (€)" },
-  // PDF-Optionsfelder mit Ankreuzbox — Claude liest die Markierung als "ja"/"nein".
-  { key: "raeume_vorhanden", label: "Vorhandene Räumlichkeiten des Trägers", format: formatJaNein },
-  { key: "raeume_unentgeltlich", label: "Unentgeltlich bereitgestellte Räume anderer Träger", format: formatJaNein },
-  // PDF-Wortlaut: „Monatliche Mietzahlungen in Höhe von (Kopie Mietvertrag)".
-  // OCR liefert den Monatswert — Sachbearbeitung rechnet × 12 = Jahressumme
-  // intern (apl2.belegposition belegtyp=miete).
-  { key: "monatliche_miete_euro", label: "Monatliche Mietzahlung (€)" },
-  { key: "antragsdatum", label: "Antragsdatum (lt. Bürger)" },
-];
-
-/** Geldbeträge: deutsche Notation mit 2 Nachkommastellen. */
-function formatNumber(v: unknown): string {
-  if (typeof v !== "number") return String(v);
-  return v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-/** Jahreszahlen: 4-stellig ohne Tausender-Trennung, keine Nachkommastellen. */
-function formatYear(v: unknown): string {
-  if (typeof v !== "number") return String(v);
-  return String(Math.trunc(v));
-}
-
-/** Optionsfelder mit Ankreuzbox — visuelles Kreuz statt nüchterner Wort. */
-function formatJaNein(v: unknown): string {
-  if (v === "ja")   return "☒ ja  ☐ nein";
-  if (v === "nein") return "☐ ja  ☒ nein";
-  return "— nicht erkannt";
 }
 
 export function renderStatus(trackingId: string): HTMLElement {
@@ -123,7 +84,7 @@ export function renderStatus(trackingId: string): HTMLElement {
 
       if (row.status === "fertig") {
         stopped = true;
-        renderFertig(slot, row);
+        renderRedirectingToUe1(slot, row.id);
         return;
       }
       if (row.status === "fehler") {
@@ -161,84 +122,34 @@ function renderWartend(slot: HTMLElement) {
   slot.appendChild(card);
 }
 
-function renderFertig(slot: HTMLElement, row: Einreichung) {
+/**
+ * Zeigt kurz einen Erfolgs-Hinweis und leitet dann automatisch zur
+ * UE1-Bestätigungsseite weiter (?prefill=<einreichungId>).
+ */
+function renderRedirectingToUe1(slot: HTMLElement, einreichungId: string) {
+  const ue1Url = `${UE1_BASE_URL}/?prefill=${encodeURIComponent(einreichungId)}`;
+
   slot.innerHTML = "";
   const card = document.createElement("div");
   card.className = "status-ok";
-
-  const e = row.extrahiert_jsonb ?? {};
-  const dauerMs = row.verarbeitet_am
-    ? new Date(row.verarbeitet_am).getTime() - new Date(row.eingereicht_am).getTime()
-    : null;
-  const dauerTxt = dauerMs ? ` (${Math.round(dauerMs / 1000)} Sekunden Verarbeitungszeit)` : "";
-
-  // Antragsnummer holen wir nicht direkt — der antrag_id-Fremdschlüssel reicht
-  // als Beleg, dass der Antrag in der DB liegt.
-  const antragsnummer = row.antrag_id ? row.antrag_id.slice(0, 8) + "…" : "—";
-
   card.innerHTML = `
-    <div class="status-ok-title">✓ Antrag erfolgreich eingegangen${dauerTxt}</div>
+    <div class="status-ok-title">✓ OCR abgeschlossen</div>
     <p style="margin: 0; font-size: 14px;">
-      Vielen Dank — Ihr Antrag wurde maschinell ausgelesen und an die Sachbearbeitung
-      übergeben. Sie erhalten in den nächsten Tagen eine schriftliche Eingangs-
-      bestätigung. <strong>Interne Antrag-ID: ${antragsnummer}</strong>
+      Ihr PDF wurde maschinell ausgelesen. Sie werden gleich zur Prüfung
+      und Bestätigung weitergeleitet — bitte kontrollieren Sie dort die
+      erkannten Werte und senden Sie den Antrag final ab.
     </p>
-    <div style="margin-top: 1.2rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.08);">
-      <div style="font-size: 13px; font-weight: 600; color: #047857; margin-bottom: 0.3rem;">
-        Vorschau der ausgelesenen Daten
-      </div>
-      <p style="margin: 0 0 0.4rem; font-size: 12.5px; color: #555;">
-        Bitte prüfen Sie die Werte. Sollte etwas falsch erkannt worden sein,
-        kontaktieren Sie bitte die Sachbearbeitung unter
-        <a href="mailto:beratungsstelle-senioren@stadt.wuerzburg.de">
-          beratungsstelle-senioren@stadt.wuerzburg.de</a>.
-      </p>
-      <div class="extr-grid" id="extr-grid"></div>
-    </div>
+    <p style="margin: 0.8rem 0 0; font-size: 12.5px; color: #555;">
+      Falls die Weiterleitung nicht automatisch erfolgt:
+      <a href="${ue1Url}">Hier klicken, um zur Bestätigung zu wechseln</a>.
+    </p>
   `;
   slot.appendChild(card);
 
-  const grid = card.querySelector<HTMLDivElement>("#extr-grid")!;
-  for (const field of PREVIEW_FIELDS) {
-    const lbl = document.createElement("div");
-    lbl.className = "extr-label";
-    lbl.textContent = field.label;
-
-    const val = document.createElement("div");
-    val.className = "extr-value";
-
-    // Spezialfälle für mehrteilige Zeilen
-    let raw: unknown;
-    if (field.key === "strasse") {
-      raw = [e.strasse, e.hausnummer].filter(Boolean).join(" ").trim() || null;
-    } else if (field.key === "plz") {
-      raw = [e.plz, e.ort].filter(Boolean).join(" ").trim() || null;
-    } else {
-      raw = (e as Record<string, unknown>)[field.key];
-    }
-
-    if (raw === null || raw === undefined || raw === "") {
-      val.classList.add("empty");
-      val.textContent = "— nicht erkannt";
-    } else if (typeof raw === "number") {
-      val.textContent = formatNumber(raw);
-    } else {
-      val.textContent = String(raw);
-    }
-
-    grid.appendChild(lbl);
-    grid.appendChild(val);
-  }
-
-  // Aktion: zurück zur Upload-Seite
-  const actions = document.createElement("div");
-  actions.className = "actions";
-  const back = document.createElement("a");
-  back.className = "btn-secondary";
-  back.href = window.location.pathname;
-  back.textContent = "Weiteren Antrag einreichen";
-  actions.appendChild(back);
-  slot.appendChild(actions);
+  // Kurzer Moment, damit der Bürger den Hinweis lesen kann.
+  setTimeout(() => {
+    window.location.href = ue1Url;
+  }, REDIRECT_DELAY_MS);
 }
 
 function renderError(slot: HTMLElement, msg: string, showRetry = false) {

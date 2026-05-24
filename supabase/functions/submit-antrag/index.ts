@@ -169,6 +169,53 @@ async function deleteAntrag(id: string): Promise<void> {
   });
 }
 
+/**
+ * Liefert den aktuellen Stand des antrag_einreichung-Records.
+ * Wird vor INSERT in apl2.antraege geprüft, um Doppelsubmit für dieselbe
+ * Einreichung zu erkennen (Bürger klickt zweimal "Senden").
+ */
+async function getEinreichung(
+  einreichungId: string,
+): Promise<{ id: string; antrag_id: string | null } | null> {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/antrag_einreichung?id=eq.${einreichungId}&select=id,antrag_id`,
+    { headers: { ...SR_HEADERS, "Accept-Profile": "apl2" } },
+  );
+  if (!res.ok) return null;
+  const rows = (await res.json()) as Array<{ id: string; antrag_id: string | null }>;
+  return rows[0] ?? null;
+}
+
+/**
+ * Verknüpft den apl2.antrag_einreichung-Record mit dem frisch erzeugten
+ * Antrag (PATCH antrag_id). Best-effort: Fehler werden geloggt aber
+ * nicht propagiert — der Antrag liegt schon in der DB, der Bürger soll
+ * seine Antragsnummer bekommen.
+ */
+async function linkEinreichungToAntrag(einreichungId: string, antragId: string): Promise<void> {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/antrag_einreichung?id=eq.${einreichungId}`,
+      {
+        method: "PATCH",
+        headers: {
+          ...SR_HEADERS,
+          "content-type": "application/json",
+          "Accept-Profile": "apl2",
+          "Content-Profile": "apl2",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ antrag_id: antragId }),
+      },
+    );
+    if (!res.ok) {
+      console.error(`linkEinreichungToAntrag failed (${res.status}): ${await res.text()}`);
+    }
+  } catch (e) {
+    console.error("linkEinreichungToAntrag exception:", e);
+  }
+}
+
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
   if (req.method === "OPTIONS") {
@@ -196,15 +243,40 @@ Deno.serve(async (req: Request) => {
 
   const oeffnungszeiten = (antrag.oeffnungszeiten as OeffnungszeitPayload[]) ?? [];
   const belegpositionen = (antrag.belegpositionen as BelegpositionPayload[]) ?? [];
-  // antraege-Insert ohne die Listen (die landen in eigenen Tabellen)
+  // Verknüpfung mit dem UE0-Einreichungs-Record (Audit-Trail).
+  const einreichungId = typeof antrag.einreichung_id === "string" ? antrag.einreichung_id : null;
+  // antraege-Insert ohne die Listen UND ohne einreichung_id (das ist nur
+  // ein Verknüpfungs-Marker fürs Backend, keine Spalte in apl2.antraege).
   const antragForInsert: Record<string, unknown> = { ...antrag };
   delete antragForInsert.oeffnungszeiten;
   delete antragForInsert.belegpositionen;
+  delete antragForInsert.einreichung_id;
 
   const ip = req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   const userAgent = req.headers.get("user-agent");
   antragForInsert.user_agent = userAgent;
   antragForInsert.ip_address = ip;
+
+  // 0) Anti-Doppelsubmit: Wenn dieselbe Einreichung bereits einen Antrag
+  //    hat, geben wir den existierenden zurück (idempotent) statt einen
+  //    zweiten anzulegen.
+  if (einreichungId) {
+    const existing = await getEinreichung(einreichungId);
+    if (existing?.antrag_id) {
+      const dupRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/antraege?id=eq.${existing.antrag_id}&select=id,antragsnummer`,
+        { headers: { ...SR_HEADERS, "Accept-Profile": "apl2" } },
+      );
+      if (dupRes.ok) {
+        const dupRows = (await dupRes.json()) as Array<{ id: string; antragsnummer: string }>;
+        const dup = dupRows[0];
+        if (dup) {
+          return json({ antragsnummer: dup.antragsnummer, id: dup.id, duplicate: true }, 200, origin);
+        }
+      }
+      return json({ error: "Diese Einreichung wurde bereits abgesendet." }, 409, origin);
+    }
+  }
 
   // 1) Insert antrag
   let row: { id: string; antragsnummer: string };
@@ -269,6 +341,12 @@ Deno.serve(async (req: Request) => {
   } catch (e) {
     await deleteAntrag(row.id);
     return json({ error: `mietvertrag upload failed, rolled back: ${(e as Error).message}` }, 500, origin);
+  }
+
+  // 6) Einreichungs-Record mit Antrag verknüpfen (Audit-Trail).
+  //    Best-effort — Fehler hier ändern nichts mehr am Bürger-Ergebnis.
+  if (einreichungId) {
+    await linkEinreichungToAntrag(einreichungId, row.id);
   }
 
   return json({ antragsnummer: row.antragsnummer, id: row.id }, 200, origin);

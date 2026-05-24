@@ -103,10 +103,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse Claude's JSON-Antwort, splitte in Antrag-Payload + Belegpositionen.\n// extrahiert_anzeige enthält ALLE Werte (für UE0-Status-Vorschau);\n// extrahiert (ohne Kosten) wird in apl2.antraege geinserted (Mig 016).\nconst input = $input.first().json;\nconst content = input.content?.[0]?.text;\nif (!content) throw new Error('Claude lieferte keinen Text-Content: ' + JSON.stringify(input));\nlet extr;\ntry {\n  const cleaned = content.trim().replace(/^```json\\n?/, '').replace(/\\n?```$/, '');\n  extr = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Claude-Antwort ist kein JSON: ' + content.slice(0, 500));\n}\n// Backup Kostenfelder für UE0-Status-Anzeige\nconst betriebskosten = extr.betriebskosten_vorjahr_euro;\nconst personalkosten = extr.personalkosten_vorjahr_euro;\nconst miete_monat    = extr.monatliche_miete_euro;\n// Snapshot ALLER Werte für die UE0-Status-Vorschau (mit Kosten!)\nconst extrahiert_anzeige = { ...extr };\n// Aus dem antraege-INSERT-Payload entfernen (Mig 016: Kosten in belegposition)\ndelete extr.betriebskosten_vorjahr_euro;\ndelete extr.personalkosten_vorjahr_euro;\ndelete extr.monatliche_miete_euro;\nextr.submitted_language = 'de';\nextr.antragsdatum = extr.antragsdatum || new Date().toISOString().slice(0, 10);\nextr.status = 'eingegangen';\nif (!extr.foerderbereich) extr.foerderbereich = 'begegnungszentren';\n// extrahiert_anzeige bekommt die Status-Felder ebenfalls\nextrahiert_anzeige.submitted_language = 'de';\nextrahiert_anzeige.antragsdatum = extr.antragsdatum;\nextrahiert_anzeige.foerderbereich = extr.foerderbereich;\nconst belegpositionen = [];\nif (typeof betriebskosten === 'number' && betriebskosten > 0) {\n  belegpositionen.push({ belegtyp: 'betriebskosten', bezeichnung: 'Nachgewiesene Höhe der Betriebskosten des Vorjahres (aus OCR)', betrag_euro: betriebskosten });\n}\nif (typeof personalkosten === 'number' && personalkosten > 0) {\n  belegpositionen.push({ belegtyp: 'personalkosten', bezeichnung: 'Nachgewiesene Höhe der Personalkosten des Vorjahres (aus OCR)', betrag_euro: personalkosten });\n}\nif (typeof miete_monat === 'number' && miete_monat > 0) {\n  belegpositionen.push({ belegtyp: 'miete', bezeichnung: 'Mietzahlungen Jahressumme — aus PDF (Monatsangabe ' + miete_monat + ' €/Monat × 12; Wortlaut: Monatliche Mietzahlungen in Höhe von, Kopie Mietvertrag)', betrag_euro: miete_monat * 12 });\n}\nreturn [{ json: { extrahiert: extr, extrahiert_anzeige, belegpositionen, einreichung_id: $('Webhook Trigger (Supabase NOTIFY)').first().json.body.einreichung_id } }];"
+        "jsCode": "// Final-Sweep 2026-05-24: OCR-Daten werden NUR in antrag_einreichung.\n// extrahiert_jsonb geparkt. Apl2.antraege erst beim finalen Bürger-Submit\n// aus UE1 befüllt — saubere Vorlage-vs-Antrag-Trennung.\nconst input = $input.first().json;\nconst content = input.content?.[0]?.text;\nif (!content) throw new Error('Claude lieferte keinen Text-Content: ' + JSON.stringify(input));\nlet extr;\ntry {\n  const cleaned = content.trim().replace(/^```json\\n?/, '').replace(/\\n?```$/, '');\n  extr = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Claude-Antwort ist kein JSON: ' + content.slice(0, 500));\n}\n// Defaults für UE1-Prefill: Status + Sprache\nextr.submitted_language = 'de';\nif (!extr.antragsdatum) extr.antragsdatum = new Date().toISOString().slice(0, 10);\n// foerderbereich + geforderte_foerdersumme bleiben null — Sachbearbeitung beziffert\n// Bemessungsfelder bleiben null — PDF fragt sie nicht ab\n// oeffnungszeiten kommen aus dem Wochenplan-Branch (separater Node merged sie rein)\nreturn [{\n  json: {\n    extrahiert: extr,\n    einreichung_id: $('Webhook Trigger (Supabase NOTIFY)').first().json.body.einreichung_id\n  }\n}];"
       },
       "id": "aac56805-0923-4e36-b7dd-ab7388620f35",
-      "name": "Parse JSON + Defaults + Belegpositionen-Split",
+      "name": "Parse JSON + Defaults",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -116,138 +116,8 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://kong:8000/rest/v1/antraege",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "{{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Accept-Profile",
-              "value": "apl2"
-            },
-            {
-              "name": "Content-Profile",
-              "value": "apl2"
-            },
-            {
-              "name": "Prefer",
-              "value": "return=representation"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.extrahiert) }}",
-        "options": {
-          "timeout": 30000
-        }
-      },
-      "id": "4c125ff7-6ee0-46a4-b5fe-c7e1b20a73dd",
-      "name": "INSERT apl2.antraege",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1200,
-        304
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Annotiert die Belegpositionen mit der antrag_id aus dem vorhergehenden\n// INSERT. PostgREST liefert mit Prefer=return=representation ggf. ein Array\n// oder ein Object — beides abfangen.\nconst raw = $input.first().json;\nconst inserted = Array.isArray(raw) ? raw[0] : raw;\nconst antragId = inserted && inserted.id;\nif (!antragId) {\n  throw new Error('INSERT apl2.antraege lieferte keine ID zurück: ' + JSON.stringify(raw));\n}\nconst beleg = $('Parse JSON + Defaults + Belegpositionen-Split').first().json.belegpositionen || [];\nif (beleg.length === 0) {\n  return [{ json: { antrag_id: antragId, belegpositionen: [], _skip_belegposition: true } }];\n}\nreturn beleg.map(b => ({\n  json: { ...b, antrag_id: antragId, _skip_belegposition: false }\n}));"
-      },
-      "id": "5b0ddc1c-a4b6-41e7-bf62-e521be974594",
-      "name": "Annotate Belegpositionen mit antrag_id",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1456,
-        192
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json._skip_belegposition }}"
-            }
-          ]
-        }
-      },
-      "id": "27199740-7d86-490e-a33b-7f6072bf7105",
-      "name": "IF Belegpositionen vorhanden",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        1648,
-        192
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://kong:8000/rest/v1/belegposition",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "{{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Accept-Profile",
-              "value": "apl2"
-            },
-            {
-              "name": "Content-Profile",
-              "value": "apl2"
-            },
-            {
-              "name": "Prefer",
-              "value": "return=minimal"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"antrag_id\": \"{{ $json.antrag_id }}\",\n  \"belegtyp\": \"{{ $json.belegtyp }}\",\n  \"bezeichnung\": \"{{ $json.bezeichnung }}\",\n  \"betrag_euro\": {{ $json.betrag_euro }}\n}",
-        "options": {
-          "timeout": 15000
-        }
-      },
-      "id": "1e40ec69-0c57-4d9f-8a18-1e8dd6ed90a1",
-      "name": "INSERT apl2.belegposition",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1872,
-        -16
-      ]
-    },
-    {
-      "parameters": {
         "method": "PATCH",
-        "url": "=http://kong:8000/rest/v1/antrag_einreichung?id=eq.{{ $('Parse JSON + Defaults + Belegpositionen-Split').first().json.einreichung_id }}",
+        "url": "=http://kong:8000/rest/v1/antrag_einreichung?id=eq.{{ $('Parse JSON + Defaults').first().json.einreichung_id }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -275,7 +145,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"status\": \"fertig\",\n  \"antrag_id\": \"{{ $('Annotate Belegpositionen mit antrag_id').first().json.antrag_id }}\",\n  \"extrahiert_jsonb\": {{ JSON.stringify($('Parse JSON + Defaults + Belegpositionen-Split').first().json.extrahiert_anzeige) }},\n  \"verarbeitet_am\": \"{{ new Date().toISOString() }}\"\n}",
+        "jsonBody": "={\n  \"status\": \"fertig\",\n  \"extrahiert_jsonb\": {{ JSON.stringify($json.extrahiert) }},\n  \"verarbeitet_am\": \"{{ new Date().toISOString() }}\"\n}",
         "options": {}
       },
       "id": "26e94168-7d4c-4b44-95cb-82592bb064d8",
@@ -285,171 +155,6 @@
       "position": [
         2080,
         208
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $('Webhook Trigger (Supabase NOTIFY)').first().json.body.anlage_1_storage_path }}",
-              "operation": "isNotEmpty"
-            }
-          ]
-        }
-      },
-      "id": "60478327-294d-43d8-9183-de2535f6688a",
-      "name": "IF Anlage 1 vorhanden",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        2336,
-        208
-      ]
-    },
-    {
-      "parameters": {
-        "url": "=http://kong:8000/storage/v1/object/antragseingang-pdf/{{ $('Webhook Trigger (Supabase NOTIFY)').first().json.body.anlage_1_storage_path }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "{{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
-            }
-          ]
-        },
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "file"
-            }
-          }
-        }
-      },
-      "id": "7b812008-a1ef-4ea7-bfcd-ad7edfe24ac5",
-      "name": "Anlage 1 PDF aus Storage",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2560,
-        128
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nreturn [{ json: { pdf_base64: buffer.toString('base64') } }];"
-      },
-      "id": "4d9a246b-dc99-4613-8b5a-63196db3eef8",
-      "name": "Anlage 1 PDF → Base64",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2784,
-        128
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.anthropic.com/v1/messages",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "x-api-key",
-              "value": "{{ $env.ANTHROPIC_API_KEY }}"
-            },
-            {
-              "name": "anthropic-version",
-              "value": "2023-06-01"
-            },
-            {
-              "name": "content-type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5\",\n  \"max_tokens\": 2048,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"document\",\n          \"source\": {\n            \"type\": \"base64\",\n            \"media_type\": \"application/pdf\",\n            \"data\": \"{{ $json.pdf_base64 }}\"\n          }\n        },\n        {\n          \"type\": \"text\",\n          \"text\": \"Du bekommst die Anlage 1 zum APL-2-Antrag (Wochenplan einer Altentagesstaette). Extrahiere die Zeile pro Wochentag mit Oeffnungszeit und Angebot. Leere/nicht-belegte Tage weglassen. Antwort als JSON-Objekt ohne Markdown-Fence, ohne Erklaerung. Schema: {\\\"oeffnungszeiten\\\": [{\\\"wochentag\\\": \\\"mo|di|mi|do|fr|sa|so\\\", \\\"oeffnungszeit\\\": \\\"string\\\", \\\"angebot\\\": \\\"string\\\"}]}\"\n        }\n      ]\n    }\n  ]\n}",
-        "options": {
-          "timeout": 120000
-        }
-      },
-      "id": "dcf4aa3e-1cd9-4896-acec-706524640a16",
-      "name": "Claude Vision Wochenplan",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        3008,
-        128
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Parse Claude-JSON-Antwort, mappe zu oeffnungszeit-Rows.\n// antrag_id kommt aus dem INSERT apl2.antraege Output (per $).\nconst input = $input.first().json;\nconst content = input.content?.[0]?.text;\nif (!content) throw new Error('Claude (Wochenplan) lieferte keinen Text-Content: ' + JSON.stringify(input));\nlet parsed;\ntry {\n  const cleaned = content.trim().replace(/^```json\\n?/, '').replace(/\\n?```$/, '');\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Wochenplan-Antwort ist kein JSON: ' + content.slice(0, 500));\n}\nconst zeiten = parsed.oeffnungszeiten || parsed.zeiten || [];\nif (!Array.isArray(zeiten) || zeiten.length === 0) {\n  return [];  // Nichts zu inserten — Branch endet sauber.\n}\nconst antragId = $('Annotate Belegpositionen mit antrag_id').first().json.antrag_id;\nif (!antragId) throw new Error('antrag_id fehlt fuer Wochenplan-INSERT');\nconst VALID_TAGE = ['mo', 'di', 'mi', 'do', 'fr', 'sa', 'so'];\nreturn zeiten\n  .filter(z => VALID_TAGE.includes((z.wochentag || '').toLowerCase()))\n  .map(z => ({\n    json: {\n      antrag_id: antragId,\n      wochentag: z.wochentag.toLowerCase(),\n      oeffnungszeit: z.oeffnungszeit || null,\n      angebot: z.angebot || null,\n    }\n  }));"
-      },
-      "id": "33bc0117-8fa7-460f-8bca-c441a5269f84",
-      "name": "Parse + Map Wochenplan",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3232,
-        128
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://kong:8000/rest/v1/oeffnungszeit",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "apikey",
-              "value": "{{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Accept-Profile",
-              "value": "apl2"
-            },
-            {
-              "name": "Content-Profile",
-              "value": "apl2"
-            },
-            {
-              "name": "Prefer",
-              "value": "return=minimal"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"antrag_id\": \"{{ $json.antrag_id }}\",\n  \"wochentag\": \"{{ $json.wochentag }}\",\n  \"oeffnungszeit\": {{ JSON.stringify($json.oeffnungszeit) }},\n  \"angebot\": {{ JSON.stringify($json.angebot) }}\n}",
-        "options": {
-          "timeout": 15000
-        }
-      },
-      "id": "67f2e641-a7e2-4272-be3e-5cb3c1a656e0",
-      "name": "INSERT apl2.oeffnungszeit",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        3456,
-        128
       ]
     }
   ],
@@ -476,79 +181,6 @@
         ]
       ]
     },
-    "Claude Vision — OCR + Extraktion": {
-      "main": [
-        [
-          {
-            "node": "Parse JSON + Defaults + Belegpositionen-Split",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse JSON + Defaults + Belegpositionen-Split": {
-      "main": [
-        [
-          {
-            "node": "INSERT apl2.antraege",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "INSERT apl2.antraege": {
-      "main": [
-        [
-          {
-            "node": "Annotate Belegpositionen mit antrag_id",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Annotate Belegpositionen mit antrag_id": {
-      "main": [
-        [
-          {
-            "node": "IF Belegpositionen vorhanden",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF Belegpositionen vorhanden": {
-      "main": [
-        [
-          {
-            "node": "INSERT apl2.belegposition",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "UPDATE antrag_einreichung status=fertig",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "INSERT apl2.belegposition": {
-      "main": [
-        [
-          {
-            "node": "UPDATE antrag_einreichung status=fertig",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "PDF → Base64": {
       "main": [
         [
@@ -560,67 +192,22 @@
         ]
       ]
     },
-    "UPDATE antrag_einreichung status=fertig": {
+    "Claude Vision — OCR + Extraktion": {
       "main": [
         [
           {
-            "node": "IF Anlage 1 vorhanden",
+            "node": "Parse JSON + Defaults",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "IF Anlage 1 vorhanden": {
+    "Parse JSON + Defaults": {
       "main": [
         [
           {
-            "node": "Anlage 1 PDF aus Storage",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Anlage 1 PDF aus Storage": {
-      "main": [
-        [
-          {
-            "node": "Anlage 1 PDF → Base64",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Anlage 1 PDF → Base64": {
-      "main": [
-        [
-          {
-            "node": "Claude Vision Wochenplan",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Claude Vision Wochenplan": {
-      "main": [
-        [
-          {
-            "node": "Parse + Map Wochenplan",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse + Map Wochenplan": {
-      "main": [
-        [
-          {
-            "node": "INSERT apl2.oeffnungszeit",
+            "node": "UPDATE antrag_einreichung status=fertig",
             "type": "main",
             "index": 0
           }

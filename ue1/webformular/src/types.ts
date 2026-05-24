@@ -77,4 +77,12 @@ export interface FormState {
   programm_flyer: File | null;
   bestaetigt: boolean;
   language: Sprache;
+  /**
+   * Wenn der Bürger über den UE0-OCR-Flow ankommt: ID des
+   * apl2.antrag_einreichung-Records, aus dem die Felder vorbefüllt wurden.
+   * Wird beim Submit mitgesendet, damit submit-antrag den Einreichungs-Record
+   * mit dem finalen apl2.antraege.id verknüpfen kann (Audit-Trail).
+   * Null bei direktem Aufruf des Webformulars (ohne Prefill).
+   */
+  einreichung_id: string | null;
 }

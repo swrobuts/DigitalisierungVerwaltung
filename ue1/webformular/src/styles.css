@@ -653,3 +653,27 @@ footer.stadt-footer a:hover { text-decoration: underline; }
   color: var(--wuerzburg-text);
 }
 .demo-hinweis-footer strong { color: var(--wuerzburg-rot); }
+
+/* ============================================================
+ * Prefill-Banner — wird oberhalb der ersten <fieldset> gezeigt,
+ * wenn der Bürger über UE0 mit ?prefill=<einreichung_id> kommt.
+ * Grün-soft = "alles übernommen, bitte prüfen".
+ * Variante prefill-banner-warn = orange-soft, wenn Prefill fehlschlug.
+ * ============================================================ */
+.prefill-banner {
+  background: #ecfdf5;
+  border-left: 4px solid var(--ok);
+  color: #064e3b;
+  padding: 0.9rem 1.1rem;
+  margin: 0 0 1.2rem;
+  border-radius: 2px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+.prefill-banner strong { color: var(--ok); }
+.prefill-banner-warn {
+  background: #fff7ed;
+  border-left-color: var(--wuerzburg-orange);
+  color: #7c2d12;
+}
+.prefill-banner-warn strong { color: var(--wuerzburg-orange); }

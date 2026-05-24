@@ -67,7 +67,7 @@ export async function submitAntrag(state: FormState): Promise<{ antragsnummer: s
     })),
   ];
 
-  const antragPayload = {
+  const antragPayload: Record<string, unknown> = {
     haushaltsjahr: state.haushaltsjahr,
     name: state.name,
     traeger: state.traeger,
@@ -96,6 +96,11 @@ export async function submitAntrag(state: FormState): Promise<{ antragsnummer: s
     ),
     belegpositionen,
   };
+  // Verknüpfung zum UE0-OCR-Einreichungs-Record (Audit-Trail). Nur senden,
+  // wenn vorhanden — direkter Form-Aufruf ohne Prefill bleibt unverändert.
+  if (state.einreichung_id) {
+    antragPayload.einreichung_id = state.einreichung_id;
+  }
   form.append("antrag", JSON.stringify(antragPayload));
 
   // Hash-deduplizierte Files anhängen (file_<sha256>-Schema).
