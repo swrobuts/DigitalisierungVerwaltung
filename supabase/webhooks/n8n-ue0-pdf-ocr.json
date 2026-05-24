@@ -48,7 +48,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5\",\n  \"max_tokens\": 4096,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"document\",\n          \"source\": {\n            \"type\": \"base64\",\n            \"media_type\": \"application/pdf\",\n            \"data\": \"={{ $binary.data.data }}\"\n          }\n        },\n        {\n          \"type\": \"text\",\n          \"text\": \"Du bekommst ein ausgefülltes Antragsformular der Stadt Würzburg (Altenhilfeplan Nr. 2, Antrag auf Zuschuss für Altentagesstätten). Das Formular kann maschinell ausgefüllt sein ODER handschriftlich. Extrahiere ALLE ausgefüllten Felder als striktes JSON nach folgendem Schema. Wenn ein Feld leer/nicht lesbar ist, setze null. Bei Beträgen: nur die Zahl als float (z.B. 1250.50), keine Währung, kein Tausender-Punkt. IBAN/BIC trimmen, ohne Leerzeichen. Antwort NUR als JSON-Objekt, keine Erklärung davor oder danach, kein Code-Fence.\\n\\nSchema:\\n{\\n  \\\"haushaltsjahr\\\": integer | null,\\n  \\\"name\\\": string | null,                    // Name der Einrichtung\\n  \\\"traeger\\\": string | null,                 // Trägerverein/Organisation\\n  \\\"strasse\\\": string | null,\\n  \\\"hausnummer\\\": string | null,\\n  \\\"plz\\\": string | null,                      // 5-stellig\\n  \\\"ort\\\": string | null,\\n  \\\"bankverbindung\\\": string | null,           // Name der Bank, optional\\n  \\\"iban\\\": string | null,\\n  \\\"bic\\\": string | null,                      // nur wenn Nicht-DE-IBAN\\n  \\\"ansprechpartner\\\": string | null,\\n  \\\"telefon\\\": string | null,                  // optional\\n  \\\"email\\\": string | null,\\n  \\\"betriebskosten_vorjahr_euro\\\": float | null,\\n  \\\"personalkosten_vorjahr_euro\\\": float | null,\\n  \\\"miete_jahr_euro\\\": float | null,           // monatlich × 12 wenn monatlich angegeben\\n  \\\"raeume_vorhanden\\\": \\\"ja\\\" | \\\"nein\\\" | null,\\n  \\\"raeume_unentgeltlich\\\": \\\"ja\\\" | \\\"nein\\\" | null,\\n  \\\"antragsdatum\\\": string | null              // ISO YYYY-MM-DD\\n}\"\n        }\n      ]\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5\",\n  \"max_tokens\": 4096,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"document\",\n          \"source\": {\n            \"type\": \"base64\",\n            \"media_type\": \"application/pdf\",\n            \"data\": \"={{ $binary.data.data }}\"\n          }\n        },\n        {\n          \"type\": \"text\",\n          \"text\": \"Du bekommst ein ausgefülltes Antragsformular der Stadt Würzburg (Altenhilfeplan Nr. 2, Antrag auf Zuschuss für Altentagesstätten). Das Formular kann maschinell ausgefüllt sein ODER handschriftlich. Extrahiere ALLE ausgefüllten Felder als striktes JSON nach folgendem Schema. Wenn ein Feld leer/nicht lesbar ist, setze null. Bei Beträgen: nur die Zahl als float (z.B. 1250.50), keine Währung, kein Tausender-Punkt. IBAN/BIC trimmen, ohne Leerzeichen. Antwort NUR als JSON-Objekt, keine Erklärung davor oder danach, kein Code-Fence. WICHTIG zur Pflicht: die Verwaltungspraxis der Stadt Würzburg verlangt Telefon, Bankverbindung (Bankname) und BIC IMMER — auch wenn das PDF kein Sternchen zeigt. Wenn du die Felder im PDF nicht findest, suche sorgfältig (häufig handschriftlich am Rand oder im Briefkopf).\\n\\nSchema:\\n{\\n  \\\"haushaltsjahr\\\": integer | null,\\n  \\\"name\\\": string | null,                    // Name der Einrichtung\\n  \\\"traeger\\\": string | null,                 // Trägerverein/Organisation\\n  \\\"strasse\\\": string | null,\\n  \\\"hausnummer\\\": string | null,\\n  \\\"plz\\\": string | null,                      // 5-stellig\\n  \\\"ort\\\": string | null,\\n  \\\"bankverbindung\\\": string | null,           // Bankname — Verwaltungspraxis: Pflicht\\n  \\\"iban\\\": string | null,\\n  \\\"bic\\\": string | null,                      // Verwaltungspraxis: Pflicht (auch DE-IBAN)\\n  \\\"ansprechpartner\\\": string | null,\\n  \\\"telefon\\\": string | null,                  // Verwaltungspraxis: Pflicht (für Rückfragen)\\n  \\\"email\\\": string | null,\\n  \\\"betriebskosten_vorjahr_euro\\\": float | null,\\n  \\\"personalkosten_vorjahr_euro\\\": float | null,\\n  \\\"monatliche_miete_euro\\\": float | null,     // PDF fragt MONATLICH ab; nicht selbst × 12 rechnen\\n  \\\"raeume_vorhanden\\\": \\\"ja\\\" | \\\"nein\\\" | null,\\n  \\\"raeume_unentgeltlich\\\": \\\"ja\\\" | \\\"nein\\\" | null,\\n  \\\"antragsdatum\\\": string | null              // ISO YYYY-MM-DD\\n}\"\n        }\n      ]\n    }\n  ]\n}",
         "options": { "timeout": 120000 }
       },
       "id": "claude-1",
@@ -59,10 +59,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse Claude's JSON-Antwort (text content) und ergänze um Pflicht-Defaults.\nconst input = $input.first().json;\nconst content = input.content?.[0]?.text;\nif (!content) {\n  throw new Error('Claude lieferte keinen Text-Content zurück: ' + JSON.stringify(input));\n}\nlet extr;\ntry {\n  // Falls Claude doch ein Code-Fence schickt, abstreifen\n  const cleaned = content.trim().replace(/^```json\\n?/, '').replace(/\\n?```$/, '');\n  extr = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Claude-Antwort ist kein JSON: ' + content.slice(0, 500));\n}\n\n// Defaults für UE0-Antragstellung\nextr.submitted_language = 'de';\nextr.submitted_at = new Date().toISOString();\nextr.antragsdatum = extr.antragsdatum || new Date().toISOString().slice(0, 10);\nextr.status = 'eingegangen';\n\n// Bemessungs-Felder (Migration 029) bleiben null — Original-PDF fragt sie nicht ab\n// geforderte_foerdersumme_euro bleibt null — Sachbearbeitung muss ergänzen\n\nreturn [{ json: { extrahiert: extr, einreichung_id: $('Webhook Trigger (Supabase NOTIFY)').first().json.body.einreichung_id } }];"
+        "jsCode": "// Parse Claude's JSON-Antwort (text content), splitte in Antrag-Payload\n// + Belegpositionen, und ergänze Pflicht-Defaults.\n//\n// WICHTIG seit Audit 2026-05-24 (Achse A P0-1):\n// Migration 016 hat die Kostenspalten aus apl2.antraege in apl2.belegposition\n// verschoben. Wenn wir die Kosten als Top-Level-Property in den antraege-\n// INSERT pushen, ignoriert PostgREST sie still → Datenverlust. Stattdessen\n// erzeugen wir hier einen separaten belegpositionen[]-Array, der nach dem\n// antraege-INSERT in separaten Calls geschrieben wird.\n//\n// foerderbereich: Default 'begegnungszentren' (Robert-Entscheidung 2026-05-24:\n// APL 2 wird primär als BZ subsumiert; Sachbearbeiter kann überschreiben).\n\nconst input = $input.first().json;\nconst content = input.content?.[0]?.text;\nif (!content) {\n  throw new Error('Claude lieferte keinen Text-Content zurück: ' + JSON.stringify(input));\n}\nlet extr;\ntry {\n  const cleaned = content.trim().replace(/^```json\\n?/, '').replace(/\\n?```$/, '');\n  extr = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Claude-Antwort ist kein JSON: ' + content.slice(0, 500));\n}\n\n// Kostenfelder aus dem Antrag-Payload entfernen — sie gehen separat in belegposition\nconst betriebskosten = extr.betriebskosten_vorjahr_euro;\nconst personalkosten = extr.personalkosten_vorjahr_euro;\nconst miete_monat    = extr.monatliche_miete_euro;\ndelete extr.betriebskosten_vorjahr_euro;\ndelete extr.personalkosten_vorjahr_euro;\ndelete extr.monatliche_miete_euro;\n\n// Antrag-Defaults\nextr.submitted_language = 'de';\nextr.antragsdatum = extr.antragsdatum || new Date().toISOString().slice(0, 10);\nextr.status = 'eingegangen';\n// Förderbereich-Default (Sachbearbeiter kann ändern)\nif (!extr.foerderbereich) extr.foerderbereich = 'begegnungszentren';\n\n// Bemessungs-Felder bleiben NULL — PDF fragt sie nicht ab. UE3 zeigt entsprechende\n// Hinweise. geforderte_foerdersumme_euro bleibt NULL — Sachbearbeitung beziffert.\n\n// Belegposition-Array bauen — nur Positionen mit Wert > 0\nconst belegpositionen = [];\nif (typeof betriebskosten === 'number' && betriebskosten > 0) {\n  belegpositionen.push({\n    belegtyp: 'betriebskosten',\n    bezeichnung: 'Betriebskosten Vorjahr (aus OCR)',\n    betrag_euro: betriebskosten\n  });\n}\nif (typeof personalkosten === 'number' && personalkosten > 0) {\n  belegpositionen.push({\n    belegtyp: 'personalkosten',\n    bezeichnung: 'Personalkosten Vorjahr (aus OCR)',\n    betrag_euro: personalkosten\n  });\n}\nif (typeof miete_monat === 'number' && miete_monat > 0) {\n  // PDF fragt MONATLICH ab; in DB landet Jahressumme\n  belegpositionen.push({\n    belegtyp: 'miete',\n    bezeichnung: 'Jahresmiete (aus OCR: ' + miete_monat + ' € × 12)',\n    betrag_euro: miete_monat * 12\n  });\n}\n\nreturn [{\n  json: {\n    extrahiert: extr,\n    belegpositionen: belegpositionen,\n    einreichung_id: $('Webhook Trigger (Supabase NOTIFY)').first().json.body.einreichung_id\n  }\n}];"
       },
       "id": "parse-1",
-      "name": "Parse JSON + Defaults",
+      "name": "Parse JSON + Defaults + Belegpositionen-Split",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [940, 300]
@@ -95,7 +95,57 @@
     },
     {
       "parameters": {
-        "url": "=http://kong:8000/rest/v1/antrag_einreichung?id=eq.{{ $('Parse JSON + Defaults').first().json.einreichung_id }}",
+        "jsCode": "// Belegpositionen mit antrag_id annotieren — der vorhergehende INSERT-Knoten\n// liefert die neue Antrag-ID in $json[0].id. Wir produzieren eine Liste, die\n// der nachfolgende Loop-Over-Items-INSERT abarbeitet.\n\nconst antragId = $input.first().json[0]?.id;\nif (!antragId) {\n  throw new Error('INSERT apl2.antraege lieferte keine ID zurück: ' + JSON.stringify($input.first().json));\n}\nconst beleg = $('Parse JSON + Defaults + Belegpositionen-Split').first().json.belegpositionen || [];\nif (beleg.length === 0) {\n  // Keine Belegpositionen — leeres Array passieren lassen, nächster HTTP-Node\n  // wird nicht ausgeführt (siehe IF-Bedingung dort).\n  return [{ json: { antrag_id: antragId, belegpositionen: [], _skip_belegposition: true } }];\n}\nreturn beleg.map(b => ({\n  json: { ...b, antrag_id: antragId, _skip_belegposition: false }\n}));"
+      },
+      "id": "annotate-1",
+      "name": "Annotate Belegpositionen mit antrag_id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1460, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            { "value1": "={{ $json._skip_belegposition }}", "value2": false }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "IF Belegpositionen vorhanden",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1640, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://kong:8000/rest/v1/belegposition",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Accept-Profile", "value": "apl2" },
+            { "name": "Content-Profile", "value": "apl2" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"antrag_id\": \"{{ $json.antrag_id }}\",\n  \"belegtyp\": \"{{ $json.belegtyp }}\",\n  \"bezeichnung\": \"{{ $json.bezeichnung }}\",\n  \"betrag_euro\": {{ $json.betrag_euro }}\n}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "insert-beleg",
+      "name": "INSERT apl2.belegposition",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1860, 200]
+    },
+    {
+      "parameters": {
+        "url": "=http://kong:8000/rest/v1/antrag_einreichung?id=eq.{{ $('Parse JSON + Defaults + Belegpositionen-Split').first().json.einreichung_id }}",
         "method": "PATCH",
         "sendHeaders": true,
         "headerParameters": {
@@ -109,29 +159,44 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"status\": \"fertig\",\n  \"antrag_id\": \"{{ $json[0].id }}\",\n  \"extrahiert_jsonb\": {{ JSON.stringify($('Parse JSON + Defaults').first().json.extrahiert) }},\n  \"verarbeitet_am\": \"{{ new Date().toISOString() }}\"\n}"
+        "jsonBody": "={\n  \"status\": \"fertig\",\n  \"antrag_id\": \"{{ $('Annotate Belegpositionen mit antrag_id').first().json.antrag_id }}\",\n  \"extrahiert_jsonb\": {{ JSON.stringify($('Parse JSON + Defaults + Belegpositionen-Split').first().json.extrahiert) }},\n  \"verarbeitet_am\": \"{{ new Date().toISOString() }}\"\n}"
       },
       "id": "update-1",
       "name": "UPDATE antrag_einreichung status=fertig",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1460, 300]
+      "position": [2080, 200]
     }
   ],
   "connections": {
-    "Webhook Trigger (Supabase NOTIFY)": { "main": [[{ "node": "PDF aus Storage holen", "type": "main", "index": 0 }]] },
-    "PDF aus Storage holen":             { "main": [[{ "node": "Claude Vision — OCR + Extraktion", "type": "main", "index": 0 }]] },
-    "Claude Vision — OCR + Extraktion":  { "main": [[{ "node": "Parse JSON + Defaults", "type": "main", "index": 0 }]] },
-    "Parse JSON + Defaults":             { "main": [[{ "node": "INSERT apl2.antraege", "type": "main", "index": 0 }]] },
-    "INSERT apl2.antraege":              { "main": [[{ "node": "UPDATE antrag_einreichung status=fertig", "type": "main", "index": 0 }]] }
+    "Webhook Trigger (Supabase NOTIFY)":         { "main": [[{ "node": "PDF aus Storage holen", "type": "main", "index": 0 }]] },
+    "PDF aus Storage holen":                     { "main": [[{ "node": "Claude Vision — OCR + Extraktion", "type": "main", "index": 0 }]] },
+    "Claude Vision — OCR + Extraktion":          { "main": [[{ "node": "Parse JSON + Defaults + Belegpositionen-Split", "type": "main", "index": 0 }]] },
+    "Parse JSON + Defaults + Belegpositionen-Split": { "main": [[{ "node": "INSERT apl2.antraege", "type": "main", "index": 0 }]] },
+    "INSERT apl2.antraege":                      { "main": [[{ "node": "Annotate Belegpositionen mit antrag_id", "type": "main", "index": 0 }]] },
+    "Annotate Belegpositionen mit antrag_id":    { "main": [[{ "node": "IF Belegpositionen vorhanden", "type": "main", "index": 0 }]] },
+    "IF Belegpositionen vorhanden":              {
+      "main": [
+        [{ "node": "INSERT apl2.belegposition", "type": "main", "index": 0 }],
+        [{ "node": "UPDATE antrag_einreichung status=fertig", "type": "main", "index": 0 }]
+      ]
+    },
+    "INSERT apl2.belegposition":                 { "main": [[{ "node": "UPDATE antrag_einreichung status=fertig", "type": "main", "index": 0 }]] }
   },
   "settings": {
     "errorWorkflow": "",
     "executionOrder": "v1"
   },
   "_documentation": {
-    "purpose": "UE0 — Bürger lädt ausgefülltes Antrags-PDF hoch, dieser Workflow extrahiert per Claude Vision OCR (auch Handschrift) und schreibt nach apl2.antraege.",
+    "purpose": "UE0 — Bürger lädt ausgefülltes Antrags-PDF hoch, dieser Workflow extrahiert per Claude Vision OCR (auch Handschrift) und schreibt nach apl2.antraege + apl2.belegposition.",
     "trigger": "Wird von Postgres-Trigger trg_notify_n8n_on_pdf_einreichung aufgerufen (Migration 047).",
+    "audit_2026_05_24_changes": [
+      "Claude-Prompt: telefon + bankverbindung + bic als Verwaltungspraxis-Pflicht markiert (Robert-Entscheidung). Vorher 'optional' → DB-INSERT crashte nach Migration 048 (NOT NULL).",
+      "Miete-Schema: monatliche_miete_euro statt miete_jahr_euro im OCR-Schema — PDF fragt monatlich ab; Konversion ×12 erfolgt erst in Parse-Knoten.",
+      "Parse-Knoten splittet Kostenfelder aus extrahiert raus und baut Belegposition-Array (Mig 016 — Kostenspalten existieren nicht mehr in apl2.antraege).",
+      "Neue Knoten: Annotate→IF→INSERT belegposition für jede Position. Davor wurden die Kosten still verworfen.",
+      "Default foerderbereich=begegnungszentren (Robert-Entscheidung; überschreibbar)."
+    ],
     "required_env_vars": [
       "SUPABASE_SERVICE_ROLE_KEY — bereits in /opt/pruefung/.env auf VPS",
       "ANTHROPIC_API_KEY — bereits in /opt/pruefung/.env"
