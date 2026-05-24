@@ -9,7 +9,8 @@ import { StatusBadge } from "../components/StatusBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
 import { allowedTransitions, isReverseTransition, STATUS_LABELS, type Status } from "../lib/workflow";
-import { formatEuro, formatDateTime, formatAdresse } from "../lib/format";
+import { formatEuro, formatDateTime, formatDate, formatAdresse } from "../lib/format";
+import { supabase } from "../lib/supabase";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -43,7 +44,7 @@ export function AntragDetail() {
   // Early returns für loading/error dürfen ERST NACH allen Hook-Calls kommen.
   const {
     antrag, anlagen, belegpositionen, oeffnungszeiten, history,
-    loading, error, changeStatus,
+    loading, error, changeStatus, reload,
   } = useAntrag(id);
   const { session } = useSession();
   const {
@@ -172,12 +173,27 @@ export function AntragDetail() {
                 <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-medium">
                   Förderantrag · Altentagesstätten APL 2
                 </div>
-                <h1 className="text-xl font-semibold text-slate-700 mt-0.5">
+                <div
+                  className="text-[10.5px] text-slate-400 italic mt-0.5 leading-tight max-w-[60ch]"
+                  title="APL 2 ist nur das Aktenzeichen — die geltende Rechtsgrundlage ist die AHP-Förderrichtlinie der Stadt Würzburg (Stand 2025-03-27). Der ursprüngliche Altenhilfeplan wurde aufgehoben."
+                >
+                  Aktenzeichen — Rechtsgrundlage:
+                  AHP-Förderrichtlinie Stadt Würzburg (Stand 2025-03-27)
+                </div>
+                <h1 className="text-xl font-semibold text-slate-700 mt-1.5">
                   Betriebs- und Personalkostenzuschuss
                 </h1>
                 <p className="text-xs text-slate-500 mt-1">
                   Haushaltsjahr{" "}
                   <span className="font-semibold text-slate-800 tabular-nums">{antrag.haushaltsjahr}</span>
+                  <span className="mx-2 text-slate-300">·</span>
+                  Würzburg, <span className="text-slate-800">{formatDate(antrag.antragsdatum)}</span>
+                  <span
+                    className="text-[10.5px] text-slate-400 italic ml-1"
+                    title="Antragsdatum aus dem Antragsformular (Bürger-Angabe). Eingangsdatum im System siehe Footer."
+                  >
+                    (Antragsdatum lt. Bürger)
+                  </span>
                 </p>
               </div>
               <div className="text-right shrink-0 text-xs">
@@ -207,7 +223,7 @@ export function AntragDetail() {
 
             {/* Antrags-Summary: Beantragte Summe + Förderbereich + Bezug zur
                 AHP-Förderhöchstgrenze auf einen Blick. */}
-            <AntragSummaryStrip antrag={antrag} />
+            <AntragSummaryStrip antrag={antrag} onChanged={reload} />
           </div>
 
           {/* §§ Abschnitte */}
@@ -295,7 +311,7 @@ export function AntragDetail() {
               title="Förderbereich & beantragte Förderung"
               subtitle="Förderbereich, Förderhöchstgrenze und beantragte Summe"
             >
-              <FoerderblockKomplett antrag={antrag} />
+              <FoerderblockKomplett antrag={antrag} onChanged={reload} />
             </DocSection>
 
             <DocSection
@@ -334,7 +350,12 @@ export function AntragDetail() {
           <div className="bg-slate-50 border-t-2 border-slate-200 px-10 lg:px-14 py-5">
             <div className="flex flex-wrap items-baseline justify-between gap-4 text-xs">
               <div className="text-slate-500">
-                <span className="font-semibold uppercase tracking-wider">Eingegangen</span>
+                <span className="font-semibold uppercase tracking-wider">Antragsdatum lt. Bürger</span>
+                <span className="ml-2 text-slate-700">
+                  {formatDate(antrag.antragsdatum)}
+                </span>
+                <span className="ml-3 text-slate-400">·</span>
+                <span className="ml-3 font-semibold uppercase tracking-wider">Eingegangen</span>
                 <span className="ml-2 text-slate-700">
                   {formatDateTime(antrag.submitted_at)}
                 </span>
@@ -855,13 +876,27 @@ function pflichtgrund(letztePruefung: { ergebnis_jsonb?: { empfehlung?: { aktion
 /** Antrags-Summary-Streifen direkt unter dem Hero — beantwortet auf einen
  * Blick: "Was ist die Antragssumme?" und "Liegt sie innerhalb der
  * AHP-Förderhöchstgrenze?" */
-function AntragSummaryStrip({ antrag }: { antrag: AntragFull }) {
+function AntragSummaryStrip({
+  antrag, onChanged,
+}: {
+  antrag: AntragFull;
+  onChanged?: () => void | Promise<void>;
+}) {
   const meta = foerderbereichMeta(antrag.foerderbereich);
   const wert = antrag.geforderte_foerdersumme_euro;
   if (wert === null || wert === undefined) {
     return (
-      <div className="mt-6 bg-slate-50 border border-slate-200 rounded-sm px-5 py-3 text-sm text-slate-500 italic">
-        Keine Fördersumme angegeben.
+      <div className="mt-6 bg-amber-50/60 border border-amber-200 rounded-sm px-5 py-3 text-sm">
+        <div className="flex items-baseline justify-between gap-4 flex-wrap">
+          <div className="text-amber-900">
+            <span className="font-medium">Bürger hat keine konkrete Fördersumme beantragt</span>
+            <span className="block text-xs text-amber-800/80 mt-0.5">
+              Webformular und PDF-Antrag fragen die Summe nicht zwingend ab —
+              bitte hier ergänzen, sobald sie vorliegt.
+            </span>
+          </div>
+          <FoerdersummeEditButton antrag={antrag} onChanged={onChanged} />
+        </div>
       </div>
     );
   }
@@ -1065,14 +1100,22 @@ function BemessungsblockVorjahr({ antrag }: { antrag: AntragFull }) {
   );
 }
 
-function FoerderblockKomplett({ antrag }: { antrag: AntragFull }) {
+function FoerderblockKomplett({
+  antrag, onChanged,
+}: {
+  antrag: AntragFull;
+  onChanged?: () => void | Promise<void>;
+}) {
   const meta = foerderbereichMeta(antrag.foerderbereich);
   return (
     <div className="space-y-6">
       {/* (1) Förderbereich-Pill */}
       <div>
-        <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-2">
-          AHP-Förderbereich
+        <div className="flex items-baseline justify-between mb-2 gap-2">
+          <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium">
+            AHP-Förderbereich
+          </div>
+          <FoerderbereichEditButton antrag={antrag} onChanged={onChanged} />
         </div>
         {meta ? (
           <div className="flex items-baseline gap-3 flex-wrap">
@@ -1090,11 +1133,19 @@ function FoerderblockKomplett({ antrag }: { antrag: AntragFull }) {
       </div>
 
       {/* (2) Fördersumme + Förderhöchstgrenze */}
-      <FoerdersummeMitHoechstgrenze
-        wert={antrag.geforderte_foerdersumme_euro}
-        hoechstgrenze={meta?.hoechstgrenze ?? null}
-        hoechstgrenzeLabel={meta?.ahpPath ?? null}
-      />
+      <div>
+        <div className="flex items-baseline justify-between mb-1 gap-2">
+          <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium">
+            Beantragte Förderung
+          </div>
+          <FoerdersummeEditButton antrag={antrag} onChanged={onChanged} />
+        </div>
+        <FoerdersummeMitHoechstgrenze
+          wert={antrag.geforderte_foerdersumme_euro}
+          hoechstgrenze={meta?.hoechstgrenze ?? null}
+          hoechstgrenzeLabel={meta?.ahpPath ?? null}
+        />
+      </div>
 
       {/* (2b) Kalkulationsformel — nur wenn Förderbereich anteilsskaliert */}
       <KalkulationsFormel antrag={antrag} meta={meta} />
@@ -1513,5 +1564,209 @@ function StatusFlow({ status }: { status: Status }) {
         })}
       </ol>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Edit-Buttons (Fix H + I, AHP-Audit 2026-05-24)
+// Direkter PATCH ohne Audit-Spur (Robert-Vorgabe: vorerst direkt).
+// Beide Buttons nutzen den existierenden supabase-Client (Schema apl2).
+// ─────────────────────────────────────────────────────────────────────
+
+const FOERDERBEREICH_OPTIONEN: Array<{ value: NonNullable<AntragFull["foerderbereich"]>; label: string }> = [
+  { value: "aufbau_niedrigschwellige_angebote", label: "FB I — Aufbau niedrigschwelliger Angebote (AHP 2.1)" },
+  { value: "buergerschaftliches_engagement",     label: "FB II — Bürgerschaftliches Engagement (AHP 2.2)" },
+  { value: "mehrgenerationenhaeuser",            label: "FB III — Mehrgenerationenhäuser (AHP 2.3 Pkt. 1)" },
+  { value: "begegnungszentren",                  label: "FB III — Begegnungszentren (AHP 2.3 Pkt. 2)" },
+  { value: "bildungstraeger",                    label: "FB III — Bildungsträger (AHP 2.3 Pkt. 3)" },
+  { value: "seniorenkreise",                     label: "FB III — Seniorenkreise (AHP 2.3 Pkt. 4)" },
+  { value: "quartiersmanagement_altenarbeit",    label: "FB III — Quartiersmanagement Altenarbeit (AHP 2.3 Pkt. 5)" },
+  { value: "struktur_schwerpunktfoerderung",     label: "FB IV — Struktur- & Schwerpunktförderung (AHP 2.4)" },
+];
+
+function FoerderbereichEditButton({
+  antrag, onChanged,
+}: {
+  antrag: AntragFull;
+  onChanged?: () => void | Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [val, setVal] = useState<string>(antrag.foerderbereich ?? "");
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  async function save() {
+    if (!val || val === antrag.foerderbereich) {
+      setOpen(false);
+      return;
+    }
+    setBusy(true);
+    setFeedback(null);
+    const altLabel = foerderbereichMeta(antrag.foerderbereich)?.label ?? "—";
+    const neuLabel = foerderbereichMeta(val)?.label ?? val;
+    const { error } = await supabase
+      .from("antraege")
+      .update({ foerderbereich: val })
+      .eq("id", antrag.id);
+    setBusy(false);
+    if (error) {
+      setFeedback("Fehler: " + error.message);
+      return;
+    }
+    setFeedback(`Förderbereich geändert: ${altLabel} → ${neuLabel}`);
+    setOpen(false);
+    if (onChanged) await onChanged();
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-6 px-2 text-[10.5px] uppercase tracking-wider"
+        onClick={() => { setVal(antrag.foerderbereich ?? ""); setOpen(true); }}
+      >
+        Ändern
+      </Button>
+      {feedback && (
+        <span
+          role="status"
+          className={
+            "ml-2 text-[10.5px] " +
+            (feedback.startsWith("Fehler") ? "text-rose-700" : "text-emerald-700")
+          }
+        >
+          {feedback}
+        </span>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Förderbereich ändern</DialogTitle>
+            <DialogDescription>
+              Default ist „Begegnungszentren" — der Sachbearbeiter kann anhand
+              des Antrags-Inhalts die korrekte Zuordnung treffen. Änderung wirkt
+              sofort und wird nicht versionssiert.
+            </DialogDescription>
+          </DialogHeader>
+          <select
+            className="w-full border border-slate-300 rounded-sm px-3 py-2 text-sm"
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+          >
+            <option value="">— bitte wählen —</option>
+            {FOERDERBEREICH_OPTIONEN.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
+              Abbrechen
+            </Button>
+            <Button onClick={save} disabled={busy || !val}>
+              {busy ? "Speichern …" : "Speichern"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function FoerdersummeEditButton({
+  antrag, onChanged,
+}: {
+  antrag: AntragFull;
+  onChanged?: () => void | Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [val, setVal] = useState<string>(
+    antrag.geforderte_foerdersumme_euro != null
+      ? String(antrag.geforderte_foerdersumme_euro)
+      : "",
+  );
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  async function save() {
+    setBusy(true);
+    setFeedback(null);
+    let neuerWert: number | null = null;
+    if (val.trim().length > 0) {
+      const n = Number(val.replace(",", ".").replace(/[^\d.\-]/g, ""));
+      if (!Number.isFinite(n) || n < 0) {
+        setBusy(false);
+        setFeedback("Fehler: ungültiger Betrag");
+        return;
+      }
+      neuerWert = n;
+    }
+    const { error } = await supabase
+      .from("antraege")
+      .update({ geforderte_foerdersumme_euro: neuerWert })
+      .eq("id", antrag.id);
+    setBusy(false);
+    if (error) {
+      setFeedback("Fehler: " + error.message);
+      return;
+    }
+    setFeedback("Fördersumme aktualisiert");
+    setOpen(false);
+    if (onChanged) await onChanged();
+  }
+
+  const labelBusyAction =
+    antrag.geforderte_foerdersumme_euro == null ? "Erfassen" : "Ändern";
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-6 px-2 text-[10.5px] uppercase tracking-wider"
+        onClick={() => setOpen(true)}
+      >
+        {labelBusyAction}
+      </Button>
+      {feedback && (
+        <span
+          role="status"
+          className={
+            "ml-2 text-[10.5px] " +
+            (feedback.startsWith("Fehler") ? "text-rose-700" : "text-emerald-700")
+          }
+        >
+          {feedback}
+        </span>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Geforderte Fördersumme (Jahr)</DialogTitle>
+            <DialogDescription>
+              Betrag in EUR — Webformular und PDF-Antrag fragen diese Summe nicht
+              zwingend ab. Sie können den Wert hier nachpflegen oder leer lassen.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            type="text"
+            inputMode="decimal"
+            placeholder="z. B. 10000"
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
+              Abbrechen
+            </Button>
+            <Button onClick={save} disabled={busy}>
+              {busy ? "Speichern …" : "Speichern"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -6,7 +6,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
 import { allowedTransitions, STATUS_LABELS, type Status } from "../lib/workflow";
-import { formatEuro, formatDateTime, formatAdresse } from "../lib/format";
+import { formatEuro, formatDateTime, formatDate, formatAdresse } from "../lib/format";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import {
@@ -61,6 +61,12 @@ export function AntragDetail() {
           <span className="text-slate-300">·</span>
           <h1 className="text-lg font-bold font-mono">{antrag.antragsnummer}</h1>
           <StatusBadge status={antrag.status} />
+          <span
+            className="ml-auto text-[11px] text-slate-500 italic"
+            title="APL 2 ist nur das Aktenzeichen — die geltende Rechtsgrundlage ist die AHP-Förderrichtlinie Stadt Würzburg (Stand 2025-03-27)."
+          >
+            Aktenzeichen APL 2 — Rechtsgrundlage: AHP-Förderrichtlinie 2025-03-27
+          </span>
         </div>
       </header>
 
@@ -104,9 +110,18 @@ export function AntragDetail() {
                 <> · Miete (Jahr) {formatEuro(antrag.miete_jahr_euro)}</>
               )}
             </Field>
+            <Field label="Antragsdatum (Bürger)">
+              <span title="Datum, das der Bürger im Antragsformular angegeben hat (Würzburg, …)">
+                Würzburg, {formatDate(antrag.antragsdatum)}
+              </span>
+            </Field>
             <Field label="Eingegangen am">
               {formatDateTime(antrag.submitted_at)} · Sprache{" "}
               {antrag.submitted_language.toUpperCase()}
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                Antragsdatum lt. Bürger: {formatDate(antrag.antragsdatum)} ·
+                Eingegangen im System: {formatDateTime(antrag.submitted_at)}
+              </div>
             </Field>
             <Field label="IP / User-Agent">
               {antrag.ip_address ?? "—"} ·{" "}

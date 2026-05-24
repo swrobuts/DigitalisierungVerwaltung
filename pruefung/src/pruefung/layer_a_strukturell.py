@@ -32,6 +32,7 @@ def check_strukturell(antrag: dict) -> list[Befund]:
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="antragsnummer",
             beschreibung="Antragsnummer fehlt.",
+            paragraph_ref="AHP 3.2 a) Antragstellung auf Formblättern",
         ))
 
     if not _is_valid_iban(antrag.get("iban", "") or ""):
@@ -45,12 +46,14 @@ def check_strukturell(antrag: dict) -> list[Befund]:
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="plz",
             beschreibung="PLZ muss aus 5 Ziffern bestehen.",
+            paragraph_ref="Verwaltungspraxis: Anschrift Träger für Korrespondenz",
         ))
 
     if not _is_valid_email(antrag.get("email", "") or ""):
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="email",
             beschreibung="E-Mail-Format ungültig.",
+            paragraph_ref="Verwaltungspraxis: Korrespondenz-Kanal (nicht AHP-explizit)",
         ))
 
     jahr = antrag.get("haushaltsjahr")
@@ -58,6 +61,7 @@ def check_strukturell(antrag: dict) -> list[Befund]:
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="haushaltsjahr",
             beschreibung="Haushaltsjahr außerhalb 2020–2030.",
+            paragraph_ref="AHP 3.7 Rechnungsjahr (1.1.–31.12.)",
         ))
 
     return befunde

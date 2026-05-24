@@ -120,7 +120,11 @@ async def berechne_risiko_score(antrag_id: str, db: SupabaseClient) -> dict[str,
             ),
         })
 
-    # Stadtbewohner-Anteil
+    # Stadtbewohner-Anteil — HEURISTIK, kein AHP-Schwellwert!
+    # AHP definiert KEINE Mindestquote für Würzburger Teilnehmer; die anteilige
+    # Auszahlung folgt rein der prozentualen Mathematik. Der 50 %-Trigger hier
+    # ist ein Triage-Hinweis aus der Verwaltungspraxis (Sozialreferat), nicht
+    # aus der Förderrichtlinie ableitbar.
     anteil = a.get("stadtbewohner_anteil")
     if anteil is not None and float(anteil) < 0.5:
         score += SCORE_WEIGHTS["stadtbewohner_anteil_lo"]
@@ -128,8 +132,12 @@ async def berechne_risiko_score(antrag_id: str, db: SupabaseClient) -> dict[str,
             "name": "stadtbewohner_anteil_lo",
             "gewicht": SCORE_WEIGHTS["stadtbewohner_anteil_lo"],
             "begruendung": (
-                f"Nur {int(float(anteil) * 100)}% Würzburger Teilnehmer — "
-                f"AHP fordert i.d.R. Mehrheit aus dem Stadtgebiet."
+                f"Heuristischer Triage-Hinweis (Sachbearbeiter-Erfahrungswert): "
+                f"bei Stadtbewohner-Anteil {int(float(anteil) * 100)} % (< 50 %) "
+                f"wird gem. Verwaltungspraxis Sozialreferat erhöht geprüft. "
+                f"Kein expliziter AHP-Schwellwert — die anteilige Auszahlung "
+                f"folgt der prozentualen Mathematik, eine Mindestquote ist im "
+                f"AHP nicht definiert."
             ),
         })
 
