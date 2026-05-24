@@ -3,61 +3,94 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Antrag hochladen — Altenhilfeplan Nr. 2 (Demo)</title>
+    <title>Altenhilfeplan — Formularcenter (Demo)</title>
     <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="icon" type="image/png" href="wuerzburg-wappen.png" />
   </head>
   <body>
-    <!-- 3px Würzburg-Rot-Akzent oben (analog UE1) -->
+    <!-- 3px Würzburg-Rot-Akzent oben -->
     <div class="wue-accent"></div>
 
     <header class="page-header">
       <div class="page-header-inner">
-        <div class="wappen-block">
-          <!-- SVG-Wappen ist optisch nahe an wuerzburg.de, aber bewusst
-               generisch gehalten (kein offizielles City-Logo, nur Andeutung). -->
-          <svg width="46" height="46" viewBox="0 0 80 80" aria-hidden="true">
-            <path d="M40 4 L20 12 L20 30 C20 50 30 65 40 76 C50 65 60 50 60 30 L60 12 Z"
-                  fill="#AD0E36" stroke="#8A0B2B" stroke-width="2"/>
-            <path d="M30 28 L50 28 M40 20 L40 36 M28 44 L52 44" stroke="#FFF" stroke-width="3"/>
-          </svg>
-          <div class="wappen-text">
-            <div class="wappen-eyebrow">STADT WÜRZBURG · Demo</div>
-            <div class="wappen-title">Formularcenter</div>
-          </div>
-        </div>
+        <a class="brand" href="" aria-label="Stadt Würzburg — Startseite">
+          <img class="brand-logo" src="wuerzburg-wappen.svg" alt="Wappen Stadt Würzburg" />
+          <span class="brand-text">
+            <span class="brand-stadt">STADT</span>
+            <span class="brand-name">WÜRZBURG</span>
+          </span>
+        </a>
         <nav class="page-nav" aria-label="Hauptnavigation">
-          <span class="lang-pill" lang="de">Deutsch</span>
+          <button class="nav-icon" aria-label="Barrierefreiheit" title="Barrierefreiheit">♿</button>
+          <button class="nav-icon" aria-label="Suche" title="Suche">🔍</button>
+          <span class="lang-pill" lang="de">🇩🇪 Deutsch ▾</span>
+          <button class="nav-menu" aria-label="Menü">☰ Menü</button>
         </nav>
       </div>
     </header>
 
     <!-- Breadcrumb wie auf wuerzburg.de -->
     <div class="breadcrumb">
-      <a href="#">Startseite</a> <span class="bc-sep">›</span>
-      <a href="#">Rathaus</a> <span class="bc-sep">›</span>
-      <a href="#">Formularcenter</a>
+      <div class="breadcrumb-inner">
+        <a href="">Startseite</a><span class="bc-sep">›</span>
+        <a href="">Rathaus</a><span class="bc-sep">›</span>
+        <a href="">Formularcenter</a>
+      </div>
     </div>
 
     <main id="app" class="page-main"></main>
 
-    <!-- Disclaimer-Footer: rechtlich wichtig — klar markiert dass dies
-         keine offizielle Stadt-Würzburg-Seite ist. -->
-    <footer class="demo-footer">
-      <div class="demo-footer-inner">
-        <p class="demo-footer-warn">
-          <strong>Demo-Webseite für Lehrzwecke (THWS).</strong>
-          Dies ist kein offizielles Angebot der Stadt Würzburg.
-          Hochgeladene Dokumente werden ausschließlich zur Demonstration
-          eines KI-gestützten OCR-Workflows verarbeitet und nach
-          Vorlesungsende gelöscht. Bitte keine echten personenbezogenen
-          Daten verwenden.
-        </p>
-        <p class="demo-footer-meta">
-          Kursprojekt „Digitalisierung in der Verwaltung" · Reifegradstufe 0
-          (PDF-Upload mit KI-OCR) · Quelle:
+    <!-- Würzburg-Footer mit Demo-Disclaimer ──────────────────────────── -->
+    <footer class="wue-footer">
+      <div class="wue-footer-inner">
+        <!-- Demo-Disclaimer ganz oben, rot abgesetzt für rechtliche Klarheit -->
+        <div class="demo-banner">
+          <strong>⚠ Demo-Webseite für Lehrzwecke (THWS).</strong>
+          Dies ist <u>kein</u> offizielles Angebot der Stadt Würzburg. Optik
+          und Texte orientieren sich am Original, der Upload-Workflow ist
+          eine eigene KI-Demonstration. Hochgeladene Dokumente werden
+          ausschließlich zur Demonstration verarbeitet und nach Vorlesungs­
+          ende gelöscht — bitte keine echten personenbezogenen Daten verwenden.
+        </div>
+
+        <div class="wue-footer-grid">
+          <!-- Spalte 1: Service-Links -->
+          <ul class="wue-footer-links">
+            <li><a href="#">› Notfall</a></li>
+            <li><a href="#">› Datenschutz</a></li>
+            <li><a href="#">› Impressum</a></li>
+            <li><a href="#">› Kontakt</a></li>
+            <li><a href="#">› Newsletter</a></li>
+            <li><a href="#">› Barrierefreiheit</a></li>
+            <li><a href="#">› Gebärdensprache</a></li>
+            <li><a href="#">› Leichte Sprache</a></li>
+          </ul>
+
+          <!-- Spalte 2: Stadt -->
+          <div class="wue-footer-col">
+            <h3>Stadt Würzburg</h3>
+            <p>Rückermainstraße 2<br />97070 Würzburg</p>
+            <p>Tel.&nbsp;09 31/&nbsp;37-0<br />Fax&nbsp;09 31/&nbsp;37 33 73</p>
+            <p>info@stadt.wuerzburg.de</p>
+          </div>
+
+          <!-- Spalte 3: Tourist Info -->
+          <div class="wue-footer-col">
+            <h3>Tourist Information &amp; Ticket Service</h3>
+            <p>im Falkenhaus am Markt<br />97070 Würzburg</p>
+            <p>Tel.&nbsp;+49 (0)9 31/&nbsp;37 23 98 (Tourist Information)<br />
+               Fax&nbsp;+49 (0)9 31/&nbsp;37 36 52</p>
+            <p>tourismus@wuerzburg.de<br /><a href="#">Allgemeine Geschäftsbedingungen</a></p>
+          </div>
+        </div>
+
+        <div class="wue-footer-bottom">
+          © 2026 Stadt Würzburg. Alle Rechte vorbehalten. ·
+          <strong>Demo-Klon der Lehrveranstaltung THWS</strong> ·
+          Quelle:
           <a href="https://github.com/swrobuts/DigitalisierungVerwaltung"
              target="_blank" rel="noopener noreferrer">github.com/swrobuts</a>
-        </p>
+        </div>
       </div>
     </footer>
 
