@@ -75,8 +75,15 @@ function renderUploadView(): HTMLElement {
   `;
   main.appendChild(ocrHint);
 
-  // Helper: jeder Antrag bekommt PDF-Link + Upload-Button im gleichen Pattern
-  function antragRow(downloadUrl: string, label: string): HTMLElement {
+  // Helper: jeder Antrag bekommt PDF-Link + Upload-Button im gleichen Pattern.
+  // dokumentBeschreibung wird im Erklärungs-Card-Text zitiert, damit der Bürger
+  // bei beiden Sektionen klar sieht, um welches Dokument es gerade geht.
+  function antragRow(
+    downloadUrl: string,
+    label: string,
+    dokumentBeschreibung: string,
+    ueberschrift: string,
+  ): HTMLElement {
     const row = document.createElement("div");
     row.className = "antrag-row";
     row.innerHTML = `
@@ -85,12 +92,15 @@ function renderUploadView(): HTMLElement {
         ${label}
       </a>
     `;
-    row.appendChild(renderUpload((trackingId) => {
-      const url = new URL(window.location.href);
-      url.searchParams.set("status", trackingId);
-      window.history.pushState({}, "", url);
-      route();
-    }));
+    row.appendChild(renderUpload(
+      (trackingId) => {
+        const url = new URL(window.location.href);
+        url.searchParams.set("status", trackingId);
+        window.history.pushState({}, "", url);
+        route();
+      },
+      { dokumentBeschreibung, ueberschrift },
+    ));
     return row;
   }
 
@@ -98,12 +108,16 @@ function renderUploadView(): HTMLElement {
   main.appendChild(antragRow(
     "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/antrag-apl2.pdf",
     "Antrag APL 2 - Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
+    "Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
+    "So funktioniert der digitale Antrag",
   ));
 
-  // Anlage 1 (Wochenplan)
+  // Anlage 1 (Wochenplan zum Antrag APL 2)
   main.appendChild(antragRow(
     "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/anlage-antrag-apl2.pdf",
     "Anlage Antrag APL 2 - Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
+    "Anlage 1 zum Antrag APL 2 — Wochenplan (Öffnungszeiten + Angebot der Altentagesstätte)",
+    "So funktioniert die digitale Anlage 1",
   ));
 
   // Trenner + Weiterführende Informationen

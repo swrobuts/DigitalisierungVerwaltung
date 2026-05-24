@@ -11,18 +11,33 @@ const ENDPOINT = `${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/upload-antrags
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
-export function renderUpload(onSuccess: (trackingId: string) => void): HTMLElement {
+/** Optionen für renderUpload — beschreiben welches Dokument hier hochgeladen
+ *  wird. Wird im Hilfetext sichtbar, damit Hauptantrag und Anlage 1
+ *  textlich unterscheidbar bleiben (Bug-Fix 2026-05-24). */
+export interface UploadOpts {
+  /** Wortlaut wie im PDF-Titel — wird in der Erklärungs-Card zitiert. */
+  dokumentBeschreibung: string;
+  /** Headline-Wortlaut der Erklärungs-Card.
+   *  Default: „So funktioniert der digitale Antrag". */
+  ueberschrift?: string;
+}
+
+export function renderUpload(
+  onSuccess: (trackingId: string) => void,
+  opts: UploadOpts = { dokumentBeschreibung: "Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse" },
+): HTMLElement {
   const wrap = document.createElement("div");
+  const ueberschrift = opts.ueberschrift ?? "So funktioniert der digitale Antrag";
 
   // Erklärungs-Card vor der Upload-Zone
   const intro = document.createElement("div");
   intro.className = "card";
   intro.innerHTML = `
-    <h3 class="card-h3">So funktioniert der digitale Antrag</h3>
+    <h3 class="card-h3">${ueberschrift}</h3>
     <div class="card-body">
       <p style="margin: 0 0 0.6rem;">
-        Sie haben das offizielle Antrags-PDF
-        (<em>Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse</em>)
+        Sie haben das offizielle PDF
+        (<em>${opts.dokumentBeschreibung}</em>)
         bereits ausgefüllt? Laden Sie es hier hoch.
       </p>
       <p style="margin: 0 0 0.6rem; color: #555;">
@@ -31,7 +46,7 @@ export function renderUpload(onSuccess: (trackingId: string) => void): HTMLEleme
         Eingangsbestätigung mit Ihrer Antragsnummer.
       </p>
       <p style="margin: 0; color: #6b6b6b; font-size: 13px;">
-        Akzeptiert: PDF, max. 10 MB. Demo-Antrags-PDFs zum Ausprobieren finden Sie im
+        Akzeptiert: PDF, max. 10 MB. Demo-PDFs zum Ausprobieren finden Sie im
         <a href="https://github.com/swrobuts/DigitalisierungVerwaltung/tree/main/ue0/demo-pdfs"
            target="_blank" rel="noopener noreferrer">Repository</a>.
       </p>
