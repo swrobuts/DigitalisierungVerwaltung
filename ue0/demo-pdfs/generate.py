@@ -1,15 +1,19 @@
-"""Generiert zwei ausgefüllte Demo-Antrags-PDFs für UE0.
+"""Generiert ausgefüllte Demo-PDFs für UE0 (Hauptantrag + Anlage 1).
 
 Layout angelehnt an das Original-Stadt-Würzburg-Antrags-PDF
-(materialien/antrag-apl2.pdf): zentrierter Titel, zweispaltige Daten-
-tabelle, Kosten-Block. Bewusst eigenes Layout (kein 1:1-Klon des
+(materialien/antrag-apl2.pdf bzw. materialien/anlage-antrag-apl2.pdf):
+zentrierter Titel, zweispaltige Datentabelle, Kosten-Block bzw.
+Wochenplan-Tabelle. Bewusst eigenes Layout (kein 1:1-Klon des
 amtlichen PDFs — rechtliche Sauberkeit), aber für das KI-OCR
 (Claude Vision) genauso lesbar.
 
 Erzeugt:
-  - demo-antrag-pfarrei-st-albert.pdf   (maschinell ausgefüllt)
-  - demo-antrag-buergerverein-handschrift.pdf  (Handschrift-anmutende Font,
-    Demo für „auch handschriftlich lesbar")
+  Hauptantrag:
+    - demo-antrag-pfarrei-st-albert.pdf            (maschinell ausgefüllt)
+    - demo-antrag-buergerverein-handschrift.pdf    (Handschrift-Font)
+  Anlage 1 (Wochenplan):
+    - demo-anlage1-pfarrei-st-albert.pdf           (maschinell ausgefüllt)
+    - demo-anlage1-buergerverein-handschrift.pdf   (Handschrift-Font)
 
 Aufruf:
   uv run --with reportlab python3 ue0/demo-pdfs/generate.py
@@ -181,6 +185,18 @@ PFARREI = {
     # Der n8n-Prompt rechnet monatlich × 12 zurück.
     "miete": "850,00 €",
     "antragsdatum": "15.03.2026",         # 2026-03-15
+    # Wochenplan (Anlage 1) — kath. Pfarrei: typisch Di/Do/So nach
+    # Gottesdienst. Konsistent mit Fake_Belege/generate.py PFARREI
+    # belegposition (Café/Spielenachmittag/Gymnastik), aber auf
+    # die kirchliche Verankerung an Sonntag erweitert. Wochentage
+    # nur die belegten (mo/di/mi/do/fr/sa/so), Rest bleibt im PDF
+    # leer (Spaltennamen in DB: oeffnungszeit, angebot).
+    "wochenplan": [
+        # (wochentag_label, oeffnungszeit, angebot)
+        ("Dienstag",   "09:30 – 11:30",  "Offener Treff, Kaffee, Gespräche"),
+        ("Donnerstag", "14:00 – 17:00",  "Seniorengymnastik mit Frau EberleinTest"),
+        ("Sonntag",    "10:30 – 12:00",  "Kirchencafé nach dem Gottesdienst"),
+    ],
 }
 
 BUERGERVEREIN = {
@@ -200,6 +216,14 @@ BUERGERVEREIN = {
     "raeume_unentgeltlich": "ja",
     "miete": "",                           # 0 in DB → Feld leer (unentgeltlich)
     "antragsdatum": "22.03.2026",         # 2026-03-22
+    # Wochenplan (Anlage 1) — Bürgerverein: typisch Mittwoch +
+    # Samstag (Wochenende-Schwerpunkt für Berufstätige/Familien).
+    # Konsistent mit dem Hauptantrag (Café + Gedächtnistraining +
+    # monatlicher Frühstückstreff).
+    "wochenplan": [
+        ("Mittwoch", "15:00 – 17:30", "Offener Treff + Gedächtnistraining (14-tägig)"),
+        ("Samstag",  "10:00 – 12:00", "Frühstückstreff (1. Samstag im Monat)"),
+    ],
 }
 
 
@@ -259,14 +283,147 @@ def generate(daten: dict, out: Path, *, handschrift: bool):
     print(f"  ✓ {out.name}")
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Anlage 1 — Wochenplan (separate PDF, separates Layout)
+# ──────────────────────────────────────────────────────────────────────
+#
+# Layout angelehnt an materialien/anlage-antrag-apl2.pdf:
+#   - „Beratungsstelle für Senioren" (Titel, fett, zentriert)
+#   - „Anlage 1 zum Antrag auf Zuschuss Altentagesstätten- Betriebs-
+#     und Personalkostenzuschüsse - APL 2"
+#   - Haushaltsjahr-Feld
+#   - Träger-Feld
+#   - Tabelle Wochentag × Öffnungszeiten × Angebot (alle 7 Tage)
+#
+# Die Tabelle enthält IMMER alle 7 Wochentage; nur die im wochenplan-
+# dict gelisteten Tage erhalten Werte, die restlichen Zeilen bleiben
+# leer (genau wie im Original-PDF-Formular).
+
+WOCHENTAGE_REIHENFOLGE = [
+    "Montag", "Dienstag", "Mittwoch", "Donnerstag",
+    "Freitag", "Samstag", "Sonntag",
+]
+
+
+def generate_anlage1(daten: dict, out: Path, *, handschrift: bool):
+    """Schreibt die Anlage-1-PDF (Wochenplan)."""
+    value_font = "Helvetica"
+    if handschrift:
+        candidates = [
+            "/System/Library/Fonts/Supplemental/Bradley Hand.ttc",
+            "/System/Library/Fonts/Supplemental/Marker Felt.ttc",
+            "/Library/Fonts/HandwritingFont.ttf",
+        ]
+        for p in candidates:
+            if Path(p).exists():
+                try:
+                    pdfmetrics.registerFont(TTFont("Handschrift", p))
+                    value_font = "Handschrift"
+                    break
+                except Exception:
+                    pass
+        if value_font == "Helvetica":
+            value_font = "Helvetica-Oblique"
+
+    c = canvas.Canvas(str(out), pagesize=A4)
+    c.setTitle(f"Anlage 1 — Wochenplan — {daten['name']}")
+
+    # Kopf
+    y = PAGE_H - 30 * mm
+    c.setFont("Helvetica-Bold", 16)
+    c.drawCentredString(PAGE_W / 2, y, "Beratungsstelle für Senioren")
+    y -= 12 * mm
+    c.setFont("Helvetica-Bold", 11)
+    c.drawCentredString(
+        PAGE_W / 2, y,
+        "Anlage 1 zum Antrag auf Zuschuss Altentagesstätten- "
+        "Betriebs- und Personalkostenzuschüsse - APL 2",
+    )
+    y -= 18 * mm
+
+    # Haushaltsjahr (Label + Box)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(MARGIN_X + 40 * mm, y, "Haushaltsjahr")
+    c.rect(MARGIN_X + 80 * mm, y - 3 * mm, 30 * mm, 8 * mm)
+    c.setFont(value_font, 11)
+    c.drawString(MARGIN_X + 84 * mm, y, str(daten["haushaltsjahr"]))
+    y -= 14 * mm
+
+    # Träger (Label + breite Box)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(MARGIN_X, y, "Träger:")
+    c.rect(MARGIN_X + 22 * mm, y - 3 * mm, 130 * mm, 8 * mm)
+    c.setFont(value_font, 10)
+    c.drawString(MARGIN_X + 24 * mm, y, daten["traeger"])
+    y -= 16 * mm
+
+    # Wochenplan-Tabelle
+    col_tag_w = 32 * mm
+    col_zeit_w = 40 * mm
+    col_angebot_w = 88 * mm
+    row_h = 11 * mm
+
+    # Header-Zeile
+    c.setFont("Helvetica-Bold", 10)
+    c.rect(MARGIN_X, y - row_h + 4 * mm, col_tag_w, row_h)
+    c.rect(MARGIN_X + col_tag_w, y - row_h + 4 * mm, col_zeit_w, row_h)
+    c.rect(MARGIN_X + col_tag_w + col_zeit_w, y - row_h + 4 * mm,
+           col_angebot_w, row_h)
+    c.drawString(MARGIN_X + 2 * mm, y, "Wochentag")
+    c.drawString(MARGIN_X + col_tag_w + 2 * mm, y, "Öffnungszeiten")
+    c.drawString(
+        MARGIN_X + col_tag_w + col_zeit_w + 2 * mm, y, "Angebot",
+    )
+    y -= row_h
+
+    # Wochenplan in dict für O(1)-Lookup
+    plan_dict = {tag: (zeit, angebot)
+                 for (tag, zeit, angebot) in daten.get("wochenplan", [])}
+
+    for tag in WOCHENTAGE_REIHENFOLGE:
+        # 3 Zellen pro Zeile
+        c.rect(MARGIN_X, y - row_h + 4 * mm, col_tag_w, row_h)
+        c.rect(MARGIN_X + col_tag_w, y - row_h + 4 * mm, col_zeit_w, row_h)
+        c.rect(MARGIN_X + col_tag_w + col_zeit_w, y - row_h + 4 * mm,
+               col_angebot_w, row_h)
+        # Wochentag-Label immer maschinell (Original-Formular hat
+        # die Labels vorgedruckt — Bürger füllt nur die rechten
+        # beiden Spalten aus).
+        c.setFont("Helvetica", 10)
+        c.drawString(MARGIN_X + 2 * mm, y, tag)
+        # Werte: nur wenn im Plan vorhanden
+        if tag in plan_dict:
+            zeit, angebot = plan_dict[tag]
+            c.setFont(value_font, 10)
+            c.drawString(MARGIN_X + col_tag_w + 2 * mm, y, zeit)
+            c.drawString(
+                MARGIN_X + col_tag_w + col_zeit_w + 2 * mm, y, angebot,
+            )
+        y -= row_h
+
+    c.showPage()
+    c.save()
+    print(f"  ✓ {out.name}")
+
+
 def main():
     out_dir = HERE
     out_dir.mkdir(exist_ok=True)
     print("Generiere Demo-PDFs für UE0 …")
+    print(" Hauptantrag:")
     generate(PFARREI, out_dir / "demo-antrag-pfarrei-st-albert.pdf",
              handschrift=False)
     generate(BUERGERVEREIN, out_dir / "demo-antrag-buergerverein-handschrift.pdf",
              handschrift=True)
+    print(" Anlage 1 (Wochenplan):")
+    generate_anlage1(
+        PFARREI, out_dir / "demo-anlage1-pfarrei-st-albert.pdf",
+        handschrift=False,
+    )
+    generate_anlage1(
+        BUERGERVEREIN, out_dir / "demo-anlage1-buergerverein-handschrift.pdf",
+        handschrift=True,
+    )
     print("Fertig.")
 
 

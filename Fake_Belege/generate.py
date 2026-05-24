@@ -141,9 +141,18 @@ PAKETE: list[Paket] = [
         hausnummer="14",
         plz="97082",
         ort="Würzburg",
+        # Bank-Drift-Fix (Audit 2026-05-24): die Quelle der Wahrheit
+        # für PFARREI ist ue0/demo-pdfs/generate.py PFARREI. Dort:
+        # Bankname "Sparkasse Mainfranken Würzburg", aber IBAN+BIC
+        # zeigen historisch auf eine Commerzbank-Test-IBAN. Wir
+        # übernehmen IBAN/BIC 1:1 vom Demo-PDF, damit das in UE0
+        # hochgeladene Demo-PDF nach OCR den GLEICHEN Antrag erzeugt
+        # wie der hier vor-geseedete Fake-Datensatz — sonst zeigt die
+        # GUI nach dem Demo-Re-Upload einen abweichenden zweiten
+        # Antrag.
         bankverbindung="Sparkasse Mainfranken Würzburg",
-        iban=compute_iban("DE", "79050000" + "0301234567"),
-        bic="BYLADEM1SWU",
+        iban="DE89370400440532013000",
+        bic="COBADEFFXXX",
         ansprechpartner="Pfarrer Michael KleinTest",
         telefon="0931 78403-0",
         email="seniorentreff@pfarrei-st-albert.de",

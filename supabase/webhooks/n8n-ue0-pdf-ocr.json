@@ -145,6 +145,142 @@
     },
     {
       "parameters": {
+        "url": "=http://kong:8000/rest/v1/antrag_einreichung?id=eq.{{ $('Parse JSON + Defaults + Belegpositionen-Split').first().json.einreichung_id }}&select=anlage_1_storage_path",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Accept-Profile", "value": "apl2" }
+          ]
+        },
+        "options": { "timeout": 15000 }
+      },
+      "id": "fetch-anlage1-path",
+      "name": "Fetch anlage_1_storage_path",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2080, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prüft ob die Einreichung eine Anlage 1 (Wochenplan-PDF) enthält.\n// REST-GET-Antwort: [{ anlage_1_storage_path: '2026/05/<uuid>.pdf' }] oder [{ anlage_1_storage_path: null }].\nconst row = ($input.first().json || [])[0] || {};\nconst path = row.anlage_1_storage_path;\nconst antragId = $('Annotate Belegpositionen mit antrag_id').first().json.antrag_id;\nreturn [{\n  json: {\n    antrag_id: antragId,\n    anlage_1_storage_path: path || null,\n    _has_anlage_1: !!path\n  }\n}];"
+      },
+      "id": "decide-anlage1",
+      "name": "Decide Anlage-1-Branch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2280, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            { "value1": "={{ $json._has_anlage_1 }}", "value2": true }
+          ]
+        }
+      },
+      "id": "if-anlage1",
+      "name": "IF Anlage 1 vorhanden",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2480, 200]
+    },
+    {
+      "parameters": {
+        "url": "=http://kong:8000/storage/v1/object/antragseingang-pdf/{{ $json.anlage_1_storage_path }}",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": { "response": { "response": { "responseFormat": "file" } } }
+      },
+      "id": "dl-anlage1",
+      "name": "Anlage-1-PDF aus Storage holen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2680, 100]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5\",\n  \"max_tokens\": 2048,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"document\",\n          \"source\": {\n            \"type\": \"base64\",\n            \"media_type\": \"application/pdf\",\n            \"data\": \"={{ $binary.data.data }}\"\n          }\n        },\n        {\n          \"type\": \"text\",\n          \"text\": \"Du bekommst die Anlage 1 zum Antrag APL 2 der Stadt Würzburg — eine Tabelle mit den Spalten Wochentag / Öffnungszeiten / Angebot. Sieben Zeilen für Mo–So, leere Zeilen kommen vor (Träger öffnet z.B. nur Di/Do). Maschinell oder handschriftlich. Extrahiere die Tabelle als striktes JSON-Array. Antwort NUR als JSON-Array, kein Erklärtext, kein Code-Fence.\\n\\nSchema:\\n[\\n  {\\n    \\\"wochentag\\\": \\\"mo\\\" | \\\"di\\\" | \\\"mi\\\" | \\\"do\\\" | \\\"fr\\\" | \\\"sa\\\" | \\\"so\\\",\\n    \\\"oeffnungszeit\\\": string | null,   // wie geschrieben, z.B. '14:00 – 17:00'\\n    \\\"angebot\\\": string | null\\n  }\\n]\\n\\nNur Zeilen mit MINDESTENS Öffnungszeit ODER Angebot ausgefüllt zurückgeben — komplett leere Zeilen weglassen.\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "claude-anlage1",
+      "name": "Claude Vision — Wochenplan extrahieren",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Claude's JSON-Array-Antwort, validiere Wochentag-Werte,\n// annotiere mit antrag_id, gib eine Liste von INSERT-Payloads zurück.\n//\n// DB-Schema (Migration 015):\n//   apl2.oeffnungszeit(antrag_id uuid, wochentag text CHECK in mo|di|mi|do|fr|sa|so,\n//                      oeffnungszeit text, angebot text)\n//   PK = (antrag_id, wochentag) → pro Antrag max 7 Zeilen, keine Duplikate.\n\nconst input = $input.first().json;\nconst content = input.content?.[0]?.text;\nif (!content) {\n  throw new Error('Claude (Anlage 1) lieferte keinen Text-Content zurück');\n}\nlet rows;\ntry {\n  const cleaned = content.trim().replace(/^```json\\n?/, '').replace(/\\n?```$/, '');\n  rows = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Anlage-1-Antwort ist kein JSON-Array: ' + content.slice(0, 500));\n}\nif (!Array.isArray(rows)) {\n  throw new Error('Anlage-1-Antwort ist kein Array: ' + content.slice(0, 200));\n}\n\nconst antragId = $('Decide Anlage-1-Branch').first().json.antrag_id;\nconst validTage = ['mo','di','mi','do','fr','sa','so'];\n// Deduplizieren nach wochentag — falls Claude versehentlich Duplikate liefert,\n// nehmen wir den ersten Treffer (PK würde sonst beim INSERT crashen).\nconst seen = new Set();\nconst out = [];\nfor (const r of rows) {\n  const tag = (r.wochentag || '').toLowerCase();\n  if (!validTage.includes(tag)) continue;\n  if (seen.has(tag)) continue;\n  seen.add(tag);\n  out.push({\n    antrag_id: antragId,\n    wochentag: tag,\n    oeffnungszeit: r.oeffnungszeit || null,\n    angebot: r.angebot || null\n  });\n}\nif (out.length === 0) {\n  return [{ json: { antrag_id: antragId, _skip: true } }];\n}\nreturn out.map(r => ({ json: { ...r, _skip: false } }));"
+      },
+      "id": "parse-anlage1",
+      "name": "Parse Wochenplan + Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3080, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            { "value1": "={{ $json._skip }}", "value2": false }
+          ]
+        }
+      },
+      "id": "if-anlage1-rows",
+      "name": "IF Wochenplan-Zeilen vorhanden",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [3280, 100]
+    },
+    {
+      "parameters": {
+        "url": "http://kong:8000/rest/v1/oeffnungszeit",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Accept-Profile", "value": "apl2" },
+            { "name": "Content-Profile", "value": "apl2" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"antrag_id\": \"{{ $json.antrag_id }}\",\n  \"wochentag\": \"{{ $json.wochentag }}\",\n  \"oeffnungszeit\": {{ JSON.stringify($json.oeffnungszeit) }},\n  \"angebot\": {{ JSON.stringify($json.angebot) }}\n}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "insert-oeffnung",
+      "name": "INSERT apl2.oeffnungszeit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3480, 100]
+    },
+    {
+      "parameters": {
         "url": "=http://kong:8000/rest/v1/antrag_einreichung?id=eq.{{ $('Parse JSON + Defaults + Belegpositionen-Split').first().json.einreichung_id }}",
         "method": "PATCH",
         "sendHeaders": true,
@@ -165,7 +301,7 @@
       "name": "UPDATE antrag_einreichung status=fertig",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2080, 200]
+      "position": [3680, 300]
     }
   ],
   "connections": {
@@ -178,24 +314,43 @@
     "IF Belegpositionen vorhanden":              {
       "main": [
         [{ "node": "INSERT apl2.belegposition", "type": "main", "index": 0 }],
+        [{ "node": "Fetch anlage_1_storage_path", "type": "main", "index": 0 }]
+      ]
+    },
+    "INSERT apl2.belegposition":                 { "main": [[{ "node": "Fetch anlage_1_storage_path", "type": "main", "index": 0 }]] },
+    "Fetch anlage_1_storage_path":               { "main": [[{ "node": "Decide Anlage-1-Branch", "type": "main", "index": 0 }]] },
+    "Decide Anlage-1-Branch":                    { "main": [[{ "node": "IF Anlage 1 vorhanden", "type": "main", "index": 0 }]] },
+    "IF Anlage 1 vorhanden":                     {
+      "main": [
+        [{ "node": "Anlage-1-PDF aus Storage holen", "type": "main", "index": 0 }],
         [{ "node": "UPDATE antrag_einreichung status=fertig", "type": "main", "index": 0 }]
       ]
     },
-    "INSERT apl2.belegposition":                 { "main": [[{ "node": "UPDATE antrag_einreichung status=fertig", "type": "main", "index": 0 }]] }
+    "Anlage-1-PDF aus Storage holen":            { "main": [[{ "node": "Claude Vision — Wochenplan extrahieren", "type": "main", "index": 0 }]] },
+    "Claude Vision — Wochenplan extrahieren":    { "main": [[{ "node": "Parse Wochenplan + Validate", "type": "main", "index": 0 }]] },
+    "Parse Wochenplan + Validate":               { "main": [[{ "node": "IF Wochenplan-Zeilen vorhanden", "type": "main", "index": 0 }]] },
+    "IF Wochenplan-Zeilen vorhanden":            {
+      "main": [
+        [{ "node": "INSERT apl2.oeffnungszeit", "type": "main", "index": 0 }],
+        [{ "node": "UPDATE antrag_einreichung status=fertig", "type": "main", "index": 0 }]
+      ]
+    },
+    "INSERT apl2.oeffnungszeit":                 { "main": [[{ "node": "UPDATE antrag_einreichung status=fertig", "type": "main", "index": 0 }]] }
   },
   "settings": {
     "errorWorkflow": "",
     "executionOrder": "v1"
   },
   "_documentation": {
-    "purpose": "UE0 — Bürger lädt ausgefülltes Antrags-PDF hoch, dieser Workflow extrahiert per Claude Vision OCR (auch Handschrift) und schreibt nach apl2.antraege + apl2.belegposition.",
+    "purpose": "UE0 — Bürger lädt ausgefülltes Antrags-PDF hoch, dieser Workflow extrahiert per Claude Vision OCR (auch Handschrift) und schreibt nach apl2.antraege + apl2.belegposition + apl2.oeffnungszeit.",
     "trigger": "Wird von Postgres-Trigger trg_notify_n8n_on_pdf_einreichung aufgerufen (Migration 047).",
     "audit_2026_05_24_changes": [
       "Claude-Prompt: telefon + bankverbindung + bic als Verwaltungspraxis-Pflicht markiert (Robert-Entscheidung). Vorher 'optional' → DB-INSERT crashte nach Migration 048 (NOT NULL).",
       "Miete-Schema: monatliche_miete_euro statt miete_jahr_euro im OCR-Schema — PDF fragt monatlich ab; Konversion ×12 erfolgt erst in Parse-Knoten.",
       "Parse-Knoten splittet Kostenfelder aus extrahiert raus und baut Belegposition-Array (Mig 016 — Kostenspalten existieren nicht mehr in apl2.antraege).",
       "Neue Knoten: Annotate→IF→INSERT belegposition für jede Position. Davor wurden die Kosten still verworfen.",
-      "Default foerderbereich=begegnungszentren (Robert-Entscheidung; überschreibbar)."
+      "Default foerderbereich=begegnungszentren (Robert-Entscheidung; überschreibbar).",
+      "Anlage-1-Branch (Fix #5c, Migration 052): nach Belegpositionen-Insert holt der Workflow apl2.antrag_einreichung.anlage_1_storage_path. Wenn gesetzt: zweiter Storage-Download + Claude-Vision-Call mit Wochenplan-Schema → INSERTs in apl2.oeffnungszeit."
     ],
     "required_env_vars": [
       "SUPABASE_SERVICE_ROLE_KEY — bereits in /opt/pruefung/.env auf VPS",
