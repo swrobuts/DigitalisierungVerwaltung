@@ -273,13 +273,19 @@ export function AntragDetail() {
                   {formatAdresse(antrag.strasse, antrag.hausnummer, antrag.plz, antrag.ort)}
                 </DocField>
                 {antrag.miete_jahr_euro > 0 && (
-                  <DocField label="Jahresmiete (Eigenangabe)" className="sm:col-span-2">
+                  <DocField label="Monatliche Mietzahlung (Eigenangabe)" className="sm:col-span-2">
                     <span className="text-slate-700 tabular-nums">
-                      {formatEuro(antrag.miete_jahr_euro)}
+                      {formatEuro(antrag.miete_jahr_euro / 12)}
+                    </span>
+                    <span className="text-slate-500 text-sm tabular-nums ml-2">
+                      (≙ Jahressumme {formatEuro(antrag.miete_jahr_euro)})
                     </span>
                     <span className="block text-[11px] text-slate-500 italic mt-0.5">
-                      Vom Antragsteller mitgeteilt — für Förderbereich III
-                      keine prüfungsrelevante Bemessung (siehe § 5).
+                      Antragsformular fragt monatlich ab (PDF: „Monatliche
+                      Mietzahlungen in Höhe von — Kopie Mietvertrag"). System
+                      speichert die Jahressumme als Belegposition. Für
+                      Förderbereich III keine prüfungsrelevante Bemessung
+                      (siehe § 5).
                     </span>
                   </DocField>
                 )}

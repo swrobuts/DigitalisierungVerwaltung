@@ -107,7 +107,10 @@ export function AntragDetail() {
             <Field label="Räume vorhanden / unentgeltlich">
               {antrag.raeume_vorhanden} / {antrag.raeume_unentgeltlich}
               {antrag.miete_jahr_euro > 0 && (
-                <> · Miete (Jahr) {formatEuro(antrag.miete_jahr_euro)}</>
+                <>
+                  {" · Monatliche Miete "}{formatEuro(antrag.miete_jahr_euro / 12)}
+                  {" (≙ Jahressumme "}{formatEuro(antrag.miete_jahr_euro)}{")"}
+                </>
               )}
             </Field>
             <Field label="Antragsdatum (Bürger)">

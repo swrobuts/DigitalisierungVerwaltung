@@ -38,10 +38,13 @@ const PREVIEW_FIELDS: Array<{ key: string; label: string; format?: (v: unknown) 
   { key: "email", label: "E-Mail" },
   { key: "iban", label: "IBAN" },
   { key: "bic", label: "BIC" },
-  { key: "betriebskosten_vorjahr_euro", label: "Betriebskosten Vorjahr (€)" },
-  { key: "personalkosten_vorjahr_euro", label: "Personalkosten Vorjahr (€)" },
-  { key: "miete_jahr_euro", label: "Jahresmiete (€)" },
-  { key: "antragsdatum", label: "Antragsdatum" },
+  { key: "betriebskosten_vorjahr_euro", label: "Nachgewiesene Betriebskosten Vorjahr (€)" },
+  { key: "personalkosten_vorjahr_euro", label: "Nachgewiesene Personalkosten Vorjahr (€)" },
+  // PDF-Wortlaut: „Monatliche Mietzahlungen in Höhe von (Kopie Mietvertrag)".
+  // OCR liefert den Monatswert — Sachbearbeitung rechnet × 12 = Jahressumme
+  // intern (apl2.belegposition belegtyp=miete).
+  { key: "monatliche_miete_euro", label: "Monatliche Mietzahlung (€)" },
+  { key: "antragsdatum", label: "Antragsdatum (lt. Bürger)" },
 ];
 
 function formatNumber(v: unknown): string {
