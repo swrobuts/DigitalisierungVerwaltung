@@ -288,19 +288,71 @@ a:hover {
   font-weight: 600;
 }
 
-/* Eine Antrag-Zeile: PDF-Link + Upload-Button direkt darunter */
+/* Eine Antrag-Zeile: Section-Header + PDF-Link + Upload-Button. */
 .antrag-row {
-  margin: 0.6rem 0 1.4rem;
-  padding-bottom: 1.2rem;
-  border-bottom: 1px solid #eee;
+  margin: 1.4rem 0 2rem;
+  padding: 1rem 1.2rem 1.2rem;
+  border-radius: 6px;
+  border-left: 5px solid var(--color-wue-rot);
+  background: #fafafa;
 }
-.antrag-row:last-of-type {
-  border-bottom: none;
+.antrag-row.antrag-row-optional {
+  border-left-color: #b0b0b0;
+  background: #f6f7f8;
 }
 .antrag-row .upload-zone {
   margin-top: 0.5rem;
   margin-left: 40px;  /* mit PDF-Label bündig */
   padding: 1.1rem 1.2rem;
+}
+
+/* Section-Header über dem PDF-Link */
+.antrag-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0 0 0.7rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e3e3e3;
+}
+.antrag-section-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-wue-rot);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.antrag-row-optional .antrag-section-num {
+  background: #6b6b6b;
+}
+.antrag-section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+  flex: 1;
+}
+.antrag-section-badge {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  background: var(--color-wue-rot);
+  color: #fff;
+  flex-shrink: 0;
+}
+.antrag-section-badge.badge-optional {
+  background: #6b6b6b;
 }
 
 .upload-zone {
