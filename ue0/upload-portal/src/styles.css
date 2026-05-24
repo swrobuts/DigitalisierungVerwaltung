@@ -256,23 +256,20 @@ a:hover {
   margin: 0 0 0.8rem;
 }
 
-/* ── Upload-Card (das ist UE0-spezifisch, in der Stadt-Optik) ───── */
-.upload-card {
-  background: #fafafa;
-  border: 1px solid #e5e5e5;
-  padding: 1.4rem;
-  margin-top: 1.2rem;
+/* ── Antrag-Block: PDF-Link + direkter Upload darunter ──────────── */
+.antrag-block {
+  margin: 0.4rem 0 1rem;
 }
-.upload-card-h3 {
-  font-size: 16px;
+.upload-hint {
+  margin: 0.4rem 0 0.8rem 40px;  /* eingerückt unter dem PDF-Icon */
+  font-size: 13.5px;
+  color: #555;
+  line-height: 1.5;
+}
+.upload-hint em {
+  color: var(--color-wue-rot);
+  font-style: normal;
   font-weight: 600;
-  color: #2D2D2D;
-  margin: 0 0 0.4rem;
-}
-.upload-card-body {
-  font-size: 14px;
-  color: #4a4a4a;
-  margin-bottom: 1rem;
 }
 
 .upload-zone {

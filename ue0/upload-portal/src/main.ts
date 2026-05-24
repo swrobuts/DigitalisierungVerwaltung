@@ -63,46 +63,53 @@ function renderUploadView(): HTMLElement {
 
   main.innerHTML = `
     <h2>Formulare und/oder Online-Service zum Thema:</h2>
+  `;
+
+  // Antrag-Block: PDF-Download-Link + direkt darunter der Upload-Button
+  const antragBlock = document.createElement("div");
+  antragBlock.className = "antrag-block";
+  antragBlock.innerHTML = `
     <a class="pdf-link" href="https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/antrag-apl2.pdf" target="_blank" rel="noopener noreferrer">
       <span class="pdf-icon">PDF</span>
       Antrag APL 2 - Altentagesstätten - Betriebs- und Personalkostenzuschüsse
     </a>
+    <p class="upload-hint">
+      📤 <em>Demo-Service:</em> Ausgefülltes PDF (auch handschriftlich) hier hochladen —
+      ein KI-Workflow liest die Felder per OCR aus und übermittelt sie automatisch
+      an die Sachbearbeitung.
+    </p>
+  `;
+  antragBlock.appendChild(renderUpload((trackingId) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("status", trackingId);
+    window.history.pushState({}, "", url);
+    route();
+  }));
+  main.appendChild(antragBlock);
+
+  // Zweiter Antrag-Link (Anlage) ohne Upload — die Anlage wird ggf. zusammen mit
+  // dem Hauptantrag eingereicht.
+  const anlageWrap = document.createElement("div");
+  anlageWrap.style.marginTop = "1rem";
+  anlageWrap.innerHTML = `
     <a class="pdf-link" href="https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/anlage-antrag-apl2.pdf" target="_blank" rel="noopener noreferrer">
       <span class="pdf-icon">PDF</span>
       Anlage Antrag APL 2 - Altentagesstätten - Betriebs- und Personalkostenzuschüsse
     </a>
+  `;
+  main.appendChild(anlageWrap);
 
+  // Trenner + Weiterführende Informationen
+  const weiter = document.createElement("div");
+  weiter.innerHTML = `
     <hr />
     <h2>Weiterführende Informationen zum Thema</h2>
     <p>
       🔗 <a href="https://www.wuerzburg.de/themen/soziales-und-gesellschaft/aelterwerden-in-wuerzburg/index.html"
             target="_blank" rel="noopener noreferrer">Antragswesen / Altenhilfeplan</a>
     </p>
-
-    <hr />
   `;
-
-  // UE0-spezifischer Block: Online-Einreichung via Upload
-  const uploadCard = document.createElement("div");
-  uploadCard.className = "upload-card";
-  uploadCard.innerHTML = `
-    <h3 class="upload-card-h3">📤 Antrag online einreichen (Demo-Service)</h3>
-    <p class="upload-card-body">
-      Sie haben das offizielle PDF (siehe oben) ausgefüllt — auch
-      handschriftlich? Laden Sie es hier hoch. Ein KI-gestützter
-      Workflow extrahiert die Felder automatisch und übermittelt sie
-      an die Sachbearbeitung. Sie erhalten eine Eingangsbestätigung
-      mit einer Antrags-ID, mit der Sie den Bearbeitungsstand
-      verfolgen können.
-    </p>
-  `;
-  uploadCard.appendChild(renderUpload((trackingId) => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("status", trackingId);
-    window.history.pushState({}, "", url);
-    route();
-  }));
-  main.appendChild(uploadCard);
+  main.appendChild(weiter);
 
   // Zurück-Link wie im Original
   const back = document.createElement("a");
