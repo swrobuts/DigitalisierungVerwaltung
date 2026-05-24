@@ -26,9 +26,9 @@ interface Einreichung {
   fehler_text: string | null;
 }
 
-// Felder, die wir in der Vorschau anzeigen — Reihenfolge wie auf dem Original-PDF.
+// Felder, die wir in der Vorschau anzeigen — Reihenfolge folgt dem Original-PDF.
 // `format` darf gesetzt sein, um den Default-Number-Formatter (de-DE 2 Nachkommastellen)
-// zu überschreiben — z.B. für Jahreszahlen ("2026" statt "2.026,00").
+// zu überschreiben — z.B. für Jahreszahlen oder ja/nein-Optionsfelder.
 const PREVIEW_FIELDS: Array<{ key: string; label: string; format?: (v: unknown) => string }> = [
   { key: "haushaltsjahr", label: "Haushaltsjahr", format: formatYear },
   { key: "name", label: "Name der Einrichtung" },
@@ -36,12 +36,16 @@ const PREVIEW_FIELDS: Array<{ key: string; label: string; format?: (v: unknown) 
   { key: "strasse", label: "Straße / Hausnummer", format: (_) => "" },
   { key: "plz", label: "PLZ / Ort", format: (_) => "" },
   { key: "ansprechpartner", label: "Ansprechpartner/in" },
-  { key: "telefon", label: "Telefon" },
+  { key: "telefon", label: "Telefon / Handy" },
   { key: "email", label: "E-Mail" },
+  { key: "bankverbindung", label: "Bankverbindung" },
   { key: "iban", label: "IBAN" },
   { key: "bic", label: "BIC" },
   { key: "betriebskosten_vorjahr_euro", label: "Nachgewiesene Betriebskosten Vorjahr (€)" },
   { key: "personalkosten_vorjahr_euro", label: "Nachgewiesene Personalkosten Vorjahr (€)" },
+  // PDF-Optionsfelder mit Ankreuzbox — Claude liest die Markierung als "ja"/"nein".
+  { key: "raeume_vorhanden", label: "Vorhandene Räumlichkeiten des Trägers", format: formatJaNein },
+  { key: "raeume_unentgeltlich", label: "Unentgeltlich bereitgestellte Räume anderer Träger", format: formatJaNein },
   // PDF-Wortlaut: „Monatliche Mietzahlungen in Höhe von (Kopie Mietvertrag)".
   // OCR liefert den Monatswert — Sachbearbeitung rechnet × 12 = Jahressumme
   // intern (apl2.belegposition belegtyp=miete).
@@ -59,6 +63,13 @@ function formatNumber(v: unknown): string {
 function formatYear(v: unknown): string {
   if (typeof v !== "number") return String(v);
   return String(Math.trunc(v));
+}
+
+/** Optionsfelder mit Ankreuzbox — visuelles Kreuz statt nüchterner Wort. */
+function formatJaNein(v: unknown): string {
+  if (v === "ja")   return "☒ ja  ☐ nein";
+  if (v === "nein") return "☐ ja  ☒ nein";
+  return "— nicht erkannt";
 }
 
 export function renderStatus(trackingId: string): HTMLElement {
