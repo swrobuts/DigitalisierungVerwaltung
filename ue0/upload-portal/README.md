@@ -2,6 +2,18 @@
 
 > **Reifegradstufe 0**: Der Bürger füllt das offizielle Original-Antrags-PDF wie gewohnt aus (am Computer oder per Hand) und lädt es hier hoch. Ein KI-gestützter Workflow extrahiert die Felder automatisch via **Claude Vision OCR** — auch handschriftlich Ausgefülltes — und schreibt sie ins gemeinsame Antragsbackend, aus dem UE2 und UE3 lesen. **Gleiche Datenquelle wie UE1, andere Eingabemethode.**
 
+## 🌐 Live-Demo
+
+- **Upload-Portal (UE0)**: <https://swrobuts.github.io/DigitalisierungVerwaltung/ue0/upload-portal/>
+- Schwester-Frontend Webformular (UE1): <https://swrobuts.github.io/DigitalisierungVerwaltung/ue1/webformular/>
+- Landing-Seite mit beiden Frontends: <https://swrobuts.github.io/DigitalisierungVerwaltung/>
+
+Demo-PDFs zum Hochladen (im Repo unter `ue0/demo-pdfs/`):
+- `demo-antrag-pfarrei-st-albert.pdf` (maschinell ausgefüllt)
+- `demo-antrag-buergerverein-handschrift.pdf` (handschriftlich gefüllt — testet die Vision-OCR)
+
+Beide enthalten Werte, die exakt zu den Demo-Anträgen `APL2-2026-FAKE-001` und `-002` aus `Fake_Belege/seed.sql` passen.
+
 ## Konzept
 
 ```
