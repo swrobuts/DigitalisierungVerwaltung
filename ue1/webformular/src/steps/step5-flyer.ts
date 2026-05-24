@@ -2,12 +2,12 @@ import type { Signal } from "../signals";
 import type { FormState } from "../types";
 import { t } from "../i18n";
 
-export function renderStep6Flyer(stateSig: Signal<FormState>): HTMLElement {
+export function renderStep5Flyer(stateSig: Signal<FormState>): HTMLElement {
   const root = document.createElement("fieldset");
-  root.dataset.section = "6";
+  root.dataset.section = "5";
 
   const legend = document.createElement("legend");
-  legend.textContent = t("stepper.6.titel");
+  legend.textContent = t("stepper.5.titel");
   root.appendChild(legend);
 
   const wrap = document.createElement("label");

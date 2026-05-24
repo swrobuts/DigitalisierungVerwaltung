@@ -319,7 +319,7 @@ export function AntragDetail() {
               title="Bemessungsgrundlage Vorjahr"
               subtitle="Stadt-Anteil bestimmt die Auszahlung; Teilnehmer + Veranstaltungen gewichten die Zuwendung (AHP 2.3 Pkt. 2)"
             >
-              <BemessungsblockVorjahr antrag={antrag} />
+              <BemessungsblockVorjahr antrag={antrag} onChanged={reload} />
             </DocSection>
 
             <DocSection
@@ -1044,7 +1044,13 @@ function KalkulationsFormel({
  * Bei NULL-Werten wird ein Warnhinweis statt eines Pseudo-Wertes
  * angezeigt — dann ist der Antrag nicht entscheidungsreif.
  */
-function BemessungsblockVorjahr({ antrag }: { antrag: AntragFull }) {
+function BemessungsblockVorjahr({
+  antrag,
+  onChanged,
+}: {
+  antrag: AntragFull;
+  onChanged?: () => void | Promise<void>;
+}) {
   const anteilPct =
     antrag.stadtbewohner_anteil === null
       ? null
@@ -1054,49 +1060,271 @@ function BemessungsblockVorjahr({ antrag }: { antrag: AntragFull }) {
   if (antrag.anzahl_teilnehmer === null) fehlend.push("Teilnehmer:innen");
   if (antrag.anzahl_treffen_jahr === null) fehlend.push("Veranstaltungen");
 
+  const allesLeer =
+    antrag.stadtbewohner_anteil === null &&
+    antrag.anzahl_teilnehmer === null &&
+    antrag.anzahl_treffen_jahr === null;
+
   return (
     <div className="space-y-4">
-      <FieldGrid>
-        <DocField label="Anteil Stadt-Bewohner:innen Würzburg (Vorjahr)" className="sm:col-span-2">
-          {anteilPct !== null ? (
-            <>
-              <span className="text-2xl font-bold tabular-nums text-wue-rot">{anteilPct}</span>
-              <span className="block text-[11px] text-slate-500 italic mt-0.5">
-                Bestimmt direkt den prozentualen Auszahlungsanteil
-                (AHP 2.3 Pkt. 2: „erfolgt die Auszahlung des prozentualen Anteils").
-              </span>
-            </>
-          ) : (
-            <span className="text-slate-400">— nicht angegeben</span>
-          )}
-        </DocField>
-        <DocField label="Teilnehmer:innen gesamt (Vorjahr)">
-          {antrag.anzahl_teilnehmer !== null ? (
-            <span className="text-slate-900 tabular-nums font-medium">
-              {antrag.anzahl_teilnehmer.toLocaleString("de-DE")}
-            </span>
-          ) : (
-            <span className="text-slate-400">—</span>
-          )}
-        </DocField>
-        <DocField label="Veranstaltungen (Vorjahr)">
-          {antrag.anzahl_treffen_jahr !== null ? (
-            <span className="text-slate-900 tabular-nums font-medium">
-              {antrag.anzahl_treffen_jahr.toLocaleString("de-DE")}
-            </span>
-          ) : (
-            <span className="text-slate-400">—</span>
-          )}
-        </DocField>
-      </FieldGrid>
-      {fehlend.length > 0 && (
-        <div className="text-xs text-amber-900 bg-amber-50 border-l-2 border-amber-500 px-3 py-2 rounded-r">
-          <strong>Antrag nicht entscheidungsreif:</strong> fehlende Bemessungs­
-          angabe(n) — {fehlend.join(", ")}. Ohne diese Werte kann die
-          anteilige Auszahlung gem. AHP 2.3 Pkt. 2 nicht berechnet werden.
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-[11px] text-slate-500 italic">
+          PDF fragt diese Werte nicht ab — Sachbearbeitung pflegt nach,
+          sobald Antrag als FB-III.2/III.3 klassifiziert wird.
+        </p>
+        <BemessungEditButton antrag={antrag} onChanged={onChanged} />
+      </div>
+      {allesLeer ? (
+        <div className="text-xs text-slate-600 bg-slate-50 border-l-2 border-slate-300 px-3 py-2 rounded-r">
+          Bemessungsfelder noch nicht erfasst. Falls dieser Antrag als
+          Begegnungszentrum (AHP 2.3 Pkt. 2) oder Bildungsträger (Pkt. 3)
+          geführt wird, hier die Vorjahres-Kennzahlen nachpflegen.
         </div>
+      ) : (
+        <>
+          <FieldGrid>
+            <DocField label="Anteil Stadt-Bewohner:innen Würzburg (Vorjahr)" className="sm:col-span-2">
+              {anteilPct !== null ? (
+                <>
+                  <span className="text-2xl font-bold tabular-nums text-wue-rot">{anteilPct}</span>
+                  <span className="block text-[11px] text-slate-500 italic mt-0.5">
+                    Bestimmt direkt den prozentualen Auszahlungsanteil
+                    (AHP 2.3 Pkt. 2: „erfolgt die Auszahlung des prozentualen Anteils").
+                  </span>
+                </>
+              ) : (
+                <span className="text-slate-400">— nicht angegeben</span>
+              )}
+            </DocField>
+            <DocField label="Teilnehmer:innen gesamt (Vorjahr)">
+              {antrag.anzahl_teilnehmer !== null ? (
+                <span className="text-slate-900 tabular-nums font-medium">
+                  {antrag.anzahl_teilnehmer.toLocaleString("de-DE")}
+                </span>
+              ) : (
+                <span className="text-slate-400">—</span>
+              )}
+            </DocField>
+            <DocField label="Veranstaltungen (Vorjahr)">
+              {antrag.anzahl_treffen_jahr !== null ? (
+                <span className="text-slate-900 tabular-nums font-medium">
+                  {antrag.anzahl_treffen_jahr.toLocaleString("de-DE")}
+                </span>
+              ) : (
+                <span className="text-slate-400">—</span>
+              )}
+            </DocField>
+          </FieldGrid>
+          {fehlend.length > 0 && (
+            <div className="text-xs text-amber-900 bg-amber-50 border-l-2 border-amber-500 px-3 py-2 rounded-r">
+              <strong>Antrag nicht entscheidungsreif:</strong> fehlende Bemessungs­
+              angabe(n) — {fehlend.join(", ")}. Ohne diese Werte kann die
+              anteilige Auszahlung gem. AHP 2.3 Pkt. 2 nicht berechnet werden.
+            </div>
+          )}
+        </>
       )}
     </div>
+  );
+}
+
+/**
+ * Edit-Modal für die drei Bemessungsfelder (anzahl_teilnehmer,
+ * stadtbewohner_anteil, anzahl_treffen_jahr). Diese Werte werden vom
+ * Webformular bewusst NICHT erhoben — das amtliche Antrags-PDF
+ * (materialien/antrag-apl2.pdf) fragt sie nicht ab. Sie sind nur
+ * relevant, wenn das Sozialreferat den Antrag als FB-III.2
+ * (Begegnungszentren) oder FB-III.3 (Bildungsträger) klassifiziert.
+ *
+ * UI-Konvention: Stadt-Anteil wird als Prozent (0–100) eingegeben und
+ * intern auf 0…1 normiert — analog zum früheren UE1-Step.
+ *
+ * Pattern analog zu FoerdersummeEditButton / FoerderbereichEditButton:
+ * direktes PATCH gegen apl2.antraege?id=eq.{id}, kein Versionierung,
+ * Optimistic update via onChanged-Refetch.
+ */
+function BemessungEditButton({
+  antrag,
+  onChanged,
+}: {
+  antrag: AntragFull;
+  onChanged?: () => void | Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [teilnehmer, setTeilnehmer] = useState<string>(
+    antrag.anzahl_teilnehmer != null ? String(antrag.anzahl_teilnehmer) : "",
+  );
+  const [anteilPct, setAnteilPct] = useState<string>(
+    antrag.stadtbewohner_anteil != null
+      ? String(Math.round(antrag.stadtbewohner_anteil * 1000) / 10)
+      : "",
+  );
+  const [veranstaltungen, setVeranstaltungen] = useState<string>(
+    antrag.anzahl_treffen_jahr != null ? String(antrag.anzahl_treffen_jahr) : "",
+  );
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  function reset() {
+    setTeilnehmer(antrag.anzahl_teilnehmer != null ? String(antrag.anzahl_teilnehmer) : "");
+    setAnteilPct(
+      antrag.stadtbewohner_anteil != null
+        ? String(Math.round(antrag.stadtbewohner_anteil * 1000) / 10)
+        : "",
+    );
+    setVeranstaltungen(
+      antrag.anzahl_treffen_jahr != null ? String(antrag.anzahl_treffen_jahr) : "",
+    );
+  }
+
+  function parseIntOrNull(raw: string): { value: number | null; ok: boolean } {
+    if (raw.trim() === "") return { value: null, ok: true };
+    const n = Number(raw.replace(",", "."));
+    if (!Number.isFinite(n) || n < 0) return { value: null, ok: false };
+    return { value: Math.floor(n), ok: true };
+  }
+
+  function parseAnteilOrNull(raw: string): { value: number | null; ok: boolean } {
+    if (raw.trim() === "") return { value: null, ok: true };
+    const n = Number(raw.replace(",", "."));
+    if (!Number.isFinite(n) || n < 0 || n > 100) return { value: null, ok: false };
+    // Prozent (0…100) → DB-Konvention (0…1)
+    return { value: Math.round((n / 100) * 1000) / 1000, ok: true };
+  }
+
+  async function save() {
+    setFeedback(null);
+    const tn = parseIntOrNull(teilnehmer);
+    const va = parseIntOrNull(veranstaltungen);
+    const an = parseAnteilOrNull(anteilPct);
+    if (!tn.ok) {
+      setFeedback("Fehler: Teilnehmer:innen muss eine Zahl ≥ 0 sein");
+      return;
+    }
+    if (!va.ok) {
+      setFeedback("Fehler: Veranstaltungen muss eine Zahl ≥ 0 sein");
+      return;
+    }
+    if (!an.ok) {
+      setFeedback("Fehler: Stadt-Anteil muss 0–100 % sein");
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase
+      .from("antraege")
+      .update({
+        anzahl_teilnehmer: tn.value,
+        stadtbewohner_anteil: an.value,
+        anzahl_treffen_jahr: va.value,
+      })
+      .eq("id", antrag.id);
+    setBusy(false);
+    if (error) {
+      setFeedback("Fehler: " + error.message);
+      return;
+    }
+    setFeedback("Bemessungsfelder aktualisiert");
+    setOpen(false);
+    if (onChanged) await onChanged();
+  }
+
+  const labelAction =
+    antrag.anzahl_teilnehmer == null &&
+    antrag.stadtbewohner_anteil == null &&
+    antrag.anzahl_treffen_jahr == null
+      ? "Erfassen"
+      : "Ändern";
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-6 px-2 text-[10.5px] uppercase tracking-wider shrink-0"
+        onClick={() => {
+          reset();
+          setFeedback(null);
+          setOpen(true);
+        }}
+      >
+        {labelAction}
+      </Button>
+      {feedback && (
+        <span
+          role="status"
+          className={
+            "ml-2 text-[10.5px] " +
+            (feedback.startsWith("Fehler") ? "text-rose-700" : "text-emerald-700")
+          }
+        >
+          {feedback}
+        </span>
+      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bemessungsgrundlage Vorjahr</DialogTitle>
+            <DialogDescription>
+              Diese drei Werte werden im Antrags-PDF nicht erfasst — die
+              Sachbearbeitung pflegt sie nach, sobald der Antrag als
+              FB-III.2 (Begegnungszentren) oder FB-III.3 (Bildungsträger)
+              klassifiziert ist. Felder können leer bleiben (NULL).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs text-slate-600 mb-1">
+                Teilnehmer:innen gesamt (Vorjahr)
+              </label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                placeholder="z. B. 35"
+                value={teilnehmer}
+                onChange={(e) => setTeilnehmer(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-600 mb-1">
+                Anteil Stadtbewohner:innen Würzburg (%)
+              </label>
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="z. B. 70 (für 70 %)"
+                value={anteilPct}
+                onChange={(e) => setAnteilPct(e.target.value)}
+              />
+              <p className="text-[10.5px] text-slate-500 italic mt-0.5">
+                0–100 % — bestimmt bei FB-III.2/III.3 direkt den
+                prozentualen Auszahlungsanteil (AHP 2.3 Pkt. 2).
+              </p>
+            </div>
+            <div>
+              <label className="block text-xs text-slate-600 mb-1">
+                Anzahl Veranstaltungen (Vorjahr)
+              </label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                placeholder="z. B. 48"
+                value={veranstaltungen}
+                onChange={(e) => setVeranstaltungen(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
+              Abbrechen
+            </Button>
+            <Button onClick={save} disabled={busy}>
+              {busy ? "Speichern …" : "Speichern"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

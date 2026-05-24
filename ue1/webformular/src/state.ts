@@ -42,9 +42,6 @@ export function initialState(): FormState {
       oeffnungszeit: "",
       angebot: "",
     })),
-    anzahl_teilnehmer_vorjahr: null,
-    stadtbewohner_anteil_vorjahr: null,
-    anzahl_veranstaltungen_vorjahr: null,
     // "" = „noch nicht gewählt"-Marker fürs Select-UI; Step-4-Validation
     // verlangt explizit "ja" oder "nein".
     raeume_vorhanden: "",
@@ -72,9 +69,13 @@ function detectLanguage(): Sprache {
  * Step-Completion-Prüfung. Entscheidet, ob „Weiter" aktivierbar ist.
  * Reine Funktion über FormState — kein Side-Effect, keine UI.
  *
- * Schritt-Reihenfolge (v3, 7 Schritte, PDF-Voll-Sync):
+ * Schritt-Reihenfolge (v4, 6 Schritte, PDF-Voll-Sync):
  *   1 Einrichtung · 2 Kontakt & Bank · 3 Wochenplan · 4 Räume & Kosten ·
- *   5 Bemessung Vorjahr · 6 Programm · 7 Senden
+ *   5 Programm · 6 Senden
+ *
+ * Hinweis: Die früheren Bemessungsfelder (Step 5 alt) sind aus dem
+ * Webformular entfernt — das amtliche PDF fragt sie nicht ab. Pflege
+ * erfolgt ausschließlich in der Sachbearbeitung (UE3).
  */
 export function isStepComplete(step: number, s: FormState): boolean {
   switch (step) {
@@ -122,34 +123,13 @@ export function isStepComplete(step: number, s: FormState): boolean {
       return true;
     }
     case 5: {
-      // Bemessungsgrundlage Vorjahr — OPTIONAL.
-      // PDF (antrag-apl2.pdf) fragt diese Werte NICHT ab. Die Felder
-      // stammen aus AHP 2.3 Pkt. 2 (Begegnungszentren) und Pkt. 3
-      // (Bildungsträger). Für alle anderen Förderbereiche sind sie
-      // irrelevant; die endgültige Klassifizierung erfolgt erst durch
-      // das Sozialreferat. Daher: leer = OK; befüllt = Validierung.
-      const tn = s.anzahl_teilnehmer_vorjahr;
-      const anteil = s.stadtbewohner_anteil_vorjahr;
-      const va = s.anzahl_veranstaltungen_vorjahr;
-      const alleLeer = tn === null && anteil === null && va === null;
-      if (alleLeer) return true;
-      // Wenn mindestens ein Feld befüllt ist: jedes nicht-null-Feld
-      // muss valide sein. null-Felder bleiben weiterhin zulässig
-      // (Teil-Befüllung erlaubt; harte Tripel-Pflicht erst dann, wenn
-      // das Sozialreferat den Antrag als FB-III.2/III.3 klassifiziert).
-      if (tn !== null && tn < 0) return false;
-      if (anteil !== null && (anteil < 0 || anteil > 1)) return false;
-      if (va !== null && va < 0) return false;
-      return true;
-    }
-    case 6: {
       // Programm-Nachweis: Wochenplan ODER Programm-Flyer reicht.
       const hatWochenplan = s.oeffnungszeiten.some(
         (o) => o.oeffnungszeit.trim().length > 0 || o.angebot.trim().length > 0,
       );
       return s.programm_flyer !== null || hatWochenplan;
     }
-    case 7:
+    case 6:
       // Bestätigung.
       return s.bestaetigt === true;
     default:
@@ -158,12 +138,10 @@ export function isStepComplete(step: number, s: FormState): boolean {
 }
 
 /**
- * Form-Completion-Prüfung. Iteriert über alle 7 Steps; Step 5
- * (Bemessung) ist optional — `isStepComplete(5, …)` liefert bei
- * leeren Feldern bereits `true`, daher hier ohne Sonderfall.
+ * Form-Completion-Prüfung. Iteriert über alle 6 Steps.
  */
 export function isFormComplete(s: FormState): boolean {
-  for (let step = 1; step <= 7; step++) {
+  for (let step = 1; step <= 6; step++) {
     if (!isStepComplete(step, s)) return false;
   }
   return true;

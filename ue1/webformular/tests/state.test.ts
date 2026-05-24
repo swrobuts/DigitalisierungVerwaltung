@@ -144,71 +144,31 @@ describe("isStepComplete", () => {
     expect(isStepComplete(4, s)).toBe(false);
   });
 
-  // Step 5 — Bemessung Vorjahr. OPTIONAL: PDF fragt diese Werte nicht
-  // ab; nur bei FB-III.2 (Begegnungszentren) und FB-III.3 (Bildungs-
-  // träger) faktisch erforderlich. Klassifizierung durch Sozialreferat.
-  it("Step 5 (Bemessung) leer ist jetzt complete (optional)", () => {
-    expect(isStepComplete(5, initialState())).toBe(true);
+  // Step 5 — Programm-Nachweis (vormals Step 6).
+  // Hinweis: Die früheren Bemessungsfelder sind aus dem Webformular
+  // entfernt — das amtliche PDF fragt sie nicht ab; UE3 pflegt sie nach.
+  it("Step 5 ohne Programm-Flyer und ohne Wochenplan ist nicht complete", () => {
+    expect(isStepComplete(5, initialState())).toBe(false);
   });
-  it("Step 5 (Bemessung) mit allen drei Werten ist complete", () => {
-    const s = makeState({
-      anzahl_teilnehmer_vorjahr: 35,
-      stadtbewohner_anteil_vorjahr: 0.7,
-      anzahl_veranstaltungen_vorjahr: 48,
-    });
-    expect(isStepComplete(5, s)).toBe(true);
-  });
-  it("Step 5 (Bemessung) lehnt Stadt-Anteil > 1 ab, wenn befüllt", () => {
-    const s = makeState({
-      anzahl_teilnehmer_vorjahr: 35,
-      stadtbewohner_anteil_vorjahr: 1.5,
-      anzahl_veranstaltungen_vorjahr: 48,
-    });
-    expect(isStepComplete(5, s)).toBe(false);
-  });
-  it("Step 5 akzeptiert 0 als gültigen Wert (Erstantrag ohne Vorjahres-Daten)", () => {
-    const s = makeState({
-      anzahl_teilnehmer_vorjahr: 0,
-      stadtbewohner_anteil_vorjahr: 0,
-      anzahl_veranstaltungen_vorjahr: 0,
-    });
-    expect(isStepComplete(5, s)).toBe(true);
-  });
-  it("Step 5 mit Teil-Befüllung (nur Stadt-Anteil, Rest null) ist complete", () => {
-    const s = makeState({
-      anzahl_teilnehmer_vorjahr: null,
-      stadtbewohner_anteil_vorjahr: 0.7,
-      anzahl_veranstaltungen_vorjahr: null,
-    });
-    expect(isStepComplete(5, s)).toBe(true);
-  });
-  it("Step 5 mit negativem Teilnehmer-Wert ist nicht complete", () => {
-    const s = makeState({
-      anzahl_teilnehmer_vorjahr: -1,
-      stadtbewohner_anteil_vorjahr: null,
-      anzahl_veranstaltungen_vorjahr: null,
-    });
-    expect(isStepComplete(5, s)).toBe(false);
-  });
-
-  // Step 6 — Programm.
-  it("Step 6 ohne Programm-Flyer und ohne Wochenplan ist nicht complete", () => {
-    expect(isStepComplete(6, initialState())).toBe(false);
-  });
-  it("Step 6 mit Programm-Flyer ist complete", () => {
+  it("Step 5 mit Programm-Flyer ist complete", () => {
     const s = makeState({ programm_flyer: new File([], "p.pdf") });
-    expect(isStepComplete(6, s)).toBe(true);
+    expect(isStepComplete(5, s)).toBe(true);
   });
-  it("Step 6 mit ausgefülltem Wochenplan reicht auch", () => {
+  it("Step 5 mit ausgefülltem Wochenplan reicht auch", () => {
     const s = makeState({ oeffnungszeiten: FULL_WOCHENPLAN });
+    expect(isStepComplete(5, s)).toBe(true);
+  });
+
+  // Step 6 — Bestätigung (vormals Step 7).
+  it("Step 6 braucht Bestätigung", () => {
+    expect(isStepComplete(6, initialState())).toBe(false);
+    const s = makeState({ bestaetigt: true });
     expect(isStepComplete(6, s)).toBe(true);
   });
 
-  // Step 7 — Bestätigung.
-  it("Step 7 braucht Bestätigung", () => {
-    expect(isStepComplete(7, initialState())).toBe(false);
+  it("Step 7 existiert nicht mehr — isStepComplete(7) ist false (default)", () => {
     const s = makeState({ bestaetigt: true });
-    expect(isStepComplete(7, s)).toBe(true);
+    expect(isStepComplete(7, s)).toBe(false);
   });
 });
 
@@ -219,26 +179,6 @@ describe("isFormComplete", () => {
   it("nur Bestätigung reicht nicht — alle Pflicht-Sections müssen grün sein", () => {
     const s = makeState({ bestaetigt: true });
     expect(isFormComplete(s)).toBe(false);
-  });
-  it("State ohne Bemessungs-Werte ist trotzdem complete (Step 5 optional)", () => {
-    const s = makeState({
-      name: "Test", traeger: "X", strasse: "Hauptstr", hausnummer: "1",
-      plz: "97070", ort: "Würzburg", haushaltsjahr: 2026,
-      ansprechpartner: "M", telefon: "0931", email: "m@x.de",
-      bankverbindung: "Sparkasse",
-      iban: "DE89370400440532013000", bic: "BYLADEM1SWU",
-      oeffnungszeiten: FULL_WOCHENPLAN,
-      betriebskosten_vorjahr_euro: 10000,
-      personalkosten_vorjahr_euro: 50000,
-      raeume_vorhanden: "ja",
-      raeume_unentgeltlich: "nein",
-      // Bemessung: alles leer
-      anzahl_teilnehmer_vorjahr: null,
-      stadtbewohner_anteil_vorjahr: null,
-      anzahl_veranstaltungen_vorjahr: null,
-      bestaetigt: true,
-    });
-    expect(isFormComplete(s)).toBe(true);
   });
   it("voll ausgefüllter State ist complete", () => {
     const s = makeState({
@@ -252,9 +192,6 @@ describe("isFormComplete", () => {
       personalkosten_vorjahr_euro: 50000,
       raeume_vorhanden: "ja",
       raeume_unentgeltlich: "nein",
-      anzahl_teilnehmer_vorjahr: 35,
-      stadtbewohner_anteil_vorjahr: 0.7,
-      anzahl_veranstaltungen_vorjahr: 48,
       bestaetigt: true,
     });
     expect(isFormComplete(s)).toBe(true);

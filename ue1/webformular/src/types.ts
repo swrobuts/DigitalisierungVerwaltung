@@ -33,7 +33,7 @@ export interface OeffnungszeitEntry {
  * und isStepComplete() verlangen einen der beiden konkreten Werte ja|nein.
  */
 export interface FormState {
-  step: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  step: 1 | 2 | 3 | 4 | 5 | 6;
   haushaltsjahr: number;
   name: string;
   traeger: string;
@@ -51,18 +51,13 @@ export interface FormState {
   /** PDF H9. Pflicht. */
   bic: string;
   oeffnungszeiten: OeffnungszeitEntry[];
-  // Bemessungsgrundlage gem. AHP 2.3 Förderbereich III, Pkt. 2
-  // (Begegnungszentren). Alle drei Felder beziehen sich auf das Vorjahr —
-  // die Richtlinie sagt für den Stadt-Anteil explizit „Vorjahr"; für
-  // die Gewichtungsgrößen ist es praktisch gleich, weil der Antrag im
-  // ersten Quartal des Förderjahres gestellt wird (AHP 3.3: bis 1. April).
-  // null bedeutet noch nicht eingegeben; 0 ist ein gültiger Wert.
-  anzahl_teilnehmer_vorjahr: number | null;
-  /** Anteil Stadtbewohner:innen an Gesamt-Teilnehmer:innen des Vorjahres,
-   *  Wertebereich 0…1 (UI zeigt 0…100 %). Bestimmt direkt den
-   *  prozentualen Auszahlungsanteil. */
-  stadtbewohner_anteil_vorjahr: number | null;
-  anzahl_veranstaltungen_vorjahr: number | null;
+  // Hinweis: Die Bemessungsfelder (anzahl_teilnehmer_vorjahr,
+  // stadtbewohner_anteil_vorjahr, anzahl_veranstaltungen_vorjahr) wurden
+  // bewusst aus dem UE1-Webformular entfernt — das amtliche PDF
+  // (materialien/antrag-apl2.pdf) fragt diese Werte nicht ab. Sie
+  // stammen aus AHP 2.3 Pkt. 2/3 und sind nur für FB-III.2/III.3
+  // relevant. Pflege erfolgt ausschließlich in der Sachbearbeitung
+  // (UE3) — analog zu geforderte_foerdersumme_euro und foerderbereich.
   /** PDF H13. Pflicht. "" = noch nicht gewählt; final "ja" | "nein". */
   raeume_vorhanden: "ja" | "nein" | "";
   /** PDF H14. Pflicht. "" = noch nicht gewählt; final "ja" | "nein". */

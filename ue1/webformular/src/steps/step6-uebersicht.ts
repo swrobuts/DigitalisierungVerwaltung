@@ -9,17 +9,17 @@ const SECTION_LABELS: Record<number, string> = {
   2: "Kontakt & Bank",
   3: "Wochenplan (mind. 1 Tag mit Öffnungszeit + Angebot)",
   4: "Räume & Kosten Vorjahr",
-  6: "Programm-Nachweis (Wochenplan oder Programm-Flyer)",
-  7: "Bestätigung",
+  5: "Programm-Nachweis (Wochenplan oder Programm-Flyer)",
+  6: "Bestätigung",
 };
 
-// Step 5 (Bemessung) ist optional — nur Pflicht, wenn Sozialreferat
-// den Antrag als FB-III.2/III.3 klassifiziert. Daher nicht in der
-// Pflicht-Quote.
-const PFLICHT_STEPS = [1, 2, 3, 4, 6, 7] as const;
+// Alle 6 Steps sind Pflicht — die früheren Bemessungsfelder sind aus
+// dem Webformular entfernt (PDF fragt sie nicht ab; UE3 pflegt sie
+// nach, falls FB-III.2/III.3 klassifiziert wird).
+const PFLICHT_STEPS = [1, 2, 3, 4, 5, 6] as const;
 
 /**
- * Step 7 — Senden.
+ * Step 6 — Senden.
  * Im Long-Form-Layout sind alle Eingaben oben sichtbar — eine Pre-Submit-
  * Übersicht wäre redundant. Hier nur noch:
  *   - DSGVO-Bestätigung (Checkbox)
@@ -28,15 +28,15 @@ const PFLICHT_STEPS = [1, 2, 3, 4, 6, 7] as const;
  *     und bei fehlenden Pflichtfeldern eine konkrete Liste angezeigt)
  *   - Hinweis-Zeile darüber, was noch fehlt (live, ohne Klick)
  */
-export function renderStep7Uebersicht(
+export function renderStep6Uebersicht(
   stateSig: Signal<FormState>,
   onSubmit: () => Promise<void>,
 ): HTMLElement {
   const root = document.createElement("fieldset");
-  root.dataset.section = "7";
+  root.dataset.section = "6";
 
   const legend = document.createElement("legend");
-  legend.textContent = t("stepper.7.titel");
+  legend.textContent = t("stepper.6.titel");
   root.appendChild(legend);
 
   // Cross-Field-Warnhinweis (nicht-blockierend) zur 1.-April-Frist
