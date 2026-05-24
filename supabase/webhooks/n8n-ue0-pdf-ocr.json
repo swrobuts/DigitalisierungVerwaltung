@@ -1,0 +1,142 @@
+{
+  "name": "UE0 — Antrag-PDF OCR + Extraktion (Claude Vision)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ue0-antragspdf",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wh-1",
+      "name": "Webhook Trigger (Supabase NOTIFY)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300],
+      "webhookId": "ue0-antragspdf"
+    },
+    {
+      "parameters": {
+        "url": "=http://kong:8000/storage/v1/object/antragseingang-pdf/{{ $json.body.storage_path }}",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": { "response": { "response": { "responseFormat": "file" } } }
+      },
+      "id": "dl-1",
+      "name": "PDF aus Storage holen",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5\",\n  \"max_tokens\": 4096,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"document\",\n          \"source\": {\n            \"type\": \"base64\",\n            \"media_type\": \"application/pdf\",\n            \"data\": \"={{ $binary.data.data }}\"\n          }\n        },\n        {\n          \"type\": \"text\",\n          \"text\": \"Du bekommst ein ausgefülltes Antragsformular der Stadt Würzburg (Altenhilfeplan Nr. 2, Antrag auf Zuschuss für Altentagesstätten). Das Formular kann maschinell ausgefüllt sein ODER handschriftlich. Extrahiere ALLE ausgefüllten Felder als striktes JSON nach folgendem Schema. Wenn ein Feld leer/nicht lesbar ist, setze null. Bei Beträgen: nur die Zahl als float (z.B. 1250.50), keine Währung, kein Tausender-Punkt. IBAN/BIC trimmen, ohne Leerzeichen. Antwort NUR als JSON-Objekt, keine Erklärung davor oder danach, kein Code-Fence.\\n\\nSchema:\\n{\\n  \\\"haushaltsjahr\\\": integer | null,\\n  \\\"name\\\": string | null,                    // Name der Einrichtung\\n  \\\"traeger\\\": string | null,                 // Trägerverein/Organisation\\n  \\\"strasse\\\": string | null,\\n  \\\"hausnummer\\\": string | null,\\n  \\\"plz\\\": string | null,                      // 5-stellig\\n  \\\"ort\\\": string | null,\\n  \\\"bankverbindung\\\": string | null,           // Name der Bank, optional\\n  \\\"iban\\\": string | null,\\n  \\\"bic\\\": string | null,                      // nur wenn Nicht-DE-IBAN\\n  \\\"ansprechpartner\\\": string | null,\\n  \\\"telefon\\\": string | null,                  // optional\\n  \\\"email\\\": string | null,\\n  \\\"betriebskosten_vorjahr_euro\\\": float | null,\\n  \\\"personalkosten_vorjahr_euro\\\": float | null,\\n  \\\"miete_jahr_euro\\\": float | null,           // monatlich × 12 wenn monatlich angegeben\\n  \\\"raeume_vorhanden\\\": \\\"ja\\\" | \\\"nein\\\" | null,\\n  \\\"raeume_unentgeltlich\\\": \\\"ja\\\" | \\\"nein\\\" | null,\\n  \\\"antragsdatum\\\": string | null              // ISO YYYY-MM-DD\\n}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "claude-1",
+      "name": "Claude Vision — OCR + Extraktion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Claude's JSON-Antwort (text content) und ergänze um Pflicht-Defaults.\nconst input = $input.first().json;\nconst content = input.content?.[0]?.text;\nif (!content) {\n  throw new Error('Claude lieferte keinen Text-Content zurück: ' + JSON.stringify(input));\n}\nlet extr;\ntry {\n  // Falls Claude doch ein Code-Fence schickt, abstreifen\n  const cleaned = content.trim().replace(/^```json\\n?/, '').replace(/\\n?```$/, '');\n  extr = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Claude-Antwort ist kein JSON: ' + content.slice(0, 500));\n}\n\n// Defaults für UE0-Antragstellung\nextr.submitted_language = 'de';\nextr.submitted_at = new Date().toISOString();\nextr.antragsdatum = extr.antragsdatum || new Date().toISOString().slice(0, 10);\nextr.status = 'eingegangen';\n\n// Bemessungs-Felder (Migration 029) bleiben null — Original-PDF fragt sie nicht ab\n// geforderte_foerdersumme_euro bleibt null — Sachbearbeitung muss ergänzen\n\nreturn [{ json: { extrahiert: extr, einreichung_id: $('Webhook Trigger (Supabase NOTIFY)').first().json.body.einreichung_id } }];"
+      },
+      "id": "parse-1",
+      "name": "Parse JSON + Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [940, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://kong:8000/rest/v1/antraege",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Accept-Profile", "value": "apl2" },
+            { "name": "Content-Profile", "value": "apl2" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.extrahiert) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "insert-1",
+      "name": "INSERT apl2.antraege",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "url": "=http://kong:8000/rest/v1/antrag_einreichung?id=eq.{{ $('Parse JSON + Defaults').first().json.einreichung_id }}",
+        "method": "PATCH",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Accept-Profile", "value": "apl2" },
+            { "name": "Content-Profile", "value": "apl2" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"fertig\",\n  \"antrag_id\": \"{{ $json[0].id }}\",\n  \"extrahiert_jsonb\": {{ JSON.stringify($('Parse JSON + Defaults').first().json.extrahiert) }},\n  \"verarbeitet_am\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "update-1",
+      "name": "UPDATE antrag_einreichung status=fertig",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1460, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger (Supabase NOTIFY)": { "main": [[{ "node": "PDF aus Storage holen", "type": "main", "index": 0 }]] },
+    "PDF aus Storage holen":             { "main": [[{ "node": "Claude Vision — OCR + Extraktion", "type": "main", "index": 0 }]] },
+    "Claude Vision — OCR + Extraktion":  { "main": [[{ "node": "Parse JSON + Defaults", "type": "main", "index": 0 }]] },
+    "Parse JSON + Defaults":             { "main": [[{ "node": "INSERT apl2.antraege", "type": "main", "index": 0 }]] },
+    "INSERT apl2.antraege":              { "main": [[{ "node": "UPDATE antrag_einreichung status=fertig", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "errorWorkflow": "",
+    "executionOrder": "v1"
+  },
+  "_documentation": {
+    "purpose": "UE0 — Bürger lädt ausgefülltes Antrags-PDF hoch, dieser Workflow extrahiert per Claude Vision OCR (auch Handschrift) und schreibt nach apl2.antraege.",
+    "trigger": "Wird von Postgres-Trigger trg_notify_n8n_on_pdf_einreichung aufgerufen (Migration 047).",
+    "required_env_vars": [
+      "SUPABASE_SERVICE_ROLE_KEY — bereits in /opt/pruefung/.env auf VPS",
+      "ANTHROPIC_API_KEY — bereits in /opt/pruefung/.env"
+    ],
+    "required_db_setting": "alter database postgres set app.n8n_ue0_webhook = 'https://n8n.butscher.cloud/webhook/ue0-antragspdf';",
+    "error_handling": "Bei jedem Knoten-Fehler bleibt status='wartend'. Wenn der Webhook-Call vom DB-Trigger schon fehlschlägt, wird status='fehler' gesetzt (siehe Migration 047 Exception-Handler)."
+  }
+}

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Antrag hochladen — Altenhilfeplan Nr. 2 (Demo)</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <!-- 3px Würzburg-Rot-Akzent oben (analog UE1) -->
+    <div class="wue-accent"></div>
+
+    <header class="page-header">
+      <div class="page-header-inner">
+        <div class="wappen-block">
+          <!-- SVG-Wappen ist optisch nahe an wuerzburg.de, aber bewusst
+               generisch gehalten (kein offizielles City-Logo, nur Andeutung). -->
+          <svg width="46" height="46" viewBox="0 0 80 80" aria-hidden="true">
+            <path d="M40 4 L20 12 L20 30 C20 50 30 65 40 76 C50 65 60 50 60 30 L60 12 Z"
+                  fill="#AD0E36" stroke="#8A0B2B" stroke-width="2"/>
+            <path d="M30 28 L50 28 M40 20 L40 36 M28 44 L52 44" stroke="#FFF" stroke-width="3"/>
+          </svg>
+          <div class="wappen-text">
+            <div class="wappen-eyebrow">STADT WÜRZBURG · Demo</div>
+            <div class="wappen-title">Formularcenter</div>
+          </div>
+        </div>
+        <nav class="page-nav" aria-label="Hauptnavigation">
+          <span class="lang-pill" lang="de">Deutsch</span>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Breadcrumb wie auf wuerzburg.de -->
+    <div class="breadcrumb">
+      <a href="#">Startseite</a> <span class="bc-sep">›</span>
+      <a href="#">Rathaus</a> <span class="bc-sep">›</span>
+      <a href="#">Formularcenter</a>
+    </div>
+
+    <main id="app" class="page-main"></main>
+
+    <!-- Disclaimer-Footer: rechtlich wichtig — klar markiert dass dies
+         keine offizielle Stadt-Würzburg-Seite ist. -->
+    <footer class="demo-footer">
+      <div class="demo-footer-inner">
+        <p class="demo-footer-warn">
+          <strong>Demo-Webseite für Lehrzwecke (THWS).</strong>
+          Dies ist kein offizielles Angebot der Stadt Würzburg.
+          Hochgeladene Dokumente werden ausschließlich zur Demonstration
+          eines KI-gestützten OCR-Workflows verarbeitet und nach
+          Vorlesungsende gelöscht. Bitte keine echten personenbezogenen
+          Daten verwenden.
+        </p>
+        <p class="demo-footer-meta">
+          Kursprojekt „Digitalisierung in der Verwaltung" · Reifegradstufe 0
+          (PDF-Upload mit KI-OCR) · Quelle:
+          <a href="https://github.com/swrobuts/DigitalisierungVerwaltung"
+             target="_blank" rel="noopener noreferrer">github.com/swrobuts</a>
+        </p>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

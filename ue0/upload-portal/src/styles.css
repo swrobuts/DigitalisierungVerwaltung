@@ -1,0 +1,343 @@
+@import "tailwindcss";
+
+@theme {
+  /* Würzburg-CI — synchron mit UE1/UE2/UE3 */
+  --color-wue-rot: #AD0E36;
+  --color-wue-rot-dark: #8A0B2B;
+  --color-wue-rot-soft: #FBE9EE;
+  --color-wue-grau: #4A4A4A;
+  --color-wue-bg: #F7F6F4;
+}
+
+html, body, #app {
+  min-height: 100%;
+}
+
+body {
+  font-family: "Inter", "Helvetica Neue", system-ui, -apple-system, sans-serif;
+  background: var(--color-wue-bg);
+  color: #1f1f1f;
+  margin: 0;
+  line-height: 1.55;
+}
+
+a {
+  color: var(--color-wue-rot);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+a:hover {
+  color: var(--color-wue-rot-dark);
+}
+
+/* ── Top-Akzent + Header ─────────────────────────────────────────── */
+.wue-accent {
+  height: 3px;
+  background: var(--color-wue-rot);
+}
+
+.page-header {
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
+}
+.page-header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+.wappen-block {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+.wappen-text { line-height: 1.15; }
+.wappen-eyebrow {
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-wue-rot);
+  font-weight: 600;
+}
+.wappen-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1f1f1f;
+  margin-top: 2px;
+}
+.page-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #555;
+  font-size: 13px;
+}
+.lang-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #d4d4d4;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #fff;
+  font-size: 12px;
+  color: #555;
+}
+
+/* ── Breadcrumb wie wuerzburg.de ─────────────────────────────────── */
+.breadcrumb {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0.6rem 1.5rem 0;
+  font-size: 13px;
+  color: #6b6b6b;
+}
+.breadcrumb a { color: #6b6b6b; }
+.breadcrumb a:hover { color: var(--color-wue-rot); }
+.bc-sep { color: #b0b0b0; margin: 0 4px; }
+
+/* ── Main ───────────────────────────────────────────────────────── */
+.page-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 3rem;
+}
+
+/* Seiten-Titel im wuerzburg.de-Stil */
+.page-titel {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f1f1f;
+  margin: 1.4rem 0 0.6rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #e5e5e5;
+}
+.page-untertitel {
+  font-size: 15px;
+  color: #4a4a4a;
+  margin-bottom: 1.8rem;
+}
+
+/* ── Inhalts-Cards ──────────────────────────────────────────────── */
+.card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  padding: 1.5rem;
+  margin-bottom: 1.2rem;
+}
+.card-h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f1f1f;
+  margin: 0 0 0.6rem;
+}
+.card-body {
+  font-size: 14.5px;
+  color: #2f2f2f;
+}
+
+/* Upload-Dropzone */
+.upload-zone {
+  border: 2px dashed #b0b0b0;
+  border-radius: 6px;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  background: #fafafa;
+  transition: border-color 150ms, background-color 150ms;
+}
+.upload-zone:hover, .upload-zone.drag-active {
+  border-color: var(--color-wue-rot);
+  background: var(--color-wue-rot-soft);
+}
+.upload-zone-icon {
+  font-size: 36px;
+  margin-bottom: 0.5rem;
+}
+.upload-zone-text {
+  font-size: 15px;
+  color: #555;
+  margin-bottom: 1rem;
+}
+.upload-zone input[type="file"] {
+  display: none;
+}
+.upload-zone-btn {
+  display: inline-block;
+  background: var(--color-wue-rot);
+  color: #fff;
+  padding: 0.55rem 1.4rem;
+  border: none;
+  border-radius: 3px;
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms;
+}
+.upload-zone-btn:hover { background: var(--color-wue-rot-dark); }
+.upload-zone-btn:disabled {
+  background: #b0b0b0;
+  cursor: not-allowed;
+}
+.upload-zone-hint {
+  font-size: 12px;
+  color: #888;
+  margin-top: 0.9rem;
+}
+
+/* File-Preview vor Submit */
+.file-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+  background: var(--color-wue-rot-soft);
+  border: 1px solid var(--color-wue-rot);
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  font-size: 14px;
+}
+.file-preview-name { font-weight: 500; color: #1f1f1f; }
+.file-preview-size { color: #6b6b6b; font-size: 12.5px; margin-left: 0.5rem; }
+.file-preview-remove {
+  background: none;
+  border: none;
+  color: var(--color-wue-rot-dark);
+  cursor: pointer;
+  font-size: 13px;
+}
+.file-preview-remove:hover { text-decoration: underline; }
+
+/* Status-Seite */
+.status-card {
+  text-align: center;
+  padding: 3rem 1.5rem;
+}
+.status-spinner {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e0e0e0;
+  border-top-color: var(--color-wue-rot);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.status-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+.status-detail {
+  color: #6b6b6b;
+  font-size: 14px;
+  margin-bottom: 1.5rem;
+}
+
+.status-ok {
+  background: #ECFDF5;
+  border: 1px solid #6EE7B7;
+  border-radius: 6px;
+  padding: 1.4rem;
+  margin-bottom: 1rem;
+}
+.status-ok-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #047857;
+  margin-bottom: 0.4rem;
+}
+.status-fail {
+  background: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  border-radius: 6px;
+  padding: 1.4rem;
+}
+.status-fail-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #B91C1C;
+  margin-bottom: 0.4rem;
+}
+
+/* Extrahierte Daten in der Vorschau */
+.extr-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 0.4rem 1rem;
+  font-size: 13.5px;
+  margin-top: 1rem;
+  text-align: left;
+}
+.extr-label {
+  color: #6b6b6b;
+  font-weight: 500;
+}
+.extr-value {
+  color: #1f1f1f;
+  word-break: break-word;
+}
+.extr-value.empty {
+  color: #b0b0b0;
+  font-style: italic;
+}
+
+/* Aktionen */
+.actions { margin-top: 1.5rem; display: flex; gap: 0.8rem; justify-content: center; }
+.btn-primary {
+  background: var(--color-wue-rot);
+  color: #fff;
+  padding: 0.55rem 1.4rem;
+  border: none;
+  border-radius: 3px;
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn-primary:hover { background: var(--color-wue-rot-dark); color: #fff; }
+.btn-secondary {
+  background: #fff;
+  color: #1f1f1f;
+  padding: 0.55rem 1.4rem;
+  border: 1px solid #b0b0b0;
+  border-radius: 3px;
+  font-size: 14.5px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.btn-secondary:hover { background: #f5f5f5; }
+
+/* ── Demo-Footer (rechtliche Klarstellung) ──────────────────────── */
+.demo-footer {
+  background: #2f2f2f;
+  color: #d4d4d4;
+  margin-top: 3rem;
+}
+.demo-footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  font-size: 13px;
+}
+.demo-footer-warn {
+  background: rgba(173, 14, 54, 0.15);
+  border-left: 3px solid var(--color-wue-rot);
+  padding: 0.8rem 1rem;
+  border-radius: 3px;
+  margin: 0 0 1rem;
+  color: #f0f0f0;
+}
+.demo-footer-warn strong { color: #fff; }
+.demo-footer-meta {
+  color: #aaa;
+  margin: 0;
+  font-size: 12px;
+}
+.demo-footer a { color: #f0f0f0; }
+.demo-footer a:hover { color: #fff; }
