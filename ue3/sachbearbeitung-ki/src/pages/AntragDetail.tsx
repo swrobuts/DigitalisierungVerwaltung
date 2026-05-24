@@ -234,13 +234,16 @@ export function AntragDetail() {
 
             <DocSection num="§ 1" title="Antragsteller / Träger">
               <FieldGrid>
-                <DocField label="Trägerverein / Organisation" className="sm:col-span-2">
+                {/* Labels PDF-konform (Final-Sweep 2026-05-24):
+                    „Träger" (nicht „Trägerverein / Organisation"),
+                    „Telefon / Handy" (PDF Feld 9). */}
+                <DocField label="Träger" className="sm:col-span-2">
                   {antrag.traeger}
                 </DocField>
                 <DocField label="Ansprechpartner/in" className="sm:col-span-2">
                   {antrag.ansprechpartner}
                 </DocField>
-                <DocField label="Telefon">
+                <DocField label="Telefon / Handy">
                   <a
                     href={`tel:${antrag.telefon.replace(/\s+/g, "")}`}
                     className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2"
@@ -261,16 +264,14 @@ export function AntragDetail() {
 
             <DocSection num="§ 2" title="Räumlichkeiten">
               <FieldGrid>
-                {/* Seit Migration 048 (Voll-Sync zum PDF, 2026-05-24) sind beide
-                    Räume-Felder wieder Pflicht — direkter Render ohne NULL-Fallback. */}
-                <DocField label="Räume vorhanden">
+                {/* Labels PDF-wörtlich (PDF Felder 13/14, Final-Sweep
+                    2026-05-24). Anschrift-DocField hier entfernt (Duplikat —
+                    steht bereits oben im Titelblock, „Einrichtung"). */}
+                <DocField label="Vorhandene Räumlichkeiten des Trägers">
                   <YesNo value={antrag.raeume_vorhanden} />
                 </DocField>
-                <DocField label="Räume unentgeltlich überlassen">
+                <DocField label="Unentgeltlich bereitgestellte Räume anderer Träger">
                   <YesNo value={antrag.raeume_unentgeltlich} />
-                </DocField>
-                <DocField label="Anschrift Einrichtung" className="sm:col-span-2">
-                  {formatAdresse(antrag.strasse, antrag.hausnummer, antrag.plz, antrag.ort)}
                 </DocField>
                 {antrag.miete_jahr_euro > 0 && (
                   <DocField label="Monatliche Mietzahlung (Eigenangabe)" className="sm:col-span-2">
@@ -294,7 +295,9 @@ export function AntragDetail() {
 
             <DocSection num="§ 3" title="Bankverbindung">
               <FieldGrid>
-                <DocField label="Kreditinstitut" className="sm:col-span-2">
+                {/* Label PDF-wörtlich „Bankverbindung" (PDF Feld 5);
+                    war vorher „Kreditinstitut" (Final-Sweep 2026-05-24). */}
+                <DocField label="Bankverbindung" className="sm:col-span-2">
                   {antrag.bankverbindung}
                 </DocField>
                 <DocField label="IBAN" className="sm:col-span-2">
@@ -803,7 +806,19 @@ function Wochenplan({
   zeiten: Array<{ wochentag: string; oeffnungszeit: string | null; angebot: string | null }>;
 }) {
   if (zeiten.length === 0) {
-    return <p className="text-sm text-slate-500 italic">Kein Wochenplan hinterlegt.</p>;
+    // Hinweis (Final-Sweep 2026-05-24): Bei UE0-Anträgen kann der
+    // Wochenplan fehlen, wenn der Bürger keine Anlage 1 hochgeladen hat
+    // — die OCR-Pipeline extrahiert Wochenplan nur aus dem Anlage-1-PDF.
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-slate-500 italic">Kein Wochenplan hinterlegt.</p>
+        <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+          Hinweis: Wenn der Antrag aus dem UE0-Portal (PDF-Upload) kommt,
+          wurde keine Anlage 1 mit eingereicht. Bürger ggf. kontaktieren
+          oder Wochenplan manuell nachpflegen.
+        </p>
+      </div>
+    );
   }
   return (
     <table className="w-full text-[14px]">

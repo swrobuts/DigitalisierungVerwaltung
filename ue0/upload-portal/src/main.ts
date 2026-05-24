@@ -75,84 +75,71 @@ function renderUploadView(): HTMLElement {
   `;
   main.appendChild(ocrHint);
 
-  // Helper: jeder Antrag bekommt einen optisch klaren Section-Header
-  // (Nummer + Titel + Pflicht-/Optional-Badge), einen farblich akzentuierten
-  // Container und Upload-Button im gleichen Pattern.
-  interface AntragOpts {
-    nummer: 1 | 2;
-    sektionTitel: string;            // z.B. "Hauptantrag" oder "Anlage 1 (Wochenplan)"
-    pflicht: boolean;                // true → rot, "Pflicht"-Badge; false → grau, "Optional"-Badge
-    downloadUrl: string;
-    pdfLinkLabel: string;            // sichtbarer Wortlaut beim PDF-Link
-    dokumentBeschreibung: string;    // Zitat im Erklärungs-Card-Hilfetext
-    cardUeberschrift: string;        // Card-Headline "So funktioniert …"
-  }
+  // Hinweis (Final-Sweep 2026-05-24): Bis vorher gab es zwei getrennte
+  // antragRow()-Aufrufe mit jeweils eigenem Upload (zwei tracking_ids).
+  // Jetzt: EINE Upload-Komponente, beide PDFs in einem Submit, ein
+  // tracking_id — Hauptantrag + Anlage 1 logisch zusammengehörig.
 
-  function antragRow(o: AntragOpts): HTMLElement {
-    const row = document.createElement("div");
-    row.className = "antrag-row" + (o.pflicht ? "" : " antrag-row-optional");
+  // Hauptantrag (Pflicht) + Anlage 1 (optional) in EINER Upload-Komponente.
+  // Beide Files werden in einem POST gesendet (FormData: datei + anlage_1)
+  // → ein gemeinsamer tracking_id, n8n erkennt Anlage-1-Pfad und
+  // extrahiert dort den Wochenplan (Final-Sweep 2026-05-24).
+  const hauptantragRow = document.createElement("div");
+  hauptantragRow.className = "antrag-row";
 
-    // Section-Header oben: ① Hauptantrag · Pflicht
-    const head = document.createElement("div");
-    head.className = "antrag-section-head";
-    const num = document.createElement("span");
-    num.className = "antrag-section-num";
-    num.textContent = String(o.nummer);
-    const title = document.createElement("h2");
-    title.className = "antrag-section-title";
-    title.textContent = o.sektionTitel;
-    const badge = document.createElement("span");
-    badge.className = "antrag-section-badge" + (o.pflicht ? "" : " badge-optional");
-    badge.textContent = o.pflicht ? "Pflicht" : "Optional";
-    head.append(num, title, badge);
-    row.appendChild(head);
+  // Section-Header
+  const head1 = document.createElement("div");
+  head1.className = "antrag-section-head";
+  const num1 = document.createElement("span");
+  num1.className = "antrag-section-num";
+  num1.textContent = "1";
+  const title1 = document.createElement("h2");
+  title1.className = "antrag-section-title";
+  title1.textContent = "Antrag APL 2 (mit optionaler Anlage 1)";
+  const badge1 = document.createElement("span");
+  badge1.className = "antrag-section-badge";
+  badge1.textContent = "Pflicht";
+  head1.append(num1, title1, badge1);
+  hauptantragRow.appendChild(head1);
 
-    // PDF-Download-Link
-    const link = document.createElement("a");
-    link.className = "pdf-link";
-    link.href = o.downloadUrl;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.innerHTML = `<span class="pdf-icon">PDF</span> ${o.pdfLinkLabel}`;
-    row.appendChild(link);
+  // Zwei PDF-Download-Links untereinander — Bürger lädt sich beide Vorlagen
+  const pdfBlock = document.createElement("div");
+  pdfBlock.style.cssText = "display:flex; flex-direction:column; gap:0.4rem;";
+  const linkMain = document.createElement("a");
+  linkMain.className = "pdf-link";
+  linkMain.href = "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/antrag-apl2.pdf";
+  linkMain.target = "_blank";
+  linkMain.rel = "noopener noreferrer";
+  linkMain.innerHTML = `<span class="pdf-icon">PDF</span> Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse`;
+  pdfBlock.appendChild(linkMain);
+  const linkAnlage = document.createElement("a");
+  linkAnlage.className = "pdf-link";
+  linkAnlage.href = "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/anlage-antrag-apl2.pdf";
+  linkAnlage.target = "_blank";
+  linkAnlage.rel = "noopener noreferrer";
+  linkAnlage.innerHTML = `<span class="pdf-icon">PDF</span> Anlage 1 — Wochenplan (optional, Öffnungszeiten + Angebot)`;
+  pdfBlock.appendChild(linkAnlage);
+  hauptantragRow.appendChild(pdfBlock);
 
-    // Upload-Komponente
-    row.appendChild(renderUpload(
-      (trackingId) => {
-        const url = new URL(window.location.href);
-        url.searchParams.set("status", trackingId);
-        window.history.pushState({}, "", url);
-        route();
+  // Upload-Komponente mit zwei Drop-Zonen (Hauptantrag Pflicht + Anlage 1 optional)
+  hauptantragRow.appendChild(renderUpload(
+    (trackingId) => {
+      const url = new URL(window.location.href);
+      url.searchParams.set("status", trackingId);
+      window.history.pushState({}, "", url);
+      route();
+    },
+    {
+      dokumentBeschreibung: "Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
+      ueberschrift: "So funktioniert der digitale Antrag",
+      secondaryFile: {
+        fieldName: "anlage_1",
+        label: "Anlage 1 — Wochenplan (optional)",
+        hint: "PDF, max. 10 MB — wenn vorhanden, extrahiert die KI auch die Öffnungszeiten.",
       },
-      {
-        dokumentBeschreibung: o.dokumentBeschreibung,
-        ueberschrift: o.cardUeberschrift,
-      },
-    ));
-    return row;
-  }
-
-  // ① Hauptantrag (Pflicht)
-  main.appendChild(antragRow({
-    nummer: 1,
-    sektionTitel: "Hauptantrag",
-    pflicht: true,
-    downloadUrl: "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/antrag-apl2.pdf",
-    pdfLinkLabel: "Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
-    dokumentBeschreibung: "Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
-    cardUeberschrift: "So funktioniert der digitale Antrag",
-  }));
-
-  // ② Anlage 1 (Wochenplan, optional)
-  main.appendChild(antragRow({
-    nummer: 2,
-    sektionTitel: "Anlage 1 — Wochenplan",
-    pflicht: false,
-    downloadUrl: "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/anlage-antrag-apl2.pdf",
-    pdfLinkLabel: "Anlage Antrag APL 2 — Wochenplan (Öffnungszeiten + Angebot)",
-    dokumentBeschreibung: "Anlage 1 zum Antrag APL 2 — Wochenplan (Öffnungszeiten + Angebot der Altentagesstätte)",
-    cardUeberschrift: "So funktioniert die digitale Anlage 1",
-  }));
+    },
+  ));
+  main.appendChild(hauptantragRow);
 
   // Trenner + Weiterführende Informationen
   const weiter = document.createElement("div");

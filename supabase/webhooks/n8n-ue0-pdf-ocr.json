@@ -286,6 +286,171 @@
         2080,
         208
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Webhook Trigger (Supabase NOTIFY)').first().json.body.anlage_1_storage_path }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "60478327-294d-43d8-9183-de2535f6688a",
+      "name": "IF Anlage 1 vorhanden",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2336,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://kong:8000/storage/v1/object/antragseingang-pdf/{{ $('Webhook Trigger (Supabase NOTIFY)').first().json.body.anlage_1_storage_path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "{{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "7b812008-a1ef-4ea7-bfcd-ad7edfe24ac5",
+      "name": "Anlage 1 PDF aus Storage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2560,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nreturn [{ json: { pdf_base64: buffer.toString('base64') } }];"
+      },
+      "id": "4d9a246b-dc99-4613-8b5a-63196db3eef8",
+      "name": "Anlage 1 PDF → Base64",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2784,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "{{ $env.ANTHROPIC_API_KEY }}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5\",\n  \"max_tokens\": 2048,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"document\",\n          \"source\": {\n            \"type\": \"base64\",\n            \"media_type\": \"application/pdf\",\n            \"data\": \"{{ $json.pdf_base64 }}\"\n          }\n        },\n        {\n          \"type\": \"text\",\n          \"text\": \"Du bekommst die Anlage 1 zum APL-2-Antrag (Wochenplan einer Altentagesstaette). Extrahiere die Zeile pro Wochentag mit Oeffnungszeit und Angebot. Leere/nicht-belegte Tage weglassen. Antwort als JSON-Objekt ohne Markdown-Fence, ohne Erklaerung. Schema: {\\\"oeffnungszeiten\\\": [{\\\"wochentag\\\": \\\"mo|di|mi|do|fr|sa|so\\\", \\\"oeffnungszeit\\\": \\\"string\\\", \\\"angebot\\\": \\\"string\\\"}]}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "dcf4aa3e-1cd9-4896-acec-706524640a16",
+      "name": "Claude Vision Wochenplan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3008,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Claude-JSON-Antwort, mappe zu oeffnungszeit-Rows.\n// antrag_id kommt aus dem INSERT apl2.antraege Output (per $).\nconst input = $input.first().json;\nconst content = input.content?.[0]?.text;\nif (!content) throw new Error('Claude (Wochenplan) lieferte keinen Text-Content: ' + JSON.stringify(input));\nlet parsed;\ntry {\n  const cleaned = content.trim().replace(/^```json\\n?/, '').replace(/\\n?```$/, '');\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Wochenplan-Antwort ist kein JSON: ' + content.slice(0, 500));\n}\nconst zeiten = parsed.oeffnungszeiten || parsed.zeiten || [];\nif (!Array.isArray(zeiten) || zeiten.length === 0) {\n  return [];  // Nichts zu inserten — Branch endet sauber.\n}\nconst antragId = $('Annotate Belegpositionen mit antrag_id').first().json.antrag_id;\nif (!antragId) throw new Error('antrag_id fehlt fuer Wochenplan-INSERT');\nconst VALID_TAGE = ['mo', 'di', 'mi', 'do', 'fr', 'sa', 'so'];\nreturn zeiten\n  .filter(z => VALID_TAGE.includes((z.wochentag || '').toLowerCase()))\n  .map(z => ({\n    json: {\n      antrag_id: antragId,\n      wochentag: z.wochentag.toLowerCase(),\n      oeffnungszeit: z.oeffnungszeit || null,\n      angebot: z.angebot || null,\n    }\n  }));"
+      },
+      "id": "33bc0117-8fa7-460f-8bca-c441a5269f84",
+      "name": "Parse + Map Wochenplan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3232,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kong:8000/rest/v1/oeffnungszeit",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "{{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept-Profile",
+              "value": "apl2"
+            },
+            {
+              "name": "Content-Profile",
+              "value": "apl2"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"antrag_id\": \"{{ $json.antrag_id }}\",\n  \"wochentag\": \"{{ $json.wochentag }}\",\n  \"oeffnungszeit\": {{ JSON.stringify($json.oeffnungszeit) }},\n  \"angebot\": {{ JSON.stringify($json.angebot) }}\n}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "67f2e641-a7e2-4272-be3e-5cb3c1a656e0",
+      "name": "INSERT apl2.oeffnungszeit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3456,
+        128
+      ]
     }
   ],
   "connections": {
@@ -389,6 +554,73 @@
         [
           {
             "node": "Claude Vision — OCR + Extraktion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UPDATE antrag_einreichung status=fertig": {
+      "main": [
+        [
+          {
+            "node": "IF Anlage 1 vorhanden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Anlage 1 vorhanden": {
+      "main": [
+        [
+          {
+            "node": "Anlage 1 PDF aus Storage",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Anlage 1 PDF aus Storage": {
+      "main": [
+        [
+          {
+            "node": "Anlage 1 PDF → Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anlage 1 PDF → Base64": {
+      "main": [
+        [
+          {
+            "node": "Claude Vision Wochenplan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Vision Wochenplan": {
+      "main": [
+        [
+          {
+            "node": "Parse + Map Wochenplan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse + Map Wochenplan": {
+      "main": [
+        [
+          {
+            "node": "INSERT apl2.oeffnungszeit",
             "type": "main",
             "index": 0
           }

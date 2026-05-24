@@ -54,7 +54,10 @@ export const translations: Record<Sprache, Record<string, string>> = {
     "form.hint.mietvertrag": "Erscheint nur, wenn eine monatliche Miete > 0 angegeben ist.",
     "form.legend.raeume_kosten": "Räumlichkeiten & Kosten (Vorjahr)",
     "form.hint.kosten_vorjahr": "Nachgewiesene Höhe der Kosten des Vorjahres. Diese Werte werden gem. AHP-Förderrichtlinie als Belegpositionen erfasst.",
-    "form.hint.personalkosten": "Bitte nur die tatsächlichen Kosten dieser Einrichtung angeben und auf Anfrage belegen.",
+    // PDF-Wortlaut „… und belegen." (Final-Sweep 2026-05-24, Voll-Sync).
+    // Vorher: „… und auf Anfrage belegen." (entspricht AHP 3.8, aber nicht
+    // dem PDF; Robert-Entscheidung: PDF wins.)
+    "form.hint.personalkosten": "Bitte nur die tatsächlichen Kosten für diese Einrichtung angeben und belegen.",
     "form.hint.miete_pflicht": "Bei Pflicht — keine eigenen oder unentgeltlich gestellten Räume.",
     "form.label.haushaltsjahr_hint": "Editierbar, Default = automatisch abgeleitet.",
     // v4 — 6-Step-Flow (PDF-Voll-Sync, ohne Bemessungs-Step).
@@ -146,7 +149,7 @@ export const translations: Record<Sprache, Record<string, string>> = {
     "form.hint.mietvertrag": "Compare solo se è indicato un affitto mensile > 0.",
     "form.legend.raeume_kosten": "Locali e costi (anno precedente)",
     "form.hint.kosten_vorjahr": "Importo documentato dei costi dell'anno precedente. Questi valori vengono registrati come voci giustificative ai sensi della direttiva di sovvenzione AHP.",
-    "form.hint.personalkosten": "Indicare solo i costi effettivi di questa struttura e documentarli su richiesta.",
+    "form.hint.personalkosten": "Indicare solo i costi effettivi di questa struttura e documentarli. // TODO Fachübersetzer (PDF-Wortlaut 'belegen.', nicht 'auf Anfrage')",
     "form.hint.miete_pflicht": "Obbligatorio in caso di assenza di locali propri o messi a disposizione gratuitamente.",
     "form.label.haushaltsjahr_hint": "Modificabile, valore predefinito = derivato automaticamente.",
     // v4 — flusso a 6 passi (PDF-Voll-Sync, senza step di base di calcolo).
@@ -236,7 +239,7 @@ export const translations: Record<Sprache, Record<string, string>> = {
     "form.hint.mietvertrag": "Yalnızca aylık kira > 0 girilmişse görünür.",
     "form.legend.raeume_kosten": "Mekanlar ve maliyetler (geçen yıl)",
     "form.hint.kosten_vorjahr": "Geçen yılın belgelenmiş maliyet tutarı. Bu değerler, AHP teşvik yönetmeliği uyarınca belge kalemleri olarak kaydedilir.",
-    "form.hint.personalkosten": "Lütfen yalnızca bu tesisin gerçek maliyetlerini belirtin ve talep üzerine belgeleyin.",
+    "form.hint.personalkosten": "Lütfen yalnızca bu tesisin gerçek maliyetlerini belirtin ve belgeleyin. // TODO Fachübersetzer (PDF-Wortlaut 'belegen.', nicht 'talep üzerine')",
     "form.hint.miete_pflicht": "Kendi mekanı veya ücretsiz tahsis edilmiş mekan yoksa zorunludur.",
     "form.label.haushaltsjahr_hint": "Düzenlenebilir, varsayılan = otomatik türetilmiş.",
     // v4 — 6 adımlı akış (PDF tam senkronu, hesaplama esası adımı kaldırıldı).
@@ -326,7 +329,7 @@ export const translations: Record<Sprache, Record<string, string>> = {
     "form.hint.mietvertrag": "Aparece solo si se ha indicado un alquiler mensual > 0.",
     "form.legend.raeume_kosten": "Locales y costes (año anterior)",
     "form.hint.kosten_vorjahr": "Importe justificado de los costes del año anterior. Estos valores se registran como partidas justificativas conforme a la directriz de subvención AHP.",
-    "form.hint.personalkosten": "Indique solo los costes reales de este centro y justifíquelos a solicitud.",
+    "form.hint.personalkosten": "Indique solo los costes reales de este centro y justifíquelos. // TODO Fachübersetzer (PDF-Wortlaut 'belegen.', nicht 'a solicitud')",
     "form.hint.miete_pflicht": "Obligatorio si no hay locales propios ni cedidos gratuitamente.",
     "form.label.haushaltsjahr_hint": "Editable, valor por defecto = derivado automáticamente.",
     // v4 — flujo de 6 pasos (sincronía total con PDF, sin paso de base de cálculo).

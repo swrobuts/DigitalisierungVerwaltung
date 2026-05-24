@@ -364,8 +364,50 @@
         <td class="kv-value">{{ antrag.name }}</td></tr>
     <tr><td class="kv-label">Sitz</td>
         <td class="kv-value">{{ antrag.strasse }} {{ antrag.hausnummer }}, {{ antrag.plz }} {{ antrag.ort }}</td></tr>
+    {# Block in PDF-Reihenfolge: Bank → IBAN → BIC → Ansprechpartner → Telefon → E-Mail
+       → Betriebs-/Personalkosten → Räume → Miete. Optional-Felder mit `is not none`
+       gegen Render-Crashes geschützt. #}
     <tr><td class="kv-label">Bankverbindung</td>
-        <td class="kv-value">{{ antrag.bankverbindung }} · IBAN {{ antrag.iban }}</td></tr>
+        <td class="kv-value">{{ antrag.bankverbindung }}</td></tr>
+    <tr><td class="kv-label">IBAN</td>
+        <td class="kv-value"><span style="font-family:monospace;">{{ antrag.iban }}</span></td></tr>
+    {% if antrag.bic %}
+    <tr><td class="kv-label">BIC</td>
+        <td class="kv-value"><span style="font-family:monospace;">{{ antrag.bic }}</span></td></tr>
+    {% endif %}
+    {% if antrag.ansprechpartner %}
+    <tr><td class="kv-label">Ansprechpartner/in</td>
+        <td class="kv-value">{{ antrag.ansprechpartner }}</td></tr>
+    {% endif %}
+    {% if antrag.telefon %}
+    <tr><td class="kv-label">Telefon / Handy</td>
+        <td class="kv-value">{{ antrag.telefon }}</td></tr>
+    {% endif %}
+    {% if antrag.email %}
+    <tr><td class="kv-label">E-Mail</td>
+        <td class="kv-value">{{ antrag.email }}</td></tr>
+    {% endif %}
+    {% if antrag.betriebskosten_vorjahr_euro is not none and antrag.betriebskosten_vorjahr_euro > 0 %}
+    <tr><td class="kv-label">Nachgewiesene Betriebskosten Vorjahr</td>
+        <td class="kv-value">{{ format_euro(antrag.betriebskosten_vorjahr_euro) }}</td></tr>
+    {% endif %}
+    {% if antrag.personalkosten_vorjahr_euro is not none and antrag.personalkosten_vorjahr_euro > 0 %}
+    <tr><td class="kv-label">Nachgewiesene Personalkosten Vorjahr</td>
+        <td class="kv-value">{{ format_euro(antrag.personalkosten_vorjahr_euro) }}</td></tr>
+    {% endif %}
+    {% if antrag.raeume_vorhanden %}
+    <tr><td class="kv-label">Vorhandene Räumlichkeiten des Trägers</td>
+        <td class="kv-value">{{ antrag.raeume_vorhanden }}</td></tr>
+    {% endif %}
+    {% if antrag.raeume_unentgeltlich %}
+    <tr><td class="kv-label">Unentgeltlich bereitgestellte Räume anderer Träger</td>
+        <td class="kv-value">{{ antrag.raeume_unentgeltlich }}</td></tr>
+    {% endif %}
+    {% if antrag.miete_jahr_euro is not none and antrag.miete_jahr_euro > 0 %}
+    <tr><td class="kv-label">Monatliche Mietzahlung</td>
+        <td class="kv-value">{{ format_euro(antrag.miete_jahr_euro / 12) }}
+          <span style="color:#666;font-size:9pt;">(≙ Jahressumme {{ format_euro(antrag.miete_jahr_euro) }})</span></td></tr>
+    {% endif %}
     {% if antrag.foerderbereich %}
     <tr><td class="kv-label">Förderbereich (laut Antrag)</td>
         <td class="kv-value">{{ antrag.foerderbereich }}</td></tr>

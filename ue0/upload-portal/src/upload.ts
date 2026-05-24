@@ -2,6 +2,12 @@
  * Upload-Komponente. Akzeptiert PDF (Drag&Drop oder Datei-Picker),
  * sendet an die Edge Function `upload-antragspdf`, ruft `onSuccess` mit
  * der zurückgegebenen tracking_id auf.
+ *
+ * Zwei-Datei-Modus (Final-Sweep 2026-05-24):
+ *   Wenn opts.secondaryFile gesetzt ist, zeigt die Komponente ein
+ *   zweites OPTIONALES Drop-Field für die Anlage (z.B. Anlage 1
+ *   Wochenplan). Beide Files werden in EINEM POST gesendet
+ *   (FormData-Fields `datei` + `anlage_1`).
  */
 
 const SUPABASE_URL =
@@ -20,6 +26,15 @@ export interface UploadOpts {
   /** Headline-Wortlaut der Erklärungs-Card.
    *  Default: „So funktioniert der digitale Antrag". */
   ueberschrift?: string;
+  /** Optionales zweites Drop-Field (gleicher Submit). Default: kein zweites Field. */
+  secondaryFile?: {
+    /** FormData-Field-Name (Edge-Function-Vertrag). */
+    fieldName: "anlage_1";
+    /** Beschriftung des Drop-Felds. */
+    label: string;
+    /** Sichtbarer Hinweis-Text unter dem Drop-Field. */
+    hint: string;
+  };
 }
 
 export function renderUpload(
@@ -58,39 +73,165 @@ export function renderUpload(
   const uploadCard = document.createElement("div");
   uploadCard.className = "card";
 
-  const previewSlot = document.createElement("div");
-  uploadCard.appendChild(previewSlot);
+  /** Baut eine Drop-Zone für ein File-Field. Liefert die DOM-Elemente und
+   *  Methoden zum Auslesen des aktuell ausgewählten Files. */
+  function buildDropZone(o: {
+    label: string;
+    hint: string;
+    pflicht: boolean;
+  }) {
+    const previewSlot = document.createElement("div");
 
-  const zone = document.createElement("label");
-  zone.className = "upload-zone";
+    const labelEl = document.createElement("div");
+    labelEl.className = "upload-zone-label";
+    labelEl.style.cssText =
+      "font-weight: 600; font-size: 13px; margin: 0.4rem 0 0.3rem;";
+    labelEl.textContent = o.label;
 
-  const fileInput = document.createElement("input");
-  fileInput.type = "file";
-  fileInput.accept = "application/pdf";
+    const zone = document.createElement("label");
+    zone.className = "upload-zone";
 
-  const icon = document.createElement("div");
-  icon.className = "upload-zone-icon";
-  icon.textContent = "📄";
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "application/pdf";
 
-  const text = document.createElement("div");
-  text.className = "upload-zone-text";
-  text.textContent = "PDF hierher ziehen oder klicken zum Auswählen";
+    const icon = document.createElement("div");
+    icon.className = "upload-zone-icon";
+    icon.textContent = "📄";
 
-  const btn = document.createElement("span");
-  btn.className = "upload-zone-btn";
-  btn.textContent = "Datei auswählen";
+    const text = document.createElement("div");
+    text.className = "upload-zone-text";
+    text.textContent = "PDF hierher ziehen oder klicken zum Auswählen";
 
-  const hint = document.createElement("div");
-  hint.className = "upload-zone-hint";
-  hint.textContent = "Nur PDF, max. 10 MB";
+    const btn = document.createElement("span");
+    btn.className = "upload-zone-btn";
+    btn.textContent = "Datei auswählen";
 
-  zone.append(icon, text, btn, hint, fileInput);
-  uploadCard.appendChild(zone);
+    const hint = document.createElement("div");
+    hint.className = "upload-zone-hint";
+    hint.textContent = o.hint;
 
-  // Submit-Button (kommt erst nach Datei-Auswahl)
+    zone.append(icon, text, btn, hint, fileInput);
+
+    let selectedFile: File | null = null;
+
+    function showPreview(file: File) {
+      selectedFile = file;
+      previewSlot.innerHTML = "";
+      const prev = document.createElement("div");
+      prev.className = "file-preview";
+      const name = document.createElement("span");
+      name.className = "file-preview-name";
+      name.textContent = file.name;
+      const size = document.createElement("span");
+      size.className = "file-preview-size";
+      size.textContent = `(${(file.size / 1024).toFixed(0)} KB)`;
+      const remove = document.createElement("button");
+      remove.className = "file-preview-remove";
+      remove.type = "button";
+      remove.textContent = "Entfernen";
+      remove.addEventListener("click", () => {
+        selectedFile = null;
+        previewSlot.innerHTML = "";
+        zone.style.display = "block";
+        fileInput.value = "";
+        afterChange();
+      });
+      const left = document.createElement("span");
+      left.appendChild(name);
+      left.appendChild(size);
+      prev.appendChild(left);
+      prev.appendChild(remove);
+      previewSlot.appendChild(prev);
+      zone.style.display = "none";
+      afterChange();
+    }
+
+    function validateAndPreview(file: File) {
+      if (file.type !== "application/pdf") {
+        showError(`Nur PDF erlaubt — diese Datei ist ${file.type || "unbekannt"}.`);
+        return;
+      }
+      if (file.size > MAX_BYTES) {
+        showError(`Datei zu groß: ${(file.size / 1024 / 1024).toFixed(1)} MB (max 10 MB).`);
+        return;
+      }
+      showPreview(file);
+    }
+
+    fileInput.addEventListener("change", () => {
+      const f = fileInput.files?.[0];
+      if (f) validateAndPreview(f);
+    });
+
+    ["dragenter", "dragover"].forEach((ev) => {
+      zone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        zone.classList.add("drag-active");
+      });
+    });
+    ["dragleave", "drop"].forEach((ev) => {
+      zone.addEventListener(ev, (e) => {
+        e.preventDefault();
+        zone.classList.remove("drag-active");
+      });
+    });
+    zone.addEventListener("drop", (e) => {
+      const dt = (e as DragEvent).dataTransfer;
+      const f = dt?.files?.[0];
+      if (f) validateAndPreview(f);
+    });
+
+    // After-change-Callback wird in der äußeren Funktion gesetzt
+    let afterChange: () => void = () => {};
+
+    return {
+      labelEl,
+      previewSlot,
+      zone,
+      get file() { return selectedFile; },
+      pflicht: o.pflicht,
+      onChange(cb: () => void) {
+        afterChange = cb;
+      },
+    };
+  }
+
+  // Primäres Drop-Field (Pflicht: Hauptantrag)
+  const main = buildDropZone({
+    label: "Hauptantrag (Pflicht)",
+    hint: "Nur PDF, max. 10 MB",
+    pflicht: true,
+  });
+  uploadCard.appendChild(main.previewSlot);
+  uploadCard.appendChild(main.labelEl);
+  uploadCard.appendChild(main.zone);
+
+  // Optionales sekundäres Drop-Field (Anlage 1)
+  let secondary: ReturnType<typeof buildDropZone> | null = null;
+  if (opts.secondaryFile) {
+    secondary = buildDropZone({
+      label: opts.secondaryFile.label,
+      hint: opts.secondaryFile.hint,
+      pflicht: false,
+    });
+    // Trenner zwischen Pflicht und Optional
+    const trenner = document.createElement("div");
+    trenner.style.cssText =
+      "margin: 1.2rem 0 0.4rem; padding-top: 0.8rem; " +
+      "border-top: 1px dashed #d0d0d0; font-size: 12px; color: #666;";
+    trenner.textContent = "— optional zusätzlich —";
+    uploadCard.appendChild(trenner);
+    uploadCard.appendChild(secondary.previewSlot);
+    uploadCard.appendChild(secondary.labelEl);
+    uploadCard.appendChild(secondary.zone);
+  }
+
+  // Submit-Button (kommt erst nach Datei-Auswahl im Pflichtfeld)
   const actions = document.createElement("div");
   actions.className = "actions";
   actions.style.display = "none";
+  actions.style.marginTop = "1rem";
   const submitBtn = document.createElement("button");
   submitBtn.className = "btn-primary";
   submitBtn.textContent = "Antrag absenden";
@@ -107,54 +248,6 @@ export function renderUpload(
 
   wrap.appendChild(uploadCard);
 
-  // ── Datei-Auswahl-Logik ────────────────────────────────────────────
-  let selectedFile: File | null = null;
-
-  function showPreview(file: File) {
-    selectedFile = file;
-    previewSlot.innerHTML = "";
-    const prev = document.createElement("div");
-    prev.className = "file-preview";
-    const name = document.createElement("span");
-    name.className = "file-preview-name";
-    name.textContent = file.name;
-    const size = document.createElement("span");
-    size.className = "file-preview-size";
-    size.textContent = `(${(file.size / 1024).toFixed(0)} KB)`;
-    const remove = document.createElement("button");
-    remove.className = "file-preview-remove";
-    remove.type = "button";
-    remove.textContent = "Entfernen";
-    remove.addEventListener("click", () => {
-      selectedFile = null;
-      previewSlot.innerHTML = "";
-      actions.style.display = "none";
-      zone.style.display = "block";
-      fileInput.value = "";
-    });
-    const left = document.createElement("span");
-    left.appendChild(name);
-    left.appendChild(size);
-    prev.appendChild(left);
-    prev.appendChild(remove);
-    previewSlot.appendChild(prev);
-    zone.style.display = "none";
-    actions.style.display = "flex";
-    errBox.style.display = "none";
-  }
-
-  function validateAndPreview(file: File) {
-    if (file.type !== "application/pdf") {
-      showError(`Nur PDF erlaubt — diese Datei ist ${file.type || "unbekannt"}.`);
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      showError(`Datei zu groß: ${(file.size / 1024 / 1024).toFixed(1)} MB (max 10 MB).`);
-      return;
-    }
-    showPreview(file);
-  }
-
   function showError(msg: string) {
     errBox.style.display = "block";
     errBox.innerHTML = `
@@ -163,33 +256,16 @@ export function renderUpload(
     `;
   }
 
-  fileInput.addEventListener("change", () => {
-    const f = fileInput.files?.[0];
-    if (f) validateAndPreview(f);
-  });
-
-  // Drag&Drop
-  ["dragenter", "dragover"].forEach((ev) => {
-    zone.addEventListener(ev, (e) => {
-      e.preventDefault();
-      zone.classList.add("drag-active");
-    });
-  });
-  ["dragleave", "drop"].forEach((ev) => {
-    zone.addEventListener(ev, (e) => {
-      e.preventDefault();
-      zone.classList.remove("drag-active");
-    });
-  });
-  zone.addEventListener("drop", (e) => {
-    const dt = (e as DragEvent).dataTransfer;
-    const f = dt?.files?.[0];
-    if (f) validateAndPreview(f);
-  });
+  function updateSubmitVisibility() {
+    actions.style.display = main.file ? "flex" : "none";
+    errBox.style.display = "none";
+  }
+  main.onChange(updateSubmitVisibility);
+  if (secondary) secondary.onChange(updateSubmitVisibility);
 
   // ── Submit ────────────────────────────────────────────────────────
   submitBtn.addEventListener("click", async () => {
-    if (!selectedFile) return;
+    if (!main.file) return;
     if (!ANON_KEY) {
       showError(
         "Konfigurationsfehler: VITE_SUPABASE_ANON_KEY fehlt beim Build. " +
@@ -203,7 +279,10 @@ export function renderUpload(
     errBox.style.display = "none";
 
     const fd = new FormData();
-    fd.append("datei", selectedFile);
+    fd.append("datei", main.file);
+    if (secondary?.file && opts.secondaryFile) {
+      fd.append(opts.secondaryFile.fieldName, secondary.file);
+    }
 
     try {
       const res = await fetch(ENDPOINT, {

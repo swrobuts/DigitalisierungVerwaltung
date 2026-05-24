@@ -29,20 +29,24 @@ interface Einreichung {
 // Felder, die wir in der Vorschau anzeigen — Reihenfolge folgt dem Original-PDF.
 // `format` darf gesetzt sein, um den Default-Number-Formatter (de-DE 2 Nachkommastellen)
 // zu überschreiben — z.B. für Jahreszahlen oder ja/nein-Optionsfelder.
+// Reihenfolge folgt streng dem Original-PDF (Final-Sweep 2026-05-24).
+// Träger steht im PDF HINTER E-Mail, nicht direkt neben Name —
+// hier 1:1 gespiegelt, damit Bürger die OCR-Vorschau neben das PDF
+// legen kann. Kostenlabels wörtlich „Nachgewiesene Höhe der … des Vorjahres".
 const PREVIEW_FIELDS: Array<{ key: string; label: string; format?: (v: unknown) => string }> = [
   { key: "haushaltsjahr", label: "Haushaltsjahr", format: formatYear },
   { key: "name", label: "Name der Einrichtung" },
-  { key: "traeger", label: "Träger" },
   { key: "strasse", label: "Straße / Hausnummer", format: (_) => "" },
   { key: "plz", label: "PLZ / Ort", format: (_) => "" },
-  { key: "ansprechpartner", label: "Ansprechpartner/in" },
-  { key: "telefon", label: "Telefon / Handy" },
-  { key: "email", label: "E-Mail" },
   { key: "bankverbindung", label: "Bankverbindung" },
   { key: "iban", label: "IBAN" },
   { key: "bic", label: "BIC" },
-  { key: "betriebskosten_vorjahr_euro", label: "Nachgewiesene Betriebskosten Vorjahr (€)" },
-  { key: "personalkosten_vorjahr_euro", label: "Nachgewiesene Personalkosten Vorjahr (€)" },
+  { key: "ansprechpartner", label: "Ansprechpartner/in" },
+  { key: "telefon", label: "Telefon / Handy" },
+  { key: "email", label: "E-Mail" },
+  { key: "traeger", label: "Träger" },
+  { key: "betriebskosten_vorjahr_euro", label: "Nachgewiesene Höhe der Betriebskosten des Vorjahres (€)" },
+  { key: "personalkosten_vorjahr_euro", label: "Nachgewiesene Höhe der Personalkosten des Vorjahres (€)" },
   // PDF-Optionsfelder mit Ankreuzbox — Claude liest die Markierung als "ja"/"nein".
   { key: "raeume_vorhanden", label: "Vorhandene Räumlichkeiten des Trägers", format: formatJaNein },
   { key: "raeume_unentgeltlich", label: "Unentgeltlich bereitgestellte Räume anderer Träger", format: formatJaNein },

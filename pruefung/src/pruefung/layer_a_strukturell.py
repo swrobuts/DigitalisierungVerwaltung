@@ -1,4 +1,10 @@
-"""Layer A — strukturelle Validierung (Defense-in-Depth, redundant zu Frontend)."""
+"""Layer A — strukturelle Validierung (Defense-in-Depth, redundant zu Frontend).
+
+Pflichtfelder gem. Migration 048 (PDF-Voll-Sync, Robert-Entscheidung
+2026-05-24) — Layer A prüft die *strukturelle* Validität jedes
+PDF-Pflichtfelds. Felder werden über das antrag-Dict aus der View
+`antrag_mit_summen` reingereicht (siehe pruefung.main._fetch_antrag).
+"""
 import re
 from pruefung.models import Befund
 
@@ -16,6 +22,12 @@ def _is_valid_iban(s: str) -> bool:
     return remainder == 1
 
 
+def _is_valid_bic(s: str) -> bool:
+    """ISO 9362: 8 oder 11 Zeichen, Großbuchstaben/Ziffern. Whitespace tolerant."""
+    s = re.sub(r"\s+", "", (s or "").upper())
+    return bool(re.fullmatch(r"[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?", s))
+
+
 def _is_valid_email(s: str) -> bool:
     return bool(re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]{2,}", s or ""))
 
@@ -24,10 +36,38 @@ def _is_valid_plz(s: str) -> bool:
     return bool(re.fullmatch(r"\d{5}", s or ""))
 
 
+def _is_non_empty(antrag: dict, key: str) -> bool:
+    v = antrag.get(key)
+    if v is None:
+        return False
+    if isinstance(v, str):
+        return bool(v.strip())
+    return True
+
+
+def _check_text_field(
+    antrag: dict, feld: str, label: str, paragraph_ref: str,
+) -> Befund | None:
+    """Hilfs-Funktion: meldet Verstoss wenn das Textfeld leer/None ist."""
+    if _is_non_empty(antrag, feld):
+        return None
+    return Befund(
+        schwere="verstoss", layer="A", feld=feld,
+        beschreibung=f"{label} fehlt (Pflichtfeld).",
+        paragraph_ref=paragraph_ref,
+    )
+
+
 def check_strukturell(antrag: dict) -> list[Befund]:
-    """Liefert Befunde mit layer='A'. Leere Liste = strukturell OK."""
+    """Liefert Befunde mit layer='A'. Leere Liste = strukturell OK.
+
+    Erwartet `antrag` aus der View `apl2.antrag_mit_summen`. Die View
+    aggregiert die Kosten-Belegpositionen, daher prüfen wir
+    betriebskosten/personalkosten direkt am Aggregat (`> 0`).
+    """
     befunde: list[Befund] = []
 
+    # ── Antragsnummer (System-Pflicht, kein PDF-Feld) ─────────────
     if not (antrag.get("antragsnummer") or "").strip():
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="antragsnummer",
@@ -35,6 +75,26 @@ def check_strukturell(antrag: dict) -> list[Befund]:
             paragraph_ref="AHP 3.2 a) Antragstellung auf Formblättern",
         ))
 
+    # ── Textfelder (PDF-Pflichtfelder gem. Migration 048) ─────────
+    text_pflichten = [
+        ("name",            "Name der Einrichtung",     "PDF Feld 2 Name"),
+        ("traeger",         "Träger",                   "PDF Feld 4 Träger"),
+        ("strasse",         "Straße",                   "PDF Feld 3 Anschrift"),
+        ("hausnummer",      "Hausnummer",               "PDF Feld 3 Anschrift"),
+        ("ort",             "Ort",                      "PDF Feld 3 Anschrift"),
+        ("bankverbindung",  "Bankverbindung (Bankname)",
+         "PDF Feld 5 — Verwaltungspraxis Sozialreferat"),
+        ("ansprechpartner", "Ansprechpartner/in",
+         "PDF Feld 8 — Verwaltungspraxis Sozialreferat"),
+        ("telefon",         "Telefon / Handy",
+         "PDF Feld 9 — Verwaltungspraxis Sozialreferat"),
+    ]
+    for feld, label, ref in text_pflichten:
+        b = _check_text_field(antrag, feld, label, ref)
+        if b is not None:
+            befunde.append(b)
+
+    # ── Format-Checks ─────────────────────────────────────────────
     if not _is_valid_iban(antrag.get("iban", "") or ""):
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="iban",
@@ -42,11 +102,19 @@ def check_strukturell(antrag: dict) -> list[Befund]:
             paragraph_ref="AHP 3.6 Auszahlung des Zuschusses",
         ))
 
+    # BIC: ist seit Migration 055 NOT NULL — strukturelle Validität dennoch prüfen.
+    if not _is_valid_bic(antrag.get("bic", "") or ""):
+        befunde.append(Befund(
+            schwere="verstoss", layer="A", feld="bic",
+            beschreibung="BIC ungültig (Format: 8 oder 11 Zeichen, A–Z/0–9).",
+            paragraph_ref="PDF Feld 7 — Verwaltungspraxis Sozialreferat",
+        ))
+
     if not _is_valid_plz(antrag.get("plz", "") or ""):
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="plz",
             beschreibung="PLZ muss aus 5 Ziffern bestehen.",
-            paragraph_ref="Verwaltungspraxis: Anschrift Träger für Korrespondenz",
+            paragraph_ref="PDF Feld 3 Anschrift",
         ))
 
     if not _is_valid_email(antrag.get("email", "") or ""):
@@ -62,6 +130,52 @@ def check_strukturell(antrag: dict) -> list[Befund]:
             schwere="verstoss", layer="A", feld="haushaltsjahr",
             beschreibung="Haushaltsjahr außerhalb 2020–2030.",
             paragraph_ref="AHP 3.7 Rechnungsjahr (1.1.–31.12.)",
+        ))
+
+    # ── Räumlichkeiten (PDF Felder 13/14) ─────────────────────────
+    for feld, label, ref in [
+        ("raeume_vorhanden",     "Vorhandene Räumlichkeiten des Trägers",
+         "PDF Feld 13 Räumlichkeiten"),
+        ("raeume_unentgeltlich", "Unentgeltlich bereitgestellte Räume anderer Träger",
+         "PDF Feld 14 Räumlichkeiten"),
+    ]:
+        v = antrag.get(feld)
+        if v not in ("ja", "nein"):
+            befunde.append(Befund(
+                schwere="verstoss", layer="A", feld=feld,
+                beschreibung=f"{label} muss 'ja' oder 'nein' sein.",
+                paragraph_ref=ref,
+            ))
+
+    # ── Antragsdatum (PDF Feld 16 „Würzburg, [Datum]") ────────────
+    if not _is_non_empty(antrag, "antragsdatum"):
+        befunde.append(Befund(
+            schwere="verstoss", layer="A", feld="antragsdatum",
+            beschreibung="Antragsdatum fehlt.",
+            paragraph_ref="PDF Feld 16 Würzburg, [Datum]",
+        ))
+
+    # ── Kosten-Aggregate (PDF Felder 11/12 → belegposition-Summen) ─
+    # Werte kommen aus der View `antrag_mit_summen` (Sum über belegposition).
+    # Strukturell verlangen wir, dass MINDESTENS EINE der beiden
+    # Kosten-Kategorien > 0 ist — die spezifische Layer-B-Regel
+    # `mindestens_eine_kostenposition` macht denselben Check (Defense-in-Depth).
+    try:
+        bk = float(antrag.get("betriebskosten_vorjahr_euro") or 0)
+    except (TypeError, ValueError):
+        bk = 0.0
+    try:
+        pk = float(antrag.get("personalkosten_vorjahr_euro") or 0)
+    except (TypeError, ValueError):
+        pk = 0.0
+    if bk <= 0 and pk <= 0:
+        befunde.append(Befund(
+            schwere="verstoss", layer="A", feld="kostenpositionen",
+            beschreibung=(
+                "Mindestens eine Kostenposition (Betriebskosten oder "
+                "Personalkosten) muss > 0 sein."
+            ),
+            paragraph_ref="PDF Felder 11/12 — Nachgewiesene Kosten Vorjahr",
         ))
 
     return befunde

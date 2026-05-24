@@ -76,7 +76,11 @@ export function AntragDetail() {
             <CardTitle>Antragsdaten</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <Field label="Einrichtung">{antrag.name}</Field>
+            {/* Labels und Reihenfolge PDF-konform (Final-Sweep 2026-05-24).
+                Ansprechpartner-Block aufgeteilt (Telefon und E-Mail eigene
+                Felder); Räume aufgeteilt mit PDF-Wortlaut; Miete als
+                separates Feld unter Räume. */}
+            <Field label="Name der Einrichtung">{antrag.name}</Field>
             <Field label="Träger">{antrag.traeger}</Field>
             <Field label="Anschrift">
               {formatAdresse(antrag.strasse, antrag.hausnummer, antrag.plz, antrag.ort)}
@@ -91,28 +95,32 @@ export function AntragDetail() {
                 </>
               )}
             </Field>
-            <Field label="Ansprechpartner/in">
-              {antrag.ansprechpartner} · {antrag.telefon} ·{" "}
+            <Field label="Ansprechpartner/in">{antrag.ansprechpartner}</Field>
+            <Field label="Telefon / Handy">{antrag.telefon}</Field>
+            <Field label="E-Mail">
               <a className="text-blue-600 underline" href={`mailto:${antrag.email}`}>
                 {antrag.email}
               </a>
             </Field>
             <Field label="Haushaltsjahr">{antrag.haushaltsjahr}</Field>
-            <Field label="Betriebskosten Vorjahr">
+            <Field label="Nachgewiesene Höhe der Betriebskosten des Vorjahres">
               {formatEuro(antrag.betriebskosten_vorjahr_euro)}
             </Field>
-            <Field label="Personalkosten Vorjahr">
+            <Field label="Nachgewiesene Höhe der Personalkosten des Vorjahres">
               {formatEuro(antrag.personalkosten_vorjahr_euro)}
             </Field>
-            <Field label="Räume vorhanden / unentgeltlich">
-              {antrag.raeume_vorhanden} / {antrag.raeume_unentgeltlich}
-              {antrag.miete_jahr_euro > 0 && (
-                <>
-                  {" · Monatliche Miete "}{formatEuro(antrag.miete_jahr_euro / 12)}
-                  {" (≙ Jahressumme "}{formatEuro(antrag.miete_jahr_euro)}{")"}
-                </>
-              )}
+            <Field label="Vorhandene Räumlichkeiten des Trägers">
+              {antrag.raeume_vorhanden}
             </Field>
+            <Field label="Unentgeltlich bereitgestellte Räume anderer Träger">
+              {antrag.raeume_unentgeltlich}
+            </Field>
+            {antrag.miete_jahr_euro > 0 && (
+              <Field label="Monatliche Mietzahlung">
+                {formatEuro(antrag.miete_jahr_euro / 12)}
+                {" (≙ Jahressumme "}{formatEuro(antrag.miete_jahr_euro)}{")"}
+              </Field>
+            )}
             <Field label="Antragsdatum (Bürger)">
               <span title="Datum, das der Bürger im Antragsformular angegeben hat (Würzburg, …)">
                 Würzburg, {formatDate(antrag.antragsdatum)}
