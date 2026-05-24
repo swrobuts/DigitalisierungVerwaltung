@@ -18,8 +18,17 @@
       - "traefik.http.routers.supabase.tls=true"
       - "traefik.http.routers.supabase.tls.certresolver=mytlschallenge"
       - "traefik.http.services.supabase.loadbalancer.server.port=8000"
-      # --- neue Labels: verwaltung-Router (NUR /functions/v1/submit-antrag) ---
-      - "traefik.http.routers.verwaltung.rule=Host(`verwaltung.butscher.cloud`) && PathPrefix(`/functions/v1/submit-antrag`)"
+      # --- neue Labels: verwaltung-Router ---
+      # Drei Pfade durch Klammer-OR freigeschaltet:
+      #   /functions/v1/submit-antrag    — UE1 Webform-Submit
+      #   /functions/v1/upload-antragspdf — UE0 PDF-Upload
+      #   /rest/v1/antrag_einreichung    — UE0 Status-Polling
+      #
+      # WICHTIG: Klammern um den OR-Block sind zwingend. Traefik-Präzedenz:
+      # AND > OR → ohne Klammern würden die zwei OR-Zweige für JEDEN Host
+      # gelten (Sicherheitsbug, LVE-Daten würden mit-exponiert).
+      # Erweitert 2026-05-24 um UE0 (Upload-Portal + Status-Polling).
+      - "traefik.http.routers.verwaltung.rule=Host(`verwaltung.butscher.cloud`) && (PathPrefix(`/functions/v1/submit-antrag`) || PathPrefix(`/functions/v1/upload-antragspdf`) || PathPrefix(`/rest/v1/antrag_einreichung`))"
       - "traefik.http.routers.verwaltung.entrypoints=websecure"
       - "traefik.http.routers.verwaltung.tls.certresolver=mytlschallenge"
       - "traefik.http.services.verwaltung.loadbalancer.server.port=8000"
