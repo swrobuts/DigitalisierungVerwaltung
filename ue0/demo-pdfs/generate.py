@@ -152,42 +152,54 @@ def draw_footer(c: canvas.Canvas, y: float, datum: str, value_font: str) -> None
 # Demo-Daten
 # ──────────────────────────────────────────────────────────────────────
 
+# ── WICHTIG: Daten sind EXAKT die aus apl2.antrag_mit_summen für
+#    APL2-2026-FAKE-001 und APL2-2026-FAKE-002. Wenn das Demo-PDF
+#    hochgeladen wird, soll die KI-OCR-Pipeline die GLEICHEN Werte
+#    extrahieren, die vorher in der DB lagen — sodass beim Demo-Lauf
+#    NACH dem Löschen der FAKE-Anträge der neue Datensatz inhaltlich
+#    identisch wieder entsteht. Sonst gäbe es Duplikate oder Drift
+#    zwischen PDF und Datenbank.
+#    Stand: ssh vps psql -c "select * from apl2.antrag_mit_summen
+#                            where antragsnummer like 'APL2-2026-FAKE-00[12]'"
 PFARREI = {
     "haushaltsjahr": 2026,
     "name": "Seniorentreff St. Albert",
-    "anschrift": "Pestalozzistr. 12, 97082 Würzburg",
+    "anschrift": "Sieboldstraße 14, 97082 Würzburg",
     "bankverbindung": "Sparkasse Mainfranken Würzburg",
-    "iban": "DE89 7905 0000 0012 3456 78",
-    "bic": "",
-    "ansprechpartner": "Frau Maria Bauer",
-    "telefon": "0931 32145-0",
-    "email": "seniorentreff@pfarrei-st-albert-wue.de",
+    "iban": "DE89 3704 0044 0532 0130 00",  # DE89370400440532013000
+    "bic": "COBADEFFXXX",
+    "ansprechpartner": "Pfarrer Michael KleinTest",
+    "telefon": "0931 78403-0",
+    "email": "seniorentreff@pfarrei-st-albert.de",
     "traeger": "Katholische Kirchenstiftung St. Albert",
-    "betriebskosten": "8.450,00 €",
-    "personalkosten": "21.800,00 €",
+    "betriebskosten": "5.000,00 €",       # 5000.00 in DB
+    "personalkosten": "18.400,00 €",      # 18400.00 in DB
     "raeume_vorhanden": "ja",
     "raeume_unentgeltlich": "nein",
-    "miete": "320,00 €",
-    "antragsdatum": "15.03.2026",
+    # DB-Feld miete_jahr_euro = 10.200 € (Jahresbetrag). Im Original-
+    # PDF wird die MONATLICHE Miete abgefragt → 10200/12 = 850,00 €.
+    # Der n8n-Prompt rechnet monatlich × 12 zurück.
+    "miete": "850,00 €",
+    "antragsdatum": "15.03.2026",         # 2026-03-15
 }
 
 BUERGERVEREIN = {
     "haushaltsjahr": 2026,
     "name": "Senioren-Stammtisch Frauenland",
-    "anschrift": "Mergentheimer Str. 78, 97082 Würzburg",
+    "anschrift": "Rottendorfer Straße 56, 97074 Würzburg",
     "bankverbindung": "VR-Bank Würzburg",
-    "iban": "DE12 7906 9001 0000 4455 66",
-    "bic": "",
-    "ansprechpartner": "Herr Peter Hoffmann",
-    "telefon": "",
+    "iban": "DE87 7909 0000 0010 1010 10",  # DE87790900000010101010
+    "bic": "GENODEF1WU1",
+    "ansprechpartner": "Dr. Helga MertensTest (1. Vorsitzende)",
+    "telefon": "0931 70402-12",
     "email": "vorstand@buergerverein-frauenland.de",
     "traeger": "Bürgerverein Frauenland e.V.",
-    "betriebskosten": "2.150,00 €",
-    "personalkosten": "1.450,00 €",
-    "raeume_vorhanden": "nein",
+    "betriebskosten": "2.400,00 €",       # 2400.00 in DB
+    "personalkosten": "10.200,00 €",      # 10200.00 in DB
+    "raeume_vorhanden": "ja",
     "raeume_unentgeltlich": "ja",
-    "miete": "",
-    "antragsdatum": "22.03.2026",
+    "miete": "",                           # 0 in DB → Feld leer (unentgeltlich)
+    "antragsdatum": "22.03.2026",         # 2026-03-22
 }
 
 
