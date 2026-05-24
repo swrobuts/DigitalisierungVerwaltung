@@ -44,7 +44,8 @@ _FOERDERBEREICH_LABEL = {
 
 _FOERDERBEREICH_HOECHSTGRENZE = {
     "aufbau_niedrigschwellige_angebote": 3000,
-    "buergerschaftliches_engagement":    5500,
+    # AHP 2.2: 750 € Pauschal + Staffel max 3.500 € = 4.250 €
+    "buergerschaftliches_engagement":    4250,
     "mehrgenerationenhaeuser":          10000,
     "begegnungszentren":                10000,
     "bildungstraeger":                   6000,
@@ -147,7 +148,7 @@ def build_subsumtion(
             "wuerdigung": (
                 f"Die Antragsfrist für Haushaltsjahr {haushaltsjahr} endete am "
                 f"1. April {haushaltsjahr}. Der Antrag gilt als verfristet und "
-                "ist nach AHP Kap. 3.3 grundsätzlich abzulehnen."
+                "ist nach AHP 3.3 Antragsfrist grundsätzlich abzulehnen."
             ),
         }
 
@@ -161,7 +162,7 @@ def build_subsumtion(
             "wuerdigung": (
                 "Die Postleitzahl-Range des Stadtgebiets Würzburg umfasst "
                 "97070–97084. Der Sitz des Trägers liegt außerhalb dieser "
-                "Range — die Voraussetzung des AHP Kap. 3.1 "
+                "Range — die Voraussetzung des AHP 3.1 "
                 "(Antragsberechtigung) ist nicht erfüllt."
             ),
         }
@@ -207,7 +208,7 @@ def build_subsumtion(
                 f"Der angegebene Anteil Würzburger Teilnehmer beträgt {percent(anteil)}."
             ),
             "wuerdigung": (
-                f"Nach AHP Kap. 2.3.2/2.3.3 wird der Zuschuss anteilig nach dem "
+                f"Nach AHP 2.3 Pkt. 2 / Pkt. 3 wird der Zuschuss anteilig nach dem "
                 f"prozentualen Anteil der Stadtbewohner an den Gesamtteilnehmern "
                 f"ausgezahlt. Die rechnerische Höchstauszahlung beträgt damit "
                 f"{euro(hoechstgrenze)} × {percent(anteil)} = {euro(max_a)}. "
@@ -230,7 +231,7 @@ def build_subsumtion(
                 "oder Mietkosten) angegeben."
             ),
             "wuerdigung": (
-                "Nach AHP Kap. 2.4 und 3.2 b) ist eine vollständige "
+                "Nach AHP 2.4 und 3.2 b) ist eine vollständige "
                 "Finanzierungsplanung als Pflichtangabe vorzulegen — ohne "
                 "diese ist die Förderfähigkeit nicht beurteilbar."
             ),
@@ -244,7 +245,7 @@ def build_subsumtion(
                 f"{jahre if jahre is not None else '—'} Jahren gefördert."
             ),
             "wuerdigung": (
-                "Nach AHP Kap. 2.1 sind Zuschüsse zum Aufbau niedrigschwelliger "
+                "Nach AHP 2.1 sind Zuschüsse zum Aufbau niedrigschwelliger "
                 "Angebote auf maximal drei Jahre befristet. Diese Befristung "
                 "ist überschritten — eine Weiterförderung in diesem Topf ist "
                 "ausgeschlossen."
@@ -259,23 +260,78 @@ def build_subsumtion(
                 f"{teilnehmer if teilnehmer is not None else '—'} Teilnehmer:innen angegeben."
             ),
             "wuerdigung": (
-                "AHP Kap. 2.3.4 verlangt für Seniorenkreise eine Mindestgruppen"
+                "AHP 2.3 Pkt. 4 verlangt für Seniorenkreise eine Mindestgruppen"
                 "größe von 6 Senior:innen. Diese Mindestgröße ist nicht erreicht."
             ),
         }
 
     # Layer B — Seniorenkreise Treffenstaffel
+    # AHP 2.3 Pkt. 4: ≥ 10 Treffen → max 750 €; ≥ 20 → max 1.250 €;
+    # ≥ 46 → max 2.000 €. Cap 2.000 €/Jahr.
     if "seniorenkreis-förderung passt nicht zur ahp-staffelung" in bes:
+        try:
+            t = int(treffen) if treffen is not None else None
+        except (ValueError, TypeError):
+            t = None
+        if t is None:
+            staffel_max: float | None = None
+            staffel_begruendung = (
+                "Ohne Angabe der Treffenzahl pro Jahr kann die Staffelung "
+                "nach AHP 2.3 Pkt. 4 nicht zugeordnet werden."
+            )
+        elif t >= 46:
+            staffel_max = 2000.0
+            staffel_begruendung = (
+                f"Bei {t} Treffen pro Jahr greift die höchste Staffelstufe "
+                "(≥ 46 Treffen → max. 2.000 €)."
+            )
+        elif t >= 20:
+            staffel_max = 1250.0
+            staffel_begruendung = (
+                f"Bei {t} Treffen pro Jahr greift die mittlere Staffelstufe "
+                "(≥ 20 Treffen → max. 1.250 €)."
+            )
+        elif t >= 10:
+            staffel_max = 750.0
+            staffel_begruendung = (
+                f"Bei {t} Treffen pro Jahr greift die unterste Staffelstufe "
+                "(≥ 10 Treffen → max. 750 €)."
+            )
+        else:
+            staffel_max = 0.0
+            staffel_begruendung = (
+                f"Bei {t} Treffen pro Jahr ist die Mindestschwelle von "
+                "10 Treffen für eine Förderung gem. AHP 2.3 Pkt. 4 nicht "
+                "erreicht."
+            )
+        soll_ist = ""
+        if staffel_max is not None and forderung is not None:
+            try:
+                diff = float(forderung) - staffel_max
+                if diff > 0:
+                    soll_ist = (
+                        f" Die geforderten {euro(forderung)} übersteigen "
+                        f"die zulässige Höchstauszahlung von "
+                        f"{euro(staffel_max)} um {euro(diff)}."
+                    )
+                else:
+                    soll_ist = (
+                        f" Die geforderten {euro(forderung)} liegen innerhalb "
+                        f"der zulässigen Höchstauszahlung von "
+                        f"{euro(staffel_max)}."
+                    )
+            except (ValueError, TypeError):
+                soll_ist = ""
         return {
             "sachverhalt": (
-                f"Sie geben {treffen if treffen is not None else '—'} Treffen pro Jahr an und "
+                f"Sie geben {t if t is not None else '—'} Treffen pro Jahr an und "
                 f"beantragen {euro(forderung)}."
             ),
             "wuerdigung": (
-                "Die AHP-Staffel für Seniorenkreise (Kap. 2.3.4) sieht vor: "
-                "bei 12–24 Treffen pro Jahr maximal 1.000 €, ab 25 Treffen "
-                "maximal 2.000 €. Die Kombination aus angegebener Treffen-"
-                "Anzahl und Forderung passt nicht zu dieser Staffel."
+                "Die AHP-Staffel für Seniorenkreise (AHP 2.3 Pkt. 4) sieht vor: "
+                "≥ 10 Treffen pro Jahr → max. 750 €, ≥ 20 Treffen → "
+                "max. 1.250 €, ≥ 46 Treffen → max. 2.000 €; der Jahres-Cap "
+                "liegt bei 2.000 €. " + staffel_begruendung + soll_ist
             ),
         }
 
@@ -287,7 +343,7 @@ def build_subsumtion(
                 f"und den Förderbereich Quartiersmanagement Altenarbeit."
             ),
             "wuerdigung": (
-                "Diese Förderlinie ist nach AHP Kap. 2.3 erst ab Haushaltsjahr "
+                "Diese Förderlinie ist nach AHP 2.3 Pkt. 5 erst ab Haushaltsjahr "
                 "2025 zugänglich. Eine Förderung für ein früheres Haushaltsjahr "
                 "ist nicht vorgesehen."
             ),
@@ -301,7 +357,7 @@ def build_subsumtion(
                 "(Ausgaben + Einnahmen)."
             ),
             "wuerdigung": (
-                "AHP Kap. 2.4 (Förderbereich IV) verlangt eine Finanzierungs"
+                "AHP 2.4 (Förderbereich IV) verlangt eine Finanzierungs"
                 "planung als Pflichtangabe. Ohne diese kann der Zuwendungs"
                 "zweck nicht beurteilt werden."
             ),
@@ -314,7 +370,7 @@ def build_subsumtion(
                 "Der Antrag enthält keine Beschreibung des Zuwendungszwecks."
             ),
             "wuerdigung": (
-                "AHP Kap. 2.4 verlangt eine Erläuterung des Zuwendungszwecks "
+                "AHP 2.4 verlangt eine Erläuterung des Zuwendungszwecks "
                 "mit angestrebten Zielen. Ohne diese Angabe kann das "
                 "Sozialreferat keine Bewertung vornehmen."
             ),
@@ -328,7 +384,7 @@ def build_subsumtion(
                 "referat abgestimmte Projektskizze."
             ),
             "wuerdigung": (
-                "Nach AHP Kap. 2.1 ist bei Antragstellung im Förderbereich I "
+                "Nach AHP 2.1 ist bei Antragstellung im Förderbereich I "
                 "eine Projektskizze vorzulegen, die mit der Leitung "
                 "Seniorenarbeit (FB IIS) abgestimmt wurde."
             ),

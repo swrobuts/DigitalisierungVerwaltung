@@ -108,9 +108,89 @@ def test_get_hoechstgrenze_liefert_ahp_werte():
     assert get_hoechstgrenze("bildungstraeger") == 6000
     assert get_hoechstgrenze("aufbau_niedrigschwellige_angebote") == 3000
     assert get_hoechstgrenze("seniorenkreise") == 2000
+    # AHP-Audit-Fix: FB II Cap korrigiert von erfundenen 5.500 € auf
+    # die korrekte AHP-2.2-Summe = 750 € Pauschal + Staffel max 3.500 € = 4.250 €.
+    assert get_hoechstgrenze("buergerschaftliches_engagement") == 4250
+    assert get_hoechstgrenze("quartiersmanagement_altenarbeit") == 7500
 
 
 def test_get_hoechstgrenze_liefert_none_bei_unbekanntem_fb():
     assert get_hoechstgrenze(None) is None
     assert get_hoechstgrenze("") is None
     assert get_hoechstgrenze("phantasie-bereich") is None
+
+
+# ── Seniorenkreise-Staffel nach AHP 2.3 Pkt. 4 ────────────────────────────
+# Korrigiert nach AHP-Audit: erfundene Staffel 12–24/ab 25 wurde durch die
+# tatsächliche PDF-Staffel ≥10/≥20/≥46 ersetzt.
+
+def _seniorenkreis_antrag(treffen: int, forderung: float) -> dict:
+    a = _antrag()
+    a["foerderbereich"] = "seniorenkreise"
+    a["anzahl_treffen_jahr"] = treffen
+    a["geforderte_foerdersumme_euro"] = forderung
+    return a
+
+
+def test_seniorenkreise_staffel_zitiert_korrekte_ahp_pkt4_werte():
+    befund = {
+        "beschreibung": "Seniorenkreis-Förderung passt nicht zur AHP-Staffelung",
+        "paragraph_ref": "AHP 2.3 Pkt. 4 Seniorenkreise",
+    }
+    out = build_subsumtion(befund, _seniorenkreis_antrag(48, 2500))
+    text = out["wuerdigung"]
+    assert "AHP 2.3 Pkt. 4" in text
+    assert "≥ 10" in text and "750 €" in text
+    assert "≥ 20" in text and "1.250 €" in text
+    assert "≥ 46" in text and "2.000 €" in text
+    # Keine erfundenen Schwellen mehr
+    assert "12–24" not in text and "12-24" not in text
+    assert "ab 25" not in text
+    assert "1.000 €" not in text
+
+
+def test_seniorenkreise_staffel_mappt_treffenzahl_auf_richtige_stufe():
+    befund = {"beschreibung": "Seniorenkreis-Förderung passt nicht zur AHP-Staffelung"}
+    # 48 Treffen → höchste Stufe ≥46
+    assert "≥ 46" in build_subsumtion(befund, _seniorenkreis_antrag(48, 2500))["wuerdigung"]
+    # 25 Treffen → mittlere Stufe ≥20
+    assert "≥ 20" in build_subsumtion(befund, _seniorenkreis_antrag(25, 1500))["wuerdigung"]
+    # 12 Treffen → unterste Stufe ≥10
+    assert "≥ 10" in build_subsumtion(befund, _seniorenkreis_antrag(12, 1000))["wuerdigung"]
+
+
+def test_seniorenkreise_zeigt_soll_ist_vergleich():
+    befund = {"beschreibung": "Seniorenkreis-Förderung passt nicht zur AHP-Staffelung"}
+    # 48 Treffen → max 2.000 €, Forderung 2.500 € → 500 € drüber
+    out = build_subsumtion(befund, _seniorenkreis_antrag(48, 2500))
+    text = out["wuerdigung"]
+    assert "2.500" in text
+    assert "2.000" in text
+    assert "500" in text
+
+
+# ── AHP-Referenzen-Konsistenz ─────────────────────────────────────────────
+# Korrigiert nach AHP-Audit: "AHP Kap. X.Y.Z" ist keine AHP-PDF-Nomenklatur.
+# Die PDF nutzt für die Unterpunkte unter 2.3 die Notation "Pkt. N".
+
+def test_keine_erfundenen_kap_referenzen_mehr():
+    """Keine Würdigung darf 'AHP Kap.' enthalten — die PDF kennt diese
+    Notation nicht, sondern nur 'AHP 2.x' bzw. 'AHP 2.3 Pkt. N'."""
+    antrag = _antrag()
+    befunde = [
+        {"beschreibung": "Antrag verfristet — Frist 1. April überschritten"},
+        {"beschreibung": "Sitz des Trägers nicht in Würzburg"},
+        {"beschreibung": "Anteilig berechnete Höchstauszahlung überschritten"},
+        {"beschreibung": "Mindestens eine Kostenposition fehlt"},
+        {"beschreibung": "Förderbereich I ist auf maximal 3 Jahre"},
+        {"beschreibung": "Mindestens 6 Teilnehmer erforderlich"},
+        {"beschreibung": "Seniorenkreis-Förderung passt nicht zur AHP-Staffelung"},
+        {"beschreibung": "Quartiersmanagement-Altenarbeit-Förderung"},
+        {"beschreibung": "Finanzierungsplanung fehlt"},
+        {"beschreibung": "Zuwendungszweck fehlt"},
+        {"beschreibung": "Projektskizze fehlt"},
+    ]
+    for b in befunde:
+        out = build_subsumtion(b, antrag)
+        text = (out.get("sachverhalt") or "") + " " + (out.get("wuerdigung") or "")
+        assert "AHP Kap." not in text, f"Befund {b['beschreibung']!r} enthält noch 'AHP Kap.'"

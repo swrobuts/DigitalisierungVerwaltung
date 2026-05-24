@@ -436,22 +436,36 @@ export function AntragDetail() {
                               : "Optional kannst du einen Kommentar hinterlassen (im Audit-Trail sichtbar)."}
                         </DialogDescription>
                       </DialogHeader>
-                      {s === "bewilligt" && (
-                        <div className="space-y-1">
-                          <label
-                            htmlFor="bewilligte-summe"
-                            className="text-[11px] uppercase tracking-wider text-slate-500 font-medium"
-                          >
-                            Bewilligte Fördersumme (€) · AHP 2.3.2 Förderhöchstgrenze: 10.000 €
-                          </label>
-                          <Input
-                            id="bewilligte-summe"
-                            placeholder="z.B. 8500.00"
-                            value={bewilligteSumme}
-                            onChange={(e) => setBewilligteSumme(e.target.value)}
-                          />
-                        </div>
-                      )}
+                      {s === "bewilligt" && (() => {
+                        // Cap dynamisch aus foerderbereichMeta lesen, damit das
+                        // Label nicht hartcodiert auf BZ (10.000 €) zeigt, wenn
+                        // der Antrag z.B. ein Seniorenkreis (Cap 2.000 €) ist.
+                        const fbMeta = foerderbereichMeta(antrag.foerderbereich);
+                        const capLabel =
+                          !antrag.foerderbereich
+                            ? "Förderbereich noch nicht zugeordnet — bitte zuerst klassifizieren"
+                            : fbMeta && fbMeta.hoechstgrenze !== null
+                              ? `${fbMeta.ahpPath} Förderhöchstgrenze: ${formatEuro(fbMeta.hoechstgrenze)}`
+                              : fbMeta
+                                ? `${fbMeta.ahpPath} · keine feste Förderhöchstgrenze (Einzelfall)`
+                                : "Förderhöchstgrenze nicht bestimmbar";
+                        return (
+                          <div className="space-y-1">
+                            <label
+                              htmlFor="bewilligte-summe"
+                              className="text-[11px] uppercase tracking-wider text-slate-500 font-medium"
+                            >
+                              Bewilligte Fördersumme (€) · {capLabel}
+                            </label>
+                            <Input
+                              id="bewilligte-summe"
+                              placeholder="z.B. 8500.00"
+                              value={bewilligteSumme}
+                              onChange={(e) => setBewilligteSumme(e.target.value)}
+                            />
+                          </div>
+                        );
+                      })()}
                       <Textarea
                         placeholder={
                           istEntscheidungsStatus(s)
@@ -689,10 +703,12 @@ function KostenTabelle({
           <strong>Hinweis zur Bemessungsrolle:</strong> Diese Positionen
           sind vom Antragsteller mitgeteilt und dienen als <strong>Tätigkeits­
           nachweis</strong>. Sie bestimmen <strong>nicht</strong> die
-          Förderhöhe — die ist eine AHP-Pauschale (§ 4), die anteilig
-          nach Stadt-Bewohner-Anteil ausgezahlt wird (§ 4a). Gem. AHP 3.8
-          sind Belege für diesen Förderbereich nur auf Anfrage einzu­
-          reichen.
+          Förderhöhe — die ist eine AHP-Pauschale
+          (AHP 2.3 Pkt. 2 (Begegnungszentren)), die anteilig nach
+          Stadt-Bewohner-Anteil ausgezahlt wird (Verwaltungspraxis
+          Sozialreferat — kuratierte Auslegung, siehe
+          ahp_norm_statements 2.3). Gem. AHP 3.8 sind Belege für diesen
+          Förderbereich nur auf Anfrage einzu­reichen.
         </div>
       )}
       <table className="w-full text-[14px]">
@@ -907,7 +923,7 @@ function AntragSummaryStrip({ antrag }: { antrag: AntragFull }) {
 
 /** Zeigt den Rechenweg Förderhöchstgrenze × Stadtbewohner-Anteil =
  * maximale Auszahlung (nur für anteilsskalierte Förderbereiche:
- * Begegnungszentren + Bildungsträger nach AHP 2.3.2/2.3.3).
+ * Begegnungszentren + Bildungsträger nach AHP 2.3 Pkt. 2 / Pkt. 3).
  * Markiert ob die Forderung im Rahmen liegt. */
 function KalkulationsFormel({
   antrag, meta,
@@ -1126,6 +1142,11 @@ interface FoerderbereichMeta {
 
 function foerderbereichMeta(fb: string | null): FoerderbereichMeta | null {
   if (!fb) return null;
+  // Konvention: AHP-PDF nutzt für die Unterpunkte unter 2.3 die Notation
+  // "Pkt. N" (z.B. „2.3 Förderbereich III, Pkt. 4 Seniorenkreise"). Wir
+  // spiegeln das durchgängig — sowohl Doctree (Migration 050) als auch
+  // ontologie_rules.paragraph_ref (Migration 049) verwenden dieses Format,
+  // damit Tooltips, Bescheide und DB-Refs identisch lesen.
   const map: Record<string, FoerderbereichMeta> = {
     aufbau_niedrigschwellige_angebote: {
       label: "Förderbereich I — Aufbau niedrigschwelliger Angebote",
@@ -1137,41 +1158,42 @@ function foerderbereichMeta(fb: string | null): FoerderbereichMeta | null {
     buergerschaftliches_engagement: {
       label: "Förderbereich II — Bürgerschaftliches Engagement",
       ahpPath: "AHP 2.2",
-      hoechstgrenze: 5500,
+      // AHP 2.2: 750 € Pauschal + Staffel max 3.500 € = 4.250 €
+      hoechstgrenze: 4250,
       zeigt: { ehrenamt: true },
       pflicht: {},
     },
     mehrgenerationenhaeuser: {
       label: "Förderbereich III — Mehrgenerationenhäuser",
-      ahpPath: "AHP 2.3.1",
+      ahpPath: "AHP 2.3 Pkt. 1",
       hoechstgrenze: 10000,
       zeigt: {},
       pflicht: {},
     },
     begegnungszentren: {
       label: "Förderbereich III — Begegnungszentren",
-      ahpPath: "AHP 2.3.2",
+      ahpPath: "AHP 2.3 Pkt. 2",
       hoechstgrenze: 10000,
       zeigt: { stadtbewohner_anteil: true },
       pflicht: {},
     },
     bildungstraeger: {
       label: "Förderbereich III — Bildungsträger / Bildungshäuser",
-      ahpPath: "AHP 2.3.3",
+      ahpPath: "AHP 2.3 Pkt. 3",
       hoechstgrenze: 6000,
       zeigt: { stadtbewohner_anteil: true },
       pflicht: {},
     },
     seniorenkreise: {
       label: "Förderbereich III — Seniorenkreise",
-      ahpPath: "AHP 2.3.4",
+      ahpPath: "AHP 2.3 Pkt. 4",
       hoechstgrenze: 2000,
       zeigt: { treffen_und_teilnehmer: true },
       pflicht: {},
     },
     quartiersmanagement_altenarbeit: {
       label: "Förderbereich III — Quartiersmanagement Altenarbeit",
-      ahpPath: "AHP 2.3.5",
+      ahpPath: "AHP 2.3 Pkt. 5",
       hoechstgrenze: 7500,
       zeigt: {},
       pflicht: {},
@@ -1276,7 +1298,7 @@ function KennzahlenBlock({
       value: v === null ? "—" : `${Math.round(v * 100)} %`,
       hint:
         v === null
-          ? "Bestimmt die anteilige Auszahlung (AHP 2.3.2/2.3.3)."
+          ? "Bestimmt die anteilige Auszahlung (AHP 2.3 Pkt. 2 / Pkt. 3)."
           : undefined,
     });
   }
@@ -1284,7 +1306,7 @@ function KennzahlenBlock({
     zeilen.push({
       label: "Treffen pro Jahr",
       value: antrag.anzahl_treffen_jahr?.toString() ?? "—",
-      hint: "12–24 Treffen → 1.000 € · ab 25 → 2.000 €",
+      hint: "≥ 10 → 750 € · ≥ 20 → 1.250 € · ≥ 46 → 2.000 €",
     });
     zeilen.push({
       label: "Teilnehmerzahl",
@@ -1300,7 +1322,7 @@ function KennzahlenBlock({
     zeilen.push({
       label: "Anzahl Ehrenamtliche",
       value: antrag.anzahl_ehrenamtliche?.toString() ?? "—",
-      hint: "Staffel 1.500 – 5.500 € je nach Umfang.",
+      hint: "750 € Pauschale + Staffel (1.250 / 2.000 / 3.500 €) · max. 4.250 € / Jahr.",
     });
   }
   if (meta.zeigt.befristung) {
