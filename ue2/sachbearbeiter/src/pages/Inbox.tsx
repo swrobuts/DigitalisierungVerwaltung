@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { Lock, Settings } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
 import { useUserRole } from "../hooks/useUserRole";
 import { useSession } from "../hooks/useSession";
@@ -17,6 +18,7 @@ import {
 } from "../components/ui/table";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
 
 /** Stadtbewohner-Anteil 0…1 als Prozent-String. AHP 2.3 Pkt. 2/3:
  *  Auszahlung erfolgt anteilig nach dem Anteil Würzburger Stadtbewohner. */
@@ -83,43 +85,78 @@ type SortKey =
   | "antragsnummer" | "name" | "traeger" | "submitted_at"
   | "submitted_language" | "status"
   | "antragssumme" | "vj" | "diff"
-  | "stadt_anteil";
+  | "stadt_anteil" | "teilnehmer" | "treffen";
 type SortDir = "asc" | "desc";
 type GroupKey = "none" | "status" | "traeger" | "submitted_language" | "month";
 
-/** Spalten der Inbox, analog zu UE3 (amt-ki). UE2 hat kein Zahnrad zum
- *  An/Abwählen — wir zeigen nur die Spalten, die in UE3 default sichtbar
- *  sind. „Sprache" sowie „Teilnehmer:innen"/„Veranstaltungen" sind in
- *  UE3 default-off; lassen wir hier aus, um die Tabelle nicht zu
- *  überfrachten. Wer mehr braucht, nutzt UE3.
+/** Spalten der Inbox — IDENTISCH zu UE3 (amt-ki). Beide Cockpits setzen
+ *  auf demselben UE1-Antragsformular und derselben Rechtsgrundlage auf;
+ *  die Unterschiede zwischen UE2 und UE3 liegen ausschließlich in den
+ *  KI-Features (Vier-Augen-Prinzip, KI-Validierung) — nicht in der
+ *  Datenanzeige. Daher dieselbe Spaltenstruktur inklusive Zahnrad-
+ *  Konfigurator.
  */
 interface SpaltenDef {
   key: SortKey;
   label: string;
   align?: "right";
   tooltip?: string;
+  /** Pflicht-Spalten können nicht via Zahnrad versteckt werden — sie
+   *  sind die Mindest-Identifikation eines Antrags. */
+  pflicht?: boolean;
+  /** Sichtbar bei erstem Laden (wenn User nichts gespeichert hat). */
+  defaultVisible: boolean;
 }
 
 const COLUMNS: SpaltenDef[] = [
-  { key: "antragsnummer", label: "Antragsnummer",
+  { key: "antragsnummer", label: "Antragsnummer", pflicht: true, defaultVisible: true,
     tooltip: "Antragsnummer (eindeutige ID)" },
-  { key: "name", label: "Name" },
-  { key: "traeger", label: "Träger" },
-  { key: "submitted_at", label: "Eingegangen",
+  { key: "name", label: "Name", defaultVisible: true },
+  { key: "traeger", label: "Träger", defaultVisible: true },
+  { key: "submitted_at", label: "Eingegangen", defaultVisible: true,
     tooltip: "Zeitpunkt des Antragseingangs" },
-  { key: "status", label: "Status" },
-  { key: "antragssumme", label: "Antragssumme", align: "right",
+  { key: "submitted_language", label: "Sprache", defaultVisible: false },
+  { key: "status", label: "Status", pflicht: true, defaultVisible: true },
+  { key: "antragssumme", label: "Antragssumme", align: "right", pflicht: true, defaultVisible: true,
     tooltip: "Beantragte Fördersumme im aktuellen Haushaltsjahr (max. 10.000 € gem. AHP 2.3 Pkt. 2)" },
-  { key: "vj", label: "Antragssumme Vorjahr", align: "right",
+  { key: "vj", label: "Antragssumme Vorjahr", align: "right", defaultVisible: true,
     tooltip: "Beantragte Fördersumme im Vorjahres-Antrag desselben Trägers (aus DB rekonstruiert)" },
-  { key: "diff", label: "Δ Antragssumme", align: "right",
+  { key: "diff", label: "Δ Antragssumme", align: "right", defaultVisible: true,
     tooltip: "Aktuelle Antragssumme minus Vorjahres-Antragssumme" },
-  { key: "stadt_anteil", label: "Stadt-Anteil", align: "right",
+  { key: "stadt_anteil", label: "Stadt-Anteil", align: "right", defaultVisible: true,
     tooltip:
       "Anteil Stadtbewohner:innen Würzburg an Gesamt-Teilnehmer:innen des " +
       "Vorjahres. Bestimmt direkt den prozentualen Auszahlungsanteil " +
-      "(AHP 2.3 Pkt. 2)." },
+      "(AHP 2.3 Pkt. 2). Aus Antragsformular Step 4." },
+  { key: "teilnehmer", label: "Teilnehmer:innen", align: "right", defaultVisible: false,
+    tooltip:
+      "Teilnehmer:innen gesamt im Vorjahr. Geht in die Gewichtung der " +
+      "Zuwendung aus dem Budget ein (AHP 2.3 Pkt. 2)." },
+  { key: "treffen", label: "Veranstaltungen", align: "right", defaultVisible: false,
+    tooltip:
+      "Durchgeführte Veranstaltungen im Vorjahr. Geht in die Gewichtung " +
+      "der Zuwendung aus dem Budget ein (AHP 2.3 Pkt. 2)." },
 ];
+
+const HIDDEN_COLUMNS_STORAGE_KEY = "inbox.hidden_columns.v1";
+
+function loadHiddenColumns(): Set<SortKey> {
+  if (typeof window === "undefined") return defaultHidden();
+  try {
+    const raw = window.localStorage.getItem(HIDDEN_COLUMNS_STORAGE_KEY);
+    if (!raw) return defaultHidden();
+    const arr = JSON.parse(raw) as SortKey[];
+    return new Set(arr.filter((k) => !COLUMNS.find((c) => c.key === k)?.pflicht));
+  } catch {
+    return defaultHidden();
+  }
+}
+
+function defaultHidden(): Set<SortKey> {
+  return new Set(
+    COLUMNS.filter((c) => !c.defaultVisible && !c.pflicht).map((c) => c.key),
+  );
+}
 
 /** Jahres-spezifische Labels (z.B. „Antragssumme 2026" / „Antragssumme 2025")
  *  aus dem aktiven Haushaltsjahres-Filter. */
@@ -132,8 +169,15 @@ function spaltenFuerHaushaltsjahr(hj: number | null): SpaltenDef[] {
         return { ...c, label: `Antragssumme ${hj}` };
       case "vj":
         return { ...c, label: `Antragssumme ${vj}` };
+      // 'diff' bleibt bewusst beim Default-Label „Δ Antragssumme" —
+      // ein blankes „Δ" wäre inkonsistent zu den ausgeschriebenen
+      // Nachbarspalten und für Außenstehende kryptisch.
       case "stadt_anteil":
         return { ...c, label: `Stadt-Anteil ${vj}` };
+      case "teilnehmer":
+        return { ...c, label: `Teilnehmer:innen ${vj}` };
+      case "treffen":
+        return { ...c, label: `Veranstaltungen ${vj}` };
       default:
         return c;
     }
@@ -217,6 +261,21 @@ export function Inbox() {
   const [sortKey, setSortKey] = useState<SortKey>("submitted_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [groupBy, setGroupBy] = useState<GroupKey>("none");
+  // Spalten-Konfiguration: User kann via Zahnrad an/abwählen, was er
+  // sehen will. Default + Preset im localStorage. Identisch zu UE3.
+  const [hiddenCols, setHiddenCols] = useState<Set<SortKey>>(loadHiddenColumns);
+  const istSichtbar = (key: SortKey) => !hiddenCols.has(key);
+  function toggleColumn(key: SortKey) {
+    setHiddenCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        window.localStorage.setItem(HIDDEN_COLUMNS_STORAGE_KEY, JSON.stringify(Array.from(next)));
+      } catch { /* ignore quota errors */ }
+      return next;
+    });
+  }
 
   // VJ-Map über ALLE Anträge (nicht nur gefilterte) — sonst falscher Vergleich
   const vjMap = useMemo(() => buildVjMap(antraege), [antraege]);
@@ -241,6 +300,11 @@ export function Inbox() {
   const spaltenMitJahr = useMemo(
     () => spaltenFuerHaushaltsjahr(effektivesHj),
     [effektivesHj],
+  );
+  const sichtbareSpalten = useMemo(
+    () => spaltenMitJahr.filter((c) => istSichtbar(c.key)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [spaltenMitJahr, hiddenCols],
   );
 
   const filtered = useMemo(() => {
@@ -278,6 +342,14 @@ export function Inbox() {
     }
     if (key === "stadt_anteil") {
       const d = (a.stadtbewohner_anteil ?? -Infinity) - (b.stadtbewohner_anteil ?? -Infinity);
+      return dir === "asc" ? d : -d;
+    }
+    if (key === "teilnehmer") {
+      const d = (a.anzahl_teilnehmer ?? -Infinity) - (b.anzahl_teilnehmer ?? -Infinity);
+      return dir === "asc" ? d : -d;
+    }
+    if (key === "treffen") {
+      const d = (a.anzahl_treffen_jahr ?? -Infinity) - (b.anzahl_treffen_jahr ?? -Infinity);
       return dir === "asc" ? d : -d;
     }
     if (key === "status") {
@@ -342,6 +414,8 @@ export function Inbox() {
         antragsSumme: number;
         vjSumme: number | null;
         stadtAnteilGewichtet: number | null;
+        teilnehmerSumme: number;
+        treffenSumme: number;
       }
     | { kind: "row"; antrag: AntragRow }
   > = [];
@@ -351,6 +425,8 @@ export function Inbox() {
   } else {
     const counts = new Map<string, number>();
     const antragsSums = new Map<string, number>();
+    const teilnehmerSums = new Map<string, number>();
+    const treffenSums = new Map<string, number>();
     const stadtZaehler = new Map<string, number>();
     const stadtNenner = new Map<string, number>();
     const vjSums = new Map<string, number | null>();
@@ -358,6 +434,8 @@ export function Inbox() {
       const g = groupKeyOf(a);
       counts.set(g, (counts.get(g) ?? 0) + 1);
       antragsSums.set(g, (antragsSums.get(g) ?? 0) + (a.geforderte_foerdersumme_euro ?? 0));
+      teilnehmerSums.set(g, (teilnehmerSums.get(g) ?? 0) + (a.anzahl_teilnehmer ?? 0));
+      treffenSums.set(g, (treffenSums.get(g) ?? 0) + (a.anzahl_treffen_jahr ?? 0));
       if (a.stadtbewohner_anteil !== null && a.anzahl_teilnehmer !== null) {
         stadtZaehler.set(g, (stadtZaehler.get(g) ?? 0) + a.stadtbewohner_anteil * a.anzahl_teilnehmer);
         stadtNenner.set(g, (stadtNenner.get(g) ?? 0) + a.anzahl_teilnehmer);
@@ -383,6 +461,8 @@ export function Inbox() {
           antragsSumme: antragsSums.get(g) ?? 0,
           vjSumme: vjSums.get(g) ?? null,
           stadtAnteilGewichtet: nenner > 0 ? zaehler / nenner : null,
+          teilnehmerSumme: teilnehmerSums.get(g) ?? 0,
+          treffenSumme: treffenSums.get(g) ?? 0,
         });
         currentGroup = g;
       }
@@ -393,6 +473,8 @@ export function Inbox() {
   const gesamtAntragsSumme = filtered.reduce(
     (s, a) => s + (a.geforderte_foerdersumme_euro ?? 0), 0,
   );
+  const gesamtTeilnehmer = filtered.reduce((s, a) => s + (a.anzahl_teilnehmer ?? 0), 0);
+  const gesamtTreffen = filtered.reduce((s, a) => s + (a.anzahl_treffen_jahr ?? 0), 0);
   // Stadt-Anteil im Footer = teilnehmer-gewichteter Durchschnitt (siehe oben)
   const stadtAgg = filtered.reduce<{ z: number; n: number }>((acc, a) => {
     if (a.stadtbewohner_anteil !== null && a.anzahl_teilnehmer !== null) {
@@ -415,10 +497,12 @@ export function Inbox() {
   const toneClass = (tone: "up" | "down" | "neutral") =>
     tone === "up" ? "text-emerald-700" : tone === "down" ? "text-rose-700" : "text-slate-400";
 
-  // Identitäts-Spalten (links der ersten Aggregat-Spalte) für colspan im
-  // Gruppen-/Footer-Header. Status zählt mit, Antragssumme + rechts davon
-  // nicht.
-  const COL_COUNT_BEFORE_GESAMT = 5; // antragsnr, name, traeger, eingang, status
+  // Spalten-Gruppen für Footer/Group-Row Colspan-Berechnung (analog UE3)
+  const IDENT_KEYS: SortKey[] = ["antragsnummer", "name", "traeger", "submitted_at", "submitted_language", "status"];
+  const aggregatKeys: SortKey[] = ["antragssumme", "vj", "diff", "stadt_anteil", "teilnehmer", "treffen"];
+  const sichtbareIdentSpalten = IDENT_KEYS.filter(istSichtbar);
+  const sichtbareAggregatSpalten = aggregatKeys.filter(istSichtbar);
+  const COL_COUNT_BEFORE_GESAMT = sichtbareIdentSpalten.length;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -514,11 +598,18 @@ export function Inbox() {
                 ))}
               </select>
             </div>
-            <div className="ml-auto text-sm text-slate-500">
-              {filtered.length} von {antraege.length}
-              {effektivesHj !== null && (
-                <span className="text-slate-400"> (gefiltert HJ {effektivesHj})</span>
-              )}
+            <div className="ml-auto flex items-center gap-3 text-sm text-slate-500">
+              <span>
+                {filtered.length} von {antraege.length}
+                {effektivesHj !== null && (
+                  <span className="text-slate-400"> (gefiltert HJ {effektivesHj})</span>
+                )}
+              </span>
+              <SpaltenKonfig
+                spalten={spaltenMitJahr}
+                hidden={hiddenCols}
+                onToggle={toggleColumn}
+              />
             </div>
           </div>
         </div>
@@ -530,7 +621,7 @@ export function Inbox() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {spaltenMitJahr.map((col) => {
+                  {sichtbareSpalten.map((col) => {
                     const active = sortKey === col.key;
                     const arrow = active ? (sortDir === "asc" ? "▲" : "▼") : "";
                     return (
@@ -553,27 +644,49 @@ export function Inbox() {
                 {rendered.map((item, idx) =>
                   item.kind === "group" ? (
                     <TableRow key={`g-${idx}`} className="border-t border-slate-200 hover:bg-transparent">
-                      <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-3 pl-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <span className="inline-block w-[3px] h-5 bg-blue-700 rounded-sm" aria-hidden="true"></span>
-                          <span className="font-semibold text-[15px] text-slate-900">{item.label}</span>
-                          <span className="text-xs text-slate-500 font-normal">{item.count} {item.count === 1 ? "Antrag" : "Anträge"}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold text-[15px] text-slate-900 py-3 whitespace-nowrap">
-                        {formatEuro(item.antragsSumme)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm text-slate-500 py-3 whitespace-nowrap">
-                        {item.vjSumme === null ? "—" : formatEuro(item.vjSumme)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm py-3 whitespace-nowrap">
-                        <span className={toneClass(formatDiff(item.antragsSumme, item.vjSumme).tone)}>
-                          {formatDiff(item.antragsSumme, item.vjSumme).text}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm text-slate-700 py-3 whitespace-nowrap font-medium">
-                        {formatStadtAnteil(item.stadtAnteilGewichtet)}
-                      </TableCell>
+                      {COL_COUNT_BEFORE_GESAMT > 0 ? (
+                        <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-3 pl-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <span className="inline-block w-[3px] h-5 bg-blue-700 rounded-sm" aria-hidden="true"></span>
+                            <span className="font-semibold text-[15px] text-slate-900">{item.label}</span>
+                            <span className="text-xs text-slate-500 font-normal">{item.count} {item.count === 1 ? "Antrag" : "Anträge"}</span>
+                          </div>
+                        </TableCell>
+                      ) : (
+                        sichtbareAggregatSpalten.length === 0 && <TableCell />
+                      )}
+                      {istSichtbar("antragssumme") && (
+                        <TableCell className="text-right tabular-nums font-semibold text-[15px] text-slate-900 py-3 whitespace-nowrap">
+                          {formatEuro(item.antragsSumme)}
+                        </TableCell>
+                      )}
+                      {istSichtbar("vj") && (
+                        <TableCell className="text-right tabular-nums text-sm text-slate-500 py-3 whitespace-nowrap">
+                          {item.vjSumme === null ? "—" : formatEuro(item.vjSumme)}
+                        </TableCell>
+                      )}
+                      {istSichtbar("diff") && (
+                        <TableCell className="text-right tabular-nums text-sm py-3 whitespace-nowrap">
+                          <span className={toneClass(formatDiff(item.antragsSumme, item.vjSumme).tone)}>
+                            {formatDiff(item.antragsSumme, item.vjSumme).text}
+                          </span>
+                        </TableCell>
+                      )}
+                      {istSichtbar("stadt_anteil") && (
+                        <TableCell className="text-right tabular-nums text-sm text-slate-700 py-3 whitespace-nowrap font-medium">
+                          {formatStadtAnteil(item.stadtAnteilGewichtet)}
+                        </TableCell>
+                      )}
+                      {istSichtbar("teilnehmer") && (
+                        <TableCell className="text-right tabular-nums text-sm text-slate-600 py-3 whitespace-nowrap">
+                          {item.teilnehmerSumme.toLocaleString("de-DE")}
+                        </TableCell>
+                      )}
+                      {istSichtbar("treffen") && (
+                        <TableCell className="text-right tabular-nums text-sm text-slate-600 py-3 whitespace-nowrap">
+                          {item.treffenSumme.toLocaleString("de-DE")}
+                        </TableCell>
+                      )}
                       <TableCell></TableCell>
                     </TableRow>
                   ) : (
@@ -582,35 +695,70 @@ export function Inbox() {
                       const diff = formatDiff(item.antrag.geforderte_foerdersumme_euro ?? 0, vj);
                       return (
                         <TableRow key={item.antrag.id} className="hover:bg-blue-50/30">
-                          <TableCell className="font-mono text-xs text-slate-500 whitespace-nowrap">
-                            <Highlight text={item.antrag.antragsnummer} needle={search} />
-                          </TableCell>
-                          <TableCell className="text-slate-900 align-top">
-                            <div className="max-w-[14rem] leading-snug">
-                              <Highlight text={item.antrag.name} needle={search} />
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-slate-600 align-top">
-                            <div className="max-w-[16rem] leading-snug">
-                              <Highlight text={item.antrag.traeger} needle={search} />
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDate(item.antrag.submitted_at)}</TableCell>
-                          <TableCell className="whitespace-nowrap"><StatusBadge status={item.antrag.status} /></TableCell>
-                          <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
-                            {item.antrag.geforderte_foerdersumme_euro !== null
-                              ? <span className="font-medium text-slate-900">{formatEuro(item.antrag.geforderte_foerdersumme_euro)}</span>
-                              : <span className="text-slate-400">—</span>}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
-                            {vj === null ? "—" : formatEuro(vj)}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
-                            <span className={toneClass(diff.tone)}>{diff.text}</span>
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums text-sm text-slate-700 whitespace-nowrap font-medium">
-                            {formatStadtAnteil(item.antrag.stadtbewohner_anteil)}
-                          </TableCell>
+                          {istSichtbar("antragsnummer") && (
+                            <TableCell className="font-mono text-xs text-slate-500 whitespace-nowrap">
+                              <Highlight text={item.antrag.antragsnummer} needle={search} />
+                            </TableCell>
+                          )}
+                          {istSichtbar("name") && (
+                            <TableCell className="text-slate-900 align-top">
+                              <div className="max-w-[14rem] leading-snug">
+                                <Highlight text={item.antrag.name} needle={search} />
+                              </div>
+                            </TableCell>
+                          )}
+                          {istSichtbar("traeger") && (
+                            <TableCell className="text-slate-600 align-top">
+                              <div className="max-w-[16rem] leading-snug">
+                                <Highlight text={item.antrag.traeger} needle={search} />
+                              </div>
+                            </TableCell>
+                          )}
+                          {istSichtbar("submitted_at") && (
+                            <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDate(item.antrag.submitted_at)}</TableCell>
+                          )}
+                          {istSichtbar("submitted_language") && (
+                            <TableCell className="whitespace-nowrap"><Badge variant="secondary">{item.antrag.submitted_language.toUpperCase()}</Badge></TableCell>
+                          )}
+                          {istSichtbar("status") && (
+                            <TableCell className="whitespace-nowrap"><StatusBadge status={item.antrag.status} /></TableCell>
+                          )}
+                          {istSichtbar("antragssumme") && (
+                            <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
+                              {item.antrag.geforderte_foerdersumme_euro !== null
+                                ? <span className="font-medium text-slate-900">{formatEuro(item.antrag.geforderte_foerdersumme_euro)}</span>
+                                : <span className="text-slate-400">—</span>}
+                            </TableCell>
+                          )}
+                          {istSichtbar("vj") && (
+                            <TableCell className="text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
+                              {vj === null ? "—" : formatEuro(vj)}
+                            </TableCell>
+                          )}
+                          {istSichtbar("diff") && (
+                            <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
+                              <span className={toneClass(diff.tone)}>{diff.text}</span>
+                            </TableCell>
+                          )}
+                          {istSichtbar("stadt_anteil") && (
+                            <TableCell className="text-right tabular-nums text-sm text-slate-700 whitespace-nowrap font-medium">
+                              {formatStadtAnteil(item.antrag.stadtbewohner_anteil)}
+                            </TableCell>
+                          )}
+                          {istSichtbar("teilnehmer") && (
+                            <TableCell className="text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
+                              {item.antrag.anzahl_teilnehmer === null
+                                ? <span className="text-slate-400">—</span>
+                                : item.antrag.anzahl_teilnehmer.toLocaleString("de-DE")}
+                            </TableCell>
+                          )}
+                          {istSichtbar("treffen") && (
+                            <TableCell className="text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
+                              {item.antrag.anzahl_treffen_jahr === null
+                                ? <span className="text-slate-400">—</span>
+                                : item.antrag.anzahl_treffen_jahr.toLocaleString("de-DE")}
+                            </TableCell>
+                          )}
                           <TableCell className="whitespace-nowrap pr-4">
                             <Link
                               to={`/antrag/${item.antrag.id}`}
@@ -627,28 +775,50 @@ export function Inbox() {
                 )}
                 {rendered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={spaltenMitJahr.length + 1} className="text-center text-slate-500 py-8">
+                    <TableCell colSpan={sichtbareSpalten.length + 1} className="text-center text-slate-500 py-8">
                       Keine Anträge gefunden.
                     </TableCell>
                   </TableRow>
                 )}
                 {rendered.length > 0 && (
                   <TableRow className="border-t-2 border-blue-700 bg-blue-50/30 hover:bg-blue-50/30">
-                    <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-4 pl-4 text-sm text-slate-700 whitespace-nowrap">
-                      Gesamtsumme aller angezeigten Anträge
-                    </TableCell>
-                    <TableCell className="py-4 text-right tabular-nums text-lg font-bold text-slate-900 whitespace-nowrap">
-                      {formatEuro(gesamtAntragsSumme)}
-                    </TableCell>
-                    <TableCell className="py-4 text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
-                      {gesamtVj.hasAny ? formatEuro(gesamtVj.sum) : "—"}
-                    </TableCell>
-                    <TableCell className="py-4 text-right tabular-nums text-sm whitespace-nowrap">
-                      <span className={toneClass(gesamtDiff.tone)}>{gesamtDiff.text}</span>
-                    </TableCell>
-                    <TableCell className="py-4 text-right tabular-nums text-sm text-slate-700 whitespace-nowrap font-medium">
-                      {formatStadtAnteil(gesamtStadtAnteil)}
-                    </TableCell>
+                    {COL_COUNT_BEFORE_GESAMT > 0 ? (
+                      <TableCell colSpan={COL_COUNT_BEFORE_GESAMT} className="py-4 pl-4 text-sm text-slate-700 whitespace-nowrap">
+                        Gesamtsumme aller angezeigten Anträge
+                      </TableCell>
+                    ) : (
+                      sichtbareAggregatSpalten.length === 0 && <TableCell />
+                    )}
+                    {istSichtbar("antragssumme") && (
+                      <TableCell className="py-4 text-right tabular-nums text-lg font-bold text-slate-900 whitespace-nowrap">
+                        {formatEuro(gesamtAntragsSumme)}
+                      </TableCell>
+                    )}
+                    {istSichtbar("vj") && (
+                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-500 whitespace-nowrap">
+                        {gesamtVj.hasAny ? formatEuro(gesamtVj.sum) : "—"}
+                      </TableCell>
+                    )}
+                    {istSichtbar("diff") && (
+                      <TableCell className="py-4 text-right tabular-nums text-sm whitespace-nowrap">
+                        <span className={toneClass(gesamtDiff.tone)}>{gesamtDiff.text}</span>
+                      </TableCell>
+                    )}
+                    {istSichtbar("stadt_anteil") && (
+                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-700 whitespace-nowrap font-medium">
+                        {formatStadtAnteil(gesamtStadtAnteil)}
+                      </TableCell>
+                    )}
+                    {istSichtbar("teilnehmer") && (
+                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
+                        {gesamtTeilnehmer.toLocaleString("de-DE")}
+                      </TableCell>
+                    )}
+                    {istSichtbar("treffen") && (
+                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
+                        {gesamtTreffen.toLocaleString("de-DE")}
+                      </TableCell>
+                    )}
                     <TableCell></TableCell>
                   </TableRow>
                 )}
@@ -657,6 +827,121 @@ export function Inbox() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+/**
+ * Zahnrad-Popover zur Sichtbarkeits-Steuerung der Tabellenspalten —
+ * identisch zur UE3-Version. Zwei Sektionen:
+ *
+ *  - „Immer sichtbar": Pflicht-Spalten (Antragsnummer, Status,
+ *    Antragssumme) als Chips mit Lock-Icon, nicht-interaktiv.
+ *  - „Optional": toggle-bare Spalten mit Checkbox.
+ *
+ * Persistenz via localStorage (HIDDEN_COLUMNS_STORAGE_KEY).
+ */
+function SpaltenKonfig({
+  spalten,
+  hidden,
+  onToggle,
+}: {
+  spalten: SpaltenDef[];
+  hidden: Set<SortKey>;
+  onToggle: (key: SortKey) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const pflichtSpalten = spalten.filter((c) => c.pflicht);
+  const optionaleSpalten = spalten.filter((c) => !c.pflicht);
+  const versteckteAnzahl = optionaleSpalten.filter((c) => hidden.has(c.key)).length;
+
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Spalten konfigurieren"
+        aria-label="Spalten konfigurieren"
+        aria-expanded={open}
+        className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 text-xs transition-colors ${
+          open
+            ? "bg-slate-900 text-white border-slate-900"
+            : "bg-white text-slate-600 border-slate-300 hover:text-slate-900 hover:border-slate-400"
+        }`}
+      >
+        <Settings className="h-3.5 w-3.5" />
+        Spalten
+        {versteckteAnzahl > 0 && (
+          <span
+            className="ml-0.5 inline-flex items-center gap-0.5 h-4 px-1.5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-semibold tabular-nums"
+            title={`${versteckteAnzahl} optionale Spalte${versteckteAnzahl === 1 ? "" : "n"} aktuell ausgeblendet`}
+          >
+            {versteckteAnzahl} aus
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-20 w-72 bg-white border border-slate-200 rounded shadow-lg p-2">
+          {pflichtSpalten.length > 0 && (
+            <>
+              <div className="text-[11px] uppercase tracking-wide text-slate-500 px-2 pt-1 pb-1.5">
+                Immer sichtbar
+              </div>
+              <div className="px-2 pb-2 flex flex-wrap gap-1.5 border-b border-slate-100 mb-2">
+                {pflichtSpalten.map((col) => (
+                  <span
+                    key={col.key}
+                    title="Diese Spalte ist Pflicht und kann nicht ausgeblendet werden — sie identifiziert den Antrag eindeutig."
+                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 text-slate-700 px-2 py-0.5 text-xs"
+                  >
+                    <Lock className="h-3 w-3 text-slate-500" aria-hidden="true" />
+                    {col.label}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="text-[11px] uppercase tracking-wide text-slate-500 px-2 pt-1 pb-1.5">
+            Optional ({optionaleSpalten.length - versteckteAnzahl} von {optionaleSpalten.length} sichtbar)
+          </div>
+          {optionaleSpalten.map((col) => {
+            const sichtbar = !hidden.has(col.key);
+            return (
+              <label
+                key={col.key}
+                className="flex items-center gap-2 px-2 py-1.5 rounded text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
+                title={col.tooltip}
+              >
+                <input
+                  type="checkbox"
+                  checked={sichtbar}
+                  onChange={() => onToggle(col.key)}
+                  className="accent-blue-700"
+                />
+                <span className="flex-1">{col.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
