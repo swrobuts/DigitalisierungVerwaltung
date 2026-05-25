@@ -633,42 +633,46 @@ a:hover {
   border-color: var(--color-wue-rot);
   box-shadow: 0 2px 8px rgba(173,14,54,0.08);
 }
-.fb-card-icon {
-  font-size: 32px;
+/* FB-Marker: dezenter, nüchterner Anker statt Emoji-Icon */
+.fb-card-marker {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-wue-rot);
+  letter-spacing: 0.06em;
+  background: var(--color-wue-rot-soft);
+  border: 1px solid var(--color-wue-rot);
+  padding: 0.35rem 0.55rem;
+  border-radius: 3px;
   text-align: center;
+  align-self: flex-start;
+  min-width: 3rem;
   line-height: 1;
 }
-.fb-card-roman {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-wue-rot);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
 .fb-card-title {
-  font-size: 15.5px;
+  font-size: 16px;
   font-weight: 600;
-  margin: 0.15rem 0;
+  margin: 0 0 0.25rem;
   color: var(--color-wue-grau-dunkel);
 }
 .fb-card-desc {
-  font-size: 13px;
+  font-size: 13.5px;
   color: #555;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 .fb-card-arrow {
   font-size: 22px;
   color: #b0b0b0;
   text-align: center;
+  align-self: center;
 }
 
-/* Smart-Upload-Teaser-Card */
+/* Smart-Upload-Teaser-Card — Stadt-Wü-Stil (kein blauer Cloud-Look) */
 .smart-upload-teaser {
-  border-left: 4px solid #4a90e2;
-  background: #f0f6fc;
+  border-left: 4px solid var(--color-wue-grau);
+  background: #f6f6f6;
 }
 .smart-upload-teaser .btn-primary {
-  background: #4a90e2;
+  background: var(--color-wue-grau-dunkel);
   margin-top: 0.5rem;
 }
 .smart-upload-teaser .btn-primary:hover {

@@ -4,6 +4,9 @@
  * Zeigt 4 Karten (FB I-IV) + Smart-Upload-Karte. Klick navigiert zu
  *   ?fb=I|II|III|IV   →  fb-upload.ts
  *   ?smart=1          →  smart-upload.ts
+ *
+ * Design: bewusst nüchtern (Stadt-Wü-Stil) — keine Emoji-Icons, sondern
+ * römische FB-Marker als visueller Anker. Kein „AI Slop".
  */
 
 import { ALL_FOERDERBEREICHE } from "@dv/foerderbereiche";
@@ -52,9 +55,8 @@ export function renderFbWahl(navigate: (search: string) => void): HTMLElement {
     card.type = "button";
     card.className = "fb-card";
     card.innerHTML = `
-      <div class="fb-card-icon" aria-hidden="true">${fb.icon}</div>
+      <div class="fb-card-marker" aria-hidden="true">FB ${fb.id}</div>
       <div class="fb-card-body">
-        <div class="fb-card-roman">FB ${fb.id}</div>
         <div class="fb-card-title">${fb.label_lang}</div>
         <div class="fb-card-desc">${fb.beschreibung}</div>
       </div>
@@ -70,7 +72,7 @@ export function renderFbWahl(navigate: (search: string) => void): HTMLElement {
   const smart = document.createElement("div");
   smart.className = "card smart-upload-teaser";
   smart.innerHTML = `
-    <h3 class="card-h3">🤖 Unsicher? Smart-Upload entscheidet</h3>
+    <h3 class="card-h3">Unsicher, welcher Förderbereich passt?</h3>
     <div class="card-body">
       <p style="margin: 0 0 0.8rem;">
         Sie haben bereits ein ausgefülltes Antrags-PDF und wissen nicht, zu
@@ -83,7 +85,7 @@ export function renderFbWahl(navigate: (search: string) => void): HTMLElement {
   const smartBtn = document.createElement("button");
   smartBtn.type = "button";
   smartBtn.className = "btn-primary";
-  smartBtn.textContent = "🤖 Smart-Upload starten";
+  smartBtn.textContent = "Smart-Upload starten";
   smartBtn.addEventListener("click", () => navigate("?smart=1"));
   smart.appendChild(smartBtn);
 
