@@ -2,8 +2,11 @@ services:
   amt-frontend:
     container_name: amt-frontend
     build:
-      context: ..
-      dockerfile: Dockerfile
+      # Build-Context = Repo-Root, weil der Dockerfile auf
+      # packages/data-layer + packages/foerderbereiche zugreift
+      # (pnpm-Workspaces).
+      context: ../../..
+      dockerfile: ue2/sachbearbeiter/Dockerfile
       args:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://supabase.butscher.cloud}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
