@@ -4,7 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Altenhilfeplan — Formularcenter (Demo)</title>
-    <link rel="stylesheet" href="/src/styles.css" />
+    <!-- CSS wird via main.ts (`import "./styles.css"`) gebundlet. Vorher
+         standen hier zusätzlich <link rel="stylesheet" href="/src/styles.css">,
+         was im Production-Build 404 ergibt und das ganze Styling kippt
+         (Wappen riesengroß, keine Tailwind-Klassen). -->
     <link rel="icon" type="image/png" href="wuerzburg-wappen.png" />
   </head>
   <body>
