@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  /* Würzburg-CI — identisch mit UE3 */
+  --color-wue-rot: #AD0E36;
+  --color-wue-rot-dark: #8A0B2B;
+  --color-wue-rot-soft: #FBE9EE;
+  --color-wue-grau: #4A4A4A;
+  --color-wue-bg: #F7F6F4;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: var(--color-wue-bg);
+  color: #0f172a;
+}
+
+/* Subtile Scrollbar im Chat-Verlauf */
+.chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
