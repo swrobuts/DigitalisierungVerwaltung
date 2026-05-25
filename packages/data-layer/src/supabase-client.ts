@@ -37,8 +37,14 @@ export function getSupabase(config: SupabaseConfig = {}): SupabaseClient<any, an
     // im Node-Kontext (Tests, Edge Functions): import.meta.env nicht verfügbar
   }
 
-  const url    = config.url    ?? viteEnv.VITE_SUPABASE_URL      ?? process.env.SUPABASE_URL;
-  const key    = config.key    ?? viteEnv.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
+  // `process` existiert im Browser-Build nicht — Vite ersetzt
+  // `process.env.X` NICHT automatisch (nur `import.meta.env.VITE_*`).
+  // Daher Guard, sonst ReferenceError sobald die Vite-Vars fehlen.
+  const nodeEnv: Record<string, string | undefined> =
+    typeof process !== "undefined" && process.env ? process.env : {};
+
+  const url    = config.url    ?? viteEnv.VITE_SUPABASE_URL      ?? nodeEnv.SUPABASE_URL;
+  const key    = config.key    ?? viteEnv.VITE_SUPABASE_ANON_KEY ?? nodeEnv.SUPABASE_ANON_KEY;
   const schema = config.schema ?? "apl";
 
   if (!url || !key) {
