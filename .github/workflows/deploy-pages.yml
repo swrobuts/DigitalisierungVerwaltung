@@ -1,22 +1,20 @@
-name: Deploy UE0 + UE1 to GitHub Pages
+name: Deploy UE0 + UE1 + UE4 to GitHub Pages
 
-# Ein gemeinsamer Workflow für beide Frontends, weil GH Pages nur EIN
-# Artefakt pro Repo akzeptiert. Vorher hatten UE0 und UE1 eigene
-# Workflows, was dazu führte, dass der zuletzt laufende Workflow den
-# anderen Frontend-Stand vom Pages-Site überschrieben hat (404 für den
-# älteren). Jetzt baut ein Job beide Frontends und packt sie ins
-# gleiche _site-Verzeichnis.
+# Ein gemeinsamer Workflow für die statischen Frontends, weil GH Pages nur EIN
+# Artefakt pro Repo akzeptiert. UE2 + UE3 laufen NICHT über Pages — sie haben
+# eigene Docker-Container auf der VPS hinter Traefik.
 
 on:
-  # Plan 2026-05-25 Phase 0 Task 0.2: Push-Trigger PAUSIERT für Multi-FB-Umbau.
-  # UE0 + UE1 werden neu gebaut, alte Live-Demos sollen während Umbau nicht
-  # automatisch überschrieben werden. Reaktivierung in Plan Task 8.5.
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - "ue0/upload-portal/**"
-  #     - "ue1/webformular/**"
-  #     - ".github/workflows/deploy-pages.yml"
+  # Plan 2026-05-25 Phase 0 Task 0.2: Push-Trigger war PAUSIERT für Multi-FB-Umbau.
+  # Reaktivierung in Phase 8 (Multi-FB komplett, UE4 hinzu).
+  push:
+    branches: [main]
+    paths:
+      - "ue0/upload-portal/**"
+      - "ue1/webformular/**"
+      - "ue4/agent-portal/**"
+      - "packages/**"
+      - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -33,41 +31,63 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "pnpm"
+
+      # ── Workspace-weite Deps installieren (für @dv/foerderbereiche, @dv/data-layer) ─
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
 
       # ── UE0: Upload-Portal ────────────────────────────────────────
-      - name: UE0 — install
-        working-directory: ue0/upload-portal
-        run: npm ci
       - name: UE0 — build
         working-directory: ue0/upload-portal
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: npm run build
+          VITE_PRUEFUNG_URL: https://pruefung.butscher.cloud
+        run: pnpm build
       - name: UE0 — pack into _site
         run: |
           mkdir -p _site/ue0/upload-portal
           cp -r ue0/upload-portal/dist/* _site/ue0/upload-portal/
 
       # ── UE1: Webformular ──────────────────────────────────────────
-      - name: UE1 — install
-        working-directory: ue1/webformular
-        run: npm ci
       - name: UE1 — build
         working-directory: ue1/webformular
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: npm run build
+          VITE_PRUEFUNG_URL: https://pruefung.butscher.cloud
+        run: pnpm build
       - name: UE1 — pack into _site
         run: |
           mkdir -p _site/ue1/webformular
           cp -r ue1/webformular/dist/* _site/ue1/webformular/
 
-      # ── Landing-Page mit Links zu beiden ──────────────────────────
+      # ── UE4: Agent-Portal ─────────────────────────────────────────
+      - name: UE4 — build
+        working-directory: ue4/agent-portal
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_PRUEFUNG_URL: https://pruefung.butscher.cloud
+        run: pnpm build
+        continue-on-error: true   # UE4 ist neu — falls Build noch nicht stabil, nicht den ganzen Pages-Deploy verhindern
+      - name: UE4 — pack into _site
+        run: |
+          if [ -d ue4/agent-portal/dist ]; then
+            mkdir -p _site/ue4/agent-portal
+            cp -r ue4/agent-portal/dist/* _site/ue4/agent-portal/
+          else
+            echo "UE4 dist nicht vorhanden — überspringe."
+          fi
+
+      # ── Landing-Page mit Links ────────────────────────────────────
       - name: Root index.html
         run: |
           cat > _site/index.html <<'HTML'
@@ -75,16 +95,27 @@ jobs:
           <html lang="de"><head>
             <meta charset="UTF-8">
             <title>DigitalisierungVerwaltung — Demo-Frontends</title>
-            <style>body{font-family:system-ui,sans-serif;max-width:640px;margin:3rem auto;padding:0 1rem;line-height:1.6}h1{border-bottom:2px solid #AD0E36;padding-bottom:.4rem}a{color:#AD0E36}</style>
+            <style>
+              body{font-family:system-ui,sans-serif;max-width:720px;margin:3rem auto;padding:0 1rem;line-height:1.6;color:#222}
+              h1{border-bottom:2px solid #AD0E36;padding-bottom:.4rem;color:#AD0E36}
+              .stufe{display:block;padding:1rem;margin:.5rem 0;border-left:4px solid #AD0E36;background:#fafafa;text-decoration:none;color:#222}
+              .stufe:hover{background:#f0f0f0}
+              .stufe strong{color:#AD0E36}
+              .ext{font-size:.85em;color:#666}
+            </style>
           </head><body>
-            <h1>Stadt Würzburg — Altenhilfeplan APL 2 (Demo THWS)</h1>
-            <p><strong>⚠ Demo für Lehrzwecke.</strong> Kein offizielles Angebot der Stadt Würzburg.</p>
-            <ul>
-              <li><a href="ue0/upload-portal/">UE0 — PDF-Upload-Portal (Reifegradstufe 0)</a></li>
-              <li><a href="ue1/webformular/">UE1 — Online-Webformular (Reifegradstufe 1)</a></li>
-            </ul>
+            <h1>Stadt Würzburg — AHP Multi-FB-Demo (THWS)</h1>
+            <p><strong>⚠ Demo für Lehrzwecke.</strong> Innovationsmanagement-Modul Dr. Robert Butscher.
+            Kein offizielles Angebot der Stadt Würzburg.</p>
+            <p>Fünf Reifegradstufen am selben Verwaltungsfall (Altenhilfe-Förderrichtlinie der Stadt Würzburg):</p>
+            <a class="stufe" href="ue0/upload-portal/"><strong>UE0</strong> — PDF-Upload-Portal: Bürger lädt ausgefülltes PDF, KI extrahiert</a>
+            <a class="stufe" href="ue1/webformular/"><strong>UE1</strong> — Online-Webformular: 4 Förderbereiche, 3-Phasen-Wizard, DE+TR</a>
+            <a class="stufe" href="https://sachbearbeiter.butscher.cloud"><strong>UE2</strong> — Sachbearbeiter-Cockpit <span class="ext">(externe Domain, Login)</span></a>
+            <a class="stufe" href="https://ki.butscher.cloud"><strong>UE3</strong> — KI-Sachbearbeitung mit Halluzinations-Schutz <span class="ext">(externe Domain, Login)</span></a>
+            <a class="stufe" href="ue4/agent-portal/"><strong>UE4</strong> — Agentisches Antragsformular (Chatbot)</a>
             <p style="margin-top:2rem;font-size:.9em;color:#666">
-              <a href="https://github.com/swrobuts/DigitalisierungVerwaltung">Quellcode auf GitHub</a>
+              <a href="https://github.com/swrobuts/DigitalisierungVerwaltung">Quellcode auf GitHub</a> ·
+              <a href="https://pruefung.butscher.cloud/docs">Backend-API (OpenAPI)</a>
             </p>
           </body></html>
           HTML

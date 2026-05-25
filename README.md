@@ -1,18 +1,19 @@
-# Digitalisierung in der Verwaltung — Fallstudie APL 2
+# Digitalisierung in der Verwaltung — Fallstudie AHP Würzburg
 
-> Innovationsmanagement-Modul, Dr. Robert Butscher · THWS · 4 Unterrichtseinheiten am gleichen Fall:
-> **Antrag „Altentagesstätten — Betriebs- und Personalkostenzuschüsse" der Stadt Würzburg (APL 2)**, modelliert über vier aufeinander aufbauende Reifegradstufen UE0 → UE3.
+> Innovationsmanagement-Modul, Dr. Robert Butscher · THWS · 5 Unterrichtseinheiten am gleichen Fall:
+> **Altenhilfe-Förderrichtlinie (AHP) der Stadt Würzburg mit 4 Förderbereichen (I–IV)**, modelliert über fünf aufeinander aufbauende Reifegradstufen UE0 → UE4.
 
 ## Worum es geht
 
-Studierende erleben am identischen Verwaltungsfall, wie sich die heutige PDF-Mail-Welt in eine moderne, ki-gestützte Sachbearbeitungs-Architektur überführen lässt — Schritt für Schritt, mit jeweils klaren Vorteilen, Voraussetzungen und Grenzen pro Stufe.
+Studierende erleben am identischen Verwaltungsfall, wie sich die heutige PDF-Mail-Welt schrittweise in eine moderne, ki-gestützte und schließlich agentische Sachbearbeitungs-Architektur überführen lässt — mit jeweils klaren Vorteilen, Voraussetzungen und Grenzen pro Stufe.
 
 | | Stufe | Was neu ist | Stack | Studi-Rolle |
 |---|---|---|---|---|
-| **UE0** | OCR-Upload-Portal | Bürger lädt das gewohnte PDF hoch, KI extrahiert Felder, leitet automatisch zu UE1 weiter | Vite/TS + Supabase Edge Function + n8n + Claude Vision | Demo |
-| **UE1** | Mehrsprachiges Webformular | Online-Antrag in DE/IT/TR/ES mit Live-Validierung, Anlagen-Upload, atomare DB-Persistenz | Vite/TS + Supabase | Demo + Mini-Hands-on |
-| **UE2** | Sachbearbeiter-Cockpit | Realtime-Inbox, Workflow-Engine, Audit-Trail, automatische 4-sprachige Eingangsbestätigung | React 19 + Tailwind 4 + Supabase Auth + n8n | Demo + Mini-Hands-on |
-| **UE3** | KI-Sachbearbeitung | Erst-KI + adversarieller Zweit-Prüfer, Vorjahresvergleich, Risiko-Score, externe Validierung, Bescheid-Render, Compliance-Cockpit (AI Act) | FastAPI + Anthropic + Voyage + Perplexity + LM Studio | Hands-on |
+| **UE0** | OCR-Upload-Portal (Multi-FB) | Bürger wählt Förderbereich (I/II/III/IV) oder Smart-Upload klassifiziert PDF automatisch | Vite/TS + Supabase Edge Function + n8n + Claude Vision | Demo |
+| **UE1** | Mehrsprachiges Webformular (Multi-FB) | Online-Antrag in DE+TR mit FB-Wahl, 3-Phasen-Flow, Helfer-Inline-Tabelle (FB II), Varianten-Wahl (FB III A/B/C/D), atomare DB-Persistenz | Vite/TS + Supabase + @dv/data-layer | Demo + Mini-Hands-on |
+| **UE2** | Sachbearbeiter-Cockpit (Multi-FB) | Realtime-Inbox mit FB-Filter, FB-spezifischer AntragDetail, Workflow-Engine, manuelle Prüfvermerke, Audit-Trail | React 19 + Tailwind 4 + Supabase Auth + n8n | Demo + Mini-Hands-on |
+| **UE3** | KI-Sachbearbeitung (Multi-FB) | FB-Plugin-Architektur, Erst-KI + adversarieller Zweit-Prüfer, Smart-Upload (Klassifizierer + Helferliste-OCR + Excel-Import), Hard-Fail-Quellen-Validator gegen Halluzinationen, Bescheid-Render, Compliance-Cockpit (AI Act) | FastAPI + Anthropic + Voyage + Perplexity + LM Studio | Hands-on |
+| **UE4** | Agentisches Antragsformular | Konversationeller Chatbot führt Bürger durch Antrag — Tool-Use für FB-Klassifizierung, Pflichtfeld-Abfrage, Validation, Submit; Halluzinations-Regeln in System-Prompt eingebaut | React + Anthropic Messages API + FastAPI-Tools | Demo |
 
 ## Doku pro Stufe
 
@@ -22,51 +23,59 @@ Jede UE hat **drei Dateien**: ein Konzept-Kapitel (warum gibt es diese Stufe, wa
 - **UE1** — Webformular · [Konzept](ue1/webformular/01-konzept.md) · [Vorteile & Voraussetzungen](ue1/webformular/02-vorteile-voraussetzungen.md) · [Walkthrough](ue1/webformular/03-walkthrough.md) · [README](ue1/webformular/README.md)
 - **UE2** — Sachbearbeiter-Cockpit · [Konzept](ue2/sachbearbeiter/01-konzept.md) · [Vorteile & Voraussetzungen](ue2/sachbearbeiter/02-vorteile-voraussetzungen.md) · [Walkthrough](ue2/sachbearbeiter/03-walkthrough.md) · [README](ue2/sachbearbeiter/README.md)
 - **UE3** — KI-Sachbearbeitung · [Konzept](ue3/sachbearbeitung-ki/01-konzept.md) · [Vorteile & Voraussetzungen](ue3/sachbearbeitung-ki/02-vorteile-voraussetzungen.md) · [Walkthrough](ue3/sachbearbeitung-ki/03-walkthrough.md) · [README](ue3/sachbearbeitung-ki/README.md)
+- **UE4** — Agent-Portal · [README](ue4/agent-portal/README.md) *(Konzept-Doku als Followup)*
 
 ## Live-Demos
 
 | Stufe | URL |
 |---|---|
 | Landing-Page mit allen Stufen | https://swrobuts.github.io/DigitalisierungVerwaltung/ |
-| UE0 — Upload-Portal | https://swrobuts.github.io/DigitalisierungVerwaltung/ue0/upload-portal/ |
-| UE1 — Webformular | https://swrobuts.github.io/DigitalisierungVerwaltung/ue1/webformular/ |
-| UE2 — Sachbearbeiter-Cockpit (Login erforderlich) | https://amt.butscher.cloud |
+| UE0 — Upload-Portal | https://upload.butscher.cloud bzw. https://swrobuts.github.io/DigitalisierungVerwaltung/ue0/upload-portal/ |
+| UE1 — Webformular | https://antrag.butscher.cloud bzw. https://swrobuts.github.io/DigitalisierungVerwaltung/ue1/webformular/ |
+| UE2 — Sachbearbeiter-Cockpit (Login erforderlich) | https://sachbearbeiter.butscher.cloud |
 | UE3 — KI-Sachbearbeitung (Login erforderlich) | https://ki.butscher.cloud |
+| UE4 — Agent-Portal | https://agent.butscher.cloud |
 | Backend API (FastAPI, OpenAPI-Doku) | https://pruefung.butscher.cloud/docs |
 
-Login für UE2/UE3 nur mit Allowlist-Mailadresse (`apl2.allow_email`).
+Login für UE2/UE3 nur mit Allowlist-Mailadresse (`apl.allow_email`).
 
-## Roter Faden: Vier Reifegrade, ein Antrag
+## Roter Faden: Fünf Reifegrade, ein Antragsprozess
 
 ```mermaid
 flowchart LR
     subgraph BUERGER["Bürger:in"]
-        B1[PDF herunterladen,<br/>handschriftlich füllen]
-        B2[Webformular nutzen]
+        B1[PDF handschriftlich]
+        B2[Webformular]
+        B4[Chat mit Agent]
     end
     subgraph UE0["UE0 — Upload-Portal"]
-        U0[PDF hochladen]
-        U0K[KI-OCR Claude Vision]
-        U0R[Auto-Redirect zu UE1<br/>mit Prefill]
+        U0[FB-Wahl oder<br/>Smart-Upload]
+        U0K[Claude Vision OCR<br/>pro FB-Schema]
+        U0R[Prefill UE1]
     end
     subgraph UE1["UE1 — Webformular"]
-        U1[Mehrsprachiges Webform<br/>DE/IT/TR/ES]
+        U1[FB-Wahl + 3-Phasen<br/>DE+TR]
         U1V[Live-Validierung]
-        U1S[Submit in apl2.antraege]
+        U1S[Submit apl.antraege<br/>+ FB-Details]
     end
     subgraph AMT["UE2/UE3 — Amt"]
-        A2[UE2: Realtime-Inbox<br/>+ Workflow + Audit]
-        A3[UE3: KI prüft 2× adversariell,<br/>Vergleich, Risiko, extern,<br/>Bescheid-Render]
+        A2[UE2: Multi-FB-Inbox<br/>Filter + Workflow]
+        A3[UE3: FB-Plugins,<br/>KI 2× adversariell,<br/>Hard-Fail-Validator]
         AM[Sachbearbeiter:in<br/>entscheidet]
+    end
+    subgraph UE4["UE4 — Agent"]
+        U4[Konversationeller<br/>Agent mit Tool-Use]
+        U4S[Auto-Submit nach<br/>Bestätigung]
     end
     B1 --> U0 --> U0K --> U0R --> U1
     B2 --> U1 --> U1V --> U1S
+    B4 --> U4 --> U4S --> A2
     U1S --> A2 --> A3 --> AM
 ```
 
 ## Architektur und Infrastruktur
 
-- **Self-hosted Supabase** auf `supabase.butscher.cloud` (Postgres mit Schema `apl2`, Auth via GoTrue, Storage, Edge Functions in Deno, Realtime)
+- **Self-hosted Supabase** auf `supabase.butscher.cloud` (Postgres mit Schema `apl`, Auth via GoTrue, Storage, Edge Functions in Deno, Realtime)
 - **n8n** auf `n8n.butscher.cloud` für ereignisgetriebene Workflows (PDF-OCR-Pipeline, Eingangsbestätigung)
 - **Anthropic Claude Sonnet 4.5 / Opus** für OCR (UE0) und KI-Prüfung (UE3); optional **LM Studio** als lokaler Datenschutz-Provider
 - **Voyage 3** für Norm-Embeddings (UE3 Doctree-Navigation)
@@ -80,21 +89,26 @@ Alle API-Keys sind ausschließlich als Container-Env-Variablen gesetzt — niema
 
 ```
 DigitalisierungVerwaltung/
-├── ue0/upload-portal/         Vite-TS-Frontend UE0
-├── ue0/demo-pdfs/             generierte ausgefüllte Demo-PDFs + Generator
-├── ue1/webformular/           Vite-TS-Frontend UE1
-├── ue2/sachbearbeiter/        React-Cockpit UE2
-├── ue3/sachbearbeitung-ki/    React-Cockpit UE3
-├── pruefung/                  FastAPI-Backend UE3
+├── ue0/upload-portal/         Vite-TS-Frontend UE0 (Multi-FB-Wahl + Smart-Upload)
+├── ue1/webformular/           Vite-TS-Frontend UE1 (Multi-FB-Wizard)
+├── ue2/sachbearbeiter/        React-Cockpit UE2 (Multi-FB-Inbox)
+├── ue3/sachbearbeitung-ki/    React-Cockpit UE3 (FB-Plugins + Smart-Upload)
+├── ue4/agent-portal/          React-Chatbot UE4 (Agent mit Tool-Use)
+├── pruefung/                  FastAPI-Backend (FB-Plugins, Hard-Fail-Validator)
+│   └── src/pruefung/foerderbereiche/  1 Plugin pro FB (Subsumtion + Template)
+├── packages/                  pnpm-Workspace mit geteiltem Code
+│   ├── foerderbereiche/       FB-Konfigs (Pflichtfelder, Anlagen, Validation-Rules)
+│   └── data-layer/            Supabase-Wrapper + db-types für alle UEs
 ├── supabase/
-│   ├── migrations/            DDL pro UE inkrementell (047 = UE0, 007–014 = UE2, 029–049 = UE3 Doctree)
-│   ├── functions/             Deno-Edge-Functions (submit-antrag, upload-antragspdf)
-│   └── webhooks/              n8n-Workflow-Exports (importierbar via UI)
-├── docs/superpowers/
-│   ├── specs/                 Design-Docs pro UE
-│   └── plans/                 Implementations-Pläne
-├── materialien/               Original-PDFs + Förderrichtlinie
-└── Fake_Belege/               seed.sql + Demo-Belege (synchron mit ue0/demo-pdfs)
+│   ├── migrations/            DDL inkrementell (060–067 = neue apl-Schema)
+│   ├── functions/             Deno-Edge-Functions
+│   └── webhooks/              n8n-Workflow-Exports
+├── docs/
+│   ├── lehrveranstaltung/     Pre-Flight-Checkliste für VL-Demo
+│   └── superpowers/           Specs + Plans
+├── materialien/wuerzburg-2026/    AHP-Richtlinie + 4 FB-Antrags-PDFs
+├── scripts/                   demo-reset.sh, gen-schablonen, etc.
+└── Fake_Belege/               Demo-Belege
 ```
 
 ## Rechtlicher Hinweis
