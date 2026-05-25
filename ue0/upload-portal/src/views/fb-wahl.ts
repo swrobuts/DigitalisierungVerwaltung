@@ -1,94 +1,135 @@
 /**
  * UE0 — Förderbereich-Wahl (Einstiegspunkt).
  *
- * Zeigt 4 Karten (FB I-IV) + Smart-Upload-Karte. Klick navigiert zu
- *   ?fb=I|II|III|IV   →  fb-upload.ts
- *   ?smart=1          →  smart-upload.ts
- *
- * Design: bewusst nüchtern (Stadt-Wü-Stil) — keine Emoji-Icons, sondern
- * römische FB-Marker als visueller Anker. Kein „AI Slop".
+ * Layout-Idee: Smart-Upload als Hero („der schnelle Weg") oben prominent,
+ * darunter „Oder selbst zuordnen?" mit 4 sprechenden FB-Karten (typische
+ * Antragsteller + typische Höhe). Stadt-Wü-Stil, nüchtern, keine Emojis.
  */
 
-import { ALL_FOERDERBEREICHE } from "@dv/foerderbereiche";
+import { ALL_FOERDERBEREICHE, FB_III_VARIANTEN } from "@dv/foerderbereiche";
 import type { FoerderbereichId } from "@dv/foerderbereiche";
+
+// Zusätzliche „bürger-lesbare" Texte pro FB — kompakt, mit konkreten Beispielen.
+const FB_KONTEXT: Record<FoerderbereichId, {
+  beispielTraeger: string;
+  beispielVorhaben: string;
+  hoechstgrenze: string;
+}> = {
+  I: {
+    beispielTraeger: "Wohlfahrtsverbände, Pfarreien, Vereine",
+    beispielVorhaben: "Neues Nachbarschaftscafé · Neuer Besuchsdienst · Neue Engagementgruppe",
+    hoechstgrenze: "Einmalige Anschubfinanzierung",
+  },
+  II: {
+    beispielTraeger: "Träger mit ehrenamtlichem Engagement",
+    beispielVorhaben: "Bestehender Helferkreis · Besuchsdienst · Nachbarschaftshilfe",
+    hoechstgrenze: "Pauschale je Helferin/Helfer · Helferliste erforderlich",
+  },
+  III: {
+    beispielTraeger: "Mehrgenerationenhäuser · Begegnungszentren · Seniorenkreise · Quartiersmanagement",
+    beispielVorhaben: "Laufender Betrieb etablierter Strukturen",
+    hoechstgrenze: `Bis 10.000 € (A/B) · ${Math.max(...Object.values(FB_III_VARIANTEN).map(v => v.foerderhoechstgrenze_euro ?? 0)).toLocaleString("de-DE")} € (Variante D) · 4 Varianten zur Auswahl`,
+  },
+  IV: {
+    beispielTraeger: "Träger mit besonderem Vorhaben außerhalb FB I–III",
+    beispielVorhaben: "Strukturförderung · Schwerpunktinitiative · Pilotprojekt",
+    hoechstgrenze: "Individuell · strukturierter Antrag mit Leitfragen",
+  },
+};
 
 export function renderFbWahl(navigate: (search: string) => void): HTMLElement {
   const view = document.createElement("div");
+  view.className = "fb-wahl-view";
 
+  // ── Seitentitel + kurzer Lead ────────────────────────────────────
   const titel = document.createElement("h1");
   titel.className = "page-titel";
   titel.textContent = "Altenhilfeplan — Antrag einreichen";
   view.appendChild(titel);
 
-  const sub = document.createElement("p");
-  sub.className = "page-untertitel";
-  sub.textContent =
-    "Wählen Sie den passenden Förderbereich aus. Sie können auch ein vorhandenes Antrags-PDF hochladen, ohne den Bereich zu kennen — unser Smart-Upload erkennt ihn automatisch.";
-  view.appendChild(sub);
+  const lead = document.createElement("p");
+  lead.className = "page-untertitel";
+  lead.textContent =
+    "Die Stadt Würzburg fördert Altenhilfe-Träger in vier Förderbereichen. Wählen Sie unten den passenden Bereich — oder lassen Sie ein vorhandenes Antrags-PDF von der KI automatisch zuordnen.";
+  view.appendChild(lead);
 
-  const intro = document.createElement("div");
-  intro.className = "card";
-  intro.innerHTML = `
-    <h3 class="card-h3">So funktioniert es</h3>
-    <div class="card-body">
-      <p style="margin: 0 0 0.5rem;">
-        Jeder Förderbereich hat einen eigenen Antrag mit eigenen Pflichtfeldern
-        und Anlagen. Wählen Sie unten, was zu Ihrem Vorhaben passt.
-      </p>
-      <p style="margin: 0; color: #555; font-size: 13.5px;">
-        Ein KI-gestützter Workflow liest die Felder anschließend automatisch
-        aus dem hochgeladenen PDF (auch handschriftlich) und legt einen
-        vorausgefüllten Antrag im Webformular an.
+  // ── HERO: Smart-Upload prominent ─────────────────────────────────
+  const hero = document.createElement("div");
+  hero.className = "smart-hero";
+  hero.innerHTML = `
+    <div class="smart-hero-text">
+      <div class="smart-hero-eyebrow">Der schnelle Weg</div>
+      <h2 class="smart-hero-title">PDF hochladen — KI ordnet automatisch zu</h2>
+      <p class="smart-hero-desc">
+        Sie haben ein ausgefülltes Antrags-PDF? Werfen Sie es einfach hier rein.
+        Die KI erkennt den passenden Förderbereich, schlägt die richtige Variante vor
+        und zeigt Ihnen alles zur Bestätigung — bevor irgendetwas eingereicht wird.
       </p>
     </div>
+    <div class="smart-hero-action"></div>
   `;
-  view.appendChild(intro);
+  const heroBtn = document.createElement("button");
+  heroBtn.type = "button";
+  heroBtn.className = "btn-primary smart-hero-btn";
+  heroBtn.textContent = "Smart-Upload starten";
+  heroBtn.addEventListener("click", () => navigate("?smart=1"));
+  hero.querySelector(".smart-hero-action")!.appendChild(heroBtn);
+  view.appendChild(hero);
 
-  // ── Karten-Grid ──────────────────────────────────────────────────
+  // ── Trenner mit „oder" ───────────────────────────────────────────
+  const oder = document.createElement("div");
+  oder.className = "section-divider";
+  oder.innerHTML = `<span>oder selbst zuordnen</span>`;
+  view.appendChild(oder);
+
+  // ── 4 FB-Karten mit Substanz ─────────────────────────────────────
   const grid = document.createElement("div");
   grid.className = "fb-grid";
 
   const ids: FoerderbereichId[] = ["I", "II", "III", "IV"];
   for (const id of ids) {
     const fb = ALL_FOERDERBEREICHE[id];
+    const ctx = FB_KONTEXT[id];
     const card = document.createElement("button");
     card.type = "button";
     card.className = "fb-card";
+    card.setAttribute("aria-label", `Förderbereich ${fb.id}: ${fb.label_lang}`);
     card.innerHTML = `
-      <div class="fb-card-marker" aria-hidden="true">FB ${fb.id}</div>
-      <div class="fb-card-body">
-        <div class="fb-card-title">${fb.label_lang}</div>
-        <div class="fb-card-desc">${fb.beschreibung}</div>
+      <div class="fb-card-head">
+        <span class="fb-card-marker">FB ${fb.id}</span>
+        <span class="fb-card-title">${fb.label_lang}</span>
       </div>
-      <div class="fb-card-arrow" aria-hidden="true">›</div>
+      <p class="fb-card-lead">${fb.beschreibung}</p>
+      <dl class="fb-card-meta">
+        <dt>Typische Antragsteller</dt>
+        <dd>${ctx.beispielTraeger}</dd>
+        <dt>Typisches Vorhaben</dt>
+        <dd>${ctx.beispielVorhaben}</dd>
+        <dt>Förderhöhe</dt>
+        <dd>${ctx.hoechstgrenze}</dd>
+      </dl>
+      <div class="fb-card-cta">
+        <span>Antrag für FB ${fb.id} starten</span>
+        <span class="fb-card-arrow" aria-hidden="true">›</span>
+      </div>
     `;
     card.addEventListener("click", () => navigate(`?fb=${id}`));
     grid.appendChild(card);
   }
-
   view.appendChild(grid);
 
-  // ── Smart-Upload-Brücke ─────────────────────────────────────────
-  const smart = document.createElement("div");
-  smart.className = "card smart-upload-teaser";
-  smart.innerHTML = `
-    <h3 class="card-h3">Unsicher, welcher Förderbereich passt?</h3>
-    <div class="card-body">
-      <p style="margin: 0 0 0.8rem;">
-        Sie haben bereits ein ausgefülltes Antrags-PDF und wissen nicht, zu
-        welchem Förderbereich es gehört? Laden Sie es einfach hoch — die KI
-        erkennt den passenden Förderbereich automatisch. Sie können den
-        Vorschlag vor dem Absenden noch korrigieren.
-      </p>
-    </div>
+  // ── Sekundäre Info: wie geht es nach dem Upload weiter? ─────────
+  const info = document.createElement("div");
+  info.className = "next-steps";
+  info.innerHTML = `
+    <h3>Wie geht es nach dem Upload weiter?</h3>
+    <ol>
+      <li><strong>Eingang.</strong> Sie erhalten sofort eine Eingangsbestätigung mit Tracking-Nummer.</li>
+      <li><strong>Vorbefüllung.</strong> Die KI liest die Felder aus dem PDF und legt einen vorausgefüllten Antrag im Webformular an, den Sie ergänzen können.</li>
+      <li><strong>Sachbearbeitung.</strong> Das Sozialreferat prüft Ihren Antrag, in der Regel innerhalb von vier Wochen.</li>
+    </ol>
   `;
-  const smartBtn = document.createElement("button");
-  smartBtn.type = "button";
-  smartBtn.className = "btn-primary";
-  smartBtn.textContent = "Smart-Upload starten";
-  smartBtn.addEventListener("click", () => navigate("?smart=1"));
-  smart.appendChild(smartBtn);
+  view.appendChild(info);
 
-  view.appendChild(smart);
   return view;
 }
