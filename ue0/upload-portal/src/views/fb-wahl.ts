@@ -31,39 +31,59 @@ export function renderFbWahl(navigate: (search: string) => void): HTMLElement {
     "Die Stadt Würzburg fördert Altenhilfe-Träger in vier Förderbereichen. Wählen Sie unten den passenden Bereich — oder lassen Sie ein vorhandenes Antrags-PDF von der KI automatisch zuordnen.";
   view.appendChild(lead);
 
-  // ── HYBRID-Hero: PDF + KI + Webform ──────────────────────────────
-  const hero = document.createElement("div");
-  hero.className = "smart-hero";
-  hero.innerHTML = `
-    <div class="smart-hero-eyebrow">Empfohlen — der schnelle Weg</div>
-    <h2 class="smart-hero-title">PDF einreichen, Rest automatisch</h2>
-    <p class="smart-hero-desc">
-      Sie haben ein ausgefülltes Antrags-PDF (z.&nbsp;B. eine handschriftlich
-      ausgefüllte Vorlage)? Laden Sie es hoch — die KI liest die Felder aus und
-      legt ein vorausgefülltes Webformular an, das Sie nur noch prüfen und
-      absenden müssen.
-    </p>
-    <ol class="smart-hero-steps" aria-label="Drei Schritte">
-      <li><span class="step-num">1</span><span>PDF&nbsp;hochladen</span></li>
-      <li class="step-arrow" aria-hidden="true">→</li>
-      <li><span class="step-num">2</span><span>KI&nbsp;liest&nbsp;aus &amp; befüllt&nbsp;Formular</span></li>
-      <li class="step-arrow" aria-hidden="true">→</li>
-      <li><span class="step-num">3</span><span>Prüfen &amp; absenden</span></li>
-    </ol>
-    <div class="smart-hero-action"></div>
+  // ── Zwei-Wege-Sektion (gleichwertig dargestellt) ─────────────────
+  const zweiWege = document.createElement("div");
+  zweiWege.className = "zwei-wege";
+  zweiWege.innerHTML = `
+    <h2 class="zwei-wege-headline">Es gibt zwei Wege ans Ziel</h2>
+    <div class="weg-grid">
+
+      <section class="weg-card weg-a">
+        <div class="weg-card-badge">Weg A</div>
+        <h3 class="weg-card-title">PDF hochladen — KI macht den Rest</h3>
+        <p class="weg-card-desc">
+          Sie haben ein ausgefülltes Antrags-PDF (auch handschriftlich)?
+          Die KI liest es aus und befüllt das Webformular vor — Sie müssen
+          nur noch prüfen und absenden.
+        </p>
+        <ol class="weg-steps">
+          <li><span class="step-num">1</span> PDF hochladen</li>
+          <li><span class="step-num">2</span> KI liest aus + Webformular wird vorausgefüllt</li>
+          <li><span class="step-num">3</span> Prüfen und absenden</li>
+        </ol>
+        <div class="weg-card-action"></div>
+      </section>
+
+      <section class="weg-card weg-b">
+        <div class="weg-card-badge">Weg B</div>
+        <h3 class="weg-card-title">Förderbereich selbst wählen</h3>
+        <p class="weg-card-desc">
+          Sie kennen Ihren Förderbereich? Wählen Sie ihn unten direkt aus
+          und laden Sie das ausgefüllte PDF in den passenden Slot — keine
+          KI-Klassifikation nötig.
+        </p>
+        <ol class="weg-steps">
+          <li><span class="step-num">1</span> Förderbereich (FB I–IV) wählen</li>
+          <li><span class="step-num">2</span> PDF + ggf. Anlage hochladen</li>
+          <li><span class="step-num">3</span> Prüfen und absenden</li>
+        </ol>
+        <div class="weg-card-hint">Wählen Sie unten einen der vier Förderbereiche aus.</div>
+      </section>
+
+    </div>
   `;
-  const heroBtn = document.createElement("button");
-  heroBtn.type = "button";
-  heroBtn.className = "smart-hero-btn";
-  heroBtn.textContent = "Smart-Upload starten";
-  heroBtn.addEventListener("click", () => navigate("?smart=1"));
-  hero.querySelector(".smart-hero-action")!.appendChild(heroBtn);
-  view.appendChild(hero);
+  const wegABtn = document.createElement("button");
+  wegABtn.type = "button";
+  wegABtn.className = "btn-primary weg-card-btn";
+  wegABtn.textContent = "Smart-Upload starten";
+  wegABtn.addEventListener("click", () => navigate("?smart=1"));
+  zweiWege.querySelector(".weg-a .weg-card-action")!.appendChild(wegABtn);
+  view.appendChild(zweiWege);
 
   // ── Trenner ──────────────────────────────────────────────────────
   const trenner = document.createElement("div");
   trenner.className = "section-divider";
-  trenner.innerHTML = `<span>oder Förderbereich selbst auswählen</span>`;
+  trenner.innerHTML = `<span>Weg B — Förderbereich wählen</span>`;
   view.appendChild(trenner);
 
   // ── 4 FB-Karten (schlank, alle gleich aufgebaut) ─────────────────
