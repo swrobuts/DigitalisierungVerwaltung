@@ -31,19 +31,25 @@ export function renderFbWahl(navigate: (search: string) => void): HTMLElement {
     "Die Stadt Würzburg fördert Altenhilfe-Träger in vier Förderbereichen. Wählen Sie unten den passenden Bereich — oder lassen Sie ein vorhandenes Antrags-PDF von der KI automatisch zuordnen.";
   view.appendChild(lead);
 
-  // ── HERO: Smart-Upload ───────────────────────────────────────────
+  // ── HYBRID-Hero: PDF + KI + Webform ──────────────────────────────
   const hero = document.createElement("div");
   hero.className = "smart-hero";
   hero.innerHTML = `
-    <div class="smart-hero-text">
-      <div class="smart-hero-eyebrow">Der schnelle Weg</div>
-      <h2 class="smart-hero-title">PDF hochladen — KI ordnet automatisch zu</h2>
-      <p class="smart-hero-desc">
-        Sie haben ein ausgefülltes Antrags-PDF? Werfen Sie es hier rein.
-        Die KI erkennt den passenden Förderbereich, schlägt die richtige Variante vor
-        und zeigt Ihnen alles zur Bestätigung — bevor irgendetwas eingereicht wird.
-      </p>
-    </div>
+    <div class="smart-hero-eyebrow">Empfohlen — der schnelle Weg</div>
+    <h2 class="smart-hero-title">PDF einreichen, Rest automatisch</h2>
+    <p class="smart-hero-desc">
+      Sie haben ein ausgefülltes Antrags-PDF (z.&nbsp;B. eine handschriftlich
+      ausgefüllte Vorlage)? Laden Sie es hoch — die KI liest die Felder aus und
+      legt ein vorausgefülltes Webformular an, das Sie nur noch prüfen und
+      absenden müssen.
+    </p>
+    <ol class="smart-hero-steps" aria-label="Drei Schritte">
+      <li><span class="step-num">1</span><span>PDF&nbsp;hochladen</span></li>
+      <li class="step-arrow" aria-hidden="true">→</li>
+      <li><span class="step-num">2</span><span>KI&nbsp;liest&nbsp;aus &amp; befüllt&nbsp;Formular</span></li>
+      <li class="step-arrow" aria-hidden="true">→</li>
+      <li><span class="step-num">3</span><span>Prüfen &amp; absenden</span></li>
+    </ol>
     <div class="smart-hero-action"></div>
   `;
   const heroBtn = document.createElement("button");
@@ -57,7 +63,7 @@ export function renderFbWahl(navigate: (search: string) => void): HTMLElement {
   // ── Trenner ──────────────────────────────────────────────────────
   const trenner = document.createElement("div");
   trenner.className = "section-divider";
-  trenner.innerHTML = `<span>oder selbst zuordnen</span>`;
+  trenner.innerHTML = `<span>oder Förderbereich selbst auswählen</span>`;
   view.appendChild(trenner);
 
   // ── 4 FB-Karten (schlank, alle gleich aufgebaut) ─────────────────
