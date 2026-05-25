@@ -133,3 +133,109 @@ def validiere_alle(befunde: list[dict], tree: dict) -> list[dict[str, Any]]:
         if f is not None:
             fehler.append(f)
     return fehler
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# Phase 4A.3: Hard-Fail-Validator gegen apl.ahp_norm_statements (Spec §12.1)
+# ───────────────────────────────────────────────────────────────────────────
+#
+# Der bisherige validiere_alle() läuft gegen den Doctree-JSON und liefert
+# Soft-Fehler als Liste. Für den neuen apl.ahp_norm_statements-basierten
+# Bescheid-Render baut Spec §12.1 zusätzlich einen Hard-Fail: jeder
+# zitierte Paragraph im Bescheid-Text MUSS in apl.ahp_norm_statements
+# existieren, sonst wird der Render abgebrochen. Kein Toggle, kein Soft-
+# Fail — Halluzinations-Schutz hat oberste Priorität.
+
+
+class QuellenValidationError(Exception):
+    """Wird beim Bescheid-Render geworfen, wenn ein zitierter Paragraph
+    nicht in apl.ahp_norm_statements existiert. Hard-Fail, kein Toggle."""
+
+
+# Matcht '§ 2.3.4', '§2.3', '§ 4', '§ 2.3.4a' etc.  Wir nehmen nur den
+# numerischen Teil (mit optionalem Buchstaben-Suffix) als Identifier.
+_PARAGRAPH_RE = re.compile(r"§\s*([0-9]+(?:\.[0-9]+)*[a-z]?)")
+
+
+def extract_paragraph_refs(text: str) -> list[str]:
+    """Extrahiert alle '§ X.Y'-Zitate aus dem Text, sortiert und dedupliziert.
+
+    Beispiele: '§ 2.3.4', '§2.1', '§ 4' werden alle gefangen. Tolerant
+    gegen unterschiedliches Whitespace und führendes/nachfolgendes
+    Satzzeichen.
+    """
+    if not text:
+        return []
+    return sorted(set(_PARAGRAPH_RE.findall(text)))
+
+
+def _normalize_ref(ref: str) -> str:
+    """'§ 2.3.4' → '2.3.4'. Tolerant gegen Whitespace, §-Zeichen, Lower-Case.
+
+    Damit gleicht der Text-Match ('§ 2.3.4' im Bescheid) den DB-Ref
+    ('§ 2.3.4' in apl.ahp_norm_statements.ref) auch dann ab, wenn das
+    Whitespace zwischen § und Zahl variiert.
+    """
+    return re.sub(r"[§\s]+", "", ref or "").strip().lower()
+
+
+async def lade_bekannte_refs(db: Any) -> set[str]:
+    """Lädt alle aktiven ref-Werte aus apl.ahp_norm_statements.
+
+    Args:
+        db: SupabaseClient-Instanz (pruefung.db.SupabaseClient).
+
+    Returns:
+        Set normalisierter Refs (z.B. {'2.1', '2.3.4', '3.3', '4', 'agb.iban'}).
+    """
+    rows = await db.select(
+        "ahp_norm_statements",
+        "aktiv=eq.true&select=ref",
+    )
+    return {_normalize_ref(r["ref"]) for r in rows if r.get("ref")}
+
+
+async def validiere_oder_abbrechen(
+    bescheid_text: str,
+    *,
+    db: Any | None = None,
+    bekannte_refs: set[str] | None = None,
+    antrag_id: str | None = None,
+) -> None:
+    """Findet alle '§ X.Y'-Zitate im Bescheid-Text, prüft gegen
+    apl.ahp_norm_statements. Wirft QuellenValidationError bei erfundenen
+    Paragraphen — KEIN Soft-Fail, KEIN Override.
+
+    Spec §12.1: Hard-Fail vor PDF-Render.
+
+    Args:
+        bescheid_text: gerendeter Bescheid-Text (HTML oder Markdown).
+        db: SupabaseClient (wird genutzt, wenn bekannte_refs nicht übergeben).
+        bekannte_refs: Optional vorgeladene Refs (für Tests/Mocking, oder
+            wenn der Caller die Refs bereits geladen hat).
+        antrag_id: Für die Fehlermeldung — kein funktionaler Einfluss.
+
+    Raises:
+        QuellenValidationError: Wenn mindestens ein zitierter Paragraph
+            nicht in apl.ahp_norm_statements existiert.
+        ValueError: Wenn weder db noch bekannte_refs übergeben werden.
+    """
+    if bekannte_refs is None:
+        if db is None:
+            raise ValueError(
+                "validiere_oder_abbrechen braucht entweder `db` oder "
+                "`bekannte_refs`."
+            )
+        bekannte_refs = await lade_bekannte_refs(db)
+
+    refs_im_text = extract_paragraph_refs(bescheid_text)
+    erfunden = sorted(
+        r for r in refs_im_text
+        if _normalize_ref(r) not in bekannte_refs
+    )
+    if erfunden:
+        raise QuellenValidationError(
+            f"Bescheid-Render abgebrochen: folgende § sind nicht in "
+            f"apl.ahp_norm_statements vorhanden: {erfunden}. "
+            f"(antrag_id={antrag_id})"
+        )

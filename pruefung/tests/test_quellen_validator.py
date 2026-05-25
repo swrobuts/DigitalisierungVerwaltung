@@ -157,3 +157,92 @@ def test_validiere_alle_aggregiert_korrekt():
 def test_normalize_idempotent():
     s = "  Mehrere   Leerzeichen  und Halbgeviert – test  "
     assert _normalize(s) == _normalize(_normalize(s))
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Phase 4A.3: Hard-Fail-Validator gegen apl.ahp_norm_statements
+# ───────────────────────────────────────────────────────────────────────
+
+import pytest
+
+from pruefung.quellen_validator import (
+    QuellenValidationError,
+    _normalize_ref,
+    extract_paragraph_refs,
+    validiere_oder_abbrechen,
+)
+
+
+def test_extract_paragraph_refs_findet_alle_und_dedupliziert():
+    text = (
+        "Gem. § 2.1 und § 2.3.4 entscheiden wir... siehe auch § 4. "
+        "Nochmal §2.1 wegen Wiederholung."
+    )
+    refs = extract_paragraph_refs(text)
+    # dedupliziert + sortiert
+    assert refs == ["2.1", "2.3.4", "4"]
+
+
+def test_extract_paragraph_refs_handelt_leeren_text():
+    assert extract_paragraph_refs("") == []
+    assert extract_paragraph_refs(None) == []  # type: ignore[arg-type]
+
+
+def test_normalize_ref_toleriert_whitespace_und_paragraphenzeichen():
+    assert _normalize_ref("§ 2.3.4") == "2.3.4"
+    assert _normalize_ref("§2.3.4") == "2.3.4"
+    assert _normalize_ref("  §   2.3.4  ") == "2.3.4"
+    assert _normalize_ref("AGB.IBAN") == "agb.iban"
+
+
+@pytest.mark.asyncio
+async def test_validiere_oder_abbrechen_akzeptiert_bekannte_paragraphen():
+    text = "Begründung: gem. § 2.1 ist der Antrag zulässig."
+    # bekannte_refs ist bereits normalisiert (so wie lade_bekannte_refs sie liefert)
+    bekannte = {"2.1", "3.3"}
+    # darf nicht werfen
+    await validiere_oder_abbrechen(text, bekannte_refs=bekannte)
+
+
+@pytest.mark.asyncio
+async def test_validiere_oder_abbrechen_lehnt_erfundene_paragraphen_ab():
+    text = "Gem. § 99.9 lehnen wir den Antrag ab."
+    bekannte = {"2.1", "3.3"}
+    with pytest.raises(QuellenValidationError) as excinfo:
+        await validiere_oder_abbrechen(text, bekannte_refs=bekannte, antrag_id="abc")
+    # Die Fehlermeldung muss den erfundenen Paragraphen nennen
+    assert "99.9" in str(excinfo.value)
+    assert "abc" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
+async def test_validiere_oder_abbrechen_kein_zitat_ist_ok():
+    """Bescheid-Text ohne § ist auch valide (z.B. reine Rückfrage)."""
+    await validiere_oder_abbrechen("Bitte reichen Sie die Helferliste nach.",
+                                   bekannte_refs={"2.1"})
+
+
+@pytest.mark.asyncio
+async def test_validiere_oder_abbrechen_mehrere_erfundene_alle_im_fehler():
+    text = "§ 1 ist ok, aber § 99.9 und § 88.8 erfunden."
+    bekannte = {"1"}
+    with pytest.raises(QuellenValidationError) as excinfo:
+        await validiere_oder_abbrechen(text, bekannte_refs=bekannte)
+    msg = str(excinfo.value)
+    assert "99.9" in msg
+    assert "88.8" in msg
+
+
+@pytest.mark.asyncio
+async def test_validiere_oder_abbrechen_braucht_db_oder_bekannte_refs():
+    with pytest.raises(ValueError):
+        await validiere_oder_abbrechen("§ 1", db=None, bekannte_refs=None)
+
+
+@pytest.mark.asyncio
+async def test_validiere_oder_abbrechen_normalisiert_db_und_text_gleichermassen():
+    """DB liefert '§ 2.3.4', Text enthält '§2.3.4' (kein Leerzeichen)."""
+    bekannte = {_normalize_ref("§ 2.3.4")}  # '2.3.4'
+    await validiere_oder_abbrechen("Siehe §2.3.4 unten.",
+                                   bekannte_refs=bekannte)
+
