@@ -181,7 +181,12 @@ interface SlotOpts {
 
 function buildSlot(s: SlotOpts): HTMLElement {
   const box = document.createElement("div");
-  box.className = "antrag-row" + (s.pflicht ? "" : " antrag-row-optional");
+  // SLOT 1 = Hauptantrag (rot), SLOT 2 = Anlage (grau, egal ob Pflicht
+  // oder optional — visuelle Trennung Hauptdokument vs. Begleitmaterial).
+  const klassen = ["antrag-row"];
+  if (s.nummer === 2) klassen.push("antrag-row-anlage");
+  if (!s.pflicht) klassen.push("antrag-row-optional");
+  box.className = klassen.join(" ");
 
   const head = document.createElement("div");
   head.className = "antrag-section-head";

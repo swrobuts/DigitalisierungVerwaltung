@@ -300,6 +300,19 @@ a:hover {
   border-left-color: #b0b0b0;
   background: #f6f7f8;
 }
+/* Anlage-Slot (SLOT 2): immer grau, auch wenn Pflicht — visuell vom
+   Hauptantrag (rot) abgesetzt. */
+.antrag-row.antrag-row-anlage {
+  border-left-color: var(--color-wue-grau);
+  background: #f4f4f5;
+}
+.antrag-row-anlage .antrag-section-num {
+  background: var(--color-wue-grau);
+}
+.antrag-row-anlage .upload-zone {
+  border-color: #c8c8c8;
+  background: #fafafa;
+}
 .antrag-row .upload-zone {
   margin-top: 0.5rem;
   margin-left: 40px;  /* mit PDF-Label bündig */
