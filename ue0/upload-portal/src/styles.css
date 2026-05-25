@@ -672,20 +672,21 @@ a:hover {
 }
 .section-divider span { padding: 0 1rem; }
 
-/* FB-Karten: jetzt vertikal mit Substanz, nicht horizontale Mini-Boxen */
+/* FB-Karten — schlank, alle gleich strukturiert, pixel-genaue Ausrichtung */
 .fb-grid, .variante-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
   margin: 1rem 0 1.6rem;
+  align-items: stretch;        /* alle Karten gleich hoch */
 }
 @media (max-width: 720px) {
   .fb-grid, .variante-grid { grid-template-columns: 1fr; }
 }
 .fb-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
+  display: grid;
+  grid-template-rows: auto 1fr auto;   /* head · desc-flex · cta unten fix */
+  gap: 0.75rem;
   padding: 1.2rem 1.3rem;
   background: #ffffff;
   border: 1px solid #d8d8d8;
@@ -695,26 +696,31 @@ a:hover {
   cursor: pointer;
   font: inherit;
   color: inherit;
-  transition: border-color .15s, background .15s, box-shadow .15s, transform .15s;
+  transition: background .15s, box-shadow .15s, transform .15s;
 }
 .fb-card:hover {
   background: #fcfafa;
-  border-color: var(--color-wue-rot);
   box-shadow: 0 4px 14px rgba(173,14,54,0.10);
   transform: translateY(-1px);
 }
+/* Head: Marker links (fix-breit), Titel rechts — sitzen exakt auf Baseline */
 .fb-card-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: 56px 1fr;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.75rem;
 }
 .fb-card-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 28px;
   font-size: 12px;
   font-weight: 700;
   color: var(--color-wue-rot);
   letter-spacing: 0.06em;
   background: var(--color-wue-rot-soft);
-  padding: 0.3rem 0.55rem;
   border-radius: 3px;
   line-height: 1;
 }
@@ -724,34 +730,17 @@ a:hover {
   color: var(--color-wue-grau-dunkel);
   line-height: 1.3;
 }
-.fb-card-lead {
+.fb-card-desc {
   font-size: 13.5px;
   color: #555;
-  line-height: 1.5;
+  line-height: 1.55;
   margin: 0;
 }
-.fb-card-meta {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  column-gap: 0.8rem;
-  row-gap: 0.35rem;
-  margin: 0.2rem 0 0;
-  font-size: 12.5px;
-  line-height: 1.4;
-}
-.fb-card-meta dt {
-  color: #888;
-  font-weight: 600;
-}
-.fb-card-meta dd {
-  margin: 0;
-  color: #333;
-}
+/* CTA klebt unten dank grid-template-rows mit 1fr in der Mitte */
 .fb-card-cta {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 0.5rem;
   padding-top: 0.7rem;
   border-top: 1px solid #efefef;
   font-size: 13.5px;
@@ -759,33 +748,10 @@ a:hover {
   color: var(--color-wue-rot);
 }
 .fb-card-arrow {
-  font-size: 18px;
+  font-size: 20px;
   color: var(--color-wue-rot);
+  line-height: 1;
 }
-
-/* „So geht es weiter"-Block unten */
-.next-steps {
-  margin: 2rem 0 1rem;
-  padding: 1.2rem 1.4rem;
-  background: #f6f6f6;
-  border-left: 3px solid var(--color-wue-grau);
-  border-radius: 3px;
-}
-.next-steps h3 {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0 0 0.6rem;
-  color: var(--color-wue-grau-dunkel);
-}
-.next-steps ol {
-  margin: 0;
-  padding-left: 1.2rem;
-  font-size: 13.5px;
-  color: #444;
-  line-height: 1.6;
-}
-.next-steps ol li { margin-bottom: 0.2rem; }
-.next-steps ol li strong { color: var(--color-wue-grau-dunkel); }
 
 /* Smart-Upload: Item-Liste */
 .smart-item-list {
