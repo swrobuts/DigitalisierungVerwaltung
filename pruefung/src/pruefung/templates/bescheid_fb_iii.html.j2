@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Bescheid FB III — {{ antrag.einrichtung }}</title>
+</head>
+<body>
+  <h1>Bescheid Förderbereich III — Treffpunkte / Begegnungsstätten / Quartiersmanagement</h1>
+  <p><strong>Antragsnummer:</strong> {{ antrag.antragsnummer or "—" }}</p>
+  <p><strong>Einrichtung:</strong> {{ antrag.einrichtung }}</p>
+  <p><strong>Variante:</strong> {{ antrag.variante or "—" }}</p>
+  <p><strong>Haushaltsjahr:</strong> {{ antrag.haushaltsjahr }}</p>
+
+  <h2>Entscheidung</h2>
+  <p><strong>{{ ki.entscheidung }}</strong></p>
+
+  <h2>Begründung</h2>
+  <p>{{ ki.begruendung }}</p>
+
+  <h2>Herangezogene Quellen</h2>
+  <ul>
+    {% for z in ki.zitate %}
+      <li><strong>{{ z.ref }}:</strong> &bdquo;{{ z.woertliches_zitat }}&ldquo;</li>
+    {% else %}
+      <li>(keine Quellen zitiert)</li>
+    {% endfor %}
+  </ul>
+</body>
+</html>
