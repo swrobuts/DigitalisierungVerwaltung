@@ -1,35 +1,30 @@
-# Dependencies
-node_modules/
 
 # Build outputs
-dist/
-build/
-.vite/
-*.tsbuildinfo
-
-# Testing
-coverage/
-
-# Editor / OS
-.DS_Store
-.idea/
-.vscode/
-*.swp
-
-# Logs
-*.log
-npm-debug.log*
-
-# Local env (Vite-Convention: .env.*.local nie committen)
-.env
-.env.local
-.env.*.local
-
 # Cache (verschiedene Tools)
-.cache/
-
+# Dependencies
+# Editor / OS
+# Local env (Vite-Convention: .env.*.local nie committen)
+# Logs
+# Testing
 # lokales Tooling + Lehrmaterialien (kein Repo-Content)
-.claude/
-ue1/folien/*.pptx
+*.log
 *.pptx
+*.swp
+*.tsbuildinfo
+.DS_Store
+.cache/
+.claude/
+.env
+.env.*.local
+.env.local
+.idea/
 .superpowers/
+.vite/
+.vscode/
+build/
+coverage/
+dist/
+node_modules/
+npm-debug.log*
+pnpm-lock.yaml
+ue1/folien/*.pptx

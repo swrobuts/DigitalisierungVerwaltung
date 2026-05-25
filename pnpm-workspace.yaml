@@ -1,0 +1,6 @@
+packages:
+  - 'packages/*'
+  - 'ue0/*'
+  - 'ue1/*'
+  - 'ue2/*'
+  - 'ue3/*'
