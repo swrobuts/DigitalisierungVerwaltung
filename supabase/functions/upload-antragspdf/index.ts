@@ -1,30 +1,58 @@
-// upload-antragspdf — UE0 Edge Function (Reifegradstufe 0)
+// upload-antragspdf — UE0 Edge Function (Reifegradstufe 0, Multi-FB)
 //
-// Bürger lädt ein ausgefülltes Original-Antrags-PDF hoch und OPTIONAL
-// die Anlage 1 (Wochenplan). Diese Function:
-//   1. Validiert (MIME = application/pdf, Größe ≤ 10 MB) für beide Files
-//   2. Speichert das/die PDF(s) im Storage-Bucket `antragseingang-pdf`
-//   3. Erzeugt einen Tracking-Eintrag in `apl2.antrag_einreichung`
+// Bürger lädt ein ausgefülltes Original-Antrags-PDF + optionale FB-spezifische
+// Anlage hoch. Seit Plan 2026-05-25 (Phase 4) bedient diese Function ALLE
+// vier Förderbereiche und den Smart-Upload-Fall (FB-Erkennung im Frontend).
+//
+// Diese Function:
+//   1. Validiert (MIME = application/pdf | xlsx für FB-II-Helferliste,
+//      Größe ≤ 10 MB) für Hauptantrag + Anlage
+//   2. Speichert die Files im Storage-Bucket `antragseingang-pdf`
+//   3. Erzeugt einen Tracking-Eintrag in `apl.antrag_einreichung`
 //      (DB-Trigger feuert n8n-Webhook → Claude Vision OCR-Workflow)
-//   4. Returns tracking_id (UUID) → Bürger sieht Status-Seite
+//   4. Returns einreichung_id (UUID) → Bürger sieht Status-Seite
 //
 // Erwartetes FormData:
-//   - "datei":   Binary (application/pdf, max 10 MB)             ← Pflicht
-//   - "anlage_1": Binary (application/pdf, max 10 MB)            ← optional
-//                Wochenplan-PDF — OCR extrahiert Öffnungszeiten.
+//   - "datei":          Binary (application/pdf, max 10 MB)        ← Pflicht
+//   - "anlage":         Binary (PDF oder XLSX, max 10 MB)          ← optional
+//   - "foerderbereich": "I" | "II" | "III" | "IV" | leer           ← optional
+//                       Bei FB-Wahl gesetzt, bei Smart-Upload nur dann,
+//                       wenn das Frontend bereits klassifiziert hat.
+//   - "erkannter_fb":   "I" | "II" | "III" | "IV" | leer           ← optional
+//                       Smart-Upload: vom Frontend-Klassifizierer gefüllt.
+//                       n8n darf nachträglich überschreiben.
+//   - "variante":       "A" | "B" | "C" | "D" | leer (nur FB III)  ← optional
+//   - "anlage_typ":     Slot-Typ aus @dv/foerderbereiche, z.B.
+//                       "projektskizze"|"helferliste"|"foerderbestaetigung_bund"
+//                       |"programm_flyer"|"stundenzettel"|"sonstige"
 //
 // Antwort:
-//   { tracking_id: "uuid-…" }  // 200
-//   { error: "…" }            // 4xx/5xx
+//   { einreichung_id: "uuid-…", tracking_id: "uuid-…" }   // 200
+//     (tracking_id ist Alias für Rückwärtskompatibilität mit altem Frontend.)
+//   { error: "…" }                                        // 4xx/5xx
 
 const ALLOWED_ORIGINS = [
   "https://swrobuts.github.io",
   "http://localhost:5173",
   "http://localhost:4173",
+  "http://localhost:5174",
 ];
 
 const MAX_BYTES = 10 * 1024 * 1024;
-const ALLOWED_MIME = "application/pdf";
+const PDF_MIME = "application/pdf";
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const ALLOWED_ANLAGE_MIME = new Set([PDF_MIME, XLSX_MIME]);
+
+const VALID_FBS = new Set(["I", "II", "III", "IV"]);
+const VALID_VARIANTEN = new Set(["A", "B", "C", "D"]);
+const VALID_ANLAGE_TYPEN = new Set([
+  "projektskizze",
+  "helferliste",
+  "foerderbestaetigung_bund",
+  "programm_flyer",
+  "stundenzettel",
+  "sonstige",
+]);
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -73,20 +101,39 @@ async function uploadToStorage(
   }
 }
 
-async function insertEinreichung(
-  storagePath: string,
-  dateiname: string,
-  bytes: number,
-  anlage1Path: string | null,
-): Promise<string> {
+interface AnlageInitial {
+  slot_typ: string;
+  storage_path: string;
+  dateiname: string;
+  groesse_bytes: number;
+  mime: string;
+}
+
+interface InsertArgs {
+  storagePath: string;
+  dateiname: string;
+  bytes: number;
+  erkannterFb: string | null;
+  variante: string | null;
+  anlage: AnlageInitial | null;
+}
+
+async function insertEinreichung(args: InsertArgs): Promise<string> {
+  // Initial-State für extrahiert_jsonb: enthält Frontend-Hinweise (Variante,
+  // Anlagen-Metadaten). n8n überschreibt das jsonb beim Persist mit den
+  // OCR-Ergebnissen, mergt aber Anlagen-Pfade hinein.
+  const extrahiert: Record<string, unknown> = {};
+  if (args.variante) extrahiert.variante = args.variante;
+  if (args.anlage) extrahiert.anlagen = [args.anlage];
+
   const body: Record<string, unknown> = {
-    storage_path: storagePath,
-    dateiname,
-    groesse_bytes: bytes,
+    storage_path: args.storagePath,
+    dateiname: args.dateiname,
+    groesse_bytes: args.bytes,
     status: "wartend",
   };
-  // Nur setzen, wenn vorhanden — DB-Default ist NULL.
-  if (anlage1Path) body.anlage_1_storage_path = anlage1Path;
+  if (args.erkannterFb) body.erkannter_fb = args.erkannterFb;
+  if (Object.keys(extrahiert).length > 0) body.extrahiert_jsonb = extrahiert;
 
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/antrag_einreichung`,
@@ -95,8 +142,8 @@ async function insertEinreichung(
       headers: {
         ...SR_HEADERS,
         "Content-Type": "application/json",
-        "Accept-Profile": "apl2",
-        "Content-Profile": "apl2",
+        "Accept-Profile": "apl",
+        "Content-Profile": "apl",
         "Prefer": "return=representation",
       },
       body: JSON.stringify(body),
@@ -110,19 +157,28 @@ async function insertEinreichung(
   return rows[0].id;
 }
 
-/** Validiert ein optionales File-Field aus FormData.
- *  Returns das File oder null (Feld nicht gesetzt).
+function stripOrNull(form: FormData, key: string): string | null {
+  const v = form.get(key);
+  if (typeof v !== "string") return null;
+  const trimmed = v.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/** Validiert ein optionales Anlage-Datei-Field aus FormData.
+ *  Returns das File oder null (Feld nicht gesetzt / leer).
  *  Wirft Error mit user-readable Message bei Fehlern. */
-function validateOptionalPdf(form: FormData, key: string): File | null {
+function validateOptionalAnlage(form: FormData, key: string): File | null {
   const v = form.get(key);
   if (v === null) return null;
   if (!(v instanceof File)) {
     throw new Error(`Feld '${key}' ist keine Datei`);
   }
-  // Browser sendet manchmal leere File-Objekte bei nicht-gesetzten Fields
   if (v.size === 0) return null;
-  if (v.type !== ALLOWED_MIME) {
-    throw new Error(`MIME-Type nicht erlaubt für '${key}': ${v.type}. Erwartet: ${ALLOWED_MIME}`);
+  if (!ALLOWED_ANLAGE_MIME.has(v.type)) {
+    throw new Error(
+      `MIME-Type nicht erlaubt für '${key}': ${v.type}. ` +
+      `Erlaubt: ${[...ALLOWED_ANLAGE_MIME].join(", ")}`,
+    );
   }
   if (v.size > MAX_BYTES) {
     throw new Error(`Datei '${key}' zu groß: ${v.size} Bytes (max ${MAX_BYTES})`);
@@ -147,14 +203,14 @@ Deno.serve(async (req) => {
     return json({ error: "invalid multipart body" }, 400, origin);
   }
 
-  // ── Hauptantrag (Pflicht) ───────────────────────────────────────
+  // ── Hauptantrag (Pflicht, immer PDF) ────────────────────────────
   const datei = form.get("datei");
   if (!(datei instanceof File)) {
     return json({ error: "Feld 'datei' fehlt oder ist keine Datei" }, 400, origin);
   }
-  if (datei.type !== ALLOWED_MIME) {
+  if (datei.type !== PDF_MIME) {
     return json(
-      { error: `MIME-Type nicht erlaubt: ${datei.type}. Erwartet: ${ALLOWED_MIME}` },
+      { error: `MIME-Type nicht erlaubt: ${datei.type}. Erwartet: ${PDF_MIME}` },
       400, origin,
     );
   }
@@ -168,27 +224,50 @@ Deno.serve(async (req) => {
     return json({ error: "Datei ist leer" }, 400, origin);
   }
 
-  // ── Anlage 1 (optional) ─────────────────────────────────────────
-  let anlage1: File | null = null;
+  // ── FB-Felder (optional, aber validiert wenn gesetzt) ───────────
+  const foerderbereich = stripOrNull(form, "foerderbereich");
+  const erkannterFbField = stripOrNull(form, "erkannter_fb");
+  const variante = stripOrNull(form, "variante");
+  const anlageTyp = stripOrNull(form, "anlage_typ");
+
+  // Beide FB-Felder werden in DB-Spalte `erkannter_fb` gemerged: explizite
+  // Wahl (foerderbereich) hat Vorrang, sonst Klassifizierer (erkannter_fb).
+  const fbToStore = foerderbereich ?? erkannterFbField;
+  if (fbToStore && !VALID_FBS.has(fbToStore)) {
+    return json({ error: `Ungültiger Förderbereich: ${fbToStore}` }, 400, origin);
+  }
+  if (variante && !VALID_VARIANTEN.has(variante)) {
+    return json({ error: `Ungültige Variante: ${variante}` }, 400, origin);
+  }
+  if (variante && fbToStore && fbToStore !== "III") {
+    return json(
+      { error: `Variante darf nur für FB III gesetzt sein (gewählt: ${fbToStore})` },
+      400, origin,
+    );
+  }
+  if (anlageTyp && !VALID_ANLAGE_TYPEN.has(anlageTyp)) {
+    return json({ error: `Ungültiger Anlage-Typ: ${anlageTyp}` }, 400, origin);
+  }
+
+  // ── Anlage (optional, PDF oder XLSX) ────────────────────────────
+  let anlageFile: File | null;
   try {
-    anlage1 = validateOptionalPdf(form, "anlage_1");
+    anlageFile = validateOptionalAnlage(form, "anlage");
   } catch (e) {
     return json({ error: (e as Error).message }, 400, origin);
   }
+  if (anlageFile && !anlageTyp) {
+    return json(
+      { error: "Wenn 'anlage' gesendet wird, muss 'anlage_typ' angegeben sein" },
+      400, origin,
+    );
+  }
 
-  // Storage-Pfade: YYYY/MM/<uuid>.pdf für Hauptantrag,
-  // YYYY/MM/<uuid>-anlage1.pdf für Anlage 1 (separater UUID).
-  // Verhindert Bucket-Wildwuchs und ist nicht über den Pfad rekonstruierbar.
+  // Storage-Pfade: YYYY/MM/<uuid>.pdf — nicht über den Pfad rekonstruierbar.
   const now = new Date();
   const yyyymm = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
   const mainUuid = crypto.randomUUID();
   const storagePath = `${yyyymm}/${mainUuid}.pdf`;
-
-  let anlage1Path: string | null = null;
-  if (anlage1) {
-    const anlageUuid = crypto.randomUUID();
-    anlage1Path = `${yyyymm}/${anlageUuid}-anlage1.pdf`;
-  }
 
   // Upload Hauptantrag
   const bytes = new Uint8Array(await datei.arrayBuffer());
@@ -198,33 +277,45 @@ Deno.serve(async (req) => {
     return json({ error: (e as Error).message }, 500, origin);
   }
 
-  // Upload Anlage 1 (wenn vorhanden) — beste-Effort: wenn dieser zweite
-  // Upload fehlschlägt, ist die Anlage weg, aber der Hauptantrag liegt
-  // im Bucket. Wir brechen mit 500 ab, damit der Bürger es nochmal versucht.
-  if (anlage1 && anlage1Path) {
+  // Upload Anlage (wenn vorhanden) — bricht mit 500 ab bei Fehler.
+  let anlageInitial: AnlageInitial | null = null;
+  if (anlageFile && anlageTyp) {
+    const anlageUuid = crypto.randomUUID();
+    const ext = anlageFile.type === XLSX_MIME ? "xlsx" : "pdf";
+    const anlagePath = `${yyyymm}/${anlageUuid}-anlage.${ext}`;
     try {
-      const anlageBytes = new Uint8Array(await anlage1.arrayBuffer());
-      await uploadToStorage(anlage1Path, anlageBytes, anlage1.type);
+      const anlageBytes = new Uint8Array(await anlageFile.arrayBuffer());
+      await uploadToStorage(anlagePath, anlageBytes, anlageFile.type);
     } catch (e) {
       return json({
-        error: `Anlage-1-Upload fehlgeschlagen: ${(e as Error).message}. ` +
-               `Bitte erneut versuchen.`,
+        error: `Anlage-Upload fehlgeschlagen: ${(e as Error).message}. Bitte erneut versuchen.`,
       }, 500, origin);
     }
+    anlageInitial = {
+      slot_typ: anlageTyp,
+      storage_path: anlagePath,
+      dateiname: anlageFile.name || `anlage.${ext}`,
+      groesse_bytes: anlageFile.size,
+      mime: anlageFile.type,
+    };
   }
 
-  let trackingId: string;
+  let einreichungId: string;
   try {
-    trackingId = await insertEinreichung(
-      storagePath, datei.name || "antrag.pdf", datei.size, anlage1Path,
-    );
+    einreichungId = await insertEinreichung({
+      storagePath,
+      dateiname: datei.name || "antrag.pdf",
+      bytes: datei.size,
+      erkannterFb: fbToStore,
+      variante,
+      anlage: anlageInitial,
+    });
   } catch (e) {
-    // Storage-Upload war erfolgreich, aber Tracking-Insert nicht — Datei
-    // hängt jetzt im Bucket fest. Sollte selten passieren (RLS-Misskonfig).
     return json({
       error: `Tracking-Insert fehlgeschlagen, PDF wurde aber gespeichert: ${(e as Error).message}`,
     }, 500, origin);
   }
 
-  return json({ tracking_id: trackingId }, 200, origin);
+  // tracking_id ist Alias für alte Clients — Multi-FB-Frontend nutzt einreichung_id.
+  return json({ einreichung_id: einreichungId, tracking_id: einreichungId }, 200, origin);
 });
