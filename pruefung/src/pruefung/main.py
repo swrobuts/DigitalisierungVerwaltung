@@ -38,15 +38,29 @@ from pruefung.voyage_embed import build_embeddings_for_doctree
 
 app = FastAPI(title="UE3 APL2-Prüfung", version="0.1.0")
 
-# CORS: amt-ki-Frontend (und UE2-amt für Kompatibilität) dürfen den
-# pruefung-service direkt aus dem Browser aufrufen. Anderer Origin = 403
-# implicit (kein Header → Browser blockiert).
+# CORS: alle 5 UE-Frontends dürfen den pruefung-service direkt aus dem
+# Browser aufrufen. Anderer Origin = 403 implicit (kein Header → Browser
+# blockiert).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        # Alte Subdomains (Backward-Compat)
         "https://amt-ki.butscher.cloud",
         "https://amt.butscher.cloud",
+        # Neue Multi-FB-Subdomains
+        "https://upload.butscher.cloud",       # UE0
+        "https://antrag.butscher.cloud",       # UE1
+        "https://sachbearbeiter.butscher.cloud",  # UE2
+        "https://ki.butscher.cloud",           # UE3
+        "https://agent.butscher.cloud",        # UE4
+        # GH Pages (UE0/UE1/UE4 statisch)
+        "https://swrobuts.github.io",
+        # Lokale Dev-Server
         "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:5176",
+        "http://localhost:5177",
     ],
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
@@ -1055,6 +1069,53 @@ async def extrahiere_helferliste_endpoint(
     from pruefung.extrahiere_helferliste import extrahiere_helferliste
     helfer = await extrahiere_helferliste(pdf_bytes)
     return {"helfer": helfer, "anzahl": len(helfer)}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# UE4 — Sozialamt-Assistent (agentisches Antragsformular, Reifegrad 4)
+# ─────────────────────────────────────────────────────────────────────
+
+
+class AgentChatRequest(BaseModel):
+    """Body von POST /api/agent/chat."""
+    session_id: str
+    history: list[dict[str, Any]] = []
+    user_message: str
+    current_draft: dict[str, Any] = {}
+
+
+@app.post("/api/agent/chat")
+async def agent_chat_endpoint(req: AgentChatRequest) -> dict[str, Any]:
+    """UE4: Konversationeller Antrags-Assistent.
+
+    Ein Turn: User-Message rein → Tool-Use-Loop läuft → Assistant-Text +
+    aktualisierter Draft + Next-Action-Hint raus. Persistiert weder die
+    Session (Frontend hält localStorage) noch die History (Frontend
+    sendet sie bei jedem Call wieder mit).
+
+    Submit-Tool schreibt direkt in apl.antraege via service_role.
+    """
+    from pruefung.agent_chat import run_agent_turn
+    db = None
+    # Wenn ENV vorhanden → echter DB-Modus für Submit. Sonst Dry-Run.
+    try:
+        db = SupabaseClient.from_env()
+    except RuntimeError:
+        db = None
+
+    try:
+        result = await run_agent_turn(
+            history=req.history,
+            user_message=req.user_message,
+            current_draft=req.current_draft,
+            db=db,
+        )
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, detail=f"Agent-Fehler: {e!r}") from e
+    return {
+        "session_id": req.session_id,
+        **result,
+    }
 
 
 @app.post("/api/import-excel-schablone")
