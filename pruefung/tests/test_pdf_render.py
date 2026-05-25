@@ -1,13 +1,16 @@
 import pytest
 
-# weasyprint braucht native libs (pango/cairo). Falls die im aktuellen
-# Test-Env nicht geladen werden können (z.B. macOS ohne DYLD_LIBRARY_PATH
-# = /opt/homebrew/lib), den Test sauber überspringen statt Collection-Error.
+# weasyprint braucht native libs (pango/cairo). Seit pdf_render den
+# weasyprint-Import lazy macht, schlägt der OSError erst beim ersten
+# HTML(...)-Aufruf zu — wir probieren den Import einmal proaktiv und
+# skippen das ganze Modul, falls libgobject etc. nicht ladbar sind
+# (z.B. macOS ohne DYLD_LIBRARY_PATH = /opt/homebrew/lib).
 try:
-    from pruefung.pdf_render import render_protokoll_pdf  # noqa: E402
+    import weasyprint  # noqa: F401
 except OSError as e:  # pragma: no cover
     pytest.skip(f"weasyprint native libs nicht ladbar: {e}", allow_module_level=True)
 
+from pruefung.pdf_render import render_protokoll_pdf  # noqa: E402
 from pruefung.models import Befund, PruefungsErgebnis  # noqa: E402
 
 

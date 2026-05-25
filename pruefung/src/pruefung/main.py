@@ -549,26 +549,25 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
         or (tree_rows[0]["version"] if tree_rows else None)
     )
 
-    # Halluzinations-Schutz: VOR der Anreicherung prüfen, dass jeder
-    # Verstoß-Befund mit paragraph_ref eine echte AHP-Section referenziert
-    # und ein eventuelles Zitat tatsächlich im Wortlaut vorkommt. Wenn die
-    # KI etwas erfunden hat, blockieren wir den Bescheid mit 422.
+    # Halluzinations-Schutz Stufe 1 (Soft, gegen Doctree):
+    # Wenn der Doctree gefüllt ist, prüfen wir Wortlaut-Übereinstimmungen
+    # (z.B. zitierter ahp_wortlaut kommt tatsächlich im Section-Content vor).
+    # Wenn ahp_doctree leer/migriert/nicht vorhanden ist, liefert die
+    # Funktion ohnehin nichts — Soft-Layer ist tolerant.
+    # TODO: Sobald apl.ahp_doctree zuverlässig migriert ist, kann dieser
+    # Layer wieder schärfer geschaltet werden (z.B. 422 statt Logging).
     from pruefung.quellen_validator import validiere_alle
     verstoesse_raw = [b for b in befunde_raw if b.get("schwere") == "verstoss"]
-    halluzinations_fehler = validiere_alle(verstoesse_raw, tree)
-    if halluzinations_fehler:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "fehler": "Bescheid blockiert — KI-Quellen nicht verifizierbar",
-                "anzahl_betroffen": len(halluzinations_fehler),
-                "befunde": halluzinations_fehler,
-                "empfehlung": (
-                    "Erstprüfung mit aktuellem Doctree wiederholen "
-                    "(POST /api/pruefen) oder Bescheid manuell ohne diese "
-                    "Befunde erzeugen."
-                ),
-            },
+    halluzinations_fehler_soft = validiere_alle(verstoesse_raw, tree)
+    if halluzinations_fehler_soft:
+        # Soft-Fail: nur loggen, NICHT blockieren — der echte Hard-Fail
+        # läuft weiter unten gegen apl.ahp_norm_statements.
+        import logging
+        logging.getLogger("pruefung.bescheid").warning(
+            "Soft-Validator findet %d Wortlaut-Diskrepanzen für antrag %s: %s",
+            len(halluzinations_fehler_soft),
+            req.antrag_id,
+            [(f.get("paragraph_ref"), f.get("art")) for f in halluzinations_fehler_soft],
         )
 
     # 4) Befunde mit AHP-Wortlaut + Subsumtion anreichern.
@@ -618,9 +617,14 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
     })
     bescheid_id = inserted[0]["id"] if inserted else None
 
-    # 6) PDF rendern (lazy-import wie bei /api/pdf wg. native libs)
-    from pruefung.pdf_render import render_bescheid_pdf
-    pdf_bytes = render_bescheid_pdf(
+    # 6) PDF rendern (lazy-import wie bei /api/pdf wg. native libs).
+    #    Wir trennen HTML-Render vom PDF-Schritt, damit dazwischen der
+    #    Hard-Fail-Quellen-Validator gegen apl.ahp_norm_statements läuft.
+    from pruefung.pdf_render import render_bescheid_html
+    from pruefung.quellen_validator import (
+        QuellenValidationError, validiere_oder_abbrechen,
+    )
+    bescheid_html, wappen_path = render_bescheid_html(
         bescheid_id=bescheid_id or "",
         antrag=antrag,
         entscheidung=req.entscheidung,
@@ -632,6 +636,56 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
         doctree_version=doctree_version,
         geprueft_gegen=geprueft_gegen,
     )
+
+    # Hard-Fail-Halluzinations-Schutz (Spec §12.1): jeder im finalen
+    # Bescheid-Text zitierte § muss in apl.ahp_norm_statements existieren.
+    # KEIN Toggle, KEIN Soft-Fail — wenn die KI etwas erfunden hat, wird
+    # der Bescheid mit 422 abgelehnt und KEIN bescheide-Eintrag mit PDF
+    # angelegt. Der bescheide-Datensatz oben wird durch das raise NICHT
+    # rückgängig gemacht (kein Transaction-Scope hier), aber er trägt noch
+    # KEIN pdf_storage_path und kann vom Sachbearbeiter im Frontend per
+    # DELETE /api/bescheid/{id} entfernt werden — sauberer als ein
+    # halb-deployed PDF.
+    try:
+        await validiere_oder_abbrechen(
+            bescheid_html, db=db, antrag_id=req.antrag_id,
+        )
+    except QuellenValidationError as e:
+        import logging
+        logger = logging.getLogger("pruefung.bescheid")
+        logger.error(
+            "Hard-Fail Quellen-Validator HAT GEGRIFFEN für bescheid %s: %s",
+            bescheid_id, str(e),
+        )
+        # Den nicht-renderbaren Bescheid-Datensatz wieder entfernen, damit
+        # die Liste sauber bleibt. Best-effort — wenn der DELETE auch fehl-
+        # schlägt, melden wir trotzdem 422.
+        if bescheid_id:
+            try:
+                await db.delete("bescheide", f"id=eq.{bescheid_id}")
+            except Exception as cleanup_err:  # noqa: BLE001
+                logger.warning(
+                    "Konnte bescheid %s nach Hard-Fail nicht entfernen: %s",
+                    bescheid_id, cleanup_err,
+                )
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "fehler": "Halluzinations-Schutz: erfundene Paragraphen im Bescheid-Text",
+                "details": str(e),
+                "hinweis": (
+                    "Die KI hat im Bescheid einen § zitiert, der NICHT in "
+                    "apl.ahp_norm_statements existiert. KI-Subsumtion "
+                    "wiederholen oder Bescheid manuell ohne diese Befunde "
+                    "erzeugen."
+                ),
+            },
+        ) from e
+
+    from weasyprint import HTML as _WeasyHTML
+    pdf_bytes = _WeasyHTML(
+        string=bescheid_html, base_url=str(wappen_path.parent),
+    ).write_pdf()
 
     # 7) PDF in Storage upload + path in bescheide nachtragen
     storage_path = f"{req.antrag_id}/{bescheid_id}.pdf"

@@ -3,7 +3,6 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from weasyprint import HTML
 from pruefung.models import PruefungsErgebnis
 from pruefung.bescheid_subsumtion import get_hoechstgrenze
 
@@ -52,7 +51,48 @@ def render_protokoll_pdf(antrag: dict, ergebnis: PruefungsErgebnis) -> bytes:
         hinweise=ergebnis.anzahl_hinweise(),
         status=ergebnis.pruefungsstatus(),
     )
+    from weasyprint import HTML
     return HTML(string=html).write_pdf()
+
+
+def render_bescheid_html(
+    *,
+    bescheid_id: str,
+    antrag: dict,
+    entscheidung: str,
+    bewilligte_summe_euro: float | None,
+    befunde: list[dict],
+    bearbeiter_kommentar: str | None,
+    ausgestellt_von: str | None,
+    ausgestellt_am: datetime,
+    doctree_version: str | None,
+    geprueft_gegen: list[str] | None = None,
+) -> tuple[str, Path]:
+    """Rendert nur den HTML-Bescheid (ohne PDF-Konvertierung).
+
+    Wir trennen HTML-Render von PDF-Konvertierung, damit der
+    Halluzinations-Schutz (`quellen_validator.validiere_oder_abbrechen`)
+    auf den finalen Bescheid-Text laufen kann — bevor das PDF
+    geschrieben wird. Returnt zusätzlich den base_url-Pfad, damit der
+    PDF-Caller das Wappen auflösen kann.
+    """
+    tpl = _env.get_template("bescheid.html.j2")
+    wappen_path = (Path(__file__).parent / "templates" / "wuerzburg_coa.svg").resolve()
+    html = tpl.render(
+        bescheid_id=bescheid_id,
+        antrag=antrag,
+        entscheidung=entscheidung,
+        bewilligte_summe_euro=bewilligte_summe_euro,
+        befunde=befunde,
+        bearbeiter_kommentar=bearbeiter_kommentar,
+        ausgestellt_von=ausgestellt_von,
+        ausgestellt_am=ausgestellt_am,
+        doctree_version=doctree_version or "—",
+        geprueft_gegen=geprueft_gegen or [],
+        wappen_src=wappen_path.as_uri(),
+        hoechstgrenze=get_hoechstgrenze(antrag.get("foerderbereich")),
+    )
+    return html, wappen_path
 
 
 def render_bescheid_pdf(
@@ -75,11 +115,7 @@ def render_bescheid_pdf(
     den Doctree). geprueft_gegen ist die Liste aller AHP-Sections, gegen die
     geprüft wurde — für Transparenz im Bescheid.
     """
-    tpl = _env.get_template("bescheid.html.j2")
-    # Pfad zum Würzburg-Wappen (SVG liegt im templates/-Ordner).
-    # WeasyPrint braucht ein absolutes file://-URI.
-    wappen_path = (Path(__file__).parent / "templates" / "wuerzburg_coa.svg").resolve()
-    html = tpl.render(
+    html, wappen_path = render_bescheid_html(
         bescheid_id=bescheid_id,
         antrag=antrag,
         entscheidung=entscheidung,
@@ -88,15 +124,10 @@ def render_bescheid_pdf(
         bearbeiter_kommentar=bearbeiter_kommentar,
         ausgestellt_von=ausgestellt_von,
         ausgestellt_am=ausgestellt_am,
-        doctree_version=doctree_version or "—",
-        geprueft_gegen=geprueft_gegen or [],
-        wappen_src=wappen_path.as_uri(),
-        # Förderbereichs-spezifische Höchstgrenze fürs Template (Anteils-
-        # Erläuterung). Bewusst hier resolved, damit das Template kein
-        # Mapping kennen muss.
-        hoechstgrenze=get_hoechstgrenze(antrag.get("foerderbereich")),
+        doctree_version=doctree_version,
+        geprueft_gegen=geprueft_gegen,
     )
-    # base_url muss gesetzt sein, damit WeasyPrint relative/file-URLs auflöst.
+    from weasyprint import HTML
     return HTML(string=html, base_url=str(wappen_path.parent)).write_pdf()
 
 
