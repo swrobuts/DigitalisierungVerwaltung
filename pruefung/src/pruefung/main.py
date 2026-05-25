@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -1013,3 +1013,62 @@ async def rebuild_doctree(
         "engine": engine,
         "sections": str(len(tree.get("children", []))),
     }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Smart-Upload-Endpoints (Phase 4B Tasks 4.8–4.10)
+# ─────────────────────────────────────────────────────────────────────
+
+# 10 MB ist genug für eine Antrag-Seite mit Wappen + Tabelle. Größere
+# Uploads sollten kein Smart-Upload sein (separate Belege etc.).
+_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
+
+
+@app.post("/api/klassifiziere-pdf")
+async def klassifiziere_pdf_endpoint(
+    file: UploadFile = File(...),
+) -> dict[str, Any]:
+    """UE3-Smart-Upload: erkennt den Förderbereich (I/II/III/IV) + ggf.
+    FB-III-Variante aus der hochgeladenen PDF-Seite. Bürger kann den
+    Vorschlag im Frontend korrigieren bevor der Antrag erzeugt wird.
+
+    Halluzinations-Schutz im Modul: liefert das LLM einen unbekannten
+    FB, kommt None+konfidenz=0 zurück."""
+    pdf_bytes = await file.read()
+    if len(pdf_bytes) > _UPLOAD_MAX_BYTES:
+        raise HTTPException(413, "PDF > 10 MB")
+    from pruefung.klassifiziere_pdf import klassifiziere
+    return await klassifiziere(pdf_bytes)
+
+
+@app.post("/api/extrahiere-helferliste")
+async def extrahiere_helferliste_endpoint(
+    file: UploadFile = File(...),
+) -> dict[str, Any]:
+    """OCR-Extraktion einer FB-II-Helferliste (PDF) via Claude Vision.
+
+    Returnt {helfer: [...]} im apl.fb_ii_helfer-Schema. Bürger/UE1 kann
+    die Liste vor dem persist editieren."""
+    pdf_bytes = await file.read()
+    if len(pdf_bytes) > _UPLOAD_MAX_BYTES:
+        raise HTTPException(413, "PDF > 10 MB")
+    from pruefung.extrahiere_helferliste import extrahiere_helferliste
+    helfer = await extrahiere_helferliste(pdf_bytes)
+    return {"helfer": helfer, "anzahl": len(helfer)}
+
+
+@app.post("/api/import-excel-schablone")
+async def import_excel_schablone_endpoint(
+    file: UploadFile = File(...),
+) -> dict[str, Any]:
+    """Deterministischer Excel-Import (openpyxl) für die FB-II-
+    Helferliste-Schablone. Header-Mismatch → 400."""
+    xlsx_bytes = await file.read()
+    if len(xlsx_bytes) > _UPLOAD_MAX_BYTES:
+        raise HTTPException(413, "Excel > 10 MB")
+    from pruefung.excel_import import import_helferliste
+    try:
+        helfer = import_helferliste(xlsx_bytes)
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e)) from e
+    return {"helfer": helfer, "anzahl": len(helfer)}
