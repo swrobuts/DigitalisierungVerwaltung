@@ -8,12 +8,15 @@ name: Deploy UE0 + UE1 to GitHub Pages
 # gleiche _site-Verzeichnis.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "ue0/upload-portal/**"
-      - "ue1/webformular/**"
-      - ".github/workflows/deploy-pages.yml"
+  # Plan 2026-05-25 Phase 0 Task 0.2: Push-Trigger PAUSIERT für Multi-FB-Umbau.
+  # UE0 + UE1 werden neu gebaut, alte Live-Demos sollen während Umbau nicht
+  # automatisch überschrieben werden. Reaktivierung in Plan Task 8.5.
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "ue0/upload-portal/**"
+  #     - "ue1/webformular/**"
+  #     - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
 permissions:
