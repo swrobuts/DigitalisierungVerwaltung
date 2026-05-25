@@ -6,7 +6,7 @@ import { useUserRole } from "../hooks/useUserRole";
 import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
 import { StatusBadge } from "../components/StatusBadge";
-import { formatDate, formatEuro } from "../lib/format";
+import { formatDate, formatEuro, formatDurchlaufzeit, durchlaufzeitAmpel, type DurchlaufzeitAmpel } from "../lib/format";
 import { STATUS_ORDER, STATUS_LABELS, type Status } from "../lib/workflow";
 import {
   Table,
@@ -83,9 +83,19 @@ function monthLabel(key: string): string {
 
 type SortKey =
   | "antragsnummer" | "name" | "traeger" | "submitted_at"
-  | "submitted_language" | "status"
+  | "submitted_language" | "status" | "durchlaufzeit"
   | "antragssumme" | "vj" | "diff"
   | "stadt_anteil" | "teilnehmer" | "treffen";
+
+/** Tailwind-Klassen-Mapping für die Durchlaufzeit-Ampel.
+ *  Identisch in UE2/UE3 — Sachbearbeitende sollen denselben visuellen
+ *  Code in beiden Cockpits sehen. */
+const AMPEL_BG: Record<DurchlaufzeitAmpel, string> = {
+  green: "bg-emerald-500",
+  yellow: "bg-amber-500",
+  red: "bg-red-500",
+  gray: "bg-slate-400",
+};
 type SortDir = "asc" | "desc";
 type GroupKey = "none" | "status" | "traeger" | "submitted_language" | "month";
 
@@ -117,6 +127,11 @@ const COLUMNS: SpaltenDef[] = [
     tooltip: "Zeitpunkt des Antragseingangs" },
   { key: "submitted_language", label: "Sprache", defaultVisible: false },
   { key: "status", label: "Status", pflicht: true, defaultVisible: true },
+  { key: "durchlaufzeit", label: "Durchlaufzeit", defaultVisible: true,
+    tooltip:
+      "Tage zwischen Antragseingang und Bewilligung/Ablehnung. " +
+      "Bei offenen Anträgen: Tage seit Eingang. Ampel: <30 grün, " +
+      "30–60 gelb, >60 rot (Migration 058)." },
   { key: "antragssumme", label: "Antragssumme", align: "right", pflicht: true, defaultVisible: true,
     tooltip: "Beantragte Fördersumme im aktuellen Haushaltsjahr (max. 10.000 € gem. AHP 2.3 Pkt. 2)" },
   { key: "vj", label: "Antragssumme Vorjahr", align: "right", defaultVisible: true,
@@ -357,6 +372,10 @@ export function Inbox() {
       const bi = STATUS_ORDER.indexOf(b.status);
       return dir === "asc" ? ai - bi : bi - ai;
     }
+    if (key === "durchlaufzeit") {
+      const d = (a.durchlaufzeit_tage ?? 0) - (b.durchlaufzeit_tage ?? 0);
+      return dir === "asc" ? d : -d;
+    }
     const av = String(a[key as keyof AntragRow] ?? "").toLowerCase();
     const bv = String(b[key as keyof AntragRow] ?? "").toLowerCase();
     if (av < bv) return dir === "asc" ? -1 : 1;
@@ -498,7 +517,10 @@ export function Inbox() {
     tone === "up" ? "text-emerald-700" : tone === "down" ? "text-rose-700" : "text-slate-400";
 
   // Spalten-Gruppen für Footer/Group-Row Colspan-Berechnung (analog UE3)
-  const IDENT_KEYS: SortKey[] = ["antragsnummer", "name", "traeger", "submitted_at", "submitted_language", "status"];
+  // Durchlaufzeit zählt zu den Identitäts-Spalten (pro-Zeile-Wert,
+  // kein sinnvolles Summen-Aggregat im Footer). Damit colspan in
+  // Gruppen-/Footer-Zeile sie korrekt mit überdeckt.
+  const IDENT_KEYS: SortKey[] = ["antragsnummer", "name", "traeger", "submitted_at", "submitted_language", "status", "durchlaufzeit"];
   const aggregatKeys: SortKey[] = ["antragssumme", "vj", "diff", "stadt_anteil", "teilnehmer", "treffen"];
   const sichtbareIdentSpalten = IDENT_KEYS.filter(istSichtbar);
   const sichtbareAggregatSpalten = aggregatKeys.filter(istSichtbar);
@@ -723,6 +745,18 @@ export function Inbox() {
                           {istSichtbar("status") && (
                             <TableCell className="whitespace-nowrap"><StatusBadge status={item.antrag.status} /></TableCell>
                           )}
+                          {istSichtbar("durchlaufzeit") && (() => {
+                            const entschieden = item.antrag.entscheidungs_typ !== null;
+                            const ampel = durchlaufzeitAmpel(item.antrag.durchlaufzeit_tage, entschieden);
+                            return (
+                              <TableCell className="whitespace-nowrap text-xs text-slate-700">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <span className={`inline-block h-2 w-2 rounded-full ${AMPEL_BG[ampel]}`} aria-hidden="true" />
+                                  {formatDurchlaufzeit(item.antrag.durchlaufzeit_tage, entschieden)}
+                                </span>
+                              </TableCell>
+                            );
+                          })()}
                           {istSichtbar("antragssumme") && (
                             <TableCell className="text-right tabular-nums text-sm whitespace-nowrap">
                               {item.antrag.geforderte_foerdersumme_euro !== null

@@ -9,7 +9,7 @@ import { AnlageDownload } from "../components/AnlageDownload";
 import { VorjahresVergleich } from "../components/VorjahresVergleich";
 import { SektionPruefung } from "../components/SektionPruefung";
 import { allowedTransitions, STATUS_LABELS, type Status } from "../lib/workflow";
-import { formatEuro, formatDateTime, formatDate, formatAdresse } from "../lib/format";
+import { formatEuro, formatDateTime, formatDate, formatAdresse, formatDurchlaufzeit, durchlaufzeitAmpel, type DurchlaufzeitAmpel } from "../lib/format";
 import { supabase } from "../lib/supabase";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -46,6 +46,44 @@ import { Textarea } from "../components/ui/textarea";
 // (eingegangen → in_pruefung → rueckfrage/bewilligt/abgelehnt). Kein
 // zweitpruefung_*, kein Reverse-Transition-Pflichtkommentar.
 // ════════════════════════════════════════════════════════════════════
+
+/** Durchlaufzeit-Subtitle im Page-Header neben dem StatusBadge.
+ *  Zeigt — abhängig davon, ob der Antrag entschieden ist —
+ *  „bewilligt nach X Tagen" / „abgelehnt nach X Tagen" / „läuft seit X Tagen".
+ *  Ampel-Punkt davor (Migration 058, Helper `durchlaufzeitAmpel`).
+ *  Identisch zwischen UE2 und UE3. */
+const AMPEL_BG_HEADER: Record<DurchlaufzeitAmpel, string> = {
+  green: "bg-emerald-500",
+  yellow: "bg-amber-500",
+  red: "bg-red-500",
+  gray: "bg-slate-400",
+};
+
+function DurchlaufzeitSubtitle({ antrag }: { antrag: AntragFull }) {
+  const entschieden = antrag.entscheidungs_typ !== null;
+  const tage = antrag.durchlaufzeit_tage ?? 0;
+  const ampel = durchlaufzeitAmpel(tage, entschieden);
+  let text: string;
+  if (entschieden) {
+    // formatDurchlaufzeit liefert nur "12 Tage" / "1 Tag" / "<1 Tag".
+    // Hier wollen wir explizit den Entscheidungs-Verbtyp im Subtitle —
+    // also "bewilligt nach 12 Tagen" statt nur "12 Tage".
+    const dauer = formatDurchlaufzeit(tage, true);
+    const verb = antrag.entscheidungs_typ === "bewilligt" ? "bewilligt" : "abgelehnt";
+    text = tage === 1 || tage <= 0
+      ? `${verb} nach ${dauer}`
+      : `${verb} nach ${tage} Tagen`;
+  } else {
+    text = formatDurchlaufzeit(tage, false); // "läuft seit X Tagen"
+  }
+  const toneClass = entschieden ? "text-slate-600" : "text-slate-500";
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs ${toneClass}`}>
+      <span className={`inline-block h-2 w-2 rounded-full ${AMPEL_BG_HEADER[ampel]}`} aria-hidden="true" />
+      {text}
+    </span>
+  );
+}
 
 export function AntragDetail() {
   const { id } = useParams<{ id: string }>();
@@ -93,6 +131,7 @@ export function AntragDetail() {
           <span className="text-slate-300">·</span>
           <h1 className="text-lg font-bold font-mono">{antrag.antragsnummer}</h1>
           <StatusBadge status={antrag.status} />
+          <DurchlaufzeitSubtitle antrag={antrag} />
           <span
             className="ml-auto text-[11px] text-slate-500 italic"
             title="APL 2 ist nur das Aktenzeichen — die geltende Rechtsgrundlage ist die AHP-Förderrichtlinie Stadt Würzburg (Stand 2025-03-27)."

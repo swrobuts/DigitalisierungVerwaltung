@@ -76,6 +76,11 @@ export interface AntragFull {
   logo_verwendet: boolean | null;
 
   status: Status;
+
+  // ── Migration 058 — Durchlaufzeit (Diff submitted_at → erster bewilligt/abgelehnt-Wechsel)
+  entschieden_am: string | null;
+  entscheidungs_typ: "bewilligt" | "abgelehnt" | null;
+  durchlaufzeit_tage: number;
 }
 
 export interface AnlageRow {

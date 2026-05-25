@@ -49,3 +49,24 @@ export function formatAdresse(
 ): string {
   return `${strasse} ${hausnummer}, ${plz} ${ort}`;
 }
+
+/** Migration 058: Durchlaufzeit als kurzer Anzeige-Text.
+ *  - entschieden:  "12 Tage"     (Bewilligung/Ablehnung erfolgt)
+ *  - offen:        "läuft seit 12 Tagen"  (noch in Bearbeitung)
+ *  - 0 Tage:       "<1 Tag"   (Eingang und Entscheidung am selben Tag) */
+export function formatDurchlaufzeit(tage: number, entschieden: boolean): string {
+  if (tage <= 0) return entschieden ? "<1 Tag" : "läuft seit <1 Tag";
+  const t = tage === 1 ? "1 Tag" : `${tage} Tage`;
+  return entschieden ? t : `läuft seit ${tage === 1 ? "1 Tag" : `${tage} Tagen`}`;
+}
+
+/** Ampel-Klassifikation für die Durchlaufzeit-Anzeige.
+ *  Schwellen: <30 Tage grün, 30–60 Tage gelb, >60 Tage rot.
+ *  Offene Anträge bekommen 'gray' wenn unter Schwelle, sonst die jeweilige Farbe. */
+export type DurchlaufzeitAmpel = "green" | "yellow" | "red" | "gray";
+export function durchlaufzeitAmpel(tage: number, entschieden: boolean): DurchlaufzeitAmpel {
+  if (!entschieden && tage < 30) return "gray";
+  if (tage < 30) return "green";
+  if (tage <= 60) return "yellow";
+  return "red";
+}

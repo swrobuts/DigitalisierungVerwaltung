@@ -18,6 +18,7 @@ import {
   FileText, HardDrive, Shield, Users,
 } from "lucide-react";
 import { Card, CardContent } from "../components/ui/card";
+import { supabase } from "../lib/supabase";
 
 const PRUEFUNG_SERVICE = "https://pruefung.butscher.cloud";
 
@@ -595,6 +596,154 @@ function AufsichtsMetrikenTab({ metriken }: { metriken: AufsichtsMetriken | null
         der Fälle der KI-Empfehlung folgt, läuft das Vier-Augen-Prinzip Gefahr
         zur Hülle zu werden. Daten direkt aus pruefprotokoll + bescheide
         abgeleitet, keine separate Telemetrie.
+      </p>
+
+      <DurchlaufzeitenKarte />
+    </div>
+  );
+}
+
+// ── Durchlaufzeiten-Karte (Migration 058) ───────────────────────────
+
+interface DurchlaufzeitenRow {
+  durchlaufzeit_tage: number;
+  entscheidungs_typ: "bewilligt" | "abgelehnt" | null;
+}
+
+/**
+ * Karte „Durchlaufzeiten" im Aufsichts-Metriken-Tab.
+ *
+ * Liest direkt aus apl2.antrag_mit_summen alle entschiedenen Anträge
+ * (entscheidungs_typ ≠ null) und zeigt Median + Durchschnitt + n
+ * sowie ein simples Tailwind-Balken-Histogramm (4 Buckets).
+ *
+ * Bewusst KEINE Chart-Library — Histogramm via div-bars ist robust
+ * gegenüber Tailwind-v4-JIT-Edge-Cases (dynamische Klassen müssen in
+ * der safelist landen; statische bg-*-Klassen sind safer). Median ist
+ * gegenüber Ausreißern (z.B. der 434-Tage-FAKE-001) aussagekräftiger
+ * als der Mittelwert, daher prominent.
+ */
+function DurchlaufzeitenKarte() {
+  const [rows, setRows] = useState<DurchlaufzeitenRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("antrag_mit_summen")
+        .select("durchlaufzeit_tage, entscheidungs_typ")
+        .not("entscheidungs_typ", "is", null);
+      if (cancelled) return;
+      if (error) setError(error.message);
+      else setRows((data ?? []) as DurchlaufzeitenRow[]);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (error) {
+    return (
+      <div className="border border-rose-200 bg-rose-50/60 rounded-sm p-3 text-xs text-rose-800">
+        Durchlaufzeiten konnten nicht geladen werden: {error}
+      </div>
+    );
+  }
+  if (!rows) {
+    return (
+      <div className="border border-slate-200 bg-slate-50 rounded-sm p-3 text-xs text-slate-500 italic">
+        Lade Durchlaufzeiten …
+      </div>
+    );
+  }
+  const n = rows.length;
+  if (n === 0) {
+    return (
+      <div className="border border-slate-200 bg-white rounded-sm p-3">
+        <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+          <Activity className="h-4 w-4 text-slate-600" />
+          Durchlaufzeiten
+        </h4>
+        <p className="text-xs text-slate-500 mt-1">
+          Noch keine entschiedenen Anträge — Statistik erscheint nach erster
+          Bewilligung.
+        </p>
+      </div>
+    );
+  }
+
+  const tage = rows.map((r) => r.durchlaufzeit_tage ?? 0).sort((a, b) => a - b);
+  const summe = tage.reduce((s, t) => s + t, 0);
+  const durchschnitt = summe / n;
+  const median = n % 2 === 1
+    ? tage[(n - 1) / 2]
+    : (tage[n / 2 - 1] + tage[n / 2]) / 2;
+
+  // 4 Buckets: <10, 10–30, 30–60, >60
+  const buckets = [
+    { label: "< 10 Tage", count: tage.filter((t) => t < 10).length, color: "bg-emerald-500" },
+    { label: "10 – 30 Tage", count: tage.filter((t) => t >= 10 && t < 30).length, color: "bg-emerald-400" },
+    { label: "30 – 60 Tage", count: tage.filter((t) => t >= 30 && t <= 60).length, color: "bg-amber-500" },
+    { label: "> 60 Tage", count: tage.filter((t) => t > 60).length, color: "bg-red-500" },
+  ];
+  const maxBucket = Math.max(...buckets.map((b) => b.count), 1);
+
+  return (
+    <div className="border border-slate-200 bg-white rounded-sm p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+          <Activity className="h-4 w-4 text-slate-600" />
+          Durchlaufzeiten
+        </h4>
+        <span className="text-[10px] text-slate-500">
+          n = {n} entschiedene Anträge
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <Tile
+          icon={<Activity className="h-3.5 w-3.5" />}
+          label="Median"
+          wert={`${Math.round(median)} Tage`}
+        />
+        <Tile
+          icon={<Activity className="h-3.5 w-3.5" />}
+          label="Durchschnitt"
+          wert={`${durchschnitt.toFixed(1).replace(".", ",")} Tage`}
+        />
+        <Tile
+          icon={<FileText className="h-3.5 w-3.5" />}
+          label="Stichprobe"
+          wert={n}
+        />
+      </div>
+
+      <div className="pt-1">
+        <p className="text-[10px] uppercase tracking-wider text-slate-500 font-medium mb-1.5">
+          Verteilung
+        </p>
+        <div className="space-y-1.5">
+          {buckets.map((b) => {
+            const pct = (b.count / maxBucket) * 100;
+            return (
+              <div key={b.label} className="grid grid-cols-[7rem_1fr_2rem] items-center gap-2 text-xs">
+                <span className="text-slate-600 tabular-nums">{b.label}</span>
+                <div className="bg-slate-100 rounded-sm h-3 overflow-hidden">
+                  <div
+                    className={`${b.color} h-full transition-all`}
+                    style={{ width: `${pct}%` }}
+                    aria-hidden="true"
+                  />
+                </div>
+                <span className="text-right tabular-nums text-slate-700">{b.count}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <p className="text-[10px] text-slate-400 italic">
+        Aus apl2.antrag_mit_summen (Migration 058). Median ist gegenüber Ausreißern
+        robuster als der Mittelwert — bei kleiner Stichprobe bewusst beide zeigen.
       </p>
     </div>
   );
