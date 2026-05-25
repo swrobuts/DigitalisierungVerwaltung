@@ -87,10 +87,6 @@ export async function submitAntrag(state: FormState): Promise<{ antragsnummer: s
     raeume_unentgeltlich: state.raeume_unentgeltlich,
     antragsdatum: state.antragsdatum,
     submitted_language: state.language,
-    // Hinweis: Die Bemessungsfelder (anzahl_teilnehmer, stadtbewohner_anteil,
-    // anzahl_treffen_jahr) werden vom Webformular bewusst NICHT mitgesendet.
-    // Das amtliche PDF fragt sie nicht ab; UE3 (Sachbearbeitung) pflegt
-    // sie nach. Die DB-Spalten sind nullable mit Default NULL.
     oeffnungszeiten: state.oeffnungszeiten.filter(
       (o) => o.oeffnungszeit.trim() || o.angebot.trim(),
     ),

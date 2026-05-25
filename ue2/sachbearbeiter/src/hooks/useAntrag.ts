@@ -49,11 +49,7 @@ export interface AntragFull {
   /** Beantragter Zuschuss (Migration 025). NULL = noch nicht beziffert. */
   geforderte_foerdersumme_euro: number | null;
 
-  // ── Migration 029 — Förderbereich-spezifische Felder ────────────────
-  // Diese werden in UE2 zwar gelesen (select("*")), aber nicht direkt
-  // im UI verwendet — die KI-gestützte Auswertung dieser Bemessungs-
-  // größen ist Feature von UE3. In UE2 könnten sie für eine spätere
-  // Erweiterung (z.B. einfache Übersichtstabelle) zur Verfügung stehen.
+  // ── Migration 029 — Förderbereich-Klassifikation ──────────────────
   foerderbereich:
     | "aufbau_niedrigschwellige_angebote"
     | "buergerschaftliches_engagement"
@@ -64,12 +60,6 @@ export interface AntragFull {
     | "quartiersmanagement_altenarbeit"
     | "struktur_schwerpunktfoerderung"
     | null;
-  anzahl_treffen_jahr: number | null;
-  anzahl_teilnehmer: number | null;
-  stadtbewohner_anteil: number | null;
-  anzahl_ehrenamtliche: number | null;
-  geleistete_stunden_jahr: number | null;
-  foerderbereich_seit_jahren: number | null;
   zuwendungszweck: string | null;
   finanzplanung_vorhanden: boolean | null;
   projektskizze_eingereicht: boolean | null;

@@ -366,14 +366,6 @@ export function AntragDetail() {
             </DocSection>
 
             <DocSection
-              num="§ 4a"
-              title="Bemessungsgrundlage Vorjahr"
-              subtitle="Stadt-Anteil bestimmt die Auszahlung; Teilnehmer + Veranstaltungen gewichten die Zuwendung (AHP 2.3 Pkt. 2)"
-            >
-              <BemessungsblockVorjahr antrag={antrag} onChanged={reload} />
-            </DocSection>
-
-            <DocSection
               num="§ 5"
               title="Kostenpositionen (vom Antragsteller mitgeteilt)"
               subtitle="Tätigkeitsnachweis; für Förderbereich III gem. AHP 3.8 nur auf Anfrage einzureichen — keine Bemessungsgrundlage"
@@ -1019,377 +1011,6 @@ function AntragSummaryStrip({
   );
 }
 
-/** Zeigt den Rechenweg Förderhöchstgrenze × Stadtbewohner-Anteil =
- * maximale Auszahlung (nur für anteilsskalierte Förderbereiche:
- * Begegnungszentren + Bildungsträger nach AHP 2.3 Pkt. 2 / Pkt. 3).
- * Markiert ob die Forderung im Rahmen liegt. */
-function KalkulationsFormel({
-  antrag, meta,
-}: {
-  antrag: AntragFull;
-  meta: FoerderbereichMeta | null;
-}) {
-  // Nur für BZ + Bildungsträger relevant
-  if (
-    !meta ||
-    !meta.hoechstgrenze ||
-    (antrag.foerderbereich !== "begegnungszentren" &&
-      antrag.foerderbereich !== "bildungstraeger")
-  ) {
-    return null;
-  }
-  const anteil = antrag.stadtbewohner_anteil;
-  const wert = antrag.geforderte_foerdersumme_euro;
-  if (anteil === null || anteil === undefined) {
-    return (
-      <div className="bg-slate-50 border-l-2 border-slate-300 px-4 py-3 text-xs text-slate-600">
-        <div className="font-medium text-slate-700 mb-1">Auszahlungs-Kalkulation</div>
-        Maximale Auszahlung = Förderhöchstgrenze × Anteil der Würzburger
-        Teilnehmer (AHP {meta.ahpPath}). Anteil nicht erfasst — bitte
-        beim Träger nachfragen.
-      </div>
-    );
-  }
-  const maxAuszahlung = meta.hoechstgrenze * anteil;
-  const innerhalb = wert !== null && wert <= maxAuszahlung + 0.005;
-  return (
-    <div
-      className={
-        "border-l-2 px-4 py-3 " +
-        (innerhalb
-          ? "bg-slate-50 border-slate-400"
-          : "bg-wue-rot-soft/40 border-wue-rot")
-      }
-    >
-      <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-2">
-        Auszahlungs-Kalkulation (AHP {meta.ahpPath})
-      </div>
-      <div className="flex items-baseline gap-2 flex-wrap text-sm tabular-nums">
-        <span className="text-slate-700">{formatEuro(meta.hoechstgrenze)}</span>
-        <span className="text-slate-400">×</span>
-        <span className="text-slate-700">{Math.round(anteil * 100)} %</span>
-        <span className="text-slate-400">=</span>
-        <span className="text-slate-900 font-bold">{formatEuro(maxAuszahlung)}</span>
-        <span className="text-xs text-slate-500 ml-1">max. Auszahlung</span>
-      </div>
-      {wert !== null && (
-        <div className="mt-2 text-xs">
-          {innerhalb ? (
-            <span className="text-slate-600">
-              Forderung {formatEuro(wert)}
-              {wert === maxAuszahlung
-                ? " entspricht exakt diesem Maximum."
-                : ` liegt ${formatEuro(maxAuszahlung - wert)} darunter.`}
-            </span>
-          ) : (
-            <span className="text-wue-rot font-medium">
-              ✖ Forderung übersteigt das Maximum um{" "}
-              {formatEuro(wert - maxAuszahlung)}.
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Komplette § 4-Anzeige: Förderbereich-Pill, Fördersumme + Förder-
- * höchstgrenze, Skalierungs-Kennzahlen, Pflichtangaben — alles
- * kontextsensitiv je nach Förderbereich. */
-/**
- * Bemessungsgrundlage gem. AHP 2.3 Förderbereich III, Pkt. 2
- * (Begegnungszentren). Zeigt die drei rechtlich relevanten Größen:
- *
- *  - stadtbewohner_anteil → Auszahlungsanteil (Pflicht für Bescheid)
- *  - anzahl_teilnehmer    → Gewichtungsgröße aus dem Budget
- *  - anzahl_treffen_jahr  → Gewichtungsgröße aus dem Budget
- *
- * Bei NULL-Werten wird ein Warnhinweis statt eines Pseudo-Wertes
- * angezeigt — dann ist der Antrag nicht entscheidungsreif.
- */
-function BemessungsblockVorjahr({
-  antrag,
-  onChanged,
-}: {
-  antrag: AntragFull;
-  onChanged?: () => void | Promise<void>;
-}) {
-  const anteilPct =
-    antrag.stadtbewohner_anteil === null
-      ? null
-      : `${(antrag.stadtbewohner_anteil * 100).toFixed(1).replace(".", ",")} %`;
-  const fehlend: string[] = [];
-  if (antrag.stadtbewohner_anteil === null) fehlend.push("Stadt-Anteil");
-  if (antrag.anzahl_teilnehmer === null) fehlend.push("Teilnehmer:innen");
-  if (antrag.anzahl_treffen_jahr === null) fehlend.push("Veranstaltungen");
-
-  const allesLeer =
-    antrag.stadtbewohner_anteil === null &&
-    antrag.anzahl_teilnehmer === null &&
-    antrag.anzahl_treffen_jahr === null;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[11px] text-slate-500 italic">
-          PDF fragt diese Werte nicht ab — Sachbearbeitung pflegt nach,
-          sobald Antrag als FB-III.2/III.3 klassifiziert wird.
-        </p>
-        <BemessungEditButton antrag={antrag} onChanged={onChanged} />
-      </div>
-      {allesLeer ? (
-        <div className="text-xs text-slate-600 bg-slate-50 border-l-2 border-slate-300 px-3 py-2 rounded-r">
-          Bemessungsfelder noch nicht erfasst. Falls dieser Antrag als
-          Begegnungszentrum (AHP 2.3 Pkt. 2) oder Bildungsträger (Pkt. 3)
-          geführt wird, hier die Vorjahres-Kennzahlen nachpflegen.
-        </div>
-      ) : (
-        <>
-          <FieldGrid>
-            <DocField label="Anteil Stadt-Bewohner:innen Würzburg (Vorjahr)" className="sm:col-span-2">
-              {anteilPct !== null ? (
-                <>
-                  <span className="text-2xl font-bold tabular-nums text-wue-rot">{anteilPct}</span>
-                  <span className="block text-[11px] text-slate-500 italic mt-0.5">
-                    Bestimmt direkt den prozentualen Auszahlungsanteil
-                    (AHP 2.3 Pkt. 2: „erfolgt die Auszahlung des prozentualen Anteils").
-                  </span>
-                </>
-              ) : (
-                <span className="text-slate-400">— nicht angegeben</span>
-              )}
-            </DocField>
-            <DocField label="Teilnehmer:innen gesamt (Vorjahr)">
-              {antrag.anzahl_teilnehmer !== null ? (
-                <span className="text-slate-900 tabular-nums font-medium">
-                  {antrag.anzahl_teilnehmer.toLocaleString("de-DE")}
-                </span>
-              ) : (
-                <span className="text-slate-400">—</span>
-              )}
-            </DocField>
-            <DocField label="Veranstaltungen (Vorjahr)">
-              {antrag.anzahl_treffen_jahr !== null ? (
-                <span className="text-slate-900 tabular-nums font-medium">
-                  {antrag.anzahl_treffen_jahr.toLocaleString("de-DE")}
-                </span>
-              ) : (
-                <span className="text-slate-400">—</span>
-              )}
-            </DocField>
-          </FieldGrid>
-          {fehlend.length > 0 && (
-            <div className="text-xs text-amber-900 bg-amber-50 border-l-2 border-amber-500 px-3 py-2 rounded-r">
-              <strong>Antrag nicht entscheidungsreif:</strong> fehlende Bemessungs­
-              angabe(n) — {fehlend.join(", ")}. Ohne diese Werte kann die
-              anteilige Auszahlung gem. AHP 2.3 Pkt. 2 nicht berechnet werden.
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-/**
- * Edit-Modal für die drei Bemessungsfelder (anzahl_teilnehmer,
- * stadtbewohner_anteil, anzahl_treffen_jahr). Diese Werte werden vom
- * Webformular bewusst NICHT erhoben — das amtliche Antrags-PDF
- * (materialien/antrag-apl2.pdf) fragt sie nicht ab. Sie sind nur
- * relevant, wenn das Sozialreferat den Antrag als FB-III.2
- * (Begegnungszentren) oder FB-III.3 (Bildungsträger) klassifiziert.
- *
- * UI-Konvention: Stadt-Anteil wird als Prozent (0–100) eingegeben und
- * intern auf 0…1 normiert — analog zum früheren UE1-Step.
- *
- * Pattern analog zu FoerdersummeEditButton / FoerderbereichEditButton:
- * direktes PATCH gegen apl2.antraege?id=eq.{id}, kein Versionierung,
- * Optimistic update via onChanged-Refetch.
- */
-function BemessungEditButton({
-  antrag,
-  onChanged,
-}: {
-  antrag: AntragFull;
-  onChanged?: () => void | Promise<void>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [teilnehmer, setTeilnehmer] = useState<string>(
-    antrag.anzahl_teilnehmer != null ? String(antrag.anzahl_teilnehmer) : "",
-  );
-  const [anteilPct, setAnteilPct] = useState<string>(
-    antrag.stadtbewohner_anteil != null
-      ? String(Math.round(antrag.stadtbewohner_anteil * 1000) / 10)
-      : "",
-  );
-  const [veranstaltungen, setVeranstaltungen] = useState<string>(
-    antrag.anzahl_treffen_jahr != null ? String(antrag.anzahl_treffen_jahr) : "",
-  );
-  const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
-
-  function reset() {
-    setTeilnehmer(antrag.anzahl_teilnehmer != null ? String(antrag.anzahl_teilnehmer) : "");
-    setAnteilPct(
-      antrag.stadtbewohner_anteil != null
-        ? String(Math.round(antrag.stadtbewohner_anteil * 1000) / 10)
-        : "",
-    );
-    setVeranstaltungen(
-      antrag.anzahl_treffen_jahr != null ? String(antrag.anzahl_treffen_jahr) : "",
-    );
-  }
-
-  function parseIntOrNull(raw: string): { value: number | null; ok: boolean } {
-    if (raw.trim() === "") return { value: null, ok: true };
-    const n = Number(raw.replace(",", "."));
-    if (!Number.isFinite(n) || n < 0) return { value: null, ok: false };
-    return { value: Math.floor(n), ok: true };
-  }
-
-  function parseAnteilOrNull(raw: string): { value: number | null; ok: boolean } {
-    if (raw.trim() === "") return { value: null, ok: true };
-    const n = Number(raw.replace(",", "."));
-    if (!Number.isFinite(n) || n < 0 || n > 100) return { value: null, ok: false };
-    // Prozent (0…100) → DB-Konvention (0…1)
-    return { value: Math.round((n / 100) * 1000) / 1000, ok: true };
-  }
-
-  async function save() {
-    setFeedback(null);
-    const tn = parseIntOrNull(teilnehmer);
-    const va = parseIntOrNull(veranstaltungen);
-    const an = parseAnteilOrNull(anteilPct);
-    if (!tn.ok) {
-      setFeedback("Fehler: Teilnehmer:innen muss eine Zahl ≥ 0 sein");
-      return;
-    }
-    if (!va.ok) {
-      setFeedback("Fehler: Veranstaltungen muss eine Zahl ≥ 0 sein");
-      return;
-    }
-    if (!an.ok) {
-      setFeedback("Fehler: Stadt-Anteil muss 0–100 % sein");
-      return;
-    }
-    setBusy(true);
-    const { error } = await supabase
-      .from("antraege")
-      .update({
-        anzahl_teilnehmer: tn.value,
-        stadtbewohner_anteil: an.value,
-        anzahl_treffen_jahr: va.value,
-      })
-      .eq("id", antrag.id);
-    setBusy(false);
-    if (error) {
-      setFeedback("Fehler: " + error.message);
-      return;
-    }
-    setFeedback("Bemessungsfelder aktualisiert");
-    setOpen(false);
-    if (onChanged) await onChanged();
-  }
-
-  const labelAction =
-    antrag.anzahl_teilnehmer == null &&
-    antrag.stadtbewohner_anteil == null &&
-    antrag.anzahl_treffen_jahr == null
-      ? "Erfassen"
-      : "Ändern";
-
-  return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-6 px-2 text-[10.5px] uppercase tracking-wider shrink-0"
-        onClick={() => {
-          reset();
-          setFeedback(null);
-          setOpen(true);
-        }}
-      >
-        {labelAction}
-      </Button>
-      {feedback && (
-        <span
-          role="status"
-          className={
-            "ml-2 text-[10.5px] " +
-            (feedback.startsWith("Fehler") ? "text-rose-700" : "text-emerald-700")
-          }
-        >
-          {feedback}
-        </span>
-      )}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Bemessungsgrundlage Vorjahr</DialogTitle>
-            <DialogDescription>
-              Diese drei Werte werden im Antrags-PDF nicht erfasst — die
-              Sachbearbeitung pflegt sie nach, sobald der Antrag als
-              FB-III.2 (Begegnungszentren) oder FB-III.3 (Bildungsträger)
-              klassifiziert ist. Felder können leer bleiben (NULL).
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-slate-600 mb-1">
-                Teilnehmer:innen gesamt (Vorjahr)
-              </label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="z. B. 35"
-                value={teilnehmer}
-                onChange={(e) => setTeilnehmer(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-600 mb-1">
-                Anteil Stadtbewohner:innen Würzburg (%)
-              </label>
-              <Input
-                type="text"
-                inputMode="decimal"
-                placeholder="z. B. 70 (für 70 %)"
-                value={anteilPct}
-                onChange={(e) => setAnteilPct(e.target.value)}
-              />
-              <p className="text-[10.5px] text-slate-500 italic mt-0.5">
-                0–100 % — bestimmt bei FB-III.2/III.3 direkt den
-                prozentualen Auszahlungsanteil (AHP 2.3 Pkt. 2).
-              </p>
-            </div>
-            <div>
-              <label className="block text-xs text-slate-600 mb-1">
-                Anzahl Veranstaltungen (Vorjahr)
-              </label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="z. B. 48"
-                value={veranstaltungen}
-                onChange={(e) => setVeranstaltungen(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
-              Abbrechen
-            </Button>
-            <Button onClick={save} disabled={busy}>
-              {busy ? "Speichern …" : "Speichern"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
 
 function FoerderblockKomplett({
   antrag, onChanged,
@@ -1438,13 +1059,7 @@ function FoerderblockKomplett({
         />
       </div>
 
-      {/* (2b) Kalkulationsformel — nur wenn Förderbereich anteilsskaliert */}
-      <KalkulationsFormel antrag={antrag} meta={meta} />
-
-      {/* (3) Skalierungs-Kennzahlen (kontextsensitiv) */}
-      <KennzahlenBlock antrag={antrag} meta={meta} />
-
-      {/* (4) Pflichtangaben (kontextsensitiv) */}
+      {/* (3) Pflichtangaben (kontextsensitiv) */}
       <PflichtangabenBlock antrag={antrag} meta={meta} />
 
       {/* (5) Zuwendungszweck — nur bei FB IV */}
@@ -1468,13 +1083,6 @@ interface FoerderbereichMeta {
   /** Förderhöchstgrenze gemäß AHP (Wortlaut: "Zuschuss von bis zu X € pro Jahr").
    *  null wenn die AHP keinen festen Wert vorsieht (z.B. FB IV Einzelfall). */
   hoechstgrenze: number | null;
-  /** Welche Skalierungs-Kennzahlen sind für diesen Förderbereich relevant? */
-  zeigt: {
-    stadtbewohner_anteil?: boolean;
-    treffen_und_teilnehmer?: boolean;
-    ehrenamt?: boolean;
-    befristung?: boolean;
-  };
   /** Pflichtangaben für diesen Förderbereich */
   pflicht: {
     finanzplanung?: boolean;
@@ -1494,7 +1102,6 @@ function foerderbereichMeta(fb: string | null): FoerderbereichMeta | null {
       label: "Förderbereich I — Aufbau niedrigschwelliger Angebote",
       ahpPath: "AHP 2.1",
       hoechstgrenze: 3000,
-      zeigt: { befristung: true },
       pflicht: { projektskizze: true },
     },
     buergerschaftliches_engagement: {
@@ -1502,42 +1109,36 @@ function foerderbereichMeta(fb: string | null): FoerderbereichMeta | null {
       ahpPath: "AHP 2.2",
       // AHP 2.2: 750 € Pauschal + Staffel max 3.500 € = 4.250 €
       hoechstgrenze: 4250,
-      zeigt: { ehrenamt: true },
       pflicht: {},
     },
     mehrgenerationenhaeuser: {
       label: "Förderbereich III — Mehrgenerationenhäuser",
       ahpPath: "AHP 2.3 Pkt. 1",
       hoechstgrenze: 10000,
-      zeigt: {},
       pflicht: {},
     },
     begegnungszentren: {
       label: "Förderbereich III — Begegnungszentren",
       ahpPath: "AHP 2.3 Pkt. 2",
       hoechstgrenze: 10000,
-      zeigt: { stadtbewohner_anteil: true },
       pflicht: {},
     },
     bildungstraeger: {
       label: "Förderbereich III — Bildungsträger / Bildungshäuser",
       ahpPath: "AHP 2.3 Pkt. 3",
       hoechstgrenze: 6000,
-      zeigt: { stadtbewohner_anteil: true },
       pflicht: {},
     },
     seniorenkreise: {
       label: "Förderbereich III — Seniorenkreise",
       ahpPath: "AHP 2.3 Pkt. 4",
       hoechstgrenze: 2000,
-      zeigt: { treffen_und_teilnehmer: true },
       pflicht: {},
     },
     quartiersmanagement_altenarbeit: {
       label: "Förderbereich III — Quartiersmanagement Altenarbeit",
       ahpPath: "AHP 2.3 Pkt. 5",
       hoechstgrenze: 7500,
-      zeigt: {},
       pflicht: {},
     },
     struktur_schwerpunktfoerderung: {
@@ -1545,7 +1146,6 @@ function foerderbereichMeta(fb: string | null): FoerderbereichMeta | null {
       ahpPath: "AHP 2.4",
       // AHP 2.4 sieht keine feste Förderhöchstgrenze vor — Einzelfall-Bewilligung
       hoechstgrenze: null,
-      zeigt: {},
       pflicht: { finanzplanung: true },
     },
   };
@@ -1620,78 +1220,6 @@ function FoerdersummeMitHoechstgrenze({
           Sozialausschuss entscheidet im Einzelfall (AHP 3.4).
         </p>
       )}
-    </div>
-  );
-}
-
-function KennzahlenBlock({
-  antrag, meta,
-}: {
-  antrag: AntragFull;
-  meta: FoerderbereichMeta | null;
-}) {
-  if (!meta) return null;
-  const zeilen: Array<{ label: string; value: string; hint?: string }> = [];
-
-  if (meta.zeigt.stadtbewohner_anteil) {
-    const v = antrag.stadtbewohner_anteil;
-    zeilen.push({
-      label: "Anteil Würzburger Teilnehmer",
-      value: v === null ? "—" : `${Math.round(v * 100)} %`,
-      hint:
-        v === null
-          ? "Bestimmt die anteilige Auszahlung (AHP 2.3 Pkt. 2 / Pkt. 3)."
-          : undefined,
-    });
-  }
-  if (meta.zeigt.treffen_und_teilnehmer) {
-    zeilen.push({
-      label: "Treffen pro Jahr",
-      value: antrag.anzahl_treffen_jahr?.toString() ?? "—",
-      hint: "≥ 10 → 750 € · ≥ 20 → 1.250 € · ≥ 46 → 2.000 €",
-    });
-    zeilen.push({
-      label: "Teilnehmerzahl",
-      value: antrag.anzahl_teilnehmer?.toString() ?? "—",
-      hint: "Mindestens 6 Personen erforderlich.",
-    });
-  }
-  if (meta.zeigt.ehrenamt) {
-    zeilen.push({
-      label: "Ehrenamtliche Stunden / Jahr",
-      value: antrag.geleistete_stunden_jahr?.toString() ?? "—",
-    });
-    zeilen.push({
-      label: "Anzahl Ehrenamtliche",
-      value: antrag.anzahl_ehrenamtliche?.toString() ?? "—",
-      hint: "750 € Pauschale + Staffel (1.250 / 2.000 / 3.500 €) · max. 4.250 € / Jahr.",
-    });
-  }
-  if (meta.zeigt.befristung) {
-    zeilen.push({
-      label: "Bereits geförderte Jahre",
-      value: antrag.foerderbereich_seit_jahren?.toString() ?? "—",
-      hint: "Höchstens 3 Jahre möglich.",
-    });
-  }
-
-  if (zeilen.length === 0) return null;
-  return (
-    <div>
-      <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-2">
-        Daten für die Förderhöhe
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-        {zeilen.map((z) => (
-          <div key={z.label}>
-            <div className="text-xs text-slate-500">{z.label}</div>
-            <div className="text-sm text-slate-900 tabular-nums">{z.value}</div>
-            {z.hint && (
-              <div className="text-[11px] text-slate-400 mt-0.5">{z.hint}</div>
-            )}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

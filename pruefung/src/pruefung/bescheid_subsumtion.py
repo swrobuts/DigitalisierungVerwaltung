@@ -53,22 +53,6 @@ _FOERDERBEREICH_HOECHSTGRENZE = {
     "quartiersmanagement_altenarbeit":   7500,
 }
 
-# Förderbereiche, für die gem. AHP 2.3 die anteilige Auszahlung gilt:
-# „Je nach prozentualem Anteil der Stadtbewohner:innen an den gesamten
-#  Teilnehmer:innen des Vorjahres, erfolgt die Auszahlung des
-#  prozentualen Anteils." (AHP 2.3 Pkt. 2 und Pkt. 3)
-ANTEIL_RELEVANTE_FOERDERBEREICHE: set[str] = {
-    "begegnungszentren",
-    "bildungstraeger",
-}
-
-
-def gilt_anteil_logik(foerderbereich: str | None) -> bool:
-    """True, wenn die anteilige Auszahlung gem. AHP 2.3 für diesen
-    Förderbereich greift."""
-    return foerderbereich in ANTEIL_RELEVANTE_FOERDERBEREICHE
-
-
 def get_hoechstgrenze(foerderbereich: str | None) -> float | None:
     """Förderhöchstgrenze (€/Jahr) für einen Förderbereich; None wenn
     Förderbereich unbekannt."""
@@ -100,10 +84,6 @@ def build_subsumtion(
     fb_label = _FOERDERBEREICH_LABEL.get(fb or "", fb or "—")
     hoechstgrenze = _FOERDERBEREICH_HOECHSTGRENZE.get(fb) if fb else None
     forderung = antrag.get("geforderte_foerdersumme_euro")
-    anteil = antrag.get("stadtbewohner_anteil")
-    treffen = antrag.get("anzahl_treffen_jahr")
-    teilnehmer = antrag.get("anzahl_teilnehmer")
-    jahre = antrag.get("foerderbereich_seit_jahren")
 
     # Layer A — IBAN
     if "iban ungültig" in bes:
@@ -188,41 +168,6 @@ def build_subsumtion(
             ),
         }
 
-    # Layer B — anteilige Auszahlung (Förderhöchstgrenze × Stadtbewohner-Anteil)
-    if "anteilig berechnete höchstauszahlung" in bes:
-        try:
-            max_a = (
-                (hoechstgrenze or 0) * float(anteil)
-                if anteil is not None else None
-            )
-        except (ValueError, TypeError):
-            max_a = None
-        diff = (
-            float(forderung) - max_a
-            if (forderung is not None and max_a is not None)
-            else None
-        )
-        return {
-            "sachverhalt": (
-                f"Sie beantragen {euro(forderung)} für das {fb_label}. "
-                f"Der angegebene Anteil Würzburger Teilnehmer beträgt {percent(anteil)}."
-            ),
-            "wuerdigung": (
-                f"Nach AHP 2.3 Pkt. 2 / Pkt. 3 wird der Zuschuss anteilig nach dem "
-                f"prozentualen Anteil der Stadtbewohner an den Gesamtteilnehmern "
-                f"ausgezahlt. Die rechnerische Höchstauszahlung beträgt damit "
-                f"{euro(hoechstgrenze)} × {percent(anteil)} = {euro(max_a)}. "
-                + (
-                    f"Ihre Forderung übersteigt diesen Wert um {euro(diff)}. "
-                    f"Eine reduzierte Bewilligung in Höhe von {euro(max_a)} "
-                    f"wäre regelkonform möglich; alternativ können Sie den "
-                    f"Antrag mit aktualisierten Teilnehmerzahlen erneut stellen, "
-                    f"wenn der Stadtbewohner-Anteil im laufenden Jahr höher liegt."
-                    if diff is not None else ""
-                )
-            ),
-        }
-
     # Layer B — Mindestens eine Kostenposition
     if "mindestens eine kostenposition" in bes:
         return {
@@ -234,104 +179,6 @@ def build_subsumtion(
                 "Nach AHP 2.4 und 3.2 b) ist eine vollständige "
                 "Finanzierungsplanung als Pflichtangabe vorzulegen — ohne "
                 "diese ist die Förderfähigkeit nicht beurteilbar."
-            ),
-        }
-
-    # Layer B — FB I Befristung
-    if "förderbereich i ist auf maximal 3 jahre" in bes:
-        return {
-            "sachverhalt": (
-                f"Der Träger wird im Förderbereich I bereits seit "
-                f"{jahre if jahre is not None else '—'} Jahren gefördert."
-            ),
-            "wuerdigung": (
-                "Nach AHP 2.1 sind Zuschüsse zum Aufbau niedrigschwelliger "
-                "Angebote auf maximal drei Jahre befristet. Diese Befristung "
-                "ist überschritten — eine Weiterförderung in diesem Topf ist "
-                "ausgeschlossen."
-            ),
-        }
-
-    # Layer B — Seniorenkreise Mindestgröße
-    if "mindestens 6 teilnehmer" in bes:
-        return {
-            "sachverhalt": (
-                f"Im Antrag ist eine Gruppengröße von "
-                f"{teilnehmer if teilnehmer is not None else '—'} Teilnehmer:innen angegeben."
-            ),
-            "wuerdigung": (
-                "AHP 2.3 Pkt. 4 verlangt für Seniorenkreise eine Mindestgruppen"
-                "größe von 6 Senior:innen. Diese Mindestgröße ist nicht erreicht."
-            ),
-        }
-
-    # Layer B — Seniorenkreise Treffenstaffel
-    # AHP 2.3 Pkt. 4: ≥ 10 Treffen → max 750 €; ≥ 20 → max 1.250 €;
-    # ≥ 46 → max 2.000 €. Cap 2.000 €/Jahr.
-    if "seniorenkreis-förderung passt nicht zur ahp-staffelung" in bes:
-        try:
-            t = int(treffen) if treffen is not None else None
-        except (ValueError, TypeError):
-            t = None
-        if t is None:
-            staffel_max: float | None = None
-            staffel_begruendung = (
-                "Ohne Angabe der Treffenzahl pro Jahr kann die Staffelung "
-                "nach AHP 2.3 Pkt. 4 nicht zugeordnet werden."
-            )
-        elif t >= 46:
-            staffel_max = 2000.0
-            staffel_begruendung = (
-                f"Bei {t} Treffen pro Jahr greift die höchste Staffelstufe "
-                "(≥ 46 Treffen → max. 2.000 €)."
-            )
-        elif t >= 20:
-            staffel_max = 1250.0
-            staffel_begruendung = (
-                f"Bei {t} Treffen pro Jahr greift die mittlere Staffelstufe "
-                "(≥ 20 Treffen → max. 1.250 €)."
-            )
-        elif t >= 10:
-            staffel_max = 750.0
-            staffel_begruendung = (
-                f"Bei {t} Treffen pro Jahr greift die unterste Staffelstufe "
-                "(≥ 10 Treffen → max. 750 €)."
-            )
-        else:
-            staffel_max = 0.0
-            staffel_begruendung = (
-                f"Bei {t} Treffen pro Jahr ist die Mindestschwelle von "
-                "10 Treffen für eine Förderung gem. AHP 2.3 Pkt. 4 nicht "
-                "erreicht."
-            )
-        soll_ist = ""
-        if staffel_max is not None and forderung is not None:
-            try:
-                diff = float(forderung) - staffel_max
-                if diff > 0:
-                    soll_ist = (
-                        f" Die geforderten {euro(forderung)} übersteigen "
-                        f"die zulässige Höchstauszahlung von "
-                        f"{euro(staffel_max)} um {euro(diff)}."
-                    )
-                else:
-                    soll_ist = (
-                        f" Die geforderten {euro(forderung)} liegen innerhalb "
-                        f"der zulässigen Höchstauszahlung von "
-                        f"{euro(staffel_max)}."
-                    )
-            except (ValueError, TypeError):
-                soll_ist = ""
-        return {
-            "sachverhalt": (
-                f"Sie geben {t if t is not None else '—'} Treffen pro Jahr an und "
-                f"beantragen {euro(forderung)}."
-            ),
-            "wuerdigung": (
-                "Die AHP-Staffel für Seniorenkreise (AHP 2.3 Pkt. 4) sieht vor: "
-                "≥ 10 Treffen pro Jahr → max. 750 €, ≥ 20 Treffen → "
-                "max. 1.250 €, ≥ 46 Treffen → max. 2.000 €; der Jahres-Cap "
-                "liegt bei 2.000 €. " + staffel_begruendung + soll_ist
             ),
         }
 

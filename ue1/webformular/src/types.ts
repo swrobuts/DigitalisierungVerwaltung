@@ -51,13 +51,6 @@ export interface FormState {
   /** PDF H9. Pflicht. */
   bic: string;
   oeffnungszeiten: OeffnungszeitEntry[];
-  // Hinweis: Die Bemessungsfelder (anzahl_teilnehmer_vorjahr,
-  // stadtbewohner_anteil_vorjahr, anzahl_veranstaltungen_vorjahr) wurden
-  // bewusst aus dem UE1-Webformular entfernt — das amtliche PDF
-  // (materialien/antrag-apl2.pdf) fragt diese Werte nicht ab. Sie
-  // stammen aus AHP 2.3 Pkt. 2/3 und sind nur für FB-III.2/III.3
-  // relevant. Pflege erfolgt ausschließlich in der Sachbearbeitung
-  // (UE3) — analog zu geforderte_foerdersumme_euro und foerderbereich.
   /** PDF H13. Pflicht. "" = noch nicht gewählt; final "ja" | "nein". */
   raeume_vorhanden: "ja" | "nein" | "";
   /** PDF H14. Pflicht. "" = noch nicht gewählt; final "ja" | "nein". */

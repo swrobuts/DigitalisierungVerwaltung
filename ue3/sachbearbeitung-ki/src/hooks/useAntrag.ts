@@ -32,7 +32,7 @@ export interface AntragFull {
   /** Beantragter Zuschussbetrag in EUR. AHP-Förderhöchstgrenze je nach foerderbereich. */
   geforderte_foerdersumme_euro: number | null;
 
-  // ── Migration 029 — Förderbereich-spezifische Felder ────────────────
+  // ── Migration 029 — Förderbereich-Klassifikation ──────────────────
   foerderbereich:
     | "aufbau_niedrigschwellige_angebote"
     | "buergerschaftliches_engagement"
@@ -43,13 +43,6 @@ export interface AntragFull {
     | "quartiersmanagement_altenarbeit"
     | "struktur_schwerpunktfoerderung"
     | null;
-  anzahl_treffen_jahr: number | null;
-  anzahl_teilnehmer: number | null;
-  /** 0..1 — Anteil Stadt-Würzburg-Bewohner an Gesamt-Teilnehmern */
-  stadtbewohner_anteil: number | null;
-  anzahl_ehrenamtliche: number | null;
-  geleistete_stunden_jahr: number | null;
-  foerderbereich_seit_jahren: number | null;
   zuwendungszweck: string | null;
   finanzplanung_vorhanden: boolean | null;
   projektskizze_eingereicht: boolean | null;

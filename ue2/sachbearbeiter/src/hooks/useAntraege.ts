@@ -22,15 +22,7 @@ export interface AntragRow {
   /** Beantragter Zuschuss (max. 10.000 € gem. AHP 2.3 Pkt. 2). NULL =
    *  noch nicht beziffert. */
   geforderte_foerdersumme_euro: number | null;
-  /** AHP-Bemessungsgrößen (Vorjahr) — werden vom UE1-Formular Step 4
-   *  abgefragt. NULL = noch nicht eingegeben. */
-  anzahl_teilnehmer: number | null;
-  /** 0…1 — Auszahlungs-Anteilsfaktor (Würzburger Stadtbewohner). */
-  stadtbewohner_anteil: number | null;
-  anzahl_treffen_jahr: number | null;
-  /** Migration 029 — Förderbereich-Klassifikation. Wird in der Inbox
-   *  genutzt, um zu entscheiden, ob Stadt-Anteil / Treffen-Zahl für
-   *  diesen Förderbereich gem. AHP überhaupt ausschlaggebend sind. */
+  /** Migration 029 — Förderbereich-Klassifikation. */
   foerderbereich:
     | "aufbau_niedrigschwellige_angebote"
     | "buergerschaftliches_engagement"
@@ -66,7 +58,7 @@ export function useAntraege(): {
       const { data, error } = await supabase
         .from("antrag_mit_summen")
         .select(
-          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, geforderte_foerdersumme_euro, anzahl_teilnehmer, stadtbewohner_anteil, anzahl_treffen_jahr, foerderbereich, entschieden_am, entscheidungs_typ, durchlaufzeit_tage",
+          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, geforderte_foerdersumme_euro, foerderbereich, entschieden_am, entscheidungs_typ, durchlaufzeit_tage",
         )
         .order("submitted_at", { ascending: false });
       if (!mounted) return;

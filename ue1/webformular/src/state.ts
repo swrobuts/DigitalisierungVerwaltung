@@ -70,13 +70,9 @@ function detectLanguage(): Sprache {
  * Step-Completion-Prüfung. Entscheidet, ob „Weiter" aktivierbar ist.
  * Reine Funktion über FormState — kein Side-Effect, keine UI.
  *
- * Schritt-Reihenfolge (v4, 6 Schritte, PDF-Voll-Sync):
+ * Schritt-Reihenfolge (6 Schritte, PDF-Voll-Sync):
  *   1 Einrichtung · 2 Kontakt & Bank · 3 Wochenplan · 4 Räume & Kosten ·
  *   5 Programm · 6 Senden
- *
- * Hinweis: Die früheren Bemessungsfelder (Step 5 alt) sind aus dem
- * Webformular entfernt — das amtliche PDF fragt sie nicht ab. Pflege
- * erfolgt ausschließlich in der Sachbearbeitung (UE3).
  */
 export function isStepComplete(step: number, s: FormState): boolean {
   switch (step) {

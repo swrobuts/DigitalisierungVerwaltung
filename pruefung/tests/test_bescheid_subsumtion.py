@@ -19,8 +19,6 @@ def _antrag() -> dict:
         "iban": "DE12345", "email": "ungueltig",
         "foerderbereich": "begegnungszentren",
         "geforderte_foerdersumme_euro": 12000,
-        "stadtbewohner_anteil": 0.4,
-        "anzahl_teilnehmer": 30, "anzahl_treffen_jahr": 48,
     }
 
 
@@ -73,34 +71,8 @@ def test_cap_ueberschreitung_referenziert_summen():
     assert "12.000" in text or "12000" in text or "10.000" in text or "10000" in text
 
 
-# ── Helper-Funktionen für anteilige Auszahlung ────────────────────────────
-from pruefung.bescheid_subsumtion import gilt_anteil_logik, get_hoechstgrenze
-
-
-def test_anteils_logik_gilt_fuer_begegnungszentren_und_bildungstraeger():
-    assert gilt_anteil_logik("begegnungszentren") is True
-    assert gilt_anteil_logik("bildungstraeger") is True
-
-
-def test_anteils_logik_gilt_NICHT_fuer_andere_foerderbereiche():
-    # AHP 2.3 spricht von „prozentualer Anteil" nur in Pkt. 2 (Begegnungs-
-    # zentren) und Pkt. 3 (Bildungsträger). Andere Förderbereiche haben
-    # eigene Berechnungslogiken (Pauschalbeträge, Staffelung, etc.).
-    for fb in [
-        "aufbau_niedrigschwellige_angebote",
-        "buergerschaftliches_engagement",
-        "mehrgenerationenhaeuser",
-        "seniorenkreise",
-        "quartiersmanagement_altenarbeit",
-        "struktur_schwerpunktfoerderung",
-    ]:
-        assert gilt_anteil_logik(fb) is False, f"FB {fb} sollte nicht anteils-relevant sein"
-
-
-def test_anteils_logik_gilt_nicht_bei_unbekanntem_fb():
-    assert gilt_anteil_logik(None) is False
-    assert gilt_anteil_logik("") is False
-    assert gilt_anteil_logik("phantasie-bereich") is False
+# ── Helper-Funktionen für AHP-Höchstgrenzen ───────────────────────────────
+from pruefung.bescheid_subsumtion import get_hoechstgrenze
 
 
 def test_get_hoechstgrenze_liefert_ahp_werte():
@@ -118,55 +90,6 @@ def test_get_hoechstgrenze_liefert_none_bei_unbekanntem_fb():
     assert get_hoechstgrenze(None) is None
     assert get_hoechstgrenze("") is None
     assert get_hoechstgrenze("phantasie-bereich") is None
-
-
-# ── Seniorenkreise-Staffel nach AHP 2.3 Pkt. 4 ────────────────────────────
-# Korrigiert nach AHP-Audit: erfundene Staffel 12–24/ab 25 wurde durch die
-# tatsächliche PDF-Staffel ≥10/≥20/≥46 ersetzt.
-
-def _seniorenkreis_antrag(treffen: int, forderung: float) -> dict:
-    a = _antrag()
-    a["foerderbereich"] = "seniorenkreise"
-    a["anzahl_treffen_jahr"] = treffen
-    a["geforderte_foerdersumme_euro"] = forderung
-    return a
-
-
-def test_seniorenkreise_staffel_zitiert_korrekte_ahp_pkt4_werte():
-    befund = {
-        "beschreibung": "Seniorenkreis-Förderung passt nicht zur AHP-Staffelung",
-        "paragraph_ref": "AHP 2.3 Pkt. 4 Seniorenkreise",
-    }
-    out = build_subsumtion(befund, _seniorenkreis_antrag(48, 2500))
-    text = out["wuerdigung"]
-    assert "AHP 2.3 Pkt. 4" in text
-    assert "≥ 10" in text and "750 €" in text
-    assert "≥ 20" in text and "1.250 €" in text
-    assert "≥ 46" in text and "2.000 €" in text
-    # Keine erfundenen Schwellen mehr
-    assert "12–24" not in text and "12-24" not in text
-    assert "ab 25" not in text
-    assert "1.000 €" not in text
-
-
-def test_seniorenkreise_staffel_mappt_treffenzahl_auf_richtige_stufe():
-    befund = {"beschreibung": "Seniorenkreis-Förderung passt nicht zur AHP-Staffelung"}
-    # 48 Treffen → höchste Stufe ≥46
-    assert "≥ 46" in build_subsumtion(befund, _seniorenkreis_antrag(48, 2500))["wuerdigung"]
-    # 25 Treffen → mittlere Stufe ≥20
-    assert "≥ 20" in build_subsumtion(befund, _seniorenkreis_antrag(25, 1500))["wuerdigung"]
-    # 12 Treffen → unterste Stufe ≥10
-    assert "≥ 10" in build_subsumtion(befund, _seniorenkreis_antrag(12, 1000))["wuerdigung"]
-
-
-def test_seniorenkreise_zeigt_soll_ist_vergleich():
-    befund = {"beschreibung": "Seniorenkreis-Förderung passt nicht zur AHP-Staffelung"}
-    # 48 Treffen → max 2.000 €, Forderung 2.500 € → 500 € drüber
-    out = build_subsumtion(befund, _seniorenkreis_antrag(48, 2500))
-    text = out["wuerdigung"]
-    assert "2.500" in text
-    assert "2.000" in text
-    assert "500" in text
 
 
 # ── AHP-Referenzen-Konsistenz ─────────────────────────────────────────────

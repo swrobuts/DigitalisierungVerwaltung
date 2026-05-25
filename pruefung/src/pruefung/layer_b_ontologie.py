@@ -2,6 +2,7 @@
 from datetime import date
 from typing import Any
 from json_logic import jsonLogic
+from pruefung.bescheid_subsumtion import get_hoechstgrenze
 from pruefung.db import SupabaseClient
 from pruefung.models import Befund
 
@@ -21,6 +22,8 @@ def derive_facts(antrag: dict) -> dict:
     - personalkosten_pro_oeffnungstag: personalkosten / oeffnungstage_count (0 falls keine)
     - antragsfrist_eingehalten: bool — antragsdatum ≤ haushaltsjahr-04-01
       (AHP 3.3 Antragsfristen). False bei Verfristung oder fehlendem Datum.
+    - max_auszahlung: AHP-Förderhöchstgrenze für den Förderbereich (€/Jahr).
+      None wenn Förderbereich unbekannt oder ohne feste Höchstgrenze (FB IV).
     """
     facts = dict(antrag)
     oz = antrag.get("oeffnungszeiten") or []
@@ -39,44 +42,13 @@ def derive_facts(antrag: dict) -> dict:
         antrag.get("antragsdatum"), antrag.get("haushaltsjahr"),
     )
 
-    # AHP 2.3.2 / 2.3.3: max. Auszahlung = Förderhöchstgrenze × Stadtbewohner-Anteil.
-    # Nur für Förderbereiche, deren AHP-Regel diese Skalierung vorsieht
-    # (Begegnungszentren, Bildungsträger). Andere → None (Regel feuert nicht).
-    facts["max_auszahlung_nach_anteil"] = _max_auszahlung_nach_anteil(
-        antrag.get("foerderbereich"),
-        antrag.get("stadtbewohner_anteil"),
-    )
+    # Maximale Auszahlung = AHP-Förderhöchstgrenze des Förderbereichs.
+    # Die früher hier abgeleitete "anteilige" Reduktion via Stadtbewohner-
+    # Anteil ist entfallen — der Anteilswert wird im Antragsprozess nicht
+    # erhoben (weder PDF noch Webformular), also kann er nicht als
+    # rechtsverbindliche Bemessungsgrundlage dienen.
+    facts["max_auszahlung"] = get_hoechstgrenze(antrag.get("foerderbereich"))
     return facts
-
-
-# AHP-Förderhöchstgrenzen pro Förderbereich (Quelle: Doctree 2025-03-27, Kap. 2.3.x)
-_FOERDERHOECHSTGRENZE_PRO_FOERDERBEREICH: dict[str, float] = {
-    "begegnungszentren": 10000.0,    # AHP 2.3.2
-    "bildungstraeger":    6000.0,    # AHP 2.3.3
-}
-
-
-def _max_auszahlung_nach_anteil(
-    foerderbereich: Any,
-    stadtbewohner_anteil: Any,
-) -> float | None:
-    """Berechnet Förderhöchstgrenze × Stadtbewohner-Anteil für skalierende
-    Förderbereiche (Begegnungszentren, Bildungsträger).
-
-    Returnt None wenn:
-    - foerderbereich nicht in {begegnungszentren, bildungstraeger}, oder
-    - stadtbewohner_anteil ist None (kann nicht berechnet werden — Hinweis-
-      Regel foerdersumme_angegeben deckt das separat ab).
-    """
-    if foerderbereich not in _FOERDERHOECHSTGRENZE_PRO_FOERDERBEREICH:
-        return None
-    if stadtbewohner_anteil is None:
-        return None
-    try:
-        anteil = float(stadtbewohner_anteil)
-    except (ValueError, TypeError):
-        return None
-    return _FOERDERHOECHSTGRENZE_PRO_FOERDERBEREICH[foerderbereich] * anteil
 
 
 def _frist_eingehalten(antragsdatum: Any, haushaltsjahr: Any) -> bool:

@@ -18,7 +18,6 @@ SCORE_WEIGHTS = {
     "summen_anstieg_50": 30,       # YoY-Summen-Anstieg > 50%
     "neuer_traeger": 20,           # keine Vorjahres-Anträge gefunden
     "iban_inhaber_mismatch": 15,   # IBAN-Inhaber ≠ Trägername
-    "stadtbewohner_anteil_lo": 10, # < 50% Würzburger
     "foerderbereich_wechsel": 25,  # Förderbereich-Wechsel YoY
     "vorjahr_bewilligt_minus": -10, # Vorjahres-Antrag wurde bewilligt
 }
@@ -28,7 +27,7 @@ async def berechne_risiko_score(antrag_id: str, db: SupabaseClient) -> dict[str,
     """Returns {score, klasse, faktoren: [{name, gewicht, begruendung}]}."""
     select = (
         "id,traeger,haushaltsjahr,foerderbereich,iban,bankverbindung,"
-        "stadtbewohner_anteil,geforderte_foerdersumme_euro"
+        "geforderte_foerdersumme_euro"
     )
     rows = await db.select("antraege", f"id=eq.{antrag_id}&select={select}")
     if not rows:
@@ -117,27 +116,6 @@ async def berechne_risiko_score(antrag_id: str, db: SupabaseClient) -> dict[str,
             "begruendung": (
                 f"Bankverbindungs-Inhaber '{a.get('bankverbindung')}' deckt sich "
                 f"nicht offensichtlich mit Trägername — manuelle Prüfung empfohlen."
-            ),
-        })
-
-    # Stadtbewohner-Anteil — HEURISTIK, kein AHP-Schwellwert!
-    # AHP definiert KEINE Mindestquote für Würzburger Teilnehmer; die anteilige
-    # Auszahlung folgt rein der prozentualen Mathematik. Der 50 %-Trigger hier
-    # ist ein Triage-Hinweis aus der Verwaltungspraxis (Sozialreferat), nicht
-    # aus der Förderrichtlinie ableitbar.
-    anteil = a.get("stadtbewohner_anteil")
-    if anteil is not None and float(anteil) < 0.5:
-        score += SCORE_WEIGHTS["stadtbewohner_anteil_lo"]
-        faktoren.append({
-            "name": "stadtbewohner_anteil_lo",
-            "gewicht": SCORE_WEIGHTS["stadtbewohner_anteil_lo"],
-            "begruendung": (
-                f"Heuristischer Triage-Hinweis (Sachbearbeiter-Erfahrungswert): "
-                f"bei Stadtbewohner-Anteil {int(float(anteil) * 100)} % (< 50 %) "
-                f"wird gem. Verwaltungspraxis Sozialreferat erhöht geprüft. "
-                f"Kein expliziter AHP-Schwellwert — die anteilige Auszahlung "
-                f"folgt der prozentualen Mathematik, eine Mindestquote ist im "
-                f"AHP nicht definiert."
             ),
         })
 

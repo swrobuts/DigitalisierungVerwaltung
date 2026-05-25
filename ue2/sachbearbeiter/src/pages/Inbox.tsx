@@ -3,11 +3,6 @@ import { Link } from "react-router-dom";
 import { Lock, Settings } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
 import { DemoDatenBanner } from "../components/DemoDatenBanner";
-import {
-  istStadtAnteilRelevant,
-  istTreffenRelevant,
-  naTooltip,
-} from "../lib/foerderbereich-relevanz";
 import { useUserRole } from "../hooks/useUserRole";
 import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
@@ -25,13 +20,6 @@ import {
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-
-/** Stadtbewohner-Anteil 0…1 als Prozent-String. AHP 2.3 Pkt. 2/3:
- *  Auszahlung erfolgt anteilig nach dem Anteil Würzburger Stadtbewohner. */
-function formatStadtAnteil(a: number | null): string {
-  if (a === null || a === undefined) return "—";
-  return `${(a * 100).toFixed(1).replace(".", ",")} %`;
-}
 
 /**
  * Splittet `text` an allen Treffern von `needle` (case-insensitive, ohne Regex-
@@ -90,8 +78,7 @@ function monthLabel(key: string): string {
 type SortKey =
   | "antragsnummer" | "name" | "traeger" | "submitted_at"
   | "submitted_language" | "status" | "durchlaufzeit"
-  | "antragssumme" | "vj" | "diff"
-  | "stadt_anteil" | "teilnehmer" | "treffen";
+  | "antragssumme" | "vj" | "diff";
 
 /** Tailwind-Klassen-Mapping für die Durchlaufzeit-Ampel.
  *  Identisch in UE2/UE3 — Sachbearbeitende sollen denselben visuellen
@@ -131,7 +118,8 @@ const COLUMNS: SpaltenDef[] = [
   { key: "traeger", label: "Träger", defaultVisible: true },
   { key: "submitted_at", label: "Eingegangen", defaultVisible: true,
     tooltip: "Zeitpunkt des Antragseingangs" },
-  { key: "submitted_language", label: "Sprache", defaultVisible: false },
+  { key: "submitted_language", label: "Sprache", defaultVisible: false,
+    tooltip: "Eingereichte Sprache" },
   { key: "status", label: "Status", pflicht: true, defaultVisible: true },
   { key: "durchlaufzeit", label: "Durchlaufzeit", defaultVisible: true,
     tooltip:
@@ -142,25 +130,8 @@ const COLUMNS: SpaltenDef[] = [
     tooltip: "Beantragte Fördersumme im aktuellen Haushaltsjahr (max. 10.000 € gem. AHP 2.3 Pkt. 2)" },
   { key: "vj", label: "Antragssumme Vorjahr", align: "right", defaultVisible: true,
     tooltip: "Beantragte Fördersumme im Vorjahres-Antrag desselben Trägers (aus DB rekonstruiert)" },
-  { key: "diff", label: "Δ Antragssumme", align: "right", defaultVisible: true,
+  { key: "diff", label: "Δ Antragssumme", align: "right", defaultVisible: false,
     tooltip: "Aktuelle Antragssumme minus Vorjahres-Antragssumme" },
-  { key: "stadt_anteil", label: "Stadt-Anteil", align: "right", defaultVisible: true,
-    tooltip:
-      "Anteil Stadtbewohner:innen Würzburg an Gesamt-Teilnehmer:innen des " +
-      "Vorjahres. Ausschlaggebend NUR für Begegnungszentren und " +
-      "Bildungsträger (anteilige Auszahlung gem. AHP 2.3 Pkt. 2). Bei " +
-      "anderen Förderbereichen wird n/a angezeigt." },
-  { key: "teilnehmer", label: "Teilnehmer:innen", align: "right", defaultVisible: false,
-    tooltip:
-      "Teilnehmer:innen gesamt im Vorjahr. Allgemeiner Bemessungs- " +
-      "und Gewichtungsfaktor (AHP 2.3 Pkt. 2 / 3) — wird hier für alle " +
-      "Förderbereiche angezeigt." },
-  { key: "treffen", label: "Veranstaltungen", align: "right", defaultVisible: false,
-    tooltip:
-      "Durchgeführte Veranstaltungen im Vorjahr. Bei Seniorenkreisen " +
-      "bindet die Treffen-Staffel (AHP 2.3.4) die Förderhöhe direkt; bei " +
-      "Begegnungszentren als Gewichtungsfaktor. Bei anderen " +
-      "Förderbereichen wird n/a angezeigt." },
 ];
 
 const HIDDEN_COLUMNS_STORAGE_KEY = "inbox.hidden_columns.v1";
@@ -197,12 +168,6 @@ function spaltenFuerHaushaltsjahr(hj: number | null): SpaltenDef[] {
       // 'diff' bleibt bewusst beim Default-Label „Δ Antragssumme" —
       // ein blankes „Δ" wäre inkonsistent zu den ausgeschriebenen
       // Nachbarspalten und für Außenstehende kryptisch.
-      case "stadt_anteil":
-        return { ...c, label: `Stadt-Anteil ${vj}` };
-      case "teilnehmer":
-        return { ...c, label: `Teilnehmer:innen ${vj}` };
-      case "treffen":
-        return { ...c, label: `Veranstaltungen ${vj}` };
       default:
         return c;
     }
@@ -365,18 +330,6 @@ export function Inbox() {
       const db = vb === null ? -Infinity : (b.geforderte_foerdersumme_euro ?? 0) - vb;
       return dir === "asc" ? da - db : db - da;
     }
-    if (key === "stadt_anteil") {
-      const d = (a.stadtbewohner_anteil ?? -Infinity) - (b.stadtbewohner_anteil ?? -Infinity);
-      return dir === "asc" ? d : -d;
-    }
-    if (key === "teilnehmer") {
-      const d = (a.anzahl_teilnehmer ?? -Infinity) - (b.anzahl_teilnehmer ?? -Infinity);
-      return dir === "asc" ? d : -d;
-    }
-    if (key === "treffen") {
-      const d = (a.anzahl_treffen_jahr ?? -Infinity) - (b.anzahl_treffen_jahr ?? -Infinity);
-      return dir === "asc" ? d : -d;
-    }
     if (key === "status") {
       const ai = STATUS_ORDER.indexOf(a.status);
       const bi = STATUS_ORDER.indexOf(b.status);
@@ -432,9 +385,6 @@ export function Inbox() {
   }
 
   // Render-Liste mit Gruppen-Markern + Aggregaten.
-  // Stadt-Anteil wird TEILNEHMER-GEWICHTET aggregiert (siehe UE3 — AHP 2.3
-  // Pkt. 2 definiert ihn als „Anteil an GESAMTEN Teilnehmer:innen", daher
-  // nicht arithmetisches Mittel über Anträge).
   const rendered: Array<
     | {
         kind: "group";
@@ -442,9 +392,6 @@ export function Inbox() {
         count: number;
         antragsSumme: number;
         vjSumme: number | null;
-        stadtAnteilGewichtet: number | null;
-        teilnehmerSumme: number;
-        treffenSumme: number;
       }
     | { kind: "row"; antrag: AntragRow }
   > = [];
@@ -454,21 +401,11 @@ export function Inbox() {
   } else {
     const counts = new Map<string, number>();
     const antragsSums = new Map<string, number>();
-    const teilnehmerSums = new Map<string, number>();
-    const treffenSums = new Map<string, number>();
-    const stadtZaehler = new Map<string, number>();
-    const stadtNenner = new Map<string, number>();
     const vjSums = new Map<string, number | null>();
     sorted.forEach((a) => {
       const g = groupKeyOf(a);
       counts.set(g, (counts.get(g) ?? 0) + 1);
       antragsSums.set(g, (antragsSums.get(g) ?? 0) + (a.geforderte_foerdersumme_euro ?? 0));
-      teilnehmerSums.set(g, (teilnehmerSums.get(g) ?? 0) + (a.anzahl_teilnehmer ?? 0));
-      treffenSums.set(g, (treffenSums.get(g) ?? 0) + (a.anzahl_treffen_jahr ?? 0));
-      if (a.stadtbewohner_anteil !== null && a.anzahl_teilnehmer !== null) {
-        stadtZaehler.set(g, (stadtZaehler.get(g) ?? 0) + a.stadtbewohner_anteil * a.anzahl_teilnehmer);
-        stadtNenner.set(g, (stadtNenner.get(g) ?? 0) + a.anzahl_teilnehmer);
-      }
       const vj = vjValue(a, vjMap);
       const prev = vjSums.get(g);
       if (vj !== null) {
@@ -481,17 +418,12 @@ export function Inbox() {
     sorted.forEach((a) => {
       const g = groupKeyOf(a);
       if (g !== currentGroup) {
-        const nenner = stadtNenner.get(g) ?? 0;
-        const zaehler = stadtZaehler.get(g) ?? 0;
         rendered.push({
           kind: "group",
           label: groupLabel(groupBy, g),
           count: counts.get(g) ?? 0,
           antragsSumme: antragsSums.get(g) ?? 0,
           vjSumme: vjSums.get(g) ?? null,
-          stadtAnteilGewichtet: nenner > 0 ? zaehler / nenner : null,
-          teilnehmerSumme: teilnehmerSums.get(g) ?? 0,
-          treffenSumme: treffenSums.get(g) ?? 0,
         });
         currentGroup = g;
       }
@@ -502,17 +434,6 @@ export function Inbox() {
   const gesamtAntragsSumme = filtered.reduce(
     (s, a) => s + (a.geforderte_foerdersumme_euro ?? 0), 0,
   );
-  const gesamtTeilnehmer = filtered.reduce((s, a) => s + (a.anzahl_teilnehmer ?? 0), 0);
-  const gesamtTreffen = filtered.reduce((s, a) => s + (a.anzahl_treffen_jahr ?? 0), 0);
-  // Stadt-Anteil im Footer = teilnehmer-gewichteter Durchschnitt (siehe oben)
-  const stadtAgg = filtered.reduce<{ z: number; n: number }>((acc, a) => {
-    if (a.stadtbewohner_anteil !== null && a.anzahl_teilnehmer !== null) {
-      acc.z += a.stadtbewohner_anteil * a.anzahl_teilnehmer;
-      acc.n += a.anzahl_teilnehmer;
-    }
-    return acc;
-  }, { z: 0, n: 0 });
-  const gesamtStadtAnteil: number | null = stadtAgg.n > 0 ? stadtAgg.z / stadtAgg.n : null;
   const gesamtVj = filtered.reduce<{ sum: number; hasAny: boolean }>(
     (acc, a) => {
       const v = vjValue(a, vjMap);
@@ -531,7 +452,7 @@ export function Inbox() {
   // kein sinnvolles Summen-Aggregat im Footer). Damit colspan in
   // Gruppen-/Footer-Zeile sie korrekt mit überdeckt.
   const IDENT_KEYS: SortKey[] = ["antragsnummer", "name", "traeger", "submitted_at", "submitted_language", "status", "durchlaufzeit"];
-  const aggregatKeys: SortKey[] = ["antragssumme", "vj", "diff", "stadt_anteil", "teilnehmer", "treffen"];
+  const aggregatKeys: SortKey[] = ["antragssumme", "vj", "diff"];
   const sichtbareIdentSpalten = IDENT_KEYS.filter(istSichtbar);
   const sichtbareAggregatSpalten = aggregatKeys.filter(istSichtbar);
   const COL_COUNT_BEFORE_GESAMT = sichtbareIdentSpalten.length;
@@ -706,21 +627,6 @@ export function Inbox() {
                           </span>
                         </TableCell>
                       )}
-                      {istSichtbar("stadt_anteil") && (
-                        <TableCell className="text-right tabular-nums text-sm text-slate-700 py-3 whitespace-nowrap font-medium">
-                          {formatStadtAnteil(item.stadtAnteilGewichtet)}
-                        </TableCell>
-                      )}
-                      {istSichtbar("teilnehmer") && (
-                        <TableCell className="text-right tabular-nums text-sm text-slate-600 py-3 whitespace-nowrap">
-                          {item.teilnehmerSumme.toLocaleString("de-DE")}
-                        </TableCell>
-                      )}
-                      {istSichtbar("treffen") && (
-                        <TableCell className="text-right tabular-nums text-sm text-slate-600 py-3 whitespace-nowrap">
-                          {item.treffenSumme.toLocaleString("de-DE")}
-                        </TableCell>
-                      )}
                       <TableCell></TableCell>
                     </TableRow>
                   ) : (
@@ -786,39 +692,6 @@ export function Inbox() {
                               <span className={toneClass(diff.tone)}>{diff.text}</span>
                             </TableCell>
                           )}
-                          {istSichtbar("stadt_anteil") && (
-                            <TableCell className="text-right tabular-nums text-sm text-slate-700 whitespace-nowrap font-medium">
-                              {istStadtAnteilRelevant(item.antrag.foerderbereich)
-                                ? formatStadtAnteil(item.antrag.stadtbewohner_anteil)
-                                : (
-                                  <span
-                                    className="text-slate-400 italic font-normal"
-                                    title={naTooltip("stadt_anteil", item.antrag.foerderbereich!)}
-                                  >n/a</span>
-                                )}
-                            </TableCell>
-                          )}
-                          {istSichtbar("teilnehmer") && (
-                            <TableCell className="text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
-                              {item.antrag.anzahl_teilnehmer === null
-                                ? <span className="text-slate-400">—</span>
-                                : item.antrag.anzahl_teilnehmer.toLocaleString("de-DE")}
-                            </TableCell>
-                          )}
-                          {istSichtbar("treffen") && (
-                            <TableCell className="text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
-                              {!istTreffenRelevant(item.antrag.foerderbereich)
-                                ? (
-                                  <span
-                                    className="text-slate-400 italic"
-                                    title={naTooltip("treffen", item.antrag.foerderbereich!)}
-                                  >n/a</span>
-                                )
-                                : item.antrag.anzahl_treffen_jahr === null
-                                  ? <span className="text-slate-400">—</span>
-                                  : item.antrag.anzahl_treffen_jahr.toLocaleString("de-DE")}
-                            </TableCell>
-                          )}
                           <TableCell className="whitespace-nowrap pr-4">
                             <Link
                               to={`/antrag/${item.antrag.id}`}
@@ -862,21 +735,6 @@ export function Inbox() {
                     {istSichtbar("diff") && (
                       <TableCell className="py-4 text-right tabular-nums text-sm whitespace-nowrap">
                         <span className={toneClass(gesamtDiff.tone)}>{gesamtDiff.text}</span>
-                      </TableCell>
-                    )}
-                    {istSichtbar("stadt_anteil") && (
-                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-700 whitespace-nowrap font-medium">
-                        {formatStadtAnteil(gesamtStadtAnteil)}
-                      </TableCell>
-                    )}
-                    {istSichtbar("teilnehmer") && (
-                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
-                        {gesamtTeilnehmer.toLocaleString("de-DE")}
-                      </TableCell>
-                    )}
-                    {istSichtbar("treffen") && (
-                      <TableCell className="py-4 text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
-                        {gesamtTreffen.toLocaleString("de-DE")}
                       </TableCell>
                     )}
                     <TableCell></TableCell>
