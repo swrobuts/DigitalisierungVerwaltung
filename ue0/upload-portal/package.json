@@ -1,18 +1,24 @@
 {
   "name": "ue0-upload-portal",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dv/foerderbereiche": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",
     "@types/node": "^22.0.0",
+    "jsdom": "^25.0.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.4.0",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "vitest": "^2.1.0"
   }
 }
