@@ -4,7 +4,9 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: "/DigitalisierungVerwaltung/ue1/webformular/",
+  // GH Pages braucht "/DigitalisierungVerwaltung/ue1/webformular/", VPS-Container braucht "/".
+  // CI setzt VITE_BASE_PATH für GH Pages.
+  base: process.env.VITE_BASE_PATH ?? "/",
   build: { outDir: "dist", emptyOutDir: true },
   server: { port: 5173 },
 });

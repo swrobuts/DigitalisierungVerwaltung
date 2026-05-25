@@ -50,6 +50,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_PRUEFUNG_URL: https://pruefung.butscher.cloud
+          VITE_BASE_PATH: /DigitalisierungVerwaltung/ue0/upload-portal/
         run: pnpm build
       - name: UE0 — pack into _site
         run: |
@@ -63,6 +64,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_PRUEFUNG_URL: https://pruefung.butscher.cloud
+          VITE_BASE_PATH: /DigitalisierungVerwaltung/ue1/webformular/
         run: pnpm build
       - name: UE1 — pack into _site
         run: |
@@ -76,6 +78,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_PRUEFUNG_URL: https://pruefung.butscher.cloud
+          VITE_BASE_PATH: /DigitalisierungVerwaltung/ue4/agent-portal/
         run: pnpm build
         continue-on-error: true   # UE4 ist neu — falls Build noch nicht stabil, nicht den ganzen Pages-Deploy verhindern
       - name: UE4 — pack into _site
