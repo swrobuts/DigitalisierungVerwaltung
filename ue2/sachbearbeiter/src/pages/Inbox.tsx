@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Lock, Settings } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
+import { DemoDatenBanner } from "../components/DemoDatenBanner";
 import { useUserRole } from "../hooks/useUserRole";
 import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
@@ -567,6 +568,8 @@ export function Inbox() {
           </div>
         </div>
       </header>
+
+      <DemoDatenBanner />
 
       <main className="w-full px-4 py-6">
         <div className="bg-white border border-slate-200 rounded p-4 mb-4">

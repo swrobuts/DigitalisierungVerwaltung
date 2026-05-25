@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Check, ChevronDown, FileText } from "lucide-react";
 import { useAntrag, type AnlageRow, type AntragFull } from "../hooks/useAntrag";
 import { ManuellePruefungProvider } from "../hooks/useManuellePruefung";
+import { DemoDatenBanner } from "../components/DemoDatenBanner";
 import { StatusBadge } from "../components/StatusBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
@@ -140,6 +141,8 @@ export function AntragDetail() {
           </span>
         </div>
       </header>
+
+      <DemoDatenBanner />
 
       {/* Prozess-Indikator: drei Phasen Eingegangen → In Prüfung → Entscheidung. */}
       <div className="w-full px-4 lg:px-8 pt-6">

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { BookOpen, FileSearch, Lock, Network, Settings, Shield } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
+import { DemoDatenBanner } from "../components/DemoDatenBanner";
 import { useMeineZweitpruefungen } from "../hooks/useMeineZweitpruefungen";
 import { useUserRole } from "../hooks/useUserRole";
 import { useSession } from "../hooks/useSession";
@@ -687,6 +688,8 @@ export function Inbox() {
           </div>
         </div>
       </header>
+
+      <DemoDatenBanner />
 
       <main className="w-full px-4 py-6">
         {meineZweitpruefungen.length > 0 && (

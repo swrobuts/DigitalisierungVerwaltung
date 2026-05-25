@@ -6,6 +6,7 @@ import { useBescheide, type BescheidRow } from "../hooks/useBescheide";
 import { usePruefung } from "../hooks/usePruefung";
 import { useSession } from "../hooks/useSession";
 import { StatusBadge } from "../components/StatusBadge";
+import { DemoDatenBanner } from "../components/DemoDatenBanner";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
 import { allowedTransitions, isReverseTransition, STATUS_LABELS, type Status } from "../lib/workflow";
@@ -179,6 +180,8 @@ export function AntragDetail() {
           <DurchlaufzeitSubtitle antrag={antrag} />
         </div>
       </header>
+
+      <DemoDatenBanner />
 
       {/* Prozess-Indikator: zeigt, wo der Antrag im Workflow steht
           + KPI-Streifen mit Bearbeitungsmetriken (Tage seit Einreichung,
