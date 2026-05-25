@@ -28,6 +28,19 @@ export interface AntragRow {
   /** 0…1 — Auszahlungs-Anteilsfaktor (Würzburger Stadtbewohner). */
   stadtbewohner_anteil: number | null;
   anzahl_treffen_jahr: number | null;
+  /** Migration 029 — Förderbereich-Klassifikation. Wird in der Inbox
+   *  genutzt, um zu entscheiden, ob Stadt-Anteil / Treffen-Zahl für
+   *  diesen Förderbereich gem. AHP überhaupt ausschlaggebend sind. */
+  foerderbereich:
+    | "aufbau_niedrigschwellige_angebote"
+    | "buergerschaftliches_engagement"
+    | "mehrgenerationenhaeuser"
+    | "begegnungszentren"
+    | "bildungstraeger"
+    | "seniorenkreise"
+    | "quartiersmanagement_altenarbeit"
+    | "struktur_schwerpunktfoerderung"
+    | null;
   /** Migration 058: Durchlaufzeit aus apl2.antrag_history.
    *  entschieden_am: erster Statuswechsel zu bewilligt/abgelehnt; NULL solange offen.
    *  entscheidungs_typ: 'bewilligt' | 'abgelehnt' | NULL (= offen).
@@ -53,7 +66,7 @@ export function useAntraege(): {
       const { data, error } = await supabase
         .from("antrag_mit_summen")
         .select(
-          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, geforderte_foerdersumme_euro, anzahl_teilnehmer, stadtbewohner_anteil, anzahl_treffen_jahr, entschieden_am, entscheidungs_typ, durchlaufzeit_tage",
+          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, geforderte_foerdersumme_euro, anzahl_teilnehmer, stadtbewohner_anteil, anzahl_treffen_jahr, foerderbereich, entschieden_am, entscheidungs_typ, durchlaufzeit_tage",
         )
         .order("submitted_at", { ascending: false });
       if (!mounted) return;

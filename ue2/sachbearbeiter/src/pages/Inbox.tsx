@@ -3,6 +3,11 @@ import { Link } from "react-router-dom";
 import { Lock, Settings } from "lucide-react";
 import { useAntraege, type AntragRow } from "../hooks/useAntraege";
 import { DemoDatenBanner } from "../components/DemoDatenBanner";
+import {
+  istStadtAnteilRelevant,
+  istTreffenRelevant,
+  naTooltip,
+} from "../lib/foerderbereich-relevanz";
 import { useUserRole } from "../hooks/useUserRole";
 import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
@@ -142,16 +147,20 @@ const COLUMNS: SpaltenDef[] = [
   { key: "stadt_anteil", label: "Stadt-Anteil", align: "right", defaultVisible: true,
     tooltip:
       "Anteil Stadtbewohner:innen Würzburg an Gesamt-Teilnehmer:innen des " +
-      "Vorjahres. Bestimmt direkt den prozentualen Auszahlungsanteil " +
-      "(AHP 2.3 Pkt. 2). Aus Antragsformular Step 4." },
+      "Vorjahres. Ausschlaggebend NUR für Begegnungszentren und " +
+      "Bildungsträger (anteilige Auszahlung gem. AHP 2.3 Pkt. 2). Bei " +
+      "anderen Förderbereichen wird n/a angezeigt." },
   { key: "teilnehmer", label: "Teilnehmer:innen", align: "right", defaultVisible: false,
     tooltip:
-      "Teilnehmer:innen gesamt im Vorjahr. Geht in die Gewichtung der " +
-      "Zuwendung aus dem Budget ein (AHP 2.3 Pkt. 2)." },
+      "Teilnehmer:innen gesamt im Vorjahr. Allgemeiner Bemessungs- " +
+      "und Gewichtungsfaktor (AHP 2.3 Pkt. 2 / 3) — wird hier für alle " +
+      "Förderbereiche angezeigt." },
   { key: "treffen", label: "Veranstaltungen", align: "right", defaultVisible: false,
     tooltip:
-      "Durchgeführte Veranstaltungen im Vorjahr. Geht in die Gewichtung " +
-      "der Zuwendung aus dem Budget ein (AHP 2.3 Pkt. 2)." },
+      "Durchgeführte Veranstaltungen im Vorjahr. Bei Seniorenkreisen " +
+      "bindet die Treffen-Staffel (AHP 2.3.4) die Förderhöhe direkt; bei " +
+      "Begegnungszentren als Gewichtungsfaktor. Bei anderen " +
+      "Förderbereichen wird n/a angezeigt." },
 ];
 
 const HIDDEN_COLUMNS_STORAGE_KEY = "inbox.hidden_columns.v1";
@@ -779,7 +788,14 @@ export function Inbox() {
                           )}
                           {istSichtbar("stadt_anteil") && (
                             <TableCell className="text-right tabular-nums text-sm text-slate-700 whitespace-nowrap font-medium">
-                              {formatStadtAnteil(item.antrag.stadtbewohner_anteil)}
+                              {istStadtAnteilRelevant(item.antrag.foerderbereich)
+                                ? formatStadtAnteil(item.antrag.stadtbewohner_anteil)
+                                : (
+                                  <span
+                                    className="text-slate-400 italic font-normal"
+                                    title={naTooltip("stadt_anteil", item.antrag.foerderbereich!)}
+                                  >n/a</span>
+                                )}
                             </TableCell>
                           )}
                           {istSichtbar("teilnehmer") && (
@@ -791,9 +807,16 @@ export function Inbox() {
                           )}
                           {istSichtbar("treffen") && (
                             <TableCell className="text-right tabular-nums text-sm text-slate-600 whitespace-nowrap">
-                              {item.antrag.anzahl_treffen_jahr === null
-                                ? <span className="text-slate-400">—</span>
-                                : item.antrag.anzahl_treffen_jahr.toLocaleString("de-DE")}
+                              {!istTreffenRelevant(item.antrag.foerderbereich)
+                                ? (
+                                  <span
+                                    className="text-slate-400 italic"
+                                    title={naTooltip("treffen", item.antrag.foerderbereich!)}
+                                  >n/a</span>
+                                )
+                                : item.antrag.anzahl_treffen_jahr === null
+                                  ? <span className="text-slate-400">—</span>
+                                  : item.antrag.anzahl_treffen_jahr.toLocaleString("de-DE")}
                             </TableCell>
                           )}
                           <TableCell className="whitespace-nowrap pr-4">
