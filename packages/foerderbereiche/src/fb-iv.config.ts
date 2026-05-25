@@ -13,7 +13,7 @@ export const FB_IV: FoerderbereichKonfig = {
       beschreibung: "Beliebige Anlagen (Konzept, Kostenplan, etc.)" }
   ],
   validation_rules: [
-    { feld: "kurzbeschreibung", regel: "value.length <= 1000",
+    { feld: "kurzbeschreibung", kind: "max_length", value: 1000,
       fehlermeldung: "Kurzbeschreibung max 1000 Zeichen" }
   ],
   quelle_pdf: "materialien/wuerzburg-2026/ahp-foerderrichtlinie-2025-03-27.pdf",

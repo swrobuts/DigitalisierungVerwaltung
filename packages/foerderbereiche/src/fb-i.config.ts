@@ -13,9 +13,9 @@ export const FB_I: FoerderbereichKonfig = {
       beschreibung: "Kurze Projektskizze (Konzept, Ziele, Maßnahmen)" }
   ],
   validation_rules: [
-    { feld: "personalkosten_euro", regel: "value >= 0",
+    { feld: "personalkosten_euro", kind: "min", value: 0,
       fehlermeldung: "Personalkosten dürfen nicht negativ sein" },
-    { feld: "sachkosten_euro", regel: "value >= 0",
+    { feld: "sachkosten_euro", kind: "min", value: 0,
       fehlermeldung: "Sachkosten dürfen nicht negativ sein" }
   ],
   quelle_pdf: "materialien/wuerzburg-2026/antrag-ahp-1-aufbau-niedrigschwellige-angebote.pdf",

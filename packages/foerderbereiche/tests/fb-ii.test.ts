@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FB_II } from "../src/fb-ii.config";
+import { evaluateRule } from "../src/validator";
 
 describe("FB II — Engagement", () => {
   it("hat ID II und Label Engagement", () => {
@@ -18,5 +19,11 @@ describe("FB II — Engagement", () => {
   });
   it("quelle_pdf verweist auf antrag-ahp-2", () => {
     expect(FB_II.quelle_pdf).toContain("antrag-ahp-2");
+  });
+  it("min-Regel anzahl_helfer_vorjahr akzeptiert ≥0, lehnt <0 ab", () => {
+    const rule = FB_II.validation_rules.find(r => r.feld === "anzahl_helfer_vorjahr");
+    expect(rule).toBeDefined();
+    expect(evaluateRule(rule!, 5)).toBe(true);
+    expect(evaluateRule(rule!, -1)).toBe(false);
   });
 });

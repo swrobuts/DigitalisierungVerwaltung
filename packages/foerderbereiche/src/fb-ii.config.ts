@@ -15,9 +15,9 @@ export const FB_II: FoerderbereichKonfig = {
       beschreibung: "Helferliste (PDF amtliche Vorlage oder Excel-Schablone) — nur wenn Tabelle im Webform nicht ausgefüllt" }
   ],
   validation_rules: [
-    { feld: "anzahl_helfer_vorjahr", regel: "value >= 0",
+    { feld: "anzahl_helfer_vorjahr", kind: "min", value: 0,
       fehlermeldung: "Anzahl Helfer kann nicht negativ sein" },
-    { feld: "gesamt_helferstunden_vorjahr", regel: "value >= 0",
+    { feld: "gesamt_helferstunden_vorjahr", kind: "min", value: 0,
       fehlermeldung: "Helferstunden können nicht negativ sein" }
   ],
   quelle_pdf: "materialien/wuerzburg-2026/antrag-ahp-2-buergerschaftliches-engagement.pdf",

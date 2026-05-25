@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FB_III, FB_III_VARIANTEN } from "../src/fb-iii.config";
+import { evaluateRule } from "../src/validator";
 
 describe("FB III — Bewährte Strukturen", () => {
   it("hat ID III", () => {
@@ -24,5 +25,20 @@ describe("FB III — Bewährte Strukturen", () => {
   });
   it("quelle_pdf matched /antrag-ahp-3/", () => {
     expect(FB_III.quelle_pdf).toMatch(/antrag-ahp-3/);
+  });
+  it("enum-Regel variante akzeptiert A-D, lehnt X ab", () => {
+    const rule = FB_III.validation_rules.find(r => r.feld === "variante");
+    expect(rule).toBeDefined();
+    expect(evaluateRule(rule!, "A")).toBe(true);
+    expect(evaluateRule(rule!, "D")).toBe(true);
+    expect(evaluateRule(rule!, "X")).toBe(false);
+  });
+  it("variantenspezifische_anlagen haben mime + max_mb (AnlagenSlot-Form)", () => {
+    for (const v of Object.values(FB_III_VARIANTEN)) {
+      for (const anlage of v.variantenspezifische_anlagen) {
+        expect(anlage.mime).toContain("application/pdf");
+        expect(anlage.max_mb).toBeGreaterThan(0);
+      }
+    }
   });
 });

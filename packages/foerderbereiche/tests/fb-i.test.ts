@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FB_I } from "../src/fb-i.config";
+import { evaluateRule } from "../src/validator";
 
 describe("FB I — Aufbau", () => {
   it("hat ID I und Label Aufbau", () => {
@@ -17,5 +18,11 @@ describe("FB I — Aufbau", () => {
   });
   it("quelle_pdf verweist auf vorhandenes PDF", () => {
     expect(FB_I.quelle_pdf).toContain("antrag-ahp-1");
+  });
+  it("min-Regel personalkosten_euro akzeptiert ≥0, lehnt <0 ab", () => {
+    const rule = FB_I.validation_rules.find(r => r.feld === "personalkosten_euro");
+    expect(rule).toBeDefined();
+    expect(evaluateRule(rule!, 100)).toBe(true);
+    expect(evaluateRule(rule!, -1)).toBe(false);
   });
 });

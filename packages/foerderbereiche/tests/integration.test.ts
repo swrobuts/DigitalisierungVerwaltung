@@ -18,4 +18,12 @@ describe("FB-Konfig-Integration", () => {
     expect(konfigFor("I").label_kurz).toBe("Aufbau");
     expect(konfigFor("III").label_kurz).toBe("Bewährte Strukturen");
   });
+  it("ALL_FOERDERBEREICHE ist frozen (Object.freeze)", () => {
+    expect(Object.isFrozen(ALL_FOERDERBEREICHE)).toBe(true);
+  });
+  it("Mutationsversuch an ALL_FOERDERBEREICHE wirft (strict mode)", () => {
+    expect(() => {
+      (ALL_FOERDERBEREICHE as Record<string, unknown>).I = null;
+    }).toThrow();
+  });
 });

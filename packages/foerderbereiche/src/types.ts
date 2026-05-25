@@ -9,11 +9,21 @@ export interface AnlagenSlot {
   beschreibung: string;
 }
 
-export interface ValidationRule {
-  feld: string;
-  regel: string;         // JS-Ausdruck, evaluiert über das State-Objekt
-  fehlermeldung: string;
-}
+/**
+ * Diskriminierte Union für Validierungsregeln.
+ *
+ * Bewusst KEIN String mit JS-Ausdruck — sonst müssten Konsumenten
+ * `new Function(...)` / `eval` verwenden, was eine Code-Injection-Falle wäre.
+ *
+ * Konsumenten evaluieren über `evaluateRule()` aus diesem Package.
+ */
+export type ValidationRule =
+  | { feld: string; kind: "min";        value: number;   fehlermeldung: string }
+  | { feld: string; kind: "max";        value: number;   fehlermeldung: string }
+  | { feld: string; kind: "min_length"; value: number;   fehlermeldung: string }
+  | { feld: string; kind: "max_length"; value: number;   fehlermeldung: string }
+  | { feld: string; kind: "enum";       values: readonly string[]; fehlermeldung: string }
+  | { feld: string; kind: "regex";      pattern: string; fehlermeldung: string };
 
 export interface FoerderbereichKonfig {
   id: FoerderbereichId;
