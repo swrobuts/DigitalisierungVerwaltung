@@ -1,17 +1,27 @@
 /**
- * UE0 — Antrag-PDF-Upload-Portal (Reifegradstufe 0)
+ * UE0 — Antrag-PDF-Upload-Portal (Reifegradstufe 0, Multi-FB).
  *
- * Layout 1:1 inspiriert von wuerzburg.de/rathaus/formularcenter:
- * Titel + Beschreibung links, Adressbox rechts.
+ * URL-Routing (Query-Strings, weil GitHub Pages keine SPA-Routes):
+ *   /                       → Förderbereich-Wahl (4 Karten + Smart-Upload-Brücke)
+ *   /?fb=I|II|III|IV        → FB-spezifischer Upload (Hauptantrag + optionale Anlage)
+ *   /?fb=III&v=A|B|C|D      → FB III mit gewählter Variante (variantenspezifische Anlage)
+ *   /?smart=1               → Smart-Upload (Klassifikation pro PDF)
+ *   /?status=<einreichung>  → Tracking-Page mit Polling
  *
- * Zwei Modi via URL-Query:
- *   /              → Upload-Modus (Formularcenter-Optik)
- *   /?status=ID    → Status-Modus (Polling auf antrag_einreichung.id)
+ * Architektur 2026-05-25 Phase 4: ein gemeinsamer Layout-Wrapper
+ * (Header, Adressbox, Footer) — der dynamische Teil wird ins #app gerendert.
  */
 
 import "./styles.css";
-import { renderUpload } from "./upload";
-import { renderStatus } from "./status";
+import { renderFbWahl } from "./views/fb-wahl";
+import { renderFbUpload } from "./views/fb-upload";
+import { renderSmartUpload } from "./views/smart-upload";
+import { renderStatusView } from "./views/status";
+
+import type { FoerderbereichId, FbIiiVarianteId } from "@dv/foerderbereiche";
+
+const VALID_FBS = new Set(["I", "II", "III", "IV"]);
+const VALID_V = new Set(["A", "B", "C", "D"]);
 
 const root = document.getElementById("app");
 if (!root) throw new Error("#app nicht gefunden");
@@ -40,146 +50,50 @@ function renderAddressBox(): HTMLElement {
   return box;
 }
 
-function renderUploadView(): HTMLElement {
-  const view = document.createElement("div");
-
-  // Titel + Beschreibung — wörtlich vom Original
-  const titel = document.createElement("h1");
-  titel.className = "page-titel";
-  titel.textContent = "Altenhilfeplan";
-  view.appendChild(titel);
-
-  const sub = document.createElement("p");
-  sub.className = "page-untertitel";
-  sub.textContent = "Antrag Altentagesstätten- , Betriebs- und Personalkostenzuschüsse";
-  view.appendChild(sub);
-
-  // Zwei-Spalten-Layout
-  const grid = document.createElement("div");
-  grid.className = "layout-2col";
-
-  const main = document.createElement("div");
-  main.className = "col-main";
-
-  main.innerHTML = `
-    <h2>Formulare und/oder Online-Service zum Thema:</h2>
-  `;
-
-  // Gemeinsamer OCR-Hinweis für beide Anträge — nur einmal angezeigt
-  const ocrHint = document.createElement("p");
-  ocrHint.className = "upload-hint-global";
-  ocrHint.innerHTML = `
-    📤 <em>Demo-Service:</em> Ausgefüllte PDFs (auch handschriftlich) können Sie
-    jeweils direkt über den Button hinter dem Download-Link hochladen. Ein KI-Workflow
-    liest die Felder per OCR aus und übermittelt sie an die Sachbearbeitung.
-  `;
-  main.appendChild(ocrHint);
-
-  // Upload-Komponente rendert selbst zwei optisch klar getrennte Boxen:
-  //   ① Hauptantrag (rot, Pflicht)
-  //   ② Anlage 1 — Wochenplan (grau, Optional)
-  // Beide Files werden in einem POST gesendet (FormData: datei + anlage_1)
-  // → ein gemeinsamer tracking_id, n8n verarbeitet beide.
-  main.appendChild(renderUpload(
-    (trackingId) => {
-      const url = new URL(window.location.href);
-      url.searchParams.set("status", trackingId);
-      window.history.pushState({}, "", url);
-      route();
-    },
-    {
-      dokumentBeschreibung: "Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
-      ueberschrift: "So funktioniert der digitale Antrag",
-      primary: {
-        nummer: 1,
-        sektionTitel: "Hauptantrag",
-        pdfUrl: "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/antrag-apl2.pdf",
-        pdfLabel: "Antrag APL 2 — Altentagesstätten - Betriebs- und Personalkostenzuschüsse",
-        hint: "Nur PDF, max. 10 MB",
-      },
-      secondary: {
-        fieldName: "anlage_1",
-        nummer: 2,
-        sektionTitel: "Anlage 1 — Wochenplan",
-        pdfUrl: "https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/materialien/anlage-antrag-apl2.pdf",
-        pdfLabel: "Anlage 1 — Wochenplan (Öffnungszeiten + Angebot)",
-        hint: "PDF, max. 10 MB — wenn vorhanden, extrahiert die KI auch die Öffnungszeiten",
-      },
-    },
-  ));
-
-  // Trenner + Weiterführende Informationen
-  const weiter = document.createElement("div");
-  weiter.innerHTML = `
-    <hr />
-    <h2>Weiterführende Informationen zum Thema</h2>
-    <p>
-      🔗 <a href="https://www.wuerzburg.de/themen/soziales-und-gesellschaft/aelterwerden-in-wuerzburg/index.html"
-            target="_blank" rel="noopener noreferrer">Antragswesen / Altenhilfeplan</a>
-    </p>
-  `;
-  main.appendChild(weiter);
-
-  // Zurück-Link wie im Original
-  const back = document.createElement("a");
-  back.className = "back-link";
-  back.href = "#";
-  back.textContent = ">>> Zurück zur Ergebnisliste";
-  main.appendChild(back);
-
-  grid.appendChild(main);
-
-  // Rechte Spalte: Adress-Box
-  grid.appendChild(renderAddressBox());
-
-  view.appendChild(grid);
-  return view;
-}
-
-function renderStatusView(trackingId: string): HTMLElement {
-  const view = document.createElement("div");
-
-  const titel = document.createElement("h1");
-  titel.className = "page-titel";
-  titel.textContent = "Eingangsbestätigung";
-  view.appendChild(titel);
-
-  const sub = document.createElement("p");
-  sub.className = "page-untertitel";
-  sub.textContent =
-    "Ihr Antrag wird verarbeitet. Diese Seite aktualisiert sich automatisch, sobald die Bearbeitung abgeschlossen ist.";
-  view.appendChild(sub);
-
-  const grid = document.createElement("div");
-  grid.className = "layout-2col";
-
-  const main = document.createElement("div");
-  main.className = "col-main";
-  main.appendChild(renderStatus(trackingId));
-
-  const back = document.createElement("a");
-  back.className = "back-link";
-  back.href = window.location.pathname;
-  back.textContent = ">>> Neuen Antrag einreichen";
-  main.appendChild(back);
-
-  grid.appendChild(main);
-  grid.appendChild(renderAddressBox());
-
-  view.appendChild(grid);
-  return view;
+/** Setzt `search` als neuen URL-Query und re-routed. Leerer String → /. */
+function navigate(search: string): void {
+  const url = new URL(window.location.href);
+  url.search = search.startsWith("?") ? search.slice(1) : search;
+  window.history.pushState({}, "", url);
+  route();
 }
 
 function route(): void {
   root!.innerHTML = "";
-  const params = new URLSearchParams(window.location.search);
-  const trackingId = params.get("status");
 
-  if (trackingId) {
-    root!.appendChild(renderStatusView(trackingId));
+  const params = new URLSearchParams(window.location.search);
+  const status = params.get("status");
+  const smart = params.get("smart");
+  const fb = params.get("fb");
+  const v = params.get("v");
+
+  // Page-Body in zwei-Spalten-Layout (Adressbox rechts).
+  const grid = document.createElement("div");
+  grid.className = "layout-2col";
+  const mainCol = document.createElement("div");
+  mainCol.className = "col-main";
+
+  if (status) {
+    mainCol.appendChild(renderStatusView(status, navigate));
+  } else if (smart === "1") {
+    mainCol.appendChild(renderSmartUpload(navigate));
+  } else if (fb && VALID_FBS.has(fb)) {
+    const variante = v && VALID_V.has(v) ? (v as FbIiiVarianteId) : null;
+    mainCol.appendChild(renderFbUpload({
+      fb: fb as FoerderbereichId,
+      variante,
+      navigate,
+    }));
   } else {
-    root!.appendChild(renderUploadView());
+    mainCol.appendChild(renderFbWahl(navigate));
   }
+
+  grid.appendChild(mainCol);
+  grid.appendChild(renderAddressBox());
+  root!.appendChild(grid);
+
+  // Hochscrollen, damit nach Navigation immer der Header zuerst sichtbar ist.
+  window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
 }
 
 window.addEventListener("popstate", route);

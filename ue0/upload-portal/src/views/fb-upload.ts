@@ -1,0 +1,291 @@
+/**
+ * FB-spezifische Upload-Page (nach FB-Wahl).
+ *
+ * URL-Parameter:
+ *   ?fb=I|II|III|IV          Pflicht
+ *   &v=A|B|C|D               Nur FB III (variantenspezifischer Anlage-Slot)
+ *
+ * Rendert:
+ *   1. Hauptantrag-Slot (Pflicht, PDF)
+ *   2. Bei FB III ohne `v`: Varianten-Auswahl (A/B/C/D) bevor Anlage-Slot kommt
+ *   3. FB-spezifischer Anlage-Slot (optional / je nach Plugin)
+ *   4. Submit-Button → POST /functions/v1/upload-antragspdf
+ */
+
+import {
+  ALL_FOERDERBEREICHE,
+  FB_III_VARIANTEN,
+} from "@dv/foerderbereiche";
+import type {
+  FoerderbereichId,
+  AnlagenSlot,
+  FbIiiVarianteId,
+} from "@dv/foerderbereiche";
+import { einreichen } from "../lib/api";
+import { createDropZone, filePreview } from "../lib/upload-zone";
+
+interface RenderOpts {
+  fb: FoerderbereichId;
+  variante: FbIiiVarianteId | null;
+  /** Navigation zu einer anderen ?-Query (für Variante-Wechsel + Status-Redirect). */
+  navigate: (search: string) => void;
+}
+
+export function renderFbUpload(opts: RenderOpts): HTMLElement {
+  const view = document.createElement("div");
+  const fb = ALL_FOERDERBEREICHE[opts.fb];
+
+  // ── Header mit Zurück-Link + FB-Titel ───────────────────────────
+  const back = document.createElement("a");
+  back.className = "back-link";
+  back.href = "#";
+  back.textContent = "‹ Zurück zur Förderbereich-Wahl";
+  back.addEventListener("click", (e) => {
+    e.preventDefault();
+    opts.navigate("");
+  });
+  view.appendChild(back);
+
+  const titel = document.createElement("h1");
+  titel.className = "page-titel";
+  titel.textContent = `FB ${fb.id} — ${fb.label_lang}`;
+  view.appendChild(titel);
+
+  const sub = document.createElement("p");
+  sub.className = "page-untertitel";
+  sub.textContent = fb.beschreibung;
+  view.appendChild(sub);
+
+  // ── FB III: Variante-Auswahl (wenn nicht in URL) ────────────────
+  if (fb.id === "III" && !opts.variante) {
+    view.appendChild(renderVariantenWahl(opts.navigate));
+    return view;
+  }
+
+  // ── Hauptantrag-Slot (immer Pflicht, immer PDF) ─────────────────
+  let mainFile: File | null = null;
+  let anlageFile: File | null = null;
+
+  const errBox = document.createElement("div");
+  errBox.className = "status-fail";
+  errBox.style.display = "none";
+
+  function showError(msg: string) {
+    errBox.style.display = "block";
+    errBox.innerHTML = `
+      <div class="status-fail-title">Fehler beim Hochladen</div>
+      <p style="margin: 0; font-size: 13.5px;">${msg}</p>
+    `;
+  }
+
+  const mainBox = buildSlot({
+    nummer: 1,
+    pflicht: true,
+    titel: "Hauptantrag",
+    pdfUrl: `https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/${fb.quelle_pdf}`,
+    pdfLabel: `Antrag AHP ${fb.id} (PDF zum Download)`,
+    accept: ["application/pdf"],
+    hintText: "Nur PDF, max. 10 MB",
+    onFile: (f) => {
+      mainFile = f;
+      updateSubmit();
+    },
+    onError: showError,
+  });
+  view.appendChild(mainBox);
+
+  // ── Anlage-Slot (FB-spezifisch) ─────────────────────────────────
+  const anlageSlot = pickAnlageSlot(opts.fb, opts.variante);
+  let anlageTyp: string | null = null;
+  if (anlageSlot) {
+    anlageTyp = anlageSlot.typ;
+    const anlageBox = buildSlot({
+      nummer: 2,
+      pflicht: anlageSlot.pflicht,
+      titel: humanAnlageTitel(anlageSlot),
+      pdfUrl: null,
+      pdfLabel: null,
+      accept: [...anlageSlot.mime],
+      hintText: anlageSlot.beschreibung,
+      onFile: (f) => {
+        anlageFile = f;
+        updateSubmit();
+      },
+      onError: showError,
+    });
+    view.appendChild(anlageBox);
+  }
+
+  // ── Submit-Card ─────────────────────────────────────────────────
+  const submitCard = document.createElement("div");
+  submitCard.className = "card";
+  submitCard.style.marginTop = "1rem";
+
+  const actions = document.createElement("div");
+  actions.className = "actions";
+  actions.style.display = "none";
+  const submitBtn = document.createElement("button");
+  submitBtn.type = "button";
+  submitBtn.className = "btn-primary";
+  submitBtn.textContent = "Antrag absenden";
+  actions.appendChild(submitBtn);
+  submitCard.appendChild(actions);
+  submitCard.appendChild(errBox);
+  view.appendChild(submitCard);
+
+  function updateSubmit() {
+    const required = anlageSlot?.pflicht ? mainFile && anlageFile : !!mainFile;
+    actions.style.display = required ? "flex" : "none";
+    errBox.style.display = "none";
+  }
+
+  submitBtn.addEventListener("click", async () => {
+    if (!mainFile) return;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Wird hochgeladen …";
+    errBox.style.display = "none";
+    try {
+      const res = await einreichen({
+        datei: mainFile,
+        foerderbereich: opts.fb,
+        variante: opts.variante,
+        anlage: anlageFile,
+        anlage_typ: anlageFile ? anlageTyp : null,
+      });
+      opts.navigate(`?status=${encodeURIComponent(res.einreichung_id)}`);
+    } catch (e) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Antrag absenden";
+      showError((e as Error).message);
+    }
+  });
+
+  return view;
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────────
+
+interface SlotOpts {
+  nummer: 1 | 2;
+  pflicht: boolean;
+  titel: string;
+  pdfUrl: string | null;
+  pdfLabel: string | null;
+  accept: string[];
+  hintText: string;
+  onFile: (f: File | null) => void;
+  onError: (msg: string) => void;
+}
+
+function buildSlot(s: SlotOpts): HTMLElement {
+  const box = document.createElement("div");
+  box.className = "antrag-row" + (s.pflicht ? "" : " antrag-row-optional");
+
+  const head = document.createElement("div");
+  head.className = "antrag-section-head";
+  head.innerHTML = `
+    <span class="antrag-section-num">${s.nummer}</span>
+    <h2 class="antrag-section-title">${s.titel}</h2>
+    <span class="antrag-section-badge${s.pflicht ? "" : " badge-optional"}">${s.pflicht ? "Pflicht" : "Optional"}</span>
+  `;
+  box.appendChild(head);
+
+  if (s.pdfUrl) {
+    const link = document.createElement("a");
+    link.className = "pdf-link";
+    link.href = s.pdfUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.innerHTML = `<span class="pdf-icon">PDF</span> ${s.pdfLabel}`;
+    box.appendChild(link);
+  }
+
+  const previewSlot = document.createElement("div");
+  box.appendChild(previewSlot);
+
+  const zone = createDropZone({
+    hint: s.hintText,
+    accept: s.accept,
+    onFiles: (files) => {
+      const f = files[0];
+      if (!f) return;
+      previewSlot.innerHTML = "";
+      previewSlot.appendChild(filePreview(f, () => {
+        previewSlot.innerHTML = "";
+        zone.style.display = "block";
+        s.onFile(null);
+      }));
+      zone.style.display = "none";
+      s.onFile(f);
+    },
+    onError: s.onError,
+  });
+  box.appendChild(zone);
+  return box;
+}
+
+function pickAnlageSlot(
+  fb: FoerderbereichId,
+  variante: FbIiiVarianteId | null,
+): AnlagenSlot | null {
+  if (fb === "III" && variante) {
+    return FB_III_VARIANTEN[variante].variantenspezifische_anlagen[0] ?? null;
+  }
+  const slots = ALL_FOERDERBEREICHE[fb].anlagen;
+  return slots[0] ?? null;
+}
+
+function humanAnlageTitel(slot: AnlagenSlot): string {
+  const map: Record<AnlagenSlot["typ"], string> = {
+    projektskizze: "Projektskizze",
+    helferliste: "Helferliste",
+    foerderbestaetigung_bund: "Förderbestätigung Bundesprogramm",
+    programm_flyer: "Programm / Flyer",
+    stundenzettel: "Stundenzettel",
+    sonstige: "Beliebige Anlagen",
+  };
+  return map[slot.typ];
+}
+
+function renderVariantenWahl(navigate: (s: string) => void): HTMLElement {
+  const wrap = document.createElement("div");
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <h3 class="card-h3">Welche Variante trifft auf Ihre Einrichtung zu?</h3>
+    <div class="card-body">
+      <p style="margin: 0 0 0.5rem; color: #555; font-size: 13.5px;">
+        FB III ist in vier Varianten unterteilt. Bitte wählen Sie die, die
+        Ihre Einrichtung beschreibt — die nachfolgende Anlage richtet sich
+        danach.
+      </p>
+    </div>
+  `;
+  wrap.appendChild(card);
+
+  const grid = document.createElement("div");
+  grid.className = "variante-grid";
+  for (const id of ["A", "B", "C", "D"] as FbIiiVarianteId[]) {
+    const v = FB_III_VARIANTEN[id];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "fb-card";
+    btn.innerHTML = `
+      <div class="fb-card-icon" aria-hidden="true">${v.icon}</div>
+      <div class="fb-card-body">
+        <div class="fb-card-roman">Variante ${v.id}</div>
+        <div class="fb-card-title">${v.label}</div>
+        ${v.foerderhoechstgrenze_euro
+          ? `<div class="fb-card-desc">Förderhöchstgrenze ${v.foerderhoechstgrenze_euro.toLocaleString("de-DE")} €</div>`
+          : ""}
+      </div>
+      <div class="fb-card-arrow" aria-hidden="true">›</div>
+    `;
+    btn.addEventListener("click", () => navigate(`?fb=III&v=${id}`));
+    grid.appendChild(btn);
+  }
+  wrap.appendChild(grid);
+  return wrap;
+}
