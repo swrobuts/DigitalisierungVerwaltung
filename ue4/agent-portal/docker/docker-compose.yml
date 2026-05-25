@@ -1,0 +1,40 @@
+services:
+  ue4-agent-portal:
+    container_name: ue4-agent-portal
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-https://pruefung.butscher.cloud}
+    image: ue4-agent-portal:latest
+    restart: unless-stopped
+    networks:
+      - root_default
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=root_default
+
+      # HTTP -> HTTPS Redirect
+      - traefik.http.routers.ue4-agent-http.rule=Host(`agent.butscher.cloud`)
+      - traefik.http.routers.ue4-agent-http.entrypoints=web
+      - traefik.http.routers.ue4-agent-http.middlewares=ue4-agent-https-redirect
+      - traefik.http.middlewares.ue4-agent-https-redirect.redirectscheme.scheme=https
+
+      # HTTPS-Router
+      - traefik.http.routers.ue4-agent.rule=Host(`agent.butscher.cloud`)
+      - traefik.http.routers.ue4-agent.entrypoints=websecure
+      - traefik.http.routers.ue4-agent.tls=true
+      - traefik.http.routers.ue4-agent.tls.certresolver=mytlschallenge
+      - traefik.http.routers.ue4-agent.service=ue4-agent
+
+      - traefik.http.services.ue4-agent.loadbalancer.server.port=8080
+
+      # Security-Header
+      - traefik.http.routers.ue4-agent.middlewares=ue4-agent-secheaders
+      - traefik.http.middlewares.ue4-agent-secheaders.headers.stsSeconds=31536000
+      - traefik.http.middlewares.ue4-agent-secheaders.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.ue4-agent-secheaders.headers.framedeny=true
+
+networks:
+  root_default:
+    external: true
