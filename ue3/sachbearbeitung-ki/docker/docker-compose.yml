@@ -19,14 +19,14 @@ services:
       - traefik.enable=true
       - traefik.docker.network=root_default
 
-      # HTTP → HTTPS Redirect
-      - traefik.http.routers.amt-ki-http.rule=Host(`amt-ki.butscher.cloud`)
+      # HTTP → HTTPS Redirect (beide Hosts)
+      - traefik.http.routers.amt-ki-http.rule=Host(`amt-ki.butscher.cloud`) || Host(`ki.butscher.cloud`)
       - traefik.http.routers.amt-ki-http.entrypoints=web
       - traefik.http.routers.amt-ki-http.middlewares=amt-ki-https-redirect
       - traefik.http.middlewares.amt-ki-https-redirect.redirectscheme.scheme=https
 
-      # HTTPS-Router
-      - traefik.http.routers.amt-ki.rule=Host(`amt-ki.butscher.cloud`)
+      # HTTPS-Router (amt-ki = backward-compat, ki = neuer Multi-FB-Name)
+      - traefik.http.routers.amt-ki.rule=Host(`amt-ki.butscher.cloud`) || Host(`ki.butscher.cloud`)
       - traefik.http.routers.amt-ki.entrypoints=websecure
       - traefik.http.routers.amt-ki.tls=true
       - traefik.http.routers.amt-ki.tls.certresolver=mytlschallenge

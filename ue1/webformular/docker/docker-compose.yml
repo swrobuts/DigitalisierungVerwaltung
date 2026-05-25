@@ -1,0 +1,34 @@
+services:
+  ue1-webformular:
+    container_name: ue1-webformular
+    build:
+      context: ../../..
+      dockerfile: ue1/webformular/Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://supabase.butscher.cloud}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_PRUEFUNG_URL: ${VITE_PRUEFUNG_URL:-https://pruefung.butscher.cloud}
+    image: ue1-webformular:latest
+    restart: unless-stopped
+    networks:
+      - root_default
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=root_default
+
+      - traefik.http.routers.ue1-http.rule=Host(`antrag.butscher.cloud`)
+      - traefik.http.routers.ue1-http.entrypoints=web
+      - traefik.http.routers.ue1-http.middlewares=ue1-https-redirect
+      - traefik.http.middlewares.ue1-https-redirect.redirectscheme.scheme=https
+
+      - traefik.http.routers.ue1.rule=Host(`antrag.butscher.cloud`)
+      - traefik.http.routers.ue1.entrypoints=websecure
+      - traefik.http.routers.ue1.tls=true
+      - traefik.http.routers.ue1.tls.certresolver=mytlschallenge
+      - traefik.http.routers.ue1.service=ue1
+
+      - traefik.http.services.ue1.loadbalancer.server.port=8080
+
+networks:
+  root_default:
+    external: true

@@ -1,0 +1,34 @@
+services:
+  ue0-upload-portal:
+    container_name: ue0-upload-portal
+    build:
+      context: ../../..
+      dockerfile: ue0/upload-portal/Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://supabase.butscher.cloud}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+        VITE_PRUEFUNG_URL: ${VITE_PRUEFUNG_URL:-https://pruefung.butscher.cloud}
+    image: ue0-upload-portal:latest
+    restart: unless-stopped
+    networks:
+      - root_default
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=root_default
+
+      - traefik.http.routers.ue0-http.rule=Host(`upload.butscher.cloud`)
+      - traefik.http.routers.ue0-http.entrypoints=web
+      - traefik.http.routers.ue0-http.middlewares=ue0-https-redirect
+      - traefik.http.middlewares.ue0-https-redirect.redirectscheme.scheme=https
+
+      - traefik.http.routers.ue0.rule=Host(`upload.butscher.cloud`)
+      - traefik.http.routers.ue0.entrypoints=websecure
+      - traefik.http.routers.ue0.tls=true
+      - traefik.http.routers.ue0.tls.certresolver=mytlschallenge
+      - traefik.http.routers.ue0.service=ue0
+
+      - traefik.http.services.ue0.loadbalancer.server.port=8080
+
+networks:
+  root_default:
+    external: true
