@@ -1,8 +1,13 @@
 import { formatDateTime } from "../lib/format";
 import { STATUS_LABELS, type Status } from "../lib/workflow";
-import type { HistoryRow } from "../hooks/useAntrag";
+import type { AntragHistory } from "@dv/data-layer";
 
-export function HistoryTimeline({ history }: { history: HistoryRow[] }) {
+function label(s: string | null): string {
+  if (!s) return "Eingang";
+  return STATUS_LABELS[s as Status] ?? s;
+}
+
+export function HistoryTimeline({ history }: { history: AntragHistory[] }) {
   if (history.length === 0)
     return <p className="text-slate-500 text-sm">Keine History-Einträge.</p>;
   return (
@@ -12,14 +17,11 @@ export function HistoryTimeline({ history }: { history: HistoryRow[] }) {
           <span className="absolute -left-[1.4rem] top-1.5 h-3 w-3 rounded-full bg-slate-400" />
           <p className="text-sm">
             <span className="font-semibold">
-              {h.von_status
-                ? STATUS_LABELS[h.von_status as Status]
-                : "Eingang"}{" "}
-              → {STATUS_LABELS[h.nach_status as Status]}
+              {label(h.von_status)} → {label(h.nach_status)}
             </span>
           </p>
           <p className="text-xs text-slate-500">
-            {formatDateTime(h.geaendert_am)} · {h.geaendert_von}
+            {formatDateTime(h.geaendert_am)} · {h.geaendert_von ?? "—"}
           </p>
           {h.kommentar && (
             <p className="text-sm text-slate-700 mt-1 italic">„{h.kommentar}"</p>

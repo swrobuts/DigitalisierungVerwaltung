@@ -1,89 +1,37 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
-import type { Status } from "../lib/workflow";
+import { listAntraege, type AntragInbox, type FoerderbereichId } from "@dv/data-layer";
 
-/** Felder für die Inbox-Übersicht.
- *
- * Bewusst NICHT enthalten: Aufwand/Belege/Miete (betriebskosten_*,
- * personalkosten_*, miete_jahr_euro) — für Förderbereich III gem.
- * AHP 2.3 keine Bemessungsgrundlage. Sie werden weiterhin im
- * AntragDetail gezeigt, wo sie als reine Antrags-Eigenschaften
- * ihren Platz haben. */
-export interface AntragRow {
-  id: string;
-  antragsnummer: string;
-  haushaltsjahr: number;
-  name: string;
-  traeger: string;
-  submitted_at: string;
-  status: Status;
-  submitted_language: string;
-  /** Beantragter Zuschuss. Wird gegen die AHP-Förderhöchstgrenze
-   *  (2.3.2 Begegnungszentren: 10.000 €/Jahr) geprüft. NULL = noch
-   *  nicht beziffert. */
-  geforderte_foerdersumme_euro: number | null;
-  /** Migration 029 — Förderbereich-Klassifikation. */
-  foerderbereich:
-    | "aufbau_niedrigschwellige_angebote"
-    | "buergerschaftliches_engagement"
-    | "mehrgenerationenhaeuser"
-    | "begegnungszentren"
-    | "bildungstraeger"
-    | "seniorenkreise"
-    | "quartiersmanagement_altenarbeit"
-    | "struktur_schwerpunktfoerderung"
-    | null;
-  /** Migration 058: Durchlaufzeit aus apl2.antrag_history.
-   *  entschieden_am: erster Statuswechsel zu bewilligt/abgelehnt; NULL solange offen.
-   *  entscheidungs_typ: 'bewilligt' | 'abgelehnt' | NULL (= offen).
-   *  durchlaufzeit_tage: ganze Tage zwischen submitted_at und entschieden_am
-   *    (bei offenen Antraegen zwischen submitted_at und now()). */
-  entschieden_am: string | null;
-  entscheidungs_typ: "bewilligt" | "abgelehnt" | null;
-  durchlaufzeit_tage: number;
-}
-
-export function useAntraege(): {
-  antraege: AntragRow[];
+/**
+ * Inbox-Hook: liest View `apl.antrag_inbox` über @dv/data-layer.
+ * Optional FB-Filter; das Frontend filtert weiter (Suche, Status etc).
+ */
+export function useAntraege(opts: { foerderbereich?: FoerderbereichId } = {}): {
+  antraege: AntragInbox[];
   loading: boolean;
   error: string | null;
+  reload: () => Promise<void>;
 } {
-  const [antraege, setAntraege] = useState<AntragRow[]>([]);
+  const [antraege, setAntraege] = useState<AntragInbox[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      const { data, error } = await supabase
-        .from("antrag_mit_summen")
-        .select(
-          "id, antragsnummer, haushaltsjahr, name, traeger, submitted_at, status, submitted_language, geforderte_foerdersumme_euro, foerderbereich, entschieden_am, entscheidungs_typ, durchlaufzeit_tage",
-        )
-        .order("submitted_at", { ascending: false });
-      if (!mounted) return;
-      if (error) setError(error.message);
-      else setAntraege((data ?? []) as AntragRow[]);
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await listAntraege(opts);
+      setAntraege(data);
+      setError(null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
       setLoading(false);
     }
-    load();
+  }
 
-    const channel = supabase
-      .channel("antraege-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "apl2", table: "antraege" },
-        () => {
-          load();
-        },
-      )
-      .subscribe();
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opts.foerderbereich]);
 
-    return () => {
-      mounted = false;
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  return { antraege, loading, error };
+  return { antraege, loading, error, reload: load };
 }
