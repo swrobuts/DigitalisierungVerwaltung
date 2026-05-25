@@ -772,10 +772,30 @@ DigitalisierungVerwaltung/
 - **Keine Wartungs-Hölle** beim UE4-Bau — agentischer Layer setzt auf die selben FB-Konfigs auf
 - **Klare Testbarkeit** pro Schicht (UI-Komponenten ohne DB, FB-Konfigs ohne Renderer)
 
-## 14. Offene Punkte für Robert-Review
+## 14. Implementation-Vorgaben (Robert-Antworten 2026-05-25)
 
-1. Aufwand 9–12 Tage realistisch oder zu groß für den Vorlesungszeitraum?
-2. Soll FB IV wirklich Web-Form bekommen, oder reicht erst mal Hinweis „bitte formlos per Mail einreichen"?
-3. Vor Implementation: Robert kuratiert realitätsnahe FAKE-Demo-Daten pro FB (insgesamt 4–8 Anträge mit konsistenten Werten — Stadtteile, Bankverbindungen, Träger-Namen)
-4. Soll der Smart-Upload in UE3 mehrere PDFs gleichzeitig oder eines nach dem anderen verarbeiten?
-5. Excel-Schablonen: stellt das Amt sie wirklich bereit oder nur als Konzept-Demonstration?
+Die offenen Punkte aus dem vorherigen Brainstorming sind beantwortet:
+
+1. **Übergangs-Strategie: Hard-Cut.** Bestehende UE0/UE1/UE3 werden für den Umbauzeitraum offline genommen. UE2 bleibt im Wesentlichen erhalten (Inbox-Anpassung notwendig wegen Multi-FB). Keine Parallelpflege, keine Live-Demo während Umbau.
+
+2. **FAKE-Demo-Daten:** Claude schlägt pro FB 2–3 plausible Träger vor (Recherche via Würzburger Vereinsregister + OpenStreetMap), dokumentiert pro Antrag im SQL-Kommentar die Quelle. Robert geht abschließend drüber und korrigiert Bauchgefühl-Werte. Sektion 13.2-Vorkehrungen gelten.
+
+3. **Mehrsprachigkeit:** Erster Wurf nur **DE + TR** (Türkisch als Beispiel-Sprache wegen höchstem nicht-deutschen Sprecher-Anteil in Würzburg). IT/ES kommen später zurück — i18n-Layer bleibt strukturell offen, nur die Übersetzungs-Strings sind reduziert.
+
+4. **Implementation-Reihenfolge: Backend-first.**
+   - Phase 1: DB-Migrationen + Schema-Rename apl2 → apl
+   - Phase 2: `packages/foerderbereiche/` Konfigs pro FB
+   - Phase 3: `packages/data-layer/` Supabase-Wrapper
+   - Phase 4: `pruefung/`-Backend (FB-Plugins, Doctree-Re-Kuration, Quellen-Validator als Hard-Fail)
+   - Phase 5: UE1 (Webformular mit 3 Phasen, alle 4 FBs, DE+TR)
+   - Phase 6: UE0 (Upload-Portal mit FB-Wahl)
+   - Phase 7: UE2/UE3 (Inbox-Anpassung Multi-FB, UE3 Smart-Upload)
+   - Phase 8: Tests + E2E + Demo-Reset-Skript + Pre-Flight-Checkliste
+
+5. **Smart-Upload (UE3):** Multi-PDF parallel — Sachbearbeiter zieht mehrere PDFs in einen Drop, Claude klassifiziert jedes einzeln, Vorschläge werden als Liste angezeigt zum Bestätigen. Hintergrund: ein Träger reicht oft Hauptantrag + Helferliste + Programm-Flyer in einer Mail ein.
+
+6. **Excel-Schablonen:** Demo-Schablonen werden in `materialien/wuerzburg-2026/schablonen/` vorbereitet (Helferliste.xlsx, Beleg-Aufstellung.xlsx). Im Frontend-Disclaimer klar markiert als „Demo-Schablone — in Produktion würde das Sozialreferat eigene Vorlagen bereitstellen".
+
+7. **FB IV:** bleibt mit strukturierten Leitfragen (siehe Sektion 3.4), nicht „bitte formlos per Mail".
+
+8. **Aufwand 9–12 Tage** wird so akzeptiert — bei Verschiebungen vor Vorlesung Re-Scope auf FB I + III (Kern-Differenzierung Aufbau vs. Bewährte Strukturen).
