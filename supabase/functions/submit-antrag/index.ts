@@ -1,14 +1,24 @@
-// submit-antrag v2 — Edge Function für UE1-v2 (belegezentriertes Stepper-Formular)
+// submit-antrag v3 — Multi-FB Edge Function für UE1 (Schema apl.*).
 //
-// Architektur: Browser → Traefik (verwaltung.butscher.cloud + PathPrefix-Filter)
-//                     → Kong (/functions/v1/submit-antrag)
-//                     → Edge Runtime (diese Function)
-//                     → fetch zu Kong-intern (http://kong:8000/rest/v1, /storage/v1)
+// Pipeline:
+//   Browser → Traefik (verwaltung.butscher.cloud + PathPrefix-Filter)
+//          → Kong (/functions/v1/submit-antrag)
+//          → Edge Runtime (diese Function)
+//          → PostgREST (apl.*) + Storage (antragsbelege)
 //
-// Erwartetes FormData:
-//   - "antrag": JSON-Blob (inkl. oeffnungszeiten[] und belegpositionen[])
-//   - "file_<sha256>": Binary für jede in belegpositionen referenzierte file_hash
-//   - "flyer": Programm-Flyer (separat)
+// Eingabe (FormData):
+//   - "antrag":  JSON-Blob mit Schema (foerderbereich + Antragsteller-Block
+//                + FB-spez. Sub-Object + anlagen-Metadaten mit upload_key).
+//   - "file_<n>": Binary für jede Anlage (n = Index aus anlagen[].upload_key).
+//
+// Antwort:
+//   200 { antrag_id: "<uuid>", antragsnummer: "<APL-…>" }
+//   4xx { error: "<message>" }
+//   5xx { error: "<message>" }
+//
+// Bei Fehlern nach erfolgreichem INSERT in apl.antraege wird der Antrag
+// gelöscht — apl.fb_* + apl.anlagen hängen per CASCADE dran und werden
+// mit aufgeräumt.
 
 const ALLOWED_ORIGINS = [
   "https://swrobuts.github.io",
@@ -16,10 +26,19 @@ const ALLOWED_ORIGINS = [
   "http://localhost:4173",
 ];
 
-const ALLOWED_MIME = ["application/pdf", "image/jpeg", "image/png"];
 const MAX_BYTES = 10 * 1024 * 1024;
-const ALLOWED_BELEGTYPEN = ["betriebskosten", "personalkosten", "miete"];
-const ALLOWED_WOCHENTAGE = ["mo", "di", "mi", "do", "fr", "sa", "so"];
+const ALLOWED_MIME = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "image/jpeg",
+  "image/png",
+];
+const ALLOWED_FB = ["I", "II", "III", "IV"];
+const ALLOWED_VARIANTEN = ["A", "B", "C", "D"];
+const ALLOWED_TYPEN = [
+  "projektskizze", "helferliste", "foerderbestaetigung_bund",
+  "programm_flyer", "stundenzettel", "sonstige",
+];
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -27,6 +46,13 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SR_HEADERS = {
   apikey: SERVICE_KEY,
   Authorization: `Bearer ${SERVICE_KEY}`,
+};
+
+// Alle Schreib-/Lese-Calls gegen das apl-Schema müssen PostgREST über die
+// Content-/Accept-Profile-Header informieren, sonst landen sie in `public`.
+const APL_HEADERS = {
+  "Accept-Profile": "apl",
+  "Content-Profile": "apl",
 };
 
 function corsHeaders(origin: string | null): Record<string, string> {
@@ -46,174 +72,82 @@ function json(body: unknown, status: number, origin: string | null) {
   });
 }
 
-interface BelegpositionPayload {
-  belegtyp: string;
-  bezeichnung: string;
-  betrag_euro: number;
-  file_hash: string | null;
+interface AnlageMeta {
+  anlagentyp: string;
+  dateiname: string;
+  groesse_bytes: number;
+  upload_key: string;
 }
 
-interface OeffnungszeitPayload {
-  wochentag: string;
-  oeffnungszeit: string;
-  angebot: string;
-}
-
-async function insertAntrag(payload: Record<string, unknown>): Promise<{ id: string; antragsnummer: string }> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/antraege`, {
+async function postgrest(
+  path: string,
+  body: unknown,
+  prefer: "return=representation" | "return=minimal" = "return=minimal",
+): Promise<unknown> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     method: "POST",
     headers: {
-      ...SR_HEADERS,
+      ...SR_HEADERS, ...APL_HEADERS,
       "content-type": "application/json",
-      "Accept-Profile": "apl2",
-      "Content-Profile": "apl2",
-      Prefer: "return=representation",
+      Prefer: prefer,
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`insert antraege failed (${res.status}): ${await res.text()}`);
-  const rows = await res.json() as Array<{ id: string; antragsnummer: string }>;
-  if (!rows[0]) throw new Error("insert antraege returned no rows");
-  return rows[0];
-}
-
-async function insertOeffnungszeiten(antragId: string, oz: OeffnungszeitPayload[]): Promise<void> {
-  const rows = oz
-    .filter((o) => ALLOWED_WOCHENTAGE.includes(o.wochentag))
-    .filter((o) => o.oeffnungszeit.trim() || o.angebot.trim())
-    .map((o) => ({ antrag_id: antragId, wochentag: o.wochentag, oeffnungszeit: o.oeffnungszeit, angebot: o.angebot }));
-  if (rows.length === 0) return;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/oeffnungszeit`, {
-    method: "POST",
-    headers: { ...SR_HEADERS, "content-type": "application/json", "Accept-Profile": "apl2", "Content-Profile": "apl2", Prefer: "return=minimal" },
-    body: JSON.stringify(rows),
-  });
-  if (!res.ok) throw new Error(`insert oeffnungszeit failed (${res.status}): ${await res.text()}`);
-}
-
-async function insertBelegposition(antragId: string, pos: BelegpositionPayload, anlageId: string | null): Promise<void> {
-  if (!ALLOWED_BELEGTYPEN.includes(pos.belegtyp)) {
-    throw new Error(`invalid belegtyp: ${pos.belegtyp}`);
+  if (!res.ok) {
+    throw new Error(`PostgREST POST ${path} failed (${res.status}): ${await res.text()}`);
   }
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/belegposition`, {
-    method: "POST",
-    headers: { ...SR_HEADERS, "content-type": "application/json", "Accept-Profile": "apl2", "Content-Profile": "apl2", Prefer: "return=minimal" },
-    body: JSON.stringify({
-      antrag_id: antragId,
-      belegtyp: pos.belegtyp,
-      bezeichnung: pos.bezeichnung,
-      betrag_euro: pos.betrag_euro,
-      anlage_id: anlageId,
-    }),
-  });
-  if (!res.ok) throw new Error(`insert belegposition failed (${res.status}): ${await res.text()}`);
-}
-
-async function findAnlageByHash(hash: string): Promise<string | null> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/anlagen?file_hash=eq.${hash}&select=id&limit=1`, {
-    headers: { ...SR_HEADERS, "Accept-Profile": "apl2" },
-  });
-  if (!res.ok) return null;
-  const rows = await res.json() as Array<{ id: string }>;
-  return rows[0]?.id ?? null;
-}
-
-async function uploadFile(path: string, file: File): Promise<void> {
-  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/antragsbelege/${path}`, {
-    method: "POST",
-    headers: { ...SR_HEADERS, "content-type": file.type, "x-upsert": "false" },
-    body: file,
-  });
-  if (!res.ok) throw new Error(`storage upload failed (${res.status}): ${await res.text()}`);
-}
-
-async function insertAnlage(payload: Record<string, unknown>): Promise<string> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/anlagen`, {
-    method: "POST",
-    headers: { ...SR_HEADERS, "content-type": "application/json", "Accept-Profile": "apl2", "Content-Profile": "apl2", Prefer: "return=representation" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error(`insert anlage failed (${res.status}): ${await res.text()}`);
-  const rows = await res.json() as Array<{ id: string }>;
-  if (!rows[0]) throw new Error("insert anlage returned no rows");
-  return rows[0].id;
-}
-
-async function ensureAnlage(antragId: string, typ: string, file: File, hash: string): Promise<string> {
-  const existing = await findAnlageByHash(hash);
-  if (existing) return existing;
-  const safeName = file.name.replace(/[^\w.\-]/g, "_");
-  const path = `${antragId}/${typ}__${hash.slice(0, 12)}__${safeName}`;
-  await uploadFile(path, file);
-  return await insertAnlage({
-    antrag_id: antragId,
-    typ,
-    dateiname: file.name,
-    groesse_bytes: file.size,
-    mime_type: file.type,
-    storage_path: path,
-    file_hash: hash,
-  });
-}
-
-async function sha256Hex(blob: Blob): Promise<string> {
-  const buf = await blob.arrayBuffer();
-  const h = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(h)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return prefer === "return=representation" ? res.json() : null;
 }
 
 async function deleteAntrag(id: string): Promise<void> {
-  await fetch(`${SUPABASE_URL}/rest/v1/antraege?id=eq.${id}`, {
-    method: "DELETE",
-    headers: { ...SR_HEADERS, "Accept-Profile": "apl2" },
-  });
-}
-
-/**
- * Liefert den aktuellen Stand des antrag_einreichung-Records.
- * Wird vor INSERT in apl2.antraege geprüft, um Doppelsubmit für dieselbe
- * Einreichung zu erkennen (Bürger klickt zweimal "Senden").
- */
-async function getEinreichung(
-  einreichungId: string,
-): Promise<{ id: string; antrag_id: string | null } | null> {
-  const res = await fetch(
-    `${SUPABASE_URL}/rest/v1/antrag_einreichung?id=eq.${einreichungId}&select=id,antrag_id`,
-    { headers: { ...SR_HEADERS, "Accept-Profile": "apl2" } },
-  );
-  if (!res.ok) return null;
-  const rows = (await res.json()) as Array<{ id: string; antrag_id: string | null }>;
-  return rows[0] ?? null;
-}
-
-/**
- * Verknüpft den apl2.antrag_einreichung-Record mit dem frisch erzeugten
- * Antrag (PATCH antrag_id). Best-effort: Fehler werden geloggt aber
- * nicht propagiert — der Antrag liegt schon in der DB, der Bürger soll
- * seine Antragsnummer bekommen.
- */
-async function linkEinreichungToAntrag(einreichungId: string, antragId: string): Promise<void> {
+  // Best-effort Cleanup. apl.fb_* + apl.anlagen hängen per CASCADE.
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/antrag_einreichung?id=eq.${einreichungId}`,
-      {
-        method: "PATCH",
-        headers: {
-          ...SR_HEADERS,
-          "content-type": "application/json",
-          "Accept-Profile": "apl2",
-          "Content-Profile": "apl2",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({ antrag_id: antragId }),
-      },
-    );
-    if (!res.ok) {
-      console.error(`linkEinreichungToAntrag failed (${res.status}): ${await res.text()}`);
-    }
+    await fetch(`${SUPABASE_URL}/rest/v1/antraege?id=eq.${id}`, {
+      method: "DELETE",
+      headers: { ...SR_HEADERS, ...APL_HEADERS },
+    });
   } catch (e) {
-    console.error("linkEinreichungToAntrag exception:", e);
+    console.error("rollback delete failed:", e);
   }
+}
+
+async function uploadFile(antragId: string, typ: string, file: File): Promise<string> {
+  const safeName = file.name.replace(/[^\w.\-]/g, "_");
+  const storagePath = `${antragId}/${typ}/${Date.now()}-${safeName}`;
+  const res = await fetch(
+    `${SUPABASE_URL}/storage/v1/object/antragsbelege/${storagePath}`,
+    {
+      method: "POST",
+      headers: { ...SR_HEADERS, "content-type": file.type, "x-upsert": "false" },
+      body: file,
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`storage upload failed (${res.status}): ${await res.text()}`);
+  }
+  return storagePath;
+}
+
+function validateAntragsteller(a: Record<string, unknown>): string | null {
+  const required = [
+    "foerderbereich", "haushaltsjahr", "einrichtung", "ansprechpartner",
+    "strasse", "plz", "ort", "telefon", "email", "bankname", "iban", "bic",
+  ];
+  for (const k of required) {
+    if (a[k] === undefined || a[k] === null || a[k] === "") {
+      return `Pflichtfeld fehlt: ${k}`;
+    }
+  }
+  if (!ALLOWED_FB.includes(a.foerderbereich as string)) {
+    return `Unbekannter Förderbereich: ${a.foerderbereich}`;
+  }
+  if (!/^[0-9]{5}$/.test(String(a.plz))) return "PLZ muss 5-stellig sein";
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(a.email))) return "Ungültige E-Mail";
+  const hh = Number(a.haushaltsjahr);
+  if (!Number.isFinite(hh) || hh < 2020 || hh > 2030) {
+    return "haushaltsjahr ausserhalb des erlaubten Bereichs";
+  }
+  return null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -233,7 +167,9 @@ Deno.serve(async (req: Request) => {
   }
 
   const antragRaw = form.get("antrag");
-  if (typeof antragRaw !== "string") return json({ error: "missing 'antrag' field" }, 400, origin);
+  if (typeof antragRaw !== "string") {
+    return json({ error: "missing 'antrag' field" }, 400, origin);
+  }
   let antrag: Record<string, unknown>;
   try {
     antrag = JSON.parse(antragRaw);
@@ -241,113 +177,124 @@ Deno.serve(async (req: Request) => {
     return json({ error: "antrag JSON invalid" }, 400, origin);
   }
 
-  const oeffnungszeiten = (antrag.oeffnungszeiten as OeffnungszeitPayload[]) ?? [];
-  const belegpositionen = (antrag.belegpositionen as BelegpositionPayload[]) ?? [];
-  // Verknüpfung mit dem UE0-Einreichungs-Record (Audit-Trail).
-  const einreichungId = typeof antrag.einreichung_id === "string" ? antrag.einreichung_id : null;
-  // antraege-Insert ohne die Listen UND ohne einreichung_id (das ist nur
-  // ein Verknüpfungs-Marker fürs Backend, keine Spalte in apl2.antraege).
-  const antragForInsert: Record<string, unknown> = { ...antrag };
-  delete antragForInsert.oeffnungszeiten;
-  delete antragForInsert.belegpositionen;
-  delete antragForInsert.einreichung_id;
+  const validationErr = validateAntragsteller(antrag);
+  if (validationErr) return json({ error: validationErr }, 400, origin);
 
-  const ip = req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-  const userAgent = req.headers.get("user-agent");
-  antragForInsert.user_agent = userAgent;
-  antragForInsert.ip_address = ip;
+  const fb = String(antrag.foerderbereich) as "I" | "II" | "III" | "IV";
+  const fbIProjekt = antrag.fb_i_projekt as Record<string, unknown> | undefined;
+  const fbIiEhrenamt = antrag.fb_ii_ehrenamt as Record<string, unknown> | undefined;
+  const fbIiHelfer = (antrag.fb_ii_helfer as Array<Record<string, unknown>>) ?? [];
+  const fbIiiVariante = antrag.fb_iii_variante as Record<string, unknown> | undefined;
+  const fbIvFreitext = antrag.fb_iv_freitext as Record<string, unknown> | undefined;
+  const anlagenMeta = (antrag.anlagen as AnlageMeta[]) ?? [];
 
-  // 0) Anti-Doppelsubmit: Wenn dieselbe Einreichung bereits einen Antrag
-  //    hat, geben wir den existierenden zurück (idempotent) statt einen
-  //    zweiten anzulegen.
-  if (einreichungId) {
-    const existing = await getEinreichung(einreichungId);
-    if (existing?.antrag_id) {
-      const dupRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/antraege?id=eq.${existing.antrag_id}&select=id,antragsnummer`,
-        { headers: { ...SR_HEADERS, "Accept-Profile": "apl2" } },
-      );
-      if (dupRes.ok) {
-        const dupRows = (await dupRes.json()) as Array<{ id: string; antragsnummer: string }>;
-        const dup = dupRows[0];
-        if (dup) {
-          return json({ antragsnummer: dup.antragsnummer, id: dup.id, duplicate: true }, 200, origin);
-        }
-      }
-      return json({ error: "Diese Einreichung wurde bereits abgesendet." }, 409, origin);
+  if (fb === "I" && !fbIProjekt) return json({ error: "fb_i_projekt fehlt für FB I" }, 400, origin);
+  if (fb === "II" && !fbIiEhrenamt) return json({ error: "fb_ii_ehrenamt fehlt für FB II" }, 400, origin);
+  if (fb === "III") {
+    if (!fbIiiVariante) return json({ error: "fb_iii_variante fehlt" }, 400, origin);
+    if (!ALLOWED_VARIANTEN.includes(String(fbIiiVariante.variante))) {
+      return json({ error: "fb_iii_variante.variante invalid" }, 400, origin);
+    }
+  }
+  if (fb === "IV" && !fbIvFreitext) return json({ error: "fb_iv_freitext fehlt" }, 400, origin);
+
+  // Pre-Check der Anlagen (MIME + Size + Type) bevor wir den Antrag anlegen.
+  for (const a of anlagenMeta) {
+    if (!ALLOWED_TYPEN.includes(a.anlagentyp)) {
+      return json({ error: `Unbekannter Anlagentyp: ${a.anlagentyp}` }, 400, origin);
+    }
+    const file = form.get(a.upload_key);
+    if (!(file instanceof File)) {
+      return json({ error: `Datei fehlt: ${a.upload_key}` }, 400, origin);
+    }
+    if (file.size > MAX_BYTES) {
+      return json({ error: `Datei zu groß (max 10 MB): ${a.dateiname}` }, 400, origin);
+    }
+    if (!ALLOWED_MIME.includes(file.type)) {
+      return json({ error: `MIME nicht erlaubt: ${file.type}` }, 400, origin);
     }
   }
 
-  // 1) Insert antrag
-  let row: { id: string; antragsnummer: string };
+  // Audit-Felder.
+  const ip = req.headers.get("x-real-ip")
+    ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? null;
+  const userAgent = req.headers.get("user-agent");
+
+  // 1) INSERT apl.antraege
+  const antragInsert: Record<string, unknown> = {
+    foerderbereich: fb,
+    haushaltsjahr: antrag.haushaltsjahr,
+    dachverband: antrag.dachverband ?? null,
+    einrichtung: antrag.einrichtung,
+    ansprechpartner: antrag.ansprechpartner,
+    strasse: antrag.strasse,
+    hausnummer: antrag.hausnummer ?? null,
+    plz: antrag.plz,
+    ort: antrag.ort,
+    telefon: antrag.telefon,
+    email: antrag.email,
+    homepage: antrag.homepage ?? null,
+    bankname: antrag.bankname,
+    iban: antrag.iban,
+    bic: antrag.bic,
+    submitted_language: antrag.submitted_language ?? "de",
+    user_agent: userAgent,
+    ip_address: ip,
+  };
+
+  let antragRow: { id: string; antragsnummer: string };
   try {
-    row = await insertAntrag(antragForInsert);
+    const rows = await postgrest("antraege", antragInsert, "return=representation") as
+      Array<{ id: string; antragsnummer: string }>;
+    if (!rows[0]) throw new Error("antraege insert returned no rows");
+    antragRow = rows[0];
   } catch (e) {
     return json({ error: (e as Error).message }, 500, origin);
   }
 
-  // 2) Wochenplan
-  try {
-    await insertOeffnungszeiten(row.id, oeffnungszeiten);
-  } catch (e) {
-    await deleteAntrag(row.id);
-    return json({ error: `oeffnungszeit insert failed, rolled back: ${(e as Error).message}` }, 500, origin);
-  }
+  const antragId = antragRow.id;
 
-  // 3) Belegpositionen + Files (Hash-Dedupe)
+  // 2) INSERT FB-spezifische Detail-Tabelle (1:1).
   try {
-    for (const pos of belegpositionen) {
-      let anlageId: string | null = null;
-      if (pos.file_hash) {
-        const file = form.get(`file_${pos.file_hash}`);
-        if (file instanceof File) {
-          if (file.size > MAX_BYTES) throw new Error(`file > 10 MB: ${file.name}`);
-          if (!ALLOWED_MIME.includes(file.type)) throw new Error(`mime not allowed: ${file.type}`);
-          anlageId = await ensureAnlage(row.id, pos.belegtyp, file, pos.file_hash);
-        }
+    if (fb === "I" && fbIProjekt) {
+      await postgrest("fb_i_projekt", { antrag_id: antragId, ...fbIProjekt });
+    } else if (fb === "II" && fbIiEhrenamt) {
+      await postgrest("fb_ii_ehrenamt", { antrag_id: antragId, ...fbIiEhrenamt });
+      if (fbIiHelfer.length > 0) {
+        await postgrest("fb_ii_helfer", fbIiHelfer.map((h) => ({ ...h, antrag_id: antragId })));
       }
-      await insertBelegposition(row.id, pos, anlageId);
+    } else if (fb === "III" && fbIiiVariante) {
+      await postgrest("fb_iii_variante", { antrag_id: antragId, ...fbIiiVariante });
+    } else if (fb === "IV" && fbIvFreitext) {
+      await postgrest("fb_iv_freitext", { antrag_id: antragId, ...fbIvFreitext });
     }
   } catch (e) {
-    await deleteAntrag(row.id);
-    return json({ error: `belegposition failed, rolled back: ${(e as Error).message}` }, 500, origin);
+    await deleteAntrag(antragId);
+    return json({ error: `FB-Detail insert failed: ${(e as Error).message}` }, 500, origin);
   }
 
-  // 4) Programm-Flyer
+  // 3) Anlagen hochladen + Metadaten in apl.anlagen.
   try {
-    const flyer = form.get("flyer");
-    if (flyer instanceof File) {
-      if (flyer.size > MAX_BYTES) throw new Error(`flyer > 10 MB`);
-      if (!ALLOWED_MIME.includes(flyer.type)) throw new Error(`flyer mime: ${flyer.type}`);
-      const flyerHash = await sha256Hex(flyer);
-      await ensureAnlage(row.id, "programm-altentagesstaette", flyer, flyerHash);
+    for (const a of anlagenMeta) {
+      const file = form.get(a.upload_key) as File;
+      const storagePath = await uploadFile(antragId, a.anlagentyp, file);
+      await postgrest("anlagen", {
+        antrag_id: antragId,
+        anlagentyp: a.anlagentyp,
+        dateiname: a.dateiname,
+        storage_path: storagePath,
+        groesse_bytes: a.groesse_bytes,
+      });
     }
   } catch (e) {
-    await deleteAntrag(row.id);
-    return json({ error: `flyer upload failed, rolled back: ${(e as Error).message}` }, 500, origin);
+    await deleteAntrag(antragId);
+    return json({ error: `Anlagen-Upload failed: ${(e as Error).message}` }, 500, origin);
   }
 
-  // 5) Mietvertrag (optional; nur falls Bürger ihn aus dem PDF-Hinweis
-  //    „(Kopie Mietvertrag)" hochlädt — AHP 3.8: Belege nur auf Anfrage,
-  //    daher nicht erzwungen, aber wenn vorhanden persistieren).
-  try {
-    const mietvertrag = form.get("mietvertrag");
-    if (mietvertrag instanceof File) {
-      if (mietvertrag.size > MAX_BYTES) throw new Error(`mietvertrag > 10 MB`);
-      if (!ALLOWED_MIME.includes(mietvertrag.type)) throw new Error(`mietvertrag mime: ${mietvertrag.type}`);
-      const mvHash = await sha256Hex(mietvertrag);
-      await ensureAnlage(row.id, "mietvertrag", mietvertrag, mvHash);
-    }
-  } catch (e) {
-    await deleteAntrag(row.id);
-    return json({ error: `mietvertrag upload failed, rolled back: ${(e as Error).message}` }, 500, origin);
-  }
-
-  // 6) Einreichungs-Record mit Antrag verknüpfen (Audit-Trail).
-  //    Best-effort — Fehler hier ändern nichts mehr am Bürger-Ergebnis.
-  if (einreichungId) {
-    await linkEinreichungToAntrag(einreichungId, row.id);
-  }
-
-  return json({ antragsnummer: row.antragsnummer, id: row.id }, 200, origin);
+  return json(
+    { antrag_id: antragId, antragsnummer: antragRow.antragsnummer },
+    200,
+    origin,
+  );
 });
