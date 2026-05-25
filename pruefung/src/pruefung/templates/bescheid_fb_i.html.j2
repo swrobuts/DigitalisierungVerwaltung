@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Bescheid FB I — {{ antrag.einrichtung }}</title>
+</head>
+<body>
+  <h1>Bescheid Förderbereich I — Aufbau niedrigschwelliger Angebote</h1>
+  <p><strong>Antragsnummer:</strong> {{ antrag.antragsnummer or "—" }}</p>
+  <p><strong>Einrichtung:</strong> {{ antrag.einrichtung }}</p>
+  <p><strong>Projekt:</strong> {{ antrag.projekt_titel or "—" }}</p>
+  <p><strong>Haushaltsjahr:</strong> {{ antrag.haushaltsjahr }}</p>
+
+  <h2>Entscheidung</h2>
+  <p><strong>{{ ki.entscheidung }}</strong></p>
+
+  <h2>Begründung</h2>
+  <p>{{ ki.begruendung }}</p>
+
+  <h2>Herangezogene Quellen</h2>
+  <ul>
+    {% for z in ki.zitate %}
+      <li><strong>{{ z.ref }}:</strong> &bdquo;{{ z.woertliches_zitat }}&ldquo;</li>
+    {% else %}
+      <li>(keine Quellen zitiert)</li>
+    {% endfor %}
+  </ul>
+</body>
+</html>
