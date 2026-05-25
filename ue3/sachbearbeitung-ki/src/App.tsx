@@ -3,13 +3,17 @@ import { Login } from "./pages/Login";
 import { AuthCallback } from "./pages/AuthCallback";
 import { Inbox } from "./pages/Inbox";
 import { AntragDetail } from "./pages/AntragDetail";
-import { OntologieInspector } from "./pages/OntologieInspector";
-import { AhpInspector } from "./pages/AhpInspector";
-import { NormStatementsInspector } from "./pages/NormStatementsInspector";
-import { AdoptionDashboard } from "./pages/AdoptionDashboard";
+import { SmartUpload } from "./pages/SmartUpload";
 import { ComplianceStatus } from "./pages/ComplianceStatus";
 import { AuthGuard } from "./components/AuthGuard";
 
+/**
+ * UE3-Routing — Multi-FB-Variante mit KI-Features.
+ *
+ * Alte Routen (Ontologie, AHP-Inspector, Normen, Adoption) sind mit der
+ * apl2-Schema-Migration weggefallen — wenn sie zurückkehren, dann gegen
+ * die neuen apl.*-Tabellen.
+ */
 export default function App() {
   return (
     <Routes>
@@ -33,39 +37,10 @@ export default function App() {
         }
       />
       <Route
-        path="/regelkatalog"
+        path="/smart-upload"
         element={
           <AuthGuard>
-            <OntologieInspector />
-          </AuthGuard>
-        }
-      />
-      {/* Alter Pfad als Redirect für Bestandslinks */}
-      <Route path="/ontologie" element={<Navigate to="/regelkatalog" replace />} />
-      <Route
-        path="/ahp"
-        element={
-          <AuthGuard>
-            <AhpInspector />
-          </AuthGuard>
-        }
-      />
-      <Route
-        path="/normen"
-        element={
-          <AuthGuard>
-            <NormStatementsInspector />
-          </AuthGuard>
-        }
-      />
-      {/* Adoption-Dashboard ist jetzt im Compliance-Cockpit als 'Aufsichts-Metriken'-Tab
-          integriert; alter Pfad bleibt als Redirect erhalten für Bestandslinks. */}
-      <Route path="/dashboard/adoption" element={<Navigate to="/compliance" replace />} />
-      <Route
-        path="/dashboard/adoption-detail"
-        element={
-          <AuthGuard>
-            <AdoptionDashboard />
+            <SmartUpload />
           </AuthGuard>
         }
       />
