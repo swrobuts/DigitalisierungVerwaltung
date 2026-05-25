@@ -26,5 +26,6 @@ coverage/
 dist/
 node_modules/
 npm-debug.log*
-pnpm-lock.yaml
+# pnpm-lock.yaml — seit Phase 0.3 (pnpm-Workspace) wird das gebraucht für
+# `pnpm install --frozen-lockfile` in GH Pages Workflow.
 ue1/folien/*.pptx
