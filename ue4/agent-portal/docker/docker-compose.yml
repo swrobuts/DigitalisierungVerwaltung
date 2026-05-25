@@ -2,10 +2,12 @@ services:
   ue4-agent-portal:
     container_name: ue4-agent-portal
     build:
-      context: ..
-      dockerfile: Dockerfile
+      # Repo-Root als Context für pnpm-Workspace (analog UE0/UE1/UE2/UE3)
+      context: ../../..
+      dockerfile: ue4/agent-portal/Dockerfile
       args:
         VITE_API_BASE: ${VITE_API_BASE:-https://pruefung.butscher.cloud}
+        VITE_PRUEFUNG_URL: ${VITE_PRUEFUNG_URL:-https://pruefung.butscher.cloud}
     image: ue4-agent-portal:latest
     restart: unless-stopped
     networks:

@@ -1,18 +1,25 @@
-# Multi-Stage Build (analog UE3 sachbearbeitung-ki/Dockerfile)
+# Multi-Stage-Build mit pnpm-Workspace-Awareness (analog UE0/UE1/UE2/UE3).
+# Build-Context = Repo-Root für pnpm-lock + Workspace.
 FROM node:22-alpine AS build
-WORKDIR /app
+WORKDIR /repo
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
-COPY package.json package-lock.json* ./
-RUN --mount=type=cache,target=/root/.npm npm install --include=dev
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY ue4/agent-portal/package.json   ue4/agent-portal/package.json
 
-COPY . .
+RUN pnpm install --frozen-lockfile --filter ue4-agent-portal...
+
+COPY ue4/agent-portal   ue4/agent-portal
 
 ARG VITE_API_BASE
-ENV VITE_API_BASE=$VITE_API_BASE
+ARG VITE_PRUEFUNG_URL
+ENV VITE_API_BASE=$VITE_API_BASE \
+    VITE_PRUEFUNG_URL=$VITE_PRUEFUNG_URL
 
-RUN npm run build
+WORKDIR /repo/ue4/agent-portal
+RUN pnpm build
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /repo/ue4/agent-portal/dist /usr/share/nginx/html
+COPY ue4/agent-portal/docker/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080
