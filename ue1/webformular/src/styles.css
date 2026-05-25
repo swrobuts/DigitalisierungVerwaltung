@@ -203,3 +203,17 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 
 .danke-box { max-width: 600px; margin: 3rem auto; padding: 2rem; background: white; border-radius: 6px; text-align: center; }
 .antragsnummer { font-size: 1.5rem; font-weight: 700; color: var(--wuerzburg-rot); margin: 1rem 0; }
+
+/* Prefill-Bootstrap Spinner für UE0→UE1 Übernahme */
+.prefill-spinner {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e0e0e0;
+  border-top-color: var(--color-wue-rot, #AD0E36);
+  border-radius: 50%;
+  animation: prefill-spin 0.9s linear infinite;
+}
+@keyframes prefill-spin {
+  to { transform: rotate(360deg); }
+}

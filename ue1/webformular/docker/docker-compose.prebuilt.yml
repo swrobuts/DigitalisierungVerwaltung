@@ -1,0 +1,40 @@
+# UE1 mit pre-built dist (nginx-only, kein Container-Build).
+#
+# Warum: der VPS hat hohen CPU-steal — Vite-Builds im Container hängen.
+# Standard Vite-Pattern: lokal `pnpm build`, dann nur dist + nginx auf den Server.
+#
+# Workflow für Deploy:
+#   1. Lokal:  pnpm -F ue1-webformular build
+#   2. rsync ue1/webformular/dist/  vps:/opt/ue1-dist/
+#   3. ssh vps "cd /opt/pruefung/repo/ue1/webformular/docker \
+#          && docker compose -f docker-compose.prebuilt.yml up -d --force-recreate"
+#
+# Falls der VPS-Build wieder funktioniert, einfach docker-compose.yml (alt) nutzen.
+
+services:
+  ue1-webformular:
+    container_name: ue1-webformular
+    image: nginxinc/nginx-unprivileged:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - /opt/ue1-dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - root_default
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=root_default
+      - traefik.http.routers.ue1-http.rule=Host(`antrag.butscher.cloud`)
+      - traefik.http.routers.ue1-http.entrypoints=web
+      - traefik.http.routers.ue1-http.middlewares=ue1-https-redirect
+      - traefik.http.middlewares.ue1-https-redirect.redirectscheme.scheme=https
+      - traefik.http.routers.ue1.rule=Host(`antrag.butscher.cloud`)
+      - traefik.http.routers.ue1.entrypoints=websecure
+      - traefik.http.routers.ue1.tls=true
+      - traefik.http.routers.ue1.tls.certresolver=mytlschallenge
+      - traefik.http.routers.ue1.service=ue1
+      - traefik.http.services.ue1.loadbalancer.server.port=8080
+
+networks:
+  root_default:
+    external: true
