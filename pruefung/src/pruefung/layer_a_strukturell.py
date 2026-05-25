@@ -61,9 +61,16 @@ def _check_text_field(
 def check_strukturell(antrag: dict) -> list[Befund]:
     """Liefert Befunde mit layer='A'. Leere Liste = strukturell OK.
 
-    Erwartet `antrag` aus der View `apl2.antrag_mit_summen`. Die View
+    Erwartet `antrag` aus der View `apl.antrag_mit_summen`. Die View
     aggregiert die Kosten-Belegpositionen, daher prüfen wir
     betriebskosten/personalkosten direkt am Aggregat (`> 0`).
+
+    TODO Phase 4A.2: apl.antrag_mit_summen existiert im neuen apl-Schema
+    nicht (mehr). Ersatz ist apl.antrag_inbox (View) — diese hat aber
+    andere Spalten (Antragsteller-Block + Status, keine Belegpositions-
+    Summen). Die Strukturprüfung muss in Phase 4B auf die Plugin-Architektur
+    umgestellt werden: Pflichtfelder kommen pro FB aus dem Plugin
+    (siehe pruefung.foerderbereiche.<fb>.get_pflicht_felder).
     """
     befunde: list[Befund] = []
 

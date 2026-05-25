@@ -11,8 +11,8 @@ class SupabaseClient:
         self._headers = {
             "apikey": key,
             "Authorization": f"Bearer {key}",
-            "Accept-Profile": "apl2",
-            "Content-Profile": "apl2",
+            "Accept-Profile": "apl",
+            "Content-Profile": "apl",
         }
 
     @classmethod

@@ -2,7 +2,7 @@
 
 Iteriert über alle Sections des aktuellen Doctrees und nutzt Claude
 (Tool-Use), um normative Aussagen daraus zu extrahieren. Schreibt
-Ergebnisse als status='pending' in apl2.ahp_norm_statements, wo sie der
+Ergebnisse als status='pending' in apl.ahp_norm_statements, wo sie der
 Sachbearbeiter im /normen-Inspector kuratieren kann.
 """
 import os
@@ -155,7 +155,13 @@ async def extract_all_norms(
     api_key: str | None = None,
 ) -> dict[str, int]:
     """Vollständige Pipeline: Doctree laden → pro Section extrahieren →
-    in apl2.ahp_norm_statements einfügen.
+    in apl.ahp_norm_statements einfügen.
+
+    TODO Phase 4A.2: apl.ahp_doctree existiert nicht mehr. Doctree-Tabelle
+    wurde mit Hard-Cut entfernt; norm_statements bringen ihre Source-Pins
+    direkt mit (quelle_pdf_pfad, quelle_seite). Diese Funktion braucht
+    eine neue Quelle für die Section-Iteration (z.B. Direktes PDF-Re-Parse
+    oder eine neue apl.ahp_sections-Tabelle).
 
     Dedup auf doctree_version + section_path + statement (unique-constraint
     in der Tabelle).

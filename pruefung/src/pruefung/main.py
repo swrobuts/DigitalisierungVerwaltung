@@ -1,4 +1,16 @@
-"""FastAPI-Service für UE3 KI-gestützte Prüfung von APL2-Anträgen."""
+"""FastAPI-Service für KI-gestützte Prüfung von APL-Anträgen.
+
+TODO Phase 4A.2: Viele Endpoints in dieser Datei sprechen noch mit
+nicht-mehr-existenten Tabellen (apl.pruefprotokoll, apl.pruefungen,
+apl.ahp_doctree, apl.ahp_section_embeddings, apl.ontologie_rules,
+apl.oeffnungszeit, apl.antrag_mit_summen). Diese Endpoints werden im
+Live-Service mit 4xx/5xx fehlschlagen. Phase 4B baut die FB-Plugin-
+Dispatcher-Architektur auf, danach werden die alten Endpoints entweder
+auf die neuen Persistenz-Tabellen umgestellt oder durch Plugin-Endpoints
+ersetzt.
+
+Schema-Profile (db.SupabaseClient): apl2 → apl (Phase 4A.1 erfolgt).
+"""
 import os
 import time
 from datetime import UTC, datetime
@@ -86,7 +98,7 @@ async def health() -> dict[str, str]:
 
 @app.post("/api/pruefen")
 async def pruefen(req: PruefungsRequest) -> dict[str, Any]:
-    """Orchestriert die 3 Layer und schreibt apl2.pruefprotokoll."""
+    """Orchestriert die 3 Layer und schreibt apl.pruefprotokoll."""
     start = time.monotonic()
     db = SupabaseClient.from_env()
     antrag = await _fetch_antrag(req.antrag_id, db)
@@ -490,7 +502,7 @@ def _extract_ahp_path(paragraph_ref: str | None) -> str | None:
 
 @app.post("/api/bescheid")
 async def bescheid(req: BescheidRequest) -> dict[str, Any]:
-    """Erstellt einen Verwaltungsbescheid (PDF + apl2.bescheide-Eintrag)
+    """Erstellt einen Verwaltungsbescheid (PDF + apl.bescheide-Eintrag)
     auf Basis des letzten Prüfprotokolls. Die Befunde werden mit AHP-Wortlaut
     angereichert, damit der Bescheid eine rechtlich belastbare Begründung trägt."""
     if req.entscheidung not in ("bewilligt", "abgelehnt", "rueckfrage"):
@@ -790,7 +802,7 @@ async def validiere_extern(antrag_id: str) -> dict[str, Any]:
     antrag = await _fetch_antrag(antrag_id, db)
     befunde = await validiere_alles(antrag)
 
-    # Audit: in apl2.pruefprotokoll persistieren als eigener Eintrag mit
+    # Audit: in apl.pruefprotokoll persistieren als eigener Eintrag mit
     # ergebnis_jsonb.modus='extern' — dann sichtbar im Verlauf-Trace
     # ('Externe Validierung durchgeführt 23.05. …').
     summary = {
@@ -889,7 +901,7 @@ async def extract_norms() -> dict[str, Any]:
 
     Iteriert über alle Sections des aktuellen Doctrees und ruft Claude
     pro Section auf, um normative Aussagen zu extrahieren. Statements
-    landen als status='pending' in apl2.ahp_norm_statements zur manuellen
+    landen als status='pending' in apl.ahp_norm_statements zur manuellen
     Kuratierung.
 
     Idempotent: das unique-Constraint auf (doctree_version, section_path,
@@ -904,7 +916,7 @@ async def rebuild_doctree(
     version: str | None = None,
     engine: str = "claude",
 ) -> dict[str, str]:
-    """Liest AHP-PDF, baut Doctree, schreibt in apl2.ahp_doctree.
+    """Liest AHP-PDF, baut Doctree, schreibt in apl.ahp_doctree.
 
     engine='claude' (default): OCR-Volltext → Claude strukturiert
         semantisch (korrigiert OCR-Fehler, baut Hierarchie, ignoriert

@@ -1,4 +1,12 @@
-"""Layer B — Cross-Field-Plausibilität via JSON-Logic gegen apl2.ontologie_rules."""
+"""Layer B — Cross-Field-Plausibilität via JSON-Logic gegen apl.ontologie_rules.
+
+TODO Phase 4A.2: apl.ontologie_rules existiert nicht (mehr) im neuen apl-Schema
+(Migrationen 060-067). Die Cross-Field-Regeln müssen entweder neu auf
+apl.ahp_norm_statements (statement_type='verpflichtung'/'verbot') angesetzt
+werden, oder dieser Layer wird in Phase 4B/C durch Plugin-spezifische
+Regeln pro Förderbereich abgelöst. Bis dahin schlägt check_ontologie() im
+laufenden Service fehl, weil die Tabelle nicht existiert.
+"""
 from datetime import date
 from typing import Any
 from json_logic import jsonLogic

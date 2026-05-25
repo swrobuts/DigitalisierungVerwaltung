@@ -75,11 +75,16 @@ async def build_embeddings_for_doctree(
     """Generiert Embeddings für jede Section des aktuellen Doctrees.
 
     Pipeline:
-      1. Lade letzte Doctree-Version aus apl2.ahp_doctree
+      1. Lade letzte Doctree-Version aus apl.ahp_doctree
       2. Sammle alle Sections (DFS) mit nicht-leerem content
       3. Bilde Embedding-Text: "<title>\n\n<content>" (Titel als Boost-Signal)
       4. Voyage-Batch-Call (alle auf einmal — 19 Sections × ~3k Tokens passt locker)
-      5. Schreibe in apl2.ahp_section_embeddings (upsert pro section_path)
+      5. Schreibe in apl.ahp_section_embeddings (upsert pro section_path)
+
+    TODO Phase 4A.2: apl.ahp_doctree und apl.ahp_section_embeddings
+    existieren im neuen apl-Schema nicht mehr. Quelle der Sections wird
+    in Phase 4B/C neu geklärt (vermutlich apl.ahp_norm_statements als
+    semantische Anker — die haben bereits Source-Pins).
 
     Idempotent: bei Re-Run werden Embeddings derselben (version, path, title)
     überschrieben.
@@ -164,7 +169,7 @@ async def semantic_search(
     """Findet die Top-K semantisch ähnlichsten Sections zur Suchanfrage.
 
     Nutzt cosine-Similarity (1 - cosine_distance) gegen die in
-    apl2.ahp_section_embeddings gespeicherten Vektoren.
+    apl.ahp_section_embeddings gespeicherten Vektoren.
     """
     voyage = VoyageClient(api_key=api_key)
     q_emb = (await voyage.embed([query], input_type="query"))[0]

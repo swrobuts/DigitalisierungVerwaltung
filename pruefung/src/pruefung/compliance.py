@@ -146,27 +146,29 @@ MENSCHLICHE_AUFSICHT = [
 
 
 # Audit-Trail — was wird wo geloggt?
+# TODO Phase 4A.2: apl.pruefprotokoll und apl.pruefungen existieren im neuen
+# apl-Schema nicht (mehr); ersetzt durch apl.manuelle_pruefung +
+# Plugin-spezifische KI-Ergebnis-Persistenz. Die Audit-Liste wird in Phase 4B
+# auf die neue Welt umgestellt — vorerst markieren wir die nicht mehr
+# vorhandenen Tabellen als deprecated.
 AUDIT_TRAIL_QUELLEN = [
     {
-        "tabelle": "apl2.antrag_history",
+        "tabelle": "apl.antrag_history",
         "inhalt": "Alle Antrags-Status-Wechsel mit Zeitstempel, Bearbeiter:in, Kommentar",
         "ai_act_referenz": "Art. 12 — Aufzeichnungspflicht",
     },
     {
-        "tabelle": "apl2.pruefprotokoll",
-        "inhalt": "Jeder KI-Lauf (Erst, Zweit, extern) mit Befunden, Doctree-Version, LLM-Usage (Token + Kosten)",
-        "ai_act_referenz": "Art. 12 — Aufzeichnungspflicht",
-    },
-    {
-        "tabelle": "apl2.pruefungen",
-        "inhalt": "Bewertungs-Vorgänge (Mensch/KI) mit Abhakungen, Kommentar, Vorschlag",
+        "tabelle": "apl.manuelle_pruefung",
+        "inhalt": "Manuelle Sachbearbeiter-Prüfung mit Abhakungen, Kommentar, Entscheidungsvorschlag",
         "ai_act_referenz": "Art. 14 — Nachweis menschlicher Aufsicht",
     },
     {
-        "tabelle": "apl2.bescheide",
+        "tabelle": "apl.bescheide",
         "inhalt": "Ausgestellte Bescheide mit Begründung, Bearbeiter:in, Stand der Rechtsgrundlage",
         "ai_act_referenz": "Art. 11 — Technische Dokumentation",
     },
+    # TODO Phase 4B: Audit-Quelle für KI-Läufe (Erst/Zweit/extern) ergänzen
+    # sobald die Persistenz-Tabelle für KI-Befunde im neuen Schema feststeht.
 ]
 
 
@@ -190,44 +192,29 @@ DATENMINIMIERUNG = [
 
 
 async def berechne_compliance_metriken(db: SupabaseClient) -> dict[str, Any]:
-    """Live-Statistiken aus der DB: was hat das System tatsächlich getan?"""
-    # Anzahl KI-Läufe aus pruefprotokoll
-    pp = await db.select("pruefprotokoll", "select=id,ergebnis_jsonb&order=geprueft_am.desc&limit=500")
-    anzahl_ki_laeufe = len(pp)
-    anzahl_extern = sum(
-        1 for p in pp
-        if (p.get("ergebnis_jsonb") or {}).get("modus") == "extern"
-    )
-    anzahl_adversariell = sum(
-        1 for p in pp
-        if (p.get("ergebnis_jsonb") or {}).get("modus") == "adversariell"
-    )
-    # Gesamt-Token + Kosten aus llm_usage
-    total_tokens = 0
-    total_cost = 0.0
-    for p in pp:
-        usage = (p.get("ergebnis_jsonb") or {}).get("llm_usage") or {}
-        total_tokens += usage.get("total_tokens", 0) or 0
-        total_cost += float(usage.get("cost_usd_estimate") or 0)
+    """Live-Statistiken aus der DB: was hat das System tatsächlich getan?
 
-    # Anzahl Bescheide + Zweitprüfungen
+    TODO Phase 4A.2: pruefprotokoll und pruefungen existieren im neuen apl-
+    Schema nicht mehr. Bis zur Anbindung der neuen KI-Persistenz liefert die
+    Funktion nur die Bescheide-Zählung; KI-Lauf- und Zweitprüfungs-Metriken
+    sind None-platzhalter.
+    """
     bescheide = await db.select("bescheide", "select=id")
-    pruefungen = await db.select("pruefungen", "select=id,rolle,pruefer_typ")
-    anzahl_zweitpruefungen = sum(1 for p in pruefungen if p.get("rolle") == "zweitpruefung")
-    anzahl_ki_zweitpruefungen = sum(
-        1 for p in pruefungen
-        if p.get("rolle") == "zweitpruefung" and p.get("pruefer_typ") == "ki"
-    )
 
     return {
-        "ki_laeufe_gesamt": anzahl_ki_laeufe,
-        "ki_laeufe_extern": anzahl_extern,
-        "ki_laeufe_adversariell": anzahl_adversariell,
+        "ki_laeufe_gesamt": None,             # TODO Phase 4B
+        "ki_laeufe_extern": None,             # TODO Phase 4B
+        "ki_laeufe_adversariell": None,       # TODO Phase 4B
         "bescheide_gesamt": len(bescheide),
-        "zweitpruefungen_gesamt": anzahl_zweitpruefungen,
-        "zweitpruefungen_durch_ki": anzahl_ki_zweitpruefungen,
-        "llm_token_gesamt": total_tokens,
-        "llm_kosten_usd_geschaetzt": round(total_cost, 4),
+        "zweitpruefungen_gesamt": None,       # TODO Phase 4B
+        "zweitpruefungen_durch_ki": None,     # TODO Phase 4B
+        "llm_token_gesamt": None,             # TODO Phase 4B
+        "llm_kosten_usd_geschaetzt": None,    # TODO Phase 4B
+        "hinweis": (
+            "Live-Metriken für KI-Läufe sind in Phase 4A vorübergehend "
+            "deaktiviert (Schema-Refactor apl2→apl). Werden in Phase 4B "
+            "auf die neue Persistenz umgestellt."
+        ),
     }
 
 
