@@ -9,6 +9,22 @@ export interface SupabaseConfig {
   url?: string;
   key?: string;
   schema?: string;
+  /**
+   * Optional `auth`-Optionen, die direkt an `createClient` durchgereicht
+   * werden. UE2/UE3 setzen darüber `persistSession`, `storageKey` etc.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  auth?: Record<string, any>;
+}
+
+/**
+ * Erlaubt UE2/UE3, einen bereits konfigurierten Supabase-Client (Magic-
+ * Link-Auth) als Singleton zu setzen, so dass alle data-layer-Wrapper
+ * denselben Client benutzen. Idempotent.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function setSupabaseClient(client: SupabaseClient<any, any, any>): void {
+  _client = client;
 }
 
 /**
