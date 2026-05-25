@@ -7,28 +7,6 @@
   --color-wue-grau: #627f8d;
 }
 
-/* ============================================================
- * Würzburg-CI — komplette Übernahme aus UE1-v1 (5cfc6eb).
- * Long-Form-Layout mit Stadt-Header, sticky Fortschrittsbar,
- * Sub-Nav und Footer. CSS-Variablen bleiben — Bestandsklassen
- * referenzieren sie.
- * ============================================================ */
-
-/*
- * Optisch an der Corporate Identity der Stadt Würzburg orientiert.
- * Lehr-Demo — kein offizielles Angebot der Stadt Würzburg.
- *
- * Faktenbasis (extrahiert aus wuerzburg.de am 2026-05-17):
- *   --wuerzburg-rot:    #AD0E36   (gemessen in /index.css)
- *   --wuerzburg-orange: #FF680E   (gemessen in /index.css, .arrow:hover)
- *   --wuerzburg-grau:   #627F8D
- *   Schrift Body:       Open Sans (Stadt selfhosted via cdn.regiogate.net)
- *   Header-Layout:      weißer Header, KEIN großes rotes Banner.
- *
- * Wappen: gemeinfreies SVG aus Wikimedia Commons.
- * Schrems II: Open Sans hier via Google Fonts — in Produktion self-hosten.
- */
-
 :root {
   --wuerzburg-rot: #ad0e36;
   --wuerzburg-rot-dunkel: #8a0b2b;
@@ -46,7 +24,6 @@
 }
 
 * { box-sizing: border-box; }
-
 html { scroll-behavior: smooth; }
 
 body {
@@ -58,7 +35,6 @@ body {
   line-height: 1.5;
 }
 
-/* Schmaler Akzent-Streifen oben — CI-Marker wie auf wuerzburg.de */
 body::before {
   content: "";
   display: block;
@@ -66,614 +42,164 @@ body::before {
   background: var(--wuerzburg-rot);
 }
 
-/* ===== Stadt-Header (weiß, Wappen links, Sprache rechts) ===== */
-.stadt-header {
-  background: white;
-  border-bottom: 1px solid var(--grey-line);
-}
-
+/* ===== Header ===== */
+.stadt-header { background: white; border-bottom: 1px solid var(--grey-line); }
 .stadt-header-inner {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: 1rem 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
+  max-width: var(--container-max); margin: 0 auto; padding: 1rem 1.5rem;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 1.5rem; flex-wrap: wrap;
 }
+.stadt-brand { display: flex; align-items: center; gap: .9rem; text-decoration: none; color: inherit; }
+.stadt-wappen { width: 40px; height: 44px; flex-shrink: 0; }
+.stadt-wortmarke { font-weight: 700; font-size: 1.05rem; line-height: 1.15; }
+.stadt-tagline { font-size: .8rem; color: var(--wuerzburg-muted); margin-top: .1rem; }
+.sprach-nav { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: var(--wuerzburg-muted); }
+.sprach-nav select { padding: .25rem .5rem; border: 1px solid var(--grey-line); border-radius: 3px; }
 
-.stadt-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  text-decoration: none;
+.stadt-subnav { background: #fff; border-bottom: 1px solid var(--grey-line-light); font-size: .82rem; color: var(--wuerzburg-muted); }
+.stadt-subnav-inner { max-width: var(--container-max); margin: 0 auto; padding: .6rem 1.5rem; }
+.stadt-subnav-inner a { color: var(--wuerzburg-grau); text-decoration: none; }
+.stadt-subnav-inner a:hover { text-decoration: underline; }
+.stadt-subnav-sep { margin: 0 .5rem; color: var(--grey-line); }
+
+/* ===== Layout ===== */
+.page { max-width: var(--container-max); margin: 0 auto; padding: 1.5rem; }
+.form-wrap { max-width: var(--form-max); margin: 0 auto; }
+
+h1 { font-size: 1.6rem; margin: 0 0 .5rem; color: var(--wuerzburg-text); }
+h2 { font-size: 1.2rem; margin: 1.5rem 0 .5rem; color: var(--wuerzburg-rot-dunkel); }
+h3 { font-size: 1rem; margin: 1rem 0 .25rem; }
+
+.lead { color: var(--wuerzburg-muted); margin: 0 0 1.5rem; }
+
+/* ===== FB-Karten (Wahl-Page) ===== */
+.fb-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem; margin: 1.5rem 0;
+}
+.fb-card {
+  background: white; border: 2px solid var(--grey-line); border-radius: 6px;
+  padding: 1.25rem; text-align: left; cursor: pointer; transition: all .15s;
+  display: flex; flex-direction: column; gap: .5rem; font-family: inherit;
   color: inherit;
 }
+.fb-card:hover, .fb-card:focus {
+  border-color: var(--wuerzburg-rot); transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(173, 14, 54, .12); outline: none;
+}
+.fb-icon { font-size: 2rem; }
+.fb-titel { font-weight: 700; font-size: 1.05rem; color: var(--wuerzburg-rot-dunkel); }
+.fb-kurz { font-size: .85rem; color: var(--wuerzburg-muted); }
+.fb-desc { font-size: .9rem; }
 
-.stadt-wappen {
-  width: 40px;
-  height: 44px;
-  flex-shrink: 0;
+/* ===== Wizard-Hinweis ===== */
+.wizard-link-box {
+  background: white; border: 1px dashed var(--wuerzburg-grau); border-radius: 6px;
+  padding: 1rem; margin: 1rem 0; text-align: center;
 }
+.wizard-link-box button {
+  background: none; border: none; color: var(--wuerzburg-rot); cursor: pointer;
+  font-size: 1rem; font-weight: 600; text-decoration: underline; padding: 0;
+}
+.wizard-questions { background: white; border: 1px solid var(--grey-line); padding: 1rem; margin-top: .5rem; border-radius: 6px; }
+.wizard-answer { display: block; margin: .25rem 0; }
 
-.stadt-wortmarke {
-  font-weight: 700;
-  font-size: 1.05rem;
-  line-height: 1.15;
-  color: var(--wuerzburg-text);
-}
-
-.stadt-tagline {
-  font-size: 0.8rem;
-  color: var(--wuerzburg-muted);
-  margin-top: 0.1rem;
-}
-
-.sprach-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  color: var(--wuerzburg-muted);
-}
-
-.sprach-nav select {
-  width: auto;
-  padding: 0.35rem 0.55rem;
-  font-size: 0.85rem;
-  font-family: inherit;
-  border: 1px solid var(--grey-line);
-  background: white;
-  color: var(--wuerzburg-text);
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.sprach-nav select:focus {
-  outline: 2px solid var(--wuerzburg-rot);
-  outline-offset: 1px;
-}
-
-/* ===== Sub-Navi / Breadcrumb-Streifen (visuelle Verbindung Header→Form) ===== */
-.stadt-subnav {
-  background: #fff;
-  border-bottom: 1px solid var(--grey-line-light);
-}
-.stadt-subnav-inner {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: 0.55rem 1.5rem;
-  font-size: 0.82rem;
-  color: var(--wuerzburg-muted);
-  display: flex;
-  gap: 0.4rem;
-  align-items: center;
-}
-.stadt-subnav a {
-  color: var(--wuerzburg-rot);
-  text-decoration: none;
-}
-.stadt-subnav a:hover { text-decoration: underline; }
-.stadt-subnav-sep { color: var(--grey-line); }
-
-/* ===== Antrags-Fortschritt (Progress) ===== */
-.fortschritt-bar {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: 0.9rem 1.5rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  font-size: 0.82rem;
-  color: var(--wuerzburg-muted);
-}
-.fortschritt-track {
-  flex: 1;
-  height: 6px;
-  background: var(--grey-line-light);
-  border-radius: 3px;
-  overflow: hidden;
-}
-.fortschritt-fill {
-  height: 100%;
-  width: 0;
-  background: var(--wuerzburg-rot);
-  transition: width 0.3s ease-out;
-}
-.fortschritt-text {
-  font-weight: 600;
-  color: var(--wuerzburg-text);
-  font-variant-numeric: tabular-nums;
-  min-width: 4.2em;
-  text-align: right;
-}
-
-/* ===== Form-Container ===== */
-#app {
-  max-width: var(--container-max);
-  margin: 1rem auto 2rem;
-  padding: 1.75rem 2rem 2rem;
-  background: white;
-  border: 1px solid var(--grey-line);
-  border-radius: 3px;
-}
-
-#app > header {
-  border-bottom: 2px solid var(--wuerzburg-rot);
-  padding-bottom: 0.9rem;
-  margin-bottom: 1.5rem;
-}
-
-h1 {
-  font-weight: 700;
-  color: var(--wuerzburg-text);
-  margin: 0 0 0.3rem;
-  font-size: 1.5rem;
-  letter-spacing: -0.01em;
-}
-
-.subtitle {
-  margin: 0;
-  color: var(--wuerzburg-muted);
-  font-size: 0.92rem;
-}
-
-/* ===== Fieldsets ===== */
+/* ===== Forms ===== */
 fieldset {
-  border: 1px solid var(--grey-line);
-  border-left: 3px solid var(--wuerzburg-rot);
-  padding: 1rem 1.25rem 1.1rem;
-  margin: 0 0 1.1rem;
-  background: white;
+  background: white; border: 1px solid var(--grey-line); border-radius: 6px;
+  padding: 1rem 1.5rem 1.5rem; margin: 0 0 1.5rem;
 }
-
-legend {
-  font-weight: 700;
-  color: var(--wuerzburg-rot);
-  padding: 0 0.5rem;
-  font-size: 0.82rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+legend { font-weight: 700; color: var(--wuerzburg-rot-dunkel); padding: 0 .5rem; }
+.form-row { display: grid; gap: .25rem; margin: .75rem 0; }
+.form-row.two-col { grid-template-columns: 1fr 1fr; gap: 1rem; }
+.form-row.three-col { grid-template-columns: 1fr 2fr 1fr; gap: 1rem; }
+label { font-weight: 600; font-size: .9rem; }
+label .pflicht { color: var(--wuerzburg-rot); }
+input[type=text], input[type=email], input[type=tel], input[type=url],
+input[type=number], input[type=date], select, textarea {
+  width: 100%; padding: .5rem .75rem; border: 1px solid var(--grey-line);
+  border-radius: 3px; font: inherit; background: white;
 }
-
-/* ===== Form-Layout: Grid für Felder ===== */
-.fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem 1.25rem;
-}
-
-.fields > .full { grid-column: 1 / -1; }
-
-@media (max-width: 640px) {
-  .fields { grid-template-columns: 1fr; }
-  .fields > .full { grid-column: auto; }
-}
-
-/* ===== Labels + Inputs ===== */
-label {
-  display: block;
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--wuerzburg-text);
-}
-
-.field-label {
-  display: block;
-  margin-bottom: 0.3rem;
-  font-weight: 600;
-  color: var(--wuerzburg-text);
-}
-
-.field-hint {
-  display: block;
-  font-size: 0.78rem;
-  color: var(--wuerzburg-muted);
-  margin-top: 0.2rem;
-}
-
-input, select, textarea {
-  display: block;
-  width: 100%;
-  padding: 0.55rem 0.7rem;
-  font-size: 0.95rem;
-  font-family: inherit;
-  border: 1px solid var(--grey-line);
-  border-radius: 2px;
-  color: var(--wuerzburg-text);
-  background: white;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-input:hover, select:hover, textarea:hover { border-color: #999; }
-
 input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: var(--wuerzburg-rot);
-  box-shadow: 0 0 0 3px rgba(173, 14, 54, 0.12);
+  outline: none; border-color: var(--wuerzburg-rot);
+  box-shadow: 0 0 0 3px rgba(173, 14, 54, .15);
 }
-
-input[aria-invalid="true"],
-select[aria-invalid="true"],
-textarea[aria-invalid="true"] {
+input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] {
   border-color: var(--error);
-  box-shadow: 0 0 0 3px rgba(176, 0, 32, 0.1);
 }
+.feldhinweis { font-size: .8rem; color: var(--wuerzburg-muted); }
+.fehlermeldung { font-size: .8rem; color: var(--error); margin-top: .25rem; }
+.zeichenzaehler { font-size: .75rem; color: var(--wuerzburg-muted); text-align: right; }
+.checkbox-row { display: flex; align-items: center; gap: .5rem; }
+.checkbox-row input { width: auto; }
 
-/* IBAN-Live-Status (Häkchen rechts im Feld) */
-.input-with-status {
-  position: relative;
-}
-.input-with-status input { padding-right: 2.2rem; }
-.input-status-icon {
-  position: absolute;
-  right: 0.65rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
-  display: none;
-  pointer-events: none;
-}
-.input-status-icon.ok {
-  display: block;
-  color: var(--ok);
-}
+/* ===== Buttons ===== */
+.btn { padding: .6rem 1.25rem; border: 1px solid transparent; border-radius: 3px;
+  font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+.btn-primary { background: var(--wuerzburg-rot); color: white; }
+.btn-primary:hover { background: var(--wuerzburg-rot-dunkel); }
+.btn-primary:disabled { background: var(--grey-line); cursor: not-allowed; }
+.btn-secondary { background: white; color: var(--wuerzburg-rot); border-color: var(--wuerzburg-rot); }
+.btn-secondary:hover { background: #fff3f5; }
+.btn-row { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; }
+.btn-mini { padding: .3rem .65rem; font-size: .85rem; }
 
-.field-error {
-  display: block;
-  color: var(--error);
-  font-size: 0.8rem;
-  margin-top: 0.25rem;
-  min-height: 1em;
-}
+/* ===== Helfer-Tabelle ===== */
+.helfer-tabelle { width: 100%; border-collapse: collapse; margin-top: .5rem; font-size: .85rem; }
+.helfer-tabelle th, .helfer-tabelle td { padding: .35rem .5rem; border-bottom: 1px solid var(--grey-line-light); text-align: left; }
+.helfer-tabelle th { background: var(--grey-bg); font-weight: 600; }
+.helfer-tabelle input { padding: .3rem .4rem; font-size: .85rem; }
+.helfer-tabelle .col-remove { width: 60px; text-align: right; }
 
-.pflicht {
-  color: var(--wuerzburg-rot);
-  font-weight: 700;
-  margin-left: 0.05rem;
-  font-size: 0.85em;
-  vertical-align: top;
+/* ===== Anlagen ===== */
+.anlage-slot {
+  border: 2px dashed var(--grey-line); border-radius: 6px; padding: 1rem;
+  margin-bottom: .75rem; background: white;
 }
+.anlage-slot.pflicht { border-color: var(--wuerzburg-orange); }
+.anlage-slot.uploaded { border-color: var(--ok); border-style: solid; background: #f0f9f5; }
+.anlage-slot.uploaded::before { content: "✓ "; color: var(--ok); }
+.anlage-titel { font-weight: 600; }
+.anlage-desc { font-size: .85rem; color: var(--wuerzburg-muted); margin-bottom: .5rem; }
 
-/* ===== Radio-Group (ja/nein nebeneinander) ===== */
-/* Würzburg-CI setzt label{display:block} — das brauchen wir hier weg,
- * also per .radio-inline { display: inline-flex } gezielt überschreiben. */
-.radio-group {
-  border: none;
-  border-left: none;
-  padding: 0;
-  margin: 0 0 0.9rem;
-  background: transparent;
+/* ===== Progress ===== */
+.progress {
+  background: white; border-bottom: 1px solid var(--grey-line);
+  padding: .5rem 1.5rem; font-size: .85rem; color: var(--wuerzburg-muted);
 }
-.radio-group-legend {
-  color: var(--wuerzburg-text);
-  font-weight: 600;
-  font-size: 0.88rem;
-  text-transform: none;
-  letter-spacing: 0;
-  padding: 0 0 0.35rem;
-  display: block;
-}
-.radio-inline {
-  display: inline-flex; /* override label { display: block } */
-  align-items: center;
-  gap: 0.4rem;
-  margin-right: 1.25rem;
-  font-size: 0.92rem;
-  cursor: pointer;
-}
-.radio-inline input[type="radio"] {
-  width: auto;
-  margin: 0;
-  cursor: pointer;
-}
+.progress-inner { max-width: var(--container-max); margin: 0 auto; display: flex; gap: 1rem; align-items: center; }
+.progress-track { flex: 1; height: 6px; background: var(--grey-line-light); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--wuerzburg-rot); transition: width .25s; }
 
-/* ===== Bestätigungs-Checkbox (Step 6) ===== */
-.bestaetigung {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  margin: 0 0 1rem;
-  font-size: 0.9rem;
-  color: var(--wuerzburg-text);
+/* ===== Variante-Auswahl (FB III) ===== */
+.variante-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin: .75rem 0; }
+.variante-card {
+  background: white; border: 2px solid var(--grey-line); border-radius: 6px;
+  padding: .85rem; cursor: pointer; font-family: inherit; text-align: left;
 }
-.bestaetigung input[type="checkbox"] {
-  width: auto;
-  margin-top: 0.2rem;
-}
-
-/* ===== Wochenplan-Tabelle ===== */
-.wochenplan-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-.wochenplan-table td {
-  padding: 0.35rem 0.4rem;
-  border-bottom: 1px solid var(--grey-line-light);
-  vertical-align: middle;
-}
-.wochenplan-table .wp-tag {
-  font-weight: 600;
-  width: 6rem;
-  white-space: nowrap;
-}
-.wochenplan-table .wp-zeit { width: 11rem; }
-.wochenplan-table input {
-  padding: 0.4rem 0.55rem;
-  font-size: 0.9rem;
-}
-
-/* ===== Flyer-Dropzone (Step 5) ===== */
-.flyer-dropzone {
-  display: block;
-  border: 2px dashed var(--grey-line);
-  border-radius: 3px;
-  padding: 1.25rem 1rem;
-  background: var(--grey-bg);
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
-.flyer-dropzone:hover {
-  border-color: var(--wuerzburg-rot);
-  background: white;
-}
-.flyer-dropzone input[type="file"] {
-  margin-top: 0.5rem;
-}
-
-/* ===== Beleg-Rows (Step 4) ===== */
-.beleg-block { margin: 0 0 1.2rem; }
-.beleg-block-title {
-  font-weight: 600;
-  margin: 0 0 0.5rem;
-  color: var(--wuerzburg-text);
-  font-size: 0.95rem;
-}
-.beleg-row {
-  display: grid;
-  grid-template-columns: 1fr 9rem auto auto;
-  gap: 0.6rem;
-  align-items: center;
-  margin-bottom: 0.4rem;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid var(--grey-line-light);
-  border-radius: 2px;
-  background: var(--grey-bg);
-}
-@media (max-width: 640px) {
-  .beleg-row { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
-}
-.beleg-row input {
-  padding: 0.4rem 0.55rem;
-  font-size: 0.9rem;
-}
-.beleg-betrag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-.beleg-betrag input { text-align: right; }
-.beleg-upload {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.4rem 0.7rem;
-  font-size: 0.82rem;
-  border: 1px solid var(--grey-line);
-  background: white;
-  border-radius: 2px;
-  cursor: pointer;
-  color: var(--wuerzburg-rot);
-  margin: 0;
-}
-.beleg-upload:hover { background: rgba(173, 14, 54, 0.04); }
-.beleg-upload input[type="file"] { display: none; }
-.beleg-upload.has-file {
-  background: rgba(0, 106, 78, 0.08);
-  border-color: var(--ok);
-  color: var(--ok);
-}
-.fehlend-liste {
-  display: none;
-  margin: 0.5rem 0 0;
-  padding: 0.55rem 0.75rem;
-  background: rgba(176, 0, 32, 0.06);
-  border-left: 3px solid var(--error);
-  border-radius: 2px;
-  font-size: 0.85rem;
-  color: var(--error);
-}
-.fehlend-liste.active { display: block; }
-.beleg-remove {
-  width: auto;
-  padding: 0.2rem 0.55rem;
-  background: transparent;
-  border: none;
-  color: var(--wuerzburg-muted);
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
-  font-weight: 400;
-}
-.beleg-remove:hover {
-  color: var(--error);
-  background: transparent;
-  border: none;
-}
-.beleg-add {
-  margin-top: 0.4rem;
-  background: transparent;
-  border: 1px dashed var(--wuerzburg-rot);
-  color: var(--wuerzburg-rot);
-  padding: 0.45rem 0.9rem;
-  border-radius: 2px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  font-weight: 600;
-  width: auto;
-}
-.beleg-add:hover {
-  background: rgba(173, 14, 54, 0.04);
-  color: var(--wuerzburg-rot);
-  border-color: var(--wuerzburg-rot);
-}
-.beleg-summe {
-  text-align: right;
-  font-weight: 600;
-  margin: 0.5rem 0 0;
-  font-size: 0.9rem;
-  color: var(--wuerzburg-text);
-}
-.gesamt-summe {
-  text-align: right;
-  font-size: 1.05rem;
-  font-weight: 700;
-  border-top: 2px solid var(--wuerzburg-rot);
-  padding-top: 0.7rem;
-  margin: 1rem 0 0;
-  color: var(--wuerzburg-text);
-}
-
-/* ===== Conditional Fields (per JS toggled) ===== */
-.field-conditional {
-  display: none;
-}
-.field-conditional.visible {
-  display: block;
-  animation: slideIn 0.2s ease-out;
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateY(-3px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ===== Aktions-Leiste ===== */
-.actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--grey-line);
-  flex-wrap: wrap;
-}
-
-button {
-  font-family: inherit;
-  font-size: 0.95rem;
-  padding: 0.65rem 1.5rem;
-  border: 1px solid var(--wuerzburg-rot);
-  background: white;
-  color: var(--wuerzburg-rot);
-  border-radius: 2px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.12s, color 0.12s, transform 0.05s;
-}
-
-button[type="submit"] {
-  background: var(--wuerzburg-rot);
-  color: white;
-}
-
-button:hover {
-  background: var(--wuerzburg-rot-dunkel);
-  color: white;
-  border-color: var(--wuerzburg-rot-dunkel);
-}
-
-button:active { transform: translateY(1px); }
-
-button:focus-visible {
-  outline: 2px solid var(--wuerzburg-orange);
-  outline-offset: 2px;
-}
-
-/* ===== Bestätigung ===== */
-#bestaetigung {
-  margin: 1rem auto 2rem;
-  max-width: var(--container-max);
-  padding: 1.5rem 2rem;
-  background: white;
-  border: 1px solid var(--grey-line);
-  border-left: 4px solid var(--ok);
-  border-radius: 3px;
-}
-
-#bestaetigung h2 {
-  font-weight: 700;
-  color: var(--ok);
-  margin: 0 0 0.5rem;
-  font-size: 1.3rem;
-}
-
-.antragsnummer {
-  font-family: ui-monospace, "SF Mono", monospace;
-  font-size: 1.1rem;
-  font-weight: 700;
-  background: #f4f5f7;
-  padding: 0.4rem 0.7rem;
-  display: inline-block;
-  border: 1px solid var(--grey-line);
-  border-radius: 2px;
-  color: var(--wuerzburg-text);
-}
+.variante-card.selected { border-color: var(--wuerzburg-rot); background: #fff3f5; }
+.variante-card:hover { border-color: var(--wuerzburg-rot); }
+.variante-card .icon { font-size: 1.5rem; }
+.variante-card .label { font-weight: 600; margin: .25rem 0; }
+.variante-card .grenze { font-size: .75rem; color: var(--wuerzburg-muted); }
 
 /* ===== Footer ===== */
-footer.stadt-footer {
-  background: white;
-  border-top: 1px solid var(--grey-line);
-  margin-top: 2rem;
-}
-.stadt-footer-inner {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: 1.25rem 1.5rem;
-  font-size: 0.78rem;
-  color: var(--wuerzburg-muted);
-  text-align: center;
-  line-height: 1.7;
-}
-footer.stadt-footer a {
-  color: var(--wuerzburg-rot);
-  text-decoration: none;
-}
-footer.stadt-footer a:hover { text-decoration: underline; }
-.demo-hinweis-footer {
-  display: inline-block;
-  margin-bottom: 0.35rem;
-  padding: 0.2rem 0.55rem;
-  background: #fff8c5;
-  border-left: 3px solid var(--wuerzburg-orange);
-  font-size: 0.78rem;
-  color: var(--wuerzburg-text);
-}
-.demo-hinweis-footer strong { color: var(--wuerzburg-rot); }
+.stadt-footer { background: var(--wuerzburg-text); color: #ccc; margin-top: 3rem; padding: 2rem 0; }
+.stadt-footer-inner { max-width: var(--container-max); margin: 0 auto; padding: 0 1.5rem; font-size: .85rem; }
+.stadt-footer a { color: var(--wuerzburg-orange); }
 
-/* ============================================================
- * Prefill-Banner — wird oberhalb der ersten <fieldset> gezeigt,
- * wenn der Bürger über UE0 mit ?prefill=<einreichung_id> kommt.
- * Grün-soft = "alles übernommen, bitte prüfen".
- * Variante prefill-banner-warn = orange-soft, wenn Prefill fehlschlug.
- * ============================================================ */
-.prefill-banner {
-  background: #ecfdf5;
-  border-left: 4px solid var(--ok);
-  color: #064e3b;
-  padding: 0.9rem 1.1rem;
-  margin: 0 0 1.2rem;
-  border-radius: 2px;
-  font-size: 0.95rem;
-  line-height: 1.45;
+/* ===== Übersicht ===== */
+.uebersicht-box {
+  background: white; border: 1px solid var(--grey-line); border-radius: 6px;
+  padding: 1rem 1.5rem; margin-bottom: 1rem;
 }
-.prefill-banner strong { color: var(--ok); }
-.prefill-banner-warn {
-  background: #fff7ed;
-  border-left-color: var(--wuerzburg-orange);
-  color: #7c2d12;
-}
-.prefill-banner-warn strong { color: var(--wuerzburg-orange); }
+.uebersicht-box h3 { color: var(--wuerzburg-rot-dunkel); margin-top: 0; }
+.uebersicht-row { display: grid; grid-template-columns: 1fr 2fr; gap: .5rem; padding: .25rem 0; font-size: .9rem; }
+.uebersicht-row dt { color: var(--wuerzburg-muted); }
+
+.alert-error { background: #fde7eb; border-left: 4px solid var(--error); padding: .75rem 1rem; margin: 1rem 0; border-radius: 3px; }
+.alert-info { background: #eef5fa; border-left: 4px solid var(--wuerzburg-grau); padding: .75rem 1rem; margin: 1rem 0; border-radius: 3px; }
+.alert-success { background: #e6f5ee; border-left: 4px solid var(--ok); padding: .75rem 1rem; margin: 1rem 0; border-radius: 3px; }
+
+.danke-box { max-width: 600px; margin: 3rem auto; padding: 2rem; background: white; border-radius: 6px; text-align: center; }
+.antragsnummer { font-size: 1.5rem; font-weight: 700; color: var(--wuerzburg-rot); margin: 1rem 0; }
