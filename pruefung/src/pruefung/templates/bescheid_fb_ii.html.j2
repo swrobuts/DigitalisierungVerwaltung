@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Bescheid FB II — {{ antrag.einrichtung }}</title>
+</head>
+<body>
+  <h1>Bescheid Förderbereich II — Pauschale Förderung bürgerschaftlichen Engagements</h1>
+  <p><strong>Antragsnummer:</strong> {{ antrag.antragsnummer or "—" }}</p>
+  <p><strong>Einrichtung:</strong> {{ antrag.einrichtung }}</p>
+  <p><strong>Ehrenamtsbereich:</strong> {{ antrag.ehrenamt_titel or "—" }}</p>
+  <p><strong>Helfer:innen Vorjahr:</strong> {{ antrag.anzahl_helfer_vorjahr or 0 }}
+     ({{ antrag.gesamt_helferstunden_vorjahr or 0 }} Stunden)</p>
+  <p><strong>Haushaltsjahr:</strong> {{ antrag.haushaltsjahr }}</p>
+
+  <h2>Entscheidung</h2>
+  <p><strong>{{ ki.entscheidung }}</strong></p>
+
+  <h2>Begründung</h2>
+  <p>{{ ki.begruendung }}</p>
+
+  <h2>Herangezogene Quellen</h2>
+  <ul>
+    {% for z in ki.zitate %}
+      <li><strong>{{ z.ref }}:</strong> &bdquo;{{ z.woertliches_zitat }}&ldquo;</li>
+    {% else %}
+      <li>(keine Quellen zitiert)</li>
+    {% endfor %}
+  </ul>
+</body>
+</html>
