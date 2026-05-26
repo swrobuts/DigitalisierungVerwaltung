@@ -88,6 +88,8 @@ export function buildPayload(state: AntragState): Record<string, unknown> {
       name: h.name, vorname: h.vorname,
       einsatzbereich: h.einsatzbereich || null,
       eintritt: h.eintritt || null,
+      austritt: h.austritt || null,
+      stunden_monat: toNum(h.stunden_monat),
       stunden_jahr: toNum(h.stunden_jahr),
     }));
   } else if (state.foerderbereich === "III") {

@@ -42,9 +42,11 @@ describe("buildPayload pro FB", () => {
                gesamt_helferstunden_vorjahr: "2400", direkter_kontakt_senioren: true,
                helfer: [
                  { name: "Schmidt", vorname: "Anna", einsatzbereich: "Besuche",
-                   eintritt: "2024-01-15", stunden_jahr: "120" },
+                   eintritt: "2024-01-15", austritt: "",
+                   stunden_monat: "10", stunden_jahr: "120" },
                  { name: "Müller", vorname: "Bert", einsatzbereich: "Orga",
-                   eintritt: "", stunden_jahr: "60" },
+                   eintritt: "", austritt: "",
+                   stunden_monat: "", stunden_jahr: "60" },
                ] },
     };
     const p = buildPayload(s) as any;

@@ -10,8 +10,10 @@ export interface HelferRow {
   name: string;
   vorname: string;
   einsatzbereich: string;
-  eintritt: string; // YYYY-MM-DD
-  stunden_jahr: string;
+  eintritt: string;  // YYYY-MM-DD; PDF-Spalte „Eintritt"
+  austritt: string;  // YYYY-MM-DD oder leer; PDF-Spalte „Austritt"
+  stunden_monat: string;  // PDF-Spalte „Stunden monatlich"
+  stunden_jahr: string;   // PDF-Spalte „Stunden jährlich"
 }
 
 export interface DrittmittelRow {
