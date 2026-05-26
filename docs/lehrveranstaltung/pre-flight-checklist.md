@@ -4,6 +4,16 @@
 
 ---
 
+## 0. Einmalig vor erster VL: DNS-Records
+
+Siehe [dns-records-todo.md](dns-records-todo.md) — 5 neue A-Records auf `72.61.83.18`
+für `upload`, `antrag`, `sachbearbeiter`, `ki`, `agent` (alle `.butscher.cloud`).
+Erst dann sind die in der Tabelle unten genannten URLs erreichbar.
+Bei DNS-Verzögerung Fallback: `amt.butscher.cloud` (UE2), `amt-ki.butscher.cloud` (UE3),
+sowie `swrobuts.github.io/DigitalisierungVerwaltung/` (UE0/UE1/UE4).
+
+---
+
 ## 1. Infrastruktur (15 min)
 
 ### 1.1 VPS-Status
@@ -90,7 +100,29 @@ Pro UE einen 30-Sekunden-Walk-Through. **Browser-Cache vorher leeren** (Cmd+Shif
 2. „Hallo, wir sind die AWO Würzburg und wollen einen Besuchsdienst aufbauen" eintippen
 3. Agent klassifiziert FB II, erklärt was er macht
 4. Konversational durch Pflichtfelder geführt
-5. Submit → Antragsnummer
+5. Nach „Passt das so?" → „ja" → Agent ruft `bereite_uebernahme_vor` auf
+6. **Erwartet:** 2,5 s nach der Abschiedsnachricht → Auto-Redirect zu `antrag.butscher.cloud/antrag/uebernahme-chat#<base64>`
+7. UE1 dekodiert den Hash, befüllt das Webformular, navigiert zu Phase 1
+8. Bürger durchklickt Phasen 1–3 (alles ausgefüllt), klickt selbst „Antrag absenden" auf Phase 3
+9. **Demo-Punkt:** „Der Agent sammelt, das Webformular submittet — das ist Halluzinations-Schutz auf System-Ebene: kein Antrag landet in der DB ohne dass der Bürger ihn in der strukturierten UE1-UI bestätigt hat. Agent ist reine Konversationsschicht."
+
+### Bonus — Sprach-Demo (UE0 + UE1)
+1. https://antrag.butscher.cloud öffnen
+2. Sprach-Dropdown rechts oben: TR · Türkçe wählen
+3. **Erwartet:** Seite re-mountet sich komplett auf Türkisch (Hero, FB-Karten, Phase-1-Sections, Status-Badges, Pillen). HTML `lang="tr"`.
+4. Dropdown: IT · Italiano (⚠) wählen
+5. **Erwartet:** unter dem Breadcrumb erscheint oranger Hinweis-Banner („Traduzione in preparazione — al momento la pagina è in tedesco." + DE-Spiegel). Inhalt fällt auf DE zurück. HTML `lang="de"` (a11y-korrekt).
+6. Auf `upload.butscher.cloud` analog testen.
+7. **Demo-Punkt:** „Multilingualität ist im Datenmodell vorgesehen (Constraint erlaubt 5 Sprachen, Eigenname pro Sprache im Picker), aber realistisch nur 2 fertig übersetzt — wir sind ehrlich darüber. Roll-out-Priorität ergibt sich aus `submitted_language`-Statistik."
+
+### Bonus — UE0 → UE1 Hybrid-Bridge (KI-OCR)
+1. https://upload.butscher.cloud öffnen, „Weg A — Smart-Upload" starten
+2. Demo-PDF aus `materialien/wuerzburg-2026/demo-ausgefuellt/fb-i-demo.pdf` hochladen
+3. Klassifizierungs-Vorschlag akzeptieren, „Alle einreichen"
+4. **Erwartet:** Tracking-Page öffnet sich, pollt alle 3 s `apl.antrag_einreichung.status`
+5. n8n-Workflow `UE0/UE3 — Antrag-PDF Multi-FB OCR (apl)` läuft im Hintergrund: Claude Vision liest PDF → INSERT `apl.antraege` + FB-Detail → `status='fertig'` + `antrag_id` gesetzt
+6. **Erwartet:** Auto-Redirect nach 2 s zu `antrag.butscher.cloud/antrag/uebernahme/<antrag_id>` — Webformular ist vorausgefüllt, Bürger prüft + sendet final ab.
+7. **Demo-Punkt:** „Reifegrad-0 (PDF-Upload) und Reifegrad-1 (Webformular) sind nicht entweder/oder — die KI verbindet beide: Bürger mit PDF müssen nicht abtippen, Sachbearbeiter bekommt strukturierte Daten."
 
 ---
 

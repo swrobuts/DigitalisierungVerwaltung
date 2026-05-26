@@ -10,7 +10,7 @@ Studierende erleben am identischen Verwaltungsfall, wie sich die heutige PDF-Mai
 | | Stufe | Was neu ist | Stack | Studi-Rolle |
 |---|---|---|---|---|
 | **UE0** | OCR-Upload-Portal (Multi-FB) | Bürger wählt Förderbereich (I/II/III/IV) oder Smart-Upload klassifiziert PDF automatisch | Vite/TS + Supabase Edge Function + n8n + Claude Vision | Demo |
-| **UE1** | Mehrsprachiges Webformular (Multi-FB) | Online-Antrag in DE+TR mit FB-Wahl, 3-Phasen-Flow, Helfer-Inline-Tabelle (FB II), Varianten-Wahl (FB III A/B/C/D), atomare DB-Persistenz | Vite/TS + Supabase + @dv/data-layer | Demo + Mini-Hands-on |
+| **UE1** | Mehrsprachiges Webformular (Multi-FB) | Online-Antrag mit Sprach-Picker DE/TR/IT/RU/FR (DE+TR fertig, andere mit Fallback-Banner), FB-Wahl + 3-Phasen-Flow mit Collapsible-Sections + Live-Validation, Helfer-Inline-Tabelle (FB II), Varianten-Wahl (FB III A/B/C/D), UE0→UE1-Prefill-Brücke nach OCR | Vite/TS/React + Supabase + @dv/data-layer | Demo + Mini-Hands-on |
 | **UE2** | Sachbearbeiter-Cockpit (Multi-FB) | Realtime-Inbox mit FB-Filter, FB-spezifischer AntragDetail, Workflow-Engine, manuelle Prüfvermerke, Audit-Trail | React 19 + Tailwind 4 + Supabase Auth + n8n | Demo + Mini-Hands-on |
 | **UE3** | KI-Sachbearbeitung (Multi-FB) | FB-Plugin-Architektur, Erst-KI + adversarieller Zweit-Prüfer, Smart-Upload (Klassifizierer + Helferliste-OCR + Excel-Import), Hard-Fail-Quellen-Validator gegen Halluzinationen, Bescheid-Render, Compliance-Cockpit (AI Act) | FastAPI + Anthropic + Voyage + Perplexity + LM Studio | Hands-on |
 | **UE4** | Agentisches Antragsformular | Konversationeller Chatbot führt Bürger durch Antrag — Tool-Use für FB-Klassifizierung, Pflichtfeld-Abfrage, Validation, Submit; Halluzinations-Regeln in System-Prompt eingebaut | React + Anthropic Messages API + FastAPI-Tools | Demo |
@@ -75,6 +75,8 @@ flowchart LR
 
 ## Architektur und Infrastruktur
 
+> **📘 Vollständige Architektur-Übersicht:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+
 - **Self-hosted Supabase** auf `supabase.butscher.cloud` (Postgres mit Schema `apl`, Auth via GoTrue, Storage, Edge Functions in Deno, Realtime)
 - **n8n** auf `n8n.butscher.cloud` für ereignisgetriebene Workflows (PDF-OCR-Pipeline, Eingangsbestätigung)
 - **Anthropic Claude Sonnet 4.5 / Opus** für OCR (UE0) und KI-Prüfung (UE3); optional **LM Studio** als lokaler Datenschutz-Provider
@@ -98,7 +100,8 @@ DigitalisierungVerwaltung/
 │   └── src/pruefung/foerderbereiche/  1 Plugin pro FB (Subsumtion + Template)
 ├── packages/                  pnpm-Workspace mit geteiltem Code
 │   ├── foerderbereiche/       FB-Konfigs (Pflichtfelder, Anlagen, Validation-Rules)
-│   └── data-layer/            Supabase-Wrapper + db-types für alle UEs
+│   ├── data-layer/            Supabase-Wrapper + db-types für alle UEs
+│   └── antrag-renderer/       Schema + read-only AntragViewer (UE2/UE3) — Single Source of Truth
 ├── supabase/
 │   ├── migrations/            DDL inkrementell (060–067 = neue apl-Schema)
 │   ├── functions/             Deno-Edge-Functions
@@ -107,7 +110,7 @@ DigitalisierungVerwaltung/
 │   ├── lehrveranstaltung/     Pre-Flight-Checkliste für VL-Demo
 │   └── superpowers/           Specs + Plans
 ├── materialien/wuerzburg-2026/    AHP-Richtlinie + 4 FB-Antrags-PDFs
-├── scripts/                   demo-reset.sh, gen-schablonen, etc.
+├── scripts/                   demo-reset.sh, dv-fast-deploy.sh, setup-fast-deploy.sh, gen-schablonen
 └── Fake_Belege/               Demo-Belege
 ```
 

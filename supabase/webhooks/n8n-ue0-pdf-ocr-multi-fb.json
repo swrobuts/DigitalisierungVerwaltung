@@ -1,0 +1,500 @@
+{
+  "name": "UE0/UE3 — Antrag-PDF Multi-FB OCR (apl)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ue0-antragspdf",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-trigger",
+      "name": "Webhook (Supabase NOTIFY)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [-1600, 0],
+      "webhookId": "ue0-antragspdf"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "ok",
+        "options": {}
+      },
+      "id": "wh-ack",
+      "name": "Webhook-Ack (200 ok)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [-1400, 200]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://kong:8000/rest/v1/antrag_einreichung?id=eq.{{ $('Webhook (Supabase NOTIFY)').first().json.body.einreichung_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Content-Profile", "value": "apl" },
+            { "name": "Accept-Profile", "value": "apl" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"in_verarbeitung\"\n}",
+        "options": {}
+      },
+      "id": "mark-running",
+      "name": "Mark in_verarbeitung",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1400, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://kong:8000/rest/v1/antrag_einreichung?id=eq.{{ $('Webhook (Supabase NOTIFY)').first().json.body.einreichung_id }}&select=id,storage_path,dateiname,erkannter_fb,extrahiert_jsonb",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Accept-Profile", "value": "apl" },
+            { "name": "Accept", "value": "application/json" }
+          ]
+        },
+        "options": {
+          "response": { "response": { "responseFormat": "json" } }
+        }
+      },
+      "id": "get-einreichung",
+      "name": "GET Einreichung-Row",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1180, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=http://kong:8000/storage/v1/object/antragseingang-pdf/{{ $('GET Einreichung-Row').first().json[0].storage_path }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": {
+          "response": { "response": { "responseFormat": "file" } }
+        }
+      },
+      "id": "get-pdf",
+      "name": "PDF aus Storage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-960, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');\nconst b64 = buffer.toString('base64');\nconst rowsRaw = $('GET Einreichung-Row').first().json;\nconst row = Array.isArray(rowsRaw) ? rowsRaw[0] : rowsRaw;\nif (!row || !row.storage_path) throw new Error('GET Einreichung-Row leer: ' + JSON.stringify(rowsRaw).slice(0,300));\nconst body = $('Webhook (Supabase NOTIFY)').first().json.body;\nreturn [{ json: {\n  pdf_base64: b64,\n  einreichung_id: body.einreichung_id,\n  storage_path: row.storage_path,\n  dateiname: row.dateiname,\n  erkannter_fb: row.erkannter_fb,\n  extrahiert_vorhanden: row.extrahiert_jsonb || {}\n}}];"
+      },
+      "id": "encode-pdf",
+      "name": "PDF → Base64 + Kontext",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-740, 0]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.erkannter_fb }}",
+                    "rightValue": "I",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "FB-I"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.erkannter_fb }}",
+                    "rightValue": "II",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "FB-II"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.erkannter_fb }}",
+                    "rightValue": "III",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "FB-III"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.erkannter_fb }}",
+                    "rightValue": "IV",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "FB-IV"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "extra", "renameFallbackOutput": "kein-fb" }
+      },
+      "id": "switch-fb",
+      "name": "Switch FB",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [-520, 0]
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5\",\n  \"max_tokens\": 4096,\n  \"messages\": [\n    { \"role\": \"user\", \"content\": [\n      { \"type\": \"document\", \"source\": { \"type\": \"base64\", \"media_type\": \"application/pdf\", \"data\": \"{{ $json.pdf_base64 }}\" } },\n      { \"type\": \"text\", \"text\": \"Du extrahierst Felder aus einem FB-I-Antrag (Projektförderung, Altenhilfeplan Stadt Würzburg). Antworte AUSSCHLIESSLICH mit reinem JSON gemäß folgendem Schema. Wenn ein Feld nicht im PDF lesbar/vorhanden ist → null. KEINE Werte erfinden! Beträge als float ohne Währung, ohne Tausender-Punkt. IBAN/BIC ohne Leerzeichen. PLZ als 5-stelliger String. Schema:\\n{\\n  \\\"haushaltsjahr\\\": int|null,\\n  \\\"dachverband\\\": string|null,\\n  \\\"einrichtung\\\": string|null,\\n  \\\"ansprechpartner\\\": string|null,\\n  \\\"strasse\\\": string|null,\\n  \\\"hausnummer\\\": string|null,\\n  \\\"plz\\\": string|null,\\n  \\\"ort\\\": string|null,\\n  \\\"telefon\\\": string|null,\\n  \\\"email\\\": string|null,\\n  \\\"homepage\\\": string|null,\\n  \\\"bankname\\\": string|null,\\n  \\\"iban\\\": string|null,\\n  \\\"bic\\\": string|null,\\n  \\\"projekt_titel\\\": string|null,\\n  \\\"laufzeit\\\": string|null,\\n  \\\"stadtteil\\\": string|null,\\n  \\\"personalkosten_euro\\\": float|null,\\n  \\\"sachkosten_euro\\\": float|null\\n}\\nWenn das PDF einen Betrag 'Betriebskosten' enthält und keinen expliziten 'Sachkosten'-Wert → diesen Betrag als sachkosten_euro übernehmen. Keine Markdown-Fence, keine Erklärung.\" }\n    ]}\n  ]\n}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "claude-fb-i",
+      "name": "Claude FB-I OCR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-300, -400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5\",\n  \"max_tokens\": 4096,\n  \"messages\": [\n    { \"role\": \"user\", \"content\": [\n      { \"type\": \"document\", \"source\": { \"type\": \"base64\", \"media_type\": \"application/pdf\", \"data\": \"{{ $json.pdf_base64 }}\" } },\n      { \"type\": \"text\", \"text\": \"Du extrahierst Felder aus einem FB-II-Antrag (Pauschalförderung Ehrenamt, Altenhilfeplan Stadt Würzburg). Antworte AUSSCHLIESSLICH mit reinem JSON. Wenn ein Feld nicht im PDF lesbar/vorhanden ist → null. KEINE Werte erfinden! Beträge als float. IBAN/BIC ohne Leerzeichen. PLZ als 5-stelliger String. Schema:\\n{\\n  \\\"haushaltsjahr\\\": int|null,\\n  \\\"dachverband\\\": string|null,\\n  \\\"einrichtung\\\": string|null,\\n  \\\"ansprechpartner\\\": string|null,\\n  \\\"strasse\\\": string|null,\\n  \\\"hausnummer\\\": string|null,\\n  \\\"plz\\\": string|null,\\n  \\\"ort\\\": string|null,\\n  \\\"telefon\\\": string|null,\\n  \\\"email\\\": string|null,\\n  \\\"homepage\\\": string|null,\\n  \\\"bankname\\\": string|null,\\n  \\\"iban\\\": string|null,\\n  \\\"bic\\\": string|null,\\n  \\\"ehrenamt_titel\\\": string|null,\\n  \\\"anzahl_helfer_vorjahr\\\": int|null,\\n  \\\"gesamt_helferstunden_vorjahr\\\": int|null,\\n  \\\"direkter_kontakt_senioren\\\": bool|null\\n}\\nKeine Markdown-Fence.\" }\n    ]}\n  ]\n}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "claude-fb-ii",
+      "name": "Claude FB-II OCR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-300, -150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5\",\n  \"max_tokens\": 4096,\n  \"messages\": [\n    { \"role\": \"user\", \"content\": [\n      { \"type\": \"document\", \"source\": { \"type\": \"base64\", \"media_type\": \"application/pdf\", \"data\": \"{{ $json.pdf_base64 }}\" } },\n      { \"type\": \"text\", \"text\": \"Du extrahierst Felder aus einem FB-III-Antrag (Seniorenarbeit, Stadt Würzburg). Es gibt vier Varianten: A=Mehrgenerationenhaus, B=Begegnungszentrum/Bildungsträger, C=Seniorenkreis, D=Quartiersmanagement. Erkenne die Variante anhand des PDF-Inhalts. Antworte AUSSCHLIESSLICH mit JSON. Nicht-vorhandene Felder → null. KEINE Werte erfinden!\\nSchema:\\n{\\n  \\\"haushaltsjahr\\\": int|null,\\n  \\\"dachverband\\\": string|null,\\n  \\\"einrichtung\\\": string|null,\\n  \\\"ansprechpartner\\\": string|null,\\n  \\\"strasse\\\": string|null, \\\"hausnummer\\\": string|null, \\\"plz\\\": string|null, \\\"ort\\\": string|null,\\n  \\\"telefon\\\": string|null, \\\"email\\\": string|null, \\\"homepage\\\": string|null,\\n  \\\"bankname\\\": string|null, \\\"iban\\\": string|null, \\\"bic\\\": string|null,\\n  \\\"variante\\\": \\\"A\\\"|\\\"B\\\"|\\\"C\\\"|\\\"D\\\"|null,\\n  \\\"a_anmerkung\\\": string|null,\\n  \\\"b_anzahl_veranstaltungen\\\": int|null,\\n  \\\"b_teilnehmer_senioren\\\": int|null,\\n  \\\"b_teilnehmer_generationen\\\": int|null,\\n  \\\"b_stadtbewohner_anteil\\\": float|null,\\n  \\\"b_quartierstreffen_teilnahme\\\": bool|null,\\n  \\\"b_quartiere\\\": string|null,\\n  \\\"b_quartier_person_name\\\": string|null,\\n  \\\"c_treffen_schwelle\\\": \\\"GT_10\\\"|\\\"GT_20\\\"|\\\"GT_40\\\"|null,\\n  \\\"c_teilnehmer_durchschnitt\\\": int|null,\\n  \\\"c_quartierstreffen_anzahl\\\": int|null,\\n  \\\"c_quartier_kooperation\\\": string|null,\\n  \\\"c_quartier_person_name\\\": string|null,\\n  \\\"d_hauptamt_name\\\": string|null,\\n  \\\"d_hauptamt_stunden_woche\\\": float|null,\\n  \\\"d_hauptamt_stunden_monat\\\": float|null\\n}\\nKeine Markdown-Fence.\" }\n    ]}\n  ]\n}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "claude-fb-iii",
+      "name": "Claude FB-III OCR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-300, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "={{ $env.ANTHROPIC_API_KEY }}" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-5\",\n  \"max_tokens\": 4096,\n  \"messages\": [\n    { \"role\": \"user\", \"content\": [\n      { \"type\": \"document\", \"source\": { \"type\": \"base64\", \"media_type\": \"application/pdf\", \"data\": \"{{ $json.pdf_base64 }}\" } },\n      { \"type\": \"text\", \"text\": \"Du extrahierst Felder aus einem FB-IV-Antrag (Schwerpunktförderung Freitext, Altenhilfeplan Stadt Würzburg). Antworte AUSSCHLIESSLICH mit JSON. Nicht-vorhandene Felder → null. KEINE Werte erfinden!\\nSchema:\\n{\\n  \\\"haushaltsjahr\\\": int|null,\\n  \\\"dachverband\\\": string|null,\\n  \\\"einrichtung\\\": string|null,\\n  \\\"ansprechpartner\\\": string|null,\\n  \\\"strasse\\\": string|null, \\\"hausnummer\\\": string|null, \\\"plz\\\": string|null, \\\"ort\\\": string|null,\\n  \\\"telefon\\\": string|null, \\\"email\\\": string|null, \\\"homepage\\\": string|null,\\n  \\\"bankname\\\": string|null, \\\"iban\\\": string|null, \\\"bic\\\": string|null,\\n  \\\"vorhaben_titel\\\": string|null,\\n  \\\"kurzbeschreibung\\\": string|null,\\n  \\\"geplante_massnahmen\\\": string|null,\\n  \\\"beantragte_summe_euro\\\": float|null,\\n  \\\"laufzeit\\\": string|null\\n}\\nkurzbeschreibung ≤ 1000 Zeichen. Keine Markdown-Fence.\" }\n    ]}\n  ]\n}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "claude-fb-iv",
+      "name": "Claude FB-IV OCR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-300, 320]
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// Parsed Claude-Antwort + tagged mit fb. Verzweigt später im Code-Block.\nconst fb = $('PDF → Base64 + Kontext').first().json.erkannter_fb;\nconst einreichung_id = $('PDF → Base64 + Kontext').first().json.einreichung_id;\nconst raw = $input.first().json;\nconst content = raw.content?.[0]?.text;\nif (!content) throw new Error('Claude lieferte keinen Text: ' + JSON.stringify(raw).slice(0, 400));\nlet extr;\ntry {\n  const cleaned = content.trim().replace(/^```json\\n?/, '').replace(/\\n?```$/, '');\n  extr = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('Claude-Antwort kein JSON: ' + content.slice(0, 400));\n}\n// Sanity-Check: NOT-NULL-Felder von apl.antraege\nconst pflicht = ['einrichtung','ansprechpartner','strasse','plz','ort','telefon','email','bankname','iban','bic'];\nconst fehlend = pflicht.filter(k => !extr[k] || (typeof extr[k] === 'string' && extr[k].trim() === ''));\nif (fehlend.length > 0) {\n  throw new Error('OCR-Pflichtfelder fehlen: ' + fehlend.join(', '));\n}\n// Detail-Pflichten\nconst detailPflicht = {\n  'I': ['projekt_titel'],\n  'II': ['ehrenamt_titel'],\n  'III': ['variante'],\n  'IV': ['vorhaben_titel','kurzbeschreibung','geplante_massnahmen'],\n};\nconst dpf = (detailPflicht[fb] || []).filter(k => !extr[k] || (typeof extr[k] === 'string' && extr[k].trim() === ''));\nif (dpf.length > 0) {\n  // FB-I-Fallback: wenn projekt_titel fehlt → einrichtung übernehmen\n  if (fb === 'I' && dpf.includes('projekt_titel')) {\n    extr.projekt_titel = extr.einrichtung;\n  } else if (fb === 'II' && dpf.includes('ehrenamt_titel')) {\n    extr.ehrenamt_titel = extr.einrichtung;\n  } else {\n    throw new Error('FB-' + fb + '-Detail-Pflichtfelder fehlen: ' + dpf.join(', '));\n  }\n}\n// haushaltsjahr-Default = aktuelles Jahr\nif (!extr.haushaltsjahr) extr.haushaltsjahr = new Date().getFullYear();\nreturn [{ json: { extrahiert: extr, einreichung_id, fb } }];"
+      },
+      "id": "parse-validate",
+      "name": "Parse + Validate OCR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-60, 0]
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://kong:8000/rest/v1/antraege",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Content-Profile", "value": "apl" },
+            { "name": "Accept-Profile", "value": "apl" },
+            { "name": "Prefer", "value": "return=representation" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"haushaltsjahr\": {{ $json.extrahiert.haushaltsjahr }},\n  \"foerderbereich\": \"{{ $json.fb }}\",\n  \"dachverband\": {{ JSON.stringify($json.extrahiert.dachverband ?? null) }},\n  \"einrichtung\": {{ JSON.stringify($json.extrahiert.einrichtung) }},\n  \"ansprechpartner\": {{ JSON.stringify($json.extrahiert.ansprechpartner) }},\n  \"strasse\": {{ JSON.stringify($json.extrahiert.strasse) }},\n  \"hausnummer\": {{ JSON.stringify($json.extrahiert.hausnummer ?? null) }},\n  \"plz\": {{ JSON.stringify($json.extrahiert.plz) }},\n  \"ort\": {{ JSON.stringify($json.extrahiert.ort) }},\n  \"telefon\": {{ JSON.stringify($json.extrahiert.telefon) }},\n  \"email\": {{ JSON.stringify($json.extrahiert.email) }},\n  \"homepage\": {{ JSON.stringify($json.extrahiert.homepage ?? null) }},\n  \"bankname\": {{ JSON.stringify($json.extrahiert.bankname) }},\n  \"iban\": {{ JSON.stringify($json.extrahiert.iban) }},\n  \"bic\": {{ JSON.stringify($json.extrahiert.bic) }}\n}",
+        "options": {}
+      },
+      "id": "insert-antrag",
+      "name": "INSERT apl.antraege",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [160, 0]
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// Baut den FB-spezifischen Detail-Payload + setzt antrag_id durch.\nconst inserted = $input.first().json;\nconst antrag = Array.isArray(inserted) ? inserted[0] : inserted;\nif (!antrag || !antrag.id) {\n  throw new Error('INSERT apl.antraege lieferte keine id: ' + JSON.stringify(inserted).slice(0, 400));\n}\nconst pv = $('Parse + Validate OCR').first().json;\nconst e = pv.extrahiert;\nlet table, payload;\nswitch (pv.fb) {\n  case 'I':\n    table = 'fb_i_projekt';\n    payload = {\n      antrag_id: antrag.id,\n      projekt_titel: e.projekt_titel,\n      laufzeit: e.laufzeit ?? null,\n      stadtteil: e.stadtteil ?? null,\n      personalkosten_euro: e.personalkosten_euro ?? null,\n      sachkosten_euro: e.sachkosten_euro ?? null,\n    };\n    break;\n  case 'II':\n    table = 'fb_ii_ehrenamt';\n    payload = {\n      antrag_id: antrag.id,\n      ehrenamt_titel: e.ehrenamt_titel,\n      anzahl_helfer_vorjahr: e.anzahl_helfer_vorjahr ?? null,\n      gesamt_helferstunden_vorjahr: e.gesamt_helferstunden_vorjahr ?? null,\n      direkter_kontakt_senioren: e.direkter_kontakt_senioren ?? false,\n    };\n    break;\n  case 'III':\n    table = 'fb_iii_variante';\n    payload = {\n      antrag_id: antrag.id,\n      variante: e.variante,\n      a_anmerkung: e.a_anmerkung ?? null,\n      b_anzahl_veranstaltungen: e.b_anzahl_veranstaltungen ?? null,\n      b_teilnehmer_senioren: e.b_teilnehmer_senioren ?? null,\n      b_teilnehmer_generationen: e.b_teilnehmer_generationen ?? null,\n      b_stadtbewohner_anteil: e.b_stadtbewohner_anteil ?? null,\n      b_quartierstreffen_teilnahme: e.b_quartierstreffen_teilnahme ?? null,\n      b_quartiere: e.b_quartiere ?? null,\n      b_quartier_person_name: e.b_quartier_person_name ?? null,\n      c_treffen_schwelle: e.c_treffen_schwelle ?? null,\n      c_teilnehmer_durchschnitt: e.c_teilnehmer_durchschnitt ?? null,\n      c_quartierstreffen_anzahl: e.c_quartierstreffen_anzahl ?? null,\n      c_quartier_kooperation: e.c_quartier_kooperation ?? null,\n      c_quartier_person_name: e.c_quartier_person_name ?? null,\n      d_hauptamt_name: e.d_hauptamt_name ?? null,\n      d_hauptamt_stunden_woche: e.d_hauptamt_stunden_woche ?? null,\n      d_hauptamt_stunden_monat: e.d_hauptamt_stunden_monat ?? null,\n    };\n    break;\n  case 'IV':\n    table = 'fb_iv_freitext';\n    payload = {\n      antrag_id: antrag.id,\n      vorhaben_titel: e.vorhaben_titel,\n      kurzbeschreibung: (e.kurzbeschreibung || '').slice(0, 1000),\n      geplante_massnahmen: e.geplante_massnahmen,\n      beantragte_summe_euro: e.beantragte_summe_euro ?? null,\n      laufzeit: e.laufzeit ?? null,\n    };\n    break;\n  default:\n    throw new Error('Unbekannter FB: ' + pv.fb);\n}\nreturn [{ json: {\n  antrag_id: antrag.id,\n  antragsnummer: antrag.antragsnummer,\n  detail_table: table,\n  detail_payload: payload,\n  einreichung_id: pv.einreichung_id,\n  extrahiert: e,\n  fb: pv.fb,\n}}];"
+      },
+      "id": "build-detail",
+      "name": "Build Detail-Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [380, 0]
+    },
+
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://kong:8000/rest/v1/{{ $json.detail_table }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Content-Profile", "value": "apl" },
+            { "name": "Accept-Profile", "value": "apl" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.detail_payload) }}",
+        "options": {}
+      },
+      "id": "insert-detail",
+      "name": "INSERT FB-Detail",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 0]
+    },
+
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://kong:8000/rest/v1/antrag_einreichung?id=eq.{{ $('Build Detail-Payload').first().json.einreichung_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Content-Profile", "value": "apl" },
+            { "name": "Accept-Profile", "value": "apl" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"fertig\",\n  \"antrag_id\": \"{{ $('Build Detail-Payload').first().json.antrag_id }}\",\n  \"extrahiert_jsonb\": {{ JSON.stringify($('Build Detail-Payload').first().json.extrahiert) }},\n  \"verarbeitet_am\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "mark-done",
+      "name": "UPDATE Einreichung status=fertig",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [820, 0]
+    },
+
+    {
+      "parameters": {
+        "jsCode": "// Sammelt Fehler-Kontext aus dem Error-Trigger.\nconst body = $('Webhook (Supabase NOTIFY)').first()?.json?.body || {};\nconst err = $input.first().json;\nconst msg = err?.error?.message || err?.message || JSON.stringify(err).slice(0, 600);\nreturn [{ json: {\n  einreichung_id: body.einreichung_id || null,\n  fehler_text: 'OCR-Pipeline: ' + msg,\n}}];"
+      },
+      "id": "build-error",
+      "name": "Build Error-Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [380, 500]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=http://kong:8000/rest/v1/antrag_einreichung?id=eq.{{ $json.einreichung_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $env.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Content-Profile", "value": "apl" },
+            { "name": "Accept-Profile", "value": "apl" },
+            { "name": "Prefer", "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"fehler\",\n  \"fehler_text\": {{ JSON.stringify($json.fehler_text) }},\n  \"verarbeitet_am\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "mark-error",
+      "name": "UPDATE Einreichung status=fehler",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 500]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger",
+      "name": "On Workflow Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [160, 500]
+    }
+  ],
+  "connections": {
+    "Webhook (Supabase NOTIFY)": {
+      "main": [[
+        { "node": "Webhook-Ack (200 ok)", "type": "main", "index": 0 },
+        { "node": "Mark in_verarbeitung", "type": "main", "index": 0 }
+      ]]
+    },
+    "Mark in_verarbeitung": {
+      "main": [[{ "node": "GET Einreichung-Row", "type": "main", "index": 0 }]]
+    },
+    "GET Einreichung-Row": {
+      "main": [[{ "node": "PDF aus Storage", "type": "main", "index": 0 }]]
+    },
+    "PDF aus Storage": {
+      "main": [[{ "node": "PDF → Base64 + Kontext", "type": "main", "index": 0 }]]
+    },
+    "PDF → Base64 + Kontext": {
+      "main": [[{ "node": "Switch FB", "type": "main", "index": 0 }]]
+    },
+    "Switch FB": {
+      "main": [
+        [{ "node": "Claude FB-I OCR", "type": "main", "index": 0 }],
+        [{ "node": "Claude FB-II OCR", "type": "main", "index": 0 }],
+        [{ "node": "Claude FB-III OCR", "type": "main", "index": 0 }],
+        [{ "node": "Claude FB-IV OCR", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Claude FB-I OCR": {
+      "main": [[{ "node": "Parse + Validate OCR", "type": "main", "index": 0 }]]
+    },
+    "Claude FB-II OCR": {
+      "main": [[{ "node": "Parse + Validate OCR", "type": "main", "index": 0 }]]
+    },
+    "Claude FB-III OCR": {
+      "main": [[{ "node": "Parse + Validate OCR", "type": "main", "index": 0 }]]
+    },
+    "Claude FB-IV OCR": {
+      "main": [[{ "node": "Parse + Validate OCR", "type": "main", "index": 0 }]]
+    },
+    "Parse + Validate OCR": {
+      "main": [[{ "node": "INSERT apl.antraege", "type": "main", "index": 0 }]]
+    },
+    "INSERT apl.antraege": {
+      "main": [[{ "node": "Build Detail-Payload", "type": "main", "index": 0 }]]
+    },
+    "Build Detail-Payload": {
+      "main": [[{ "node": "INSERT FB-Detail", "type": "main", "index": 0 }]]
+    },
+    "INSERT FB-Detail": {
+      "main": [[{ "node": "UPDATE Einreichung status=fertig", "type": "main", "index": 0 }]]
+    },
+    "On Workflow Error": {
+      "main": [[{ "node": "Build Error-Payload", "type": "main", "index": 0 }]]
+    },
+    "Build Error-Payload": {
+      "main": [[{ "node": "UPDATE Einreichung status=fehler", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionTimeout": 300
+  },
+  "active": false,
+  "pinData": {},
+  "versionId": "ue0-multi-fb-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
