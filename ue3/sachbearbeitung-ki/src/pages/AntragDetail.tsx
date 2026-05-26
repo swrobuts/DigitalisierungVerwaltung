@@ -1,16 +1,26 @@
 /**
- * UE3 AntragDetail — wie UE2, plus KI-Sidebar mit Bescheid-Generierung.
+ * UE3 AntragDetail — Vollrestoration nach apl2→apl-Hard-Cut.
  *
- * Bescheid-Button postet an https://pruefung.butscher.cloud/api/bescheid.
- * Backend macht die FB-Plugin-Subsumtion + Hard-Fail-Quellen-Validator.
- * 422 → wir zeigen den Fehler prominent ("KI hat erfundene Paragraphen
- * produziert — Sachbearbeiter, bitte manuell prüfen").
+ * Layout:
+ *  1. Sticky Header mit Inbox-Link, Antragsnummer, FB-Badge, Status-Badge,
+ *     Durchlaufzeit-Ampel, KI-Variante-Marker.
+ *  2. Bearbeitungsstand-Stepper (volle Breite).
+ *  3. DemoDatenBanner (conditional, volle Breite).
+ *  4. Zweispaltiges Grid:
+ *     - Article (links, lg:col-span-2): AntragMetricsBar + AntragViewer
+ *       (Antragsteller, Bank, FB-Detail via Schema-Renderer) + Anlagen +
+ *       HistoryTimeline.
+ *     - Aside (rechts, lg:col-span-1): PruefungsCard (KI-Konformität mit
+ *       Empfehlung + Befunden + AHP-Wortlaut), BescheideListe (PDF/DOCX),
+ *       Workflow-Status-Buttons, VorjahresVergleich.
+ *
+ * ZweitpruefungsCard + ExterneValidierungCard folgen in Etappe E.
  */
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, FileSignature } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useAntrag } from "../hooks/useAntrag";
-import { useBescheide } from "../hooks/useBescheide";
+import { useBescheide, type BescheidRow } from "../hooks/useBescheide";
 import { ManuellePruefungProvider } from "../hooks/useManuellePruefung";
 import { DemoDatenBanner } from "../components/DemoDatenBanner";
 import { StatusBadge } from "../components/StatusBadge";
@@ -18,6 +28,11 @@ import { FbBadge } from "../components/FbBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
 import { SektionPruefung } from "../components/SektionPruefung";
+import { Bearbeitungsstand } from "../components/Bearbeitungsstand";
+import { AntragMetricsBar } from "../components/AntragMetricsBar";
+import { PruefungsCard } from "../components/PruefungsCard";
+import { BescheideListe } from "../components/BescheideListe";
+import { VorjahresVergleich } from "../components/VorjahresVergleich";
 import { AntragViewer } from "@dv/antrag-renderer";
 import { allowedTransitions, STATUS_LABELS, type Status } from "../lib/workflow";
 import {
@@ -25,7 +40,6 @@ import {
   formatAdresse,
   formatDurchlaufzeit,
   durchlaufzeitAmpel,
-  formatEuro,
   type DurchlaufzeitAmpel,
 } from "../lib/format";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
@@ -53,9 +67,10 @@ export function AntragDetail() {
   const { bundle, loading, error, changeStatus } = useAntrag(id);
   const {
     bescheide,
-    creating: bescheidCreating,
     error: bescheidError,
-    erstelleBescheid,
+    downloadBescheidPdf,
+    downloadBescheidDocx,
+    loeschBescheid,
   } = useBescheide(id);
   const [confirmTo, setConfirmTo] = useState<Status | null>(null);
   const [kommentar, setKommentar] = useState("");
@@ -95,8 +110,23 @@ export function AntragDetail() {
     setKommentar("");
   }
 
-  async function handleBescheid(entscheidung: "bewilligt" | "abgelehnt" | "rueckfrage") {
-    await erstelleBescheid({ entscheidung });
+  async function handleOpenBescheidPdf(b: BescheidRow) {
+    if (!b.pdf_storage_path) {
+      alert("Für diesen Bescheid liegt keine PDF im Storage.");
+      return;
+    }
+    const url = await downloadBescheidPdf(b.pdf_storage_path);
+    if (url) window.open(url, "_blank", "noopener");
+  }
+
+  async function handleOpenBescheidDocx(b: BescheidRow) {
+    const url = await downloadBescheidDocx(b.id);
+    if (url) window.open(url, "_blank", "noopener");
+  }
+
+  async function handleDeleteBescheid(b: BescheidRow) {
+    if (!window.confirm(`Bescheid „${b.entscheidung}" wirklich löschen?`)) return;
+    await loeschBescheid(b.id, b.pdf_storage_path);
   }
 
   return (
@@ -125,169 +155,148 @@ export function AntragDetail() {
           </div>
         </header>
 
+        <div className="px-4 lg:px-8 pt-4">
+          <Bearbeitungsstand
+            status={antrag.status}
+            entscheidung={
+              antrag.status === "bewilligt" || antrag.status === "abgelehnt"
+                ? STATUS_LABELS[antrag.status]
+                : undefined
+            }
+          />
+        </div>
+
         <DemoDatenBanner />
 
         <main className="w-full px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          <article className="lg:col-span-2 bg-white border border-slate-200 shadow-sm rounded overflow-hidden">
-            <div className="bg-wue-rot text-white px-8 py-3">
-              <div className="font-semibold tracking-[0.2em] text-sm">STADT WÜRZBURG</div>
-              <div className="text-xs opacity-90">Sozialreferat · Beratungsstelle für Senioren</div>
+          <article className="lg:col-span-2 space-y-4">
+            <AntragMetricsBar
+              antrag={antrag}
+              history={history}
+              bescheideCount={bescheide.length}
+            />
+
+            <div className="bg-white border border-slate-200 shadow-sm rounded overflow-hidden">
+              <div className="bg-wue-rot text-white px-8 py-3">
+                <div className="font-semibold tracking-[0.2em] text-sm">STADT WÜRZBURG</div>
+                <div className="text-xs opacity-90">Sozialreferat · Beratungsstelle für Senioren</div>
+              </div>
+
+              <div className="px-8 py-6 space-y-8">
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                      Antragsteller
+                    </h2>
+                    <SektionPruefung antragId={antrag.id} paragraph="antragsteller" />
+                  </div>
+                  <div className="text-base font-bold">{antrag.einrichtung}</div>
+                  {antrag.dachverband && (
+                    <div className="text-sm text-slate-700">{antrag.dachverband}</div>
+                  )}
+                  <div className="text-sm text-slate-600 mt-1">
+                    {formatAdresse(antrag.strasse, antrag.hausnummer ?? "", antrag.plz, antrag.ort)}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                    <div>
+                      <div className="text-xs uppercase text-slate-500">Ansprechpartner</div>
+                      <div>{antrag.ansprechpartner}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs uppercase text-slate-500">Telefon</div>
+                      <a href={`tel:${antrag.telefon}`} className="text-slate-900">
+                        {antrag.telefon}
+                      </a>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="text-xs uppercase text-slate-500">E-Mail</div>
+                      <a href={`mailto:${antrag.email}`} className="text-slate-900">
+                        {antrag.email}
+                      </a>
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                      Bankverbindung
+                    </h2>
+                    <SektionPruefung antragId={antrag.id} paragraph="bank" />
+                  </div>
+                  <div className="text-sm">
+                    <div>{antrag.bankname}</div>
+                    <div className="font-mono mt-1">{antrag.iban}</div>
+                    <div className="font-mono text-slate-600 text-xs">{antrag.bic}</div>
+                  </div>
+                </section>
+
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                      Förderbereich-Detail
+                    </h2>
+                    <SektionPruefung antragId={antrag.id} paragraph="fb_detail" />
+                  </div>
+                  <FbDispatcher bundle={bundle} />
+                </section>
+
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+                      Anlagen ({anlagen.length})
+                    </h2>
+                    <SektionPruefung antragId={antrag.id} paragraph="anlagen" />
+                  </div>
+                  {anlagen.length === 0 ? (
+                    <p className="text-sm text-slate-500 italic">Keine Anlagen.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {anlagen.map((a) => (
+                        <AnlageDownload key={a.id} anlage={a} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
+
+              <div className="bg-slate-50 border-t border-slate-200 px-8 py-3 text-xs text-slate-500">
+                Eingegangen {formatDateTime(antrag.submitted_at)} · Sprache{" "}
+                {antrag.submitted_language.toUpperCase()} · Haushaltsjahr {antrag.haushaltsjahr}
+              </div>
             </div>
 
-            <div className="px-8 py-6 space-y-8">
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                    Antragsteller
-                  </h2>
-                  <SektionPruefung antragId={antrag.id} paragraph="antragsteller" />
-                </div>
-                <div className="text-base font-bold">{antrag.einrichtung}</div>
-                {antrag.dachverband && (
-                  <div className="text-sm text-slate-700">{antrag.dachverband}</div>
-                )}
-                <div className="text-sm text-slate-600 mt-1">
-                  {formatAdresse(antrag.strasse, antrag.hausnummer ?? "", antrag.plz, antrag.ort)}
-                </div>
-                <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
-                  <div>
-                    <div className="text-xs uppercase text-slate-500">Ansprechpartner</div>
-                    <div>{antrag.ansprechpartner}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase text-slate-500">Telefon</div>
-                    <a href={`tel:${antrag.telefon}`} className="text-slate-900">
-                      {antrag.telefon}
-                    </a>
-                  </div>
-                  <div className="col-span-2">
-                    <div className="text-xs uppercase text-slate-500">E-Mail</div>
-                    <a href={`mailto:${antrag.email}`} className="text-slate-900">
-                      {antrag.email}
-                    </a>
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                    Bankverbindung
-                  </h2>
-                  <SektionPruefung antragId={antrag.id} paragraph="bank" />
-                </div>
-                <div className="text-sm">
-                  <div>{antrag.bankname}</div>
-                  <div className="font-mono mt-1">{antrag.iban}</div>
-                  <div className="font-mono text-slate-600 text-xs">{antrag.bic}</div>
-                </div>
-              </section>
-
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                    Förderbereich-Detail
-                  </h2>
-                  <SektionPruefung antragId={antrag.id} paragraph="fb_detail" />
-                </div>
-                <FbDispatcher bundle={bundle} />
-              </section>
-
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                    Anlagen ({anlagen.length})
-                  </h2>
-                  <SektionPruefung antragId={antrag.id} paragraph="anlagen" />
-                </div>
-                {anlagen.length === 0 ? (
-                  <p className="text-sm text-slate-500 italic">Keine Anlagen.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {anlagen.map((a) => (
-                      <AnlageDownload key={a.id} anlage={a} />
-                    ))}
-                  </div>
-                )}
-              </section>
-            </div>
-
-            <div className="bg-slate-50 border-t border-slate-200 px-8 py-3 text-xs text-slate-500">
-              Eingegangen {formatDateTime(antrag.submitted_at)} · Sprache{" "}
-              {antrag.submitted_language.toUpperCase()} · Haushaltsjahr {antrag.haushaltsjahr}
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Verlauf</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <HistoryTimeline history={history} />
+              </CardContent>
+            </Card>
           </article>
 
           <aside className="space-y-4 lg:sticky lg:top-[5rem] lg:self-start">
-            <Card className="border-emerald-300">
-              <CardHeader className="bg-emerald-50">
-                <CardTitle className="flex items-center gap-2 text-emerald-900">
-                  <FileSignature className="h-4 w-4" />
-                  KI-Bescheid (UE3)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 pt-3">
-                <p className="text-xs text-slate-600">
-                  Bescheid wird vom FB-Plugin generiert (Subsumtion durch Claude,
-                  Hard-Fail-Validator gegen ahp_norm_statements).
-                </p>
-                <Button
-                  className="w-full"
-                  onClick={() => handleBescheid("bewilligt")}
-                  disabled={bescheidCreating}
-                >
-                  {bescheidCreating ? "Generiere …" : "→ Bescheid erzeugen (bewilligt)"}
-                </Button>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1 text-xs"
-                    onClick={() => handleBescheid("abgelehnt")}
-                    disabled={bescheidCreating}
-                  >
-                    abgelehnt
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 text-xs"
-                    onClick={() => handleBescheid("rueckfrage")}
-                    disabled={bescheidCreating}
-                  >
-                    Rückfrage
-                  </Button>
-                </div>
-                {bescheidError && (
-                  <div className="mt-2 p-2 bg-rose-50 border border-rose-300 rounded text-xs text-rose-800 whitespace-pre-wrap">
-                    <strong>KI hat erfundene Paragraphen produziert</strong> — Sachbearbeiter, bitte manuell prüfen.
-                    <br />
-                    <span className="font-mono text-[10px]">{bescheidError}</span>
-                  </div>
-                )}
-                {bescheide.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-slate-200 space-y-1.5">
-                    <div className="text-xs uppercase text-slate-500">Vorhandene Bescheide</div>
-                    {bescheide.map((b) => (
-                      <div
-                        key={b.id}
-                        className="text-xs flex items-center justify-between border border-slate-200 rounded px-2 py-1"
-                      >
-                        <span>
-                          <span className="font-semibold">{b.entscheidung}</span>
-                          {b.bewilligte_summe_euro != null && (
-                            <span className="ml-1 text-slate-600">
-                              · {formatEuro(b.bewilligte_summe_euro)}
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-[10px] text-slate-500">
-                          {formatDateTime(b.ausgestellt_am)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <PruefungsCard
+              antragId={id!}
+              onApplyEmpfehlung={(aktion) => {
+                const target: Status =
+                  aktion === "bewilligen"
+                    ? "bewilligt"
+                    : aktion === "ablehnen"
+                    ? "abgelehnt"
+                    : "rueckfrage";
+                setConfirmTo(target);
+              }}
+            />
+
+            <BescheideListe
+              bescheide={bescheide}
+              onOpen={handleOpenBescheidPdf}
+              onOpenDocx={handleOpenBescheidDocx}
+              onDelete={handleDeleteBescheid}
+              error={bescheidError}
+            />
 
             <Card>
               <CardHeader>
@@ -341,14 +350,7 @@ export function AntragDetail() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Verlauf</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <HistoryTimeline history={history} />
-              </CardContent>
-            </Card>
+            <VorjahresVergleich antragId={id!} />
           </aside>
         </main>
       </div>
