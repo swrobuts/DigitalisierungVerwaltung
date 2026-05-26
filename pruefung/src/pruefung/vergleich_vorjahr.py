@@ -1,111 +1,91 @@
 """Vergleich eines Antrags mit dem Vorjahres-Antrag desselben Trägers.
 
 Heuristischer Diff (kein KI-Aufruf) — liefert numerische und strukturelle
-Änderungen pro Feld, jeweils klassifiziert in `unauffaellig` / `auffaellig`
-/ `kritisch`. Das UI hebt insbesondere kritische Änderungen hervor.
+Änderungen, jeweils klassifiziert in `unauffaellig` / `auffaellig` /
+`kritisch`. Das UI hebt insbesondere kritische Änderungen hervor.
 
-Lehrkontext: zeigt, dass nicht jede KI-Frage tatsächlich KI braucht —
-einfache Geschäftsregeln decken die meisten 'temporal reasoning'-Fälle
-schon ab. Eine KI-Erklärungs-Schicht (warum ist die Änderung plausibel?)
-ist als spätere Iteration vorgesehen.
+Multi-FB-Schema (apl.antraege + fb_*-Detail-Tabellen):
+- FB I: Vergleich personalkosten_euro + sachkosten_euro (aus fb_i_projekt)
+- FB II/III/IV: kein direkt vergleichbarer Förderbetrag im Schema —
+  Methode early-returnt mit klarer Begründung statt zu crashen.
+
+Strukturelle Diffs gehen weiter über die gemeinsamen apl.antraege-Felder:
+foerderbereich (Wechsel kritisch?), iban (kritisch), dachverband-Name etc.
 """
 from typing import Any
+
 from pruefung.db import SupabaseClient
 
 
-# Felder, die wir numerisch vergleichen, mit Schwellwerten für die
-# Klassifizierung in Prozent-Veränderung gegenüber dem Vorjahr.
-NUMERISCHE_FELDER: dict[str, dict[str, Any]] = {
-    "geforderte_foerdersumme_euro": {
-        "label": "Geforderte Fördersumme",
-        "auffaellig_pct": 30,   # > 30% YoY = auffällig
-        "kritisch_pct": 100,    # > 100% YoY = kritisch
-        "format": "euro",
-    },
-}
-
-# Strukturelle Felder — Änderungen sind binär (gleich/anders), aber je nach
-# Feld unterschiedlich kritisch.
+# Strukturelle Felder — Änderungen sind binär (gleich/anders).
 STRUKTURELLE_FELDER: dict[str, dict[str, Any]] = {
     "foerderbereich":         {"label": "Förderbereich", "schwere": "auffaellig"},
     "iban":                   {"label": "IBAN", "schwere": "kritisch"},
-    "raeume_unentgeltlich":   {"label": "Räume unentgeltlich", "schwere": "auffaellig"},
-    "raeume_vorhanden":       {"label": "Räume vorhanden", "schwere": "auffaellig"},
-    "logo_verwendet":         {"label": "Logo Stadt Würzburg verwendet", "schwere": "unauffaellig"},
-    "finanzplanung_vorhanden": {"label": "Finanzplanung vorhanden", "schwere": "auffaellig"},
-    "projektskizze_eingereicht": {"label": "Projektskizze eingereicht", "schwere": "auffaellig"},
+    "dachverband":            {"label": "Dachverband", "schwere": "auffaellig"},
+    "einrichtung":            {"label": "Einrichtung", "schwere": "auffaellig"},
+    "bankname":               {"label": "Bankname", "schwere": "auffaellig"},
 }
+
+
+_ANTRAG_SELECT = (
+    "id,dachverband,einrichtung,haushaltsjahr,foerderbereich,iban,bankname"
+)
 
 
 async def vergleich_mit_vorjahr(antrag_id: str, db: SupabaseClient) -> dict[str, Any]:
     """Liefert {vorjahr: <antrag|null>, aenderungen: [...]} für UI-Konsum."""
-    select = ",".join([
-        "id", "traeger", "haushaltsjahr",
-        *NUMERISCHE_FELDER.keys(),
-        *STRUKTURELLE_FELDER.keys(),
-    ])
-    aktuelle = await db.select("antraege", f"id=eq.{antrag_id}&select={select}")
+    aktuelle = await db.select("antraege", f"id=eq.{antrag_id}&select={_ANTRAG_SELECT}")
     if not aktuelle:
         return {"vorjahr": None, "aenderungen": []}
     a = aktuelle[0]
-    traeger = a.get("traeger")
+    traeger_key = a.get("dachverband") or a.get("einrichtung")
     hj = a.get("haushaltsjahr")
-    if not traeger or not hj:
+    if not traeger_key or not hj:
         return {"vorjahr": None, "aenderungen": []}
 
-    # Vorjahres-Antrag suchen — gleicher Träger, hj-1
-    # Träger-Match: exact string-match. Bei Tippfehlern müsste man fuzzy
-    # matchen, das schenken wir uns für v1.
-    vorjahr_rows = await db.select(
+    # Vorjahres-Antrag: erst dachverband, dann einrichtung
+    vj_rows = await db.select(
         "antraege",
-        f"traeger=eq.{_quote(traeger)}&haushaltsjahr=eq.{int(hj) - 1}"
-        f"&select={select}&limit=1",
+        f"dachverband=eq.{_quote(traeger_key)}"
+        f"&haushaltsjahr=eq.{int(hj) - 1}&select={_ANTRAG_SELECT}&limit=1",
     )
-    if not vorjahr_rows:
-        return {"vorjahr": None, "aenderungen": [], "aktuell_hj": hj, "gesucht_hj": int(hj) - 1}
+    if not vj_rows:
+        vj_rows = await db.select(
+            "antraege",
+            f"einrichtung=eq.{_quote(traeger_key)}"
+            f"&haushaltsjahr=eq.{int(hj) - 1}&select={_ANTRAG_SELECT}&limit=1",
+        )
+    if not vj_rows:
+        return {
+            "vorjahr": None, "aenderungen": [],
+            "aktuell_hj": hj, "gesucht_hj": int(hj) - 1,
+        }
 
-    v = vorjahr_rows[0]
+    v = vj_rows[0]
     aenderungen: list[dict[str, Any]] = []
 
-    # Numerische Diffs
-    for feld, meta in NUMERISCHE_FELDER.items():
-        alt_v = v.get(feld)
-        neu_v = a.get(feld)
-        if alt_v is None and neu_v is None:
-            continue
-        try:
-            alt_f = float(alt_v) if alt_v is not None else 0.0
-            neu_f = float(neu_v) if neu_v is not None else 0.0
-        except (TypeError, ValueError):
-            continue
-        # %-Veränderung; alt=0 → wir geben "von 0 auf X" als kritisch zurück
-        if alt_f == 0 and neu_f == 0:
-            continue
-        pct: float | None
-        if alt_f == 0:
-            pct = None  # nicht berechenbar
-            schwere = "kritisch" if neu_f > 0 else "unauffaellig"
-        else:
-            pct = ((neu_f - alt_f) / alt_f) * 100
-            abs_pct = abs(pct)
-            if abs_pct >= meta["kritisch_pct"]:
-                schwere = "kritisch"
-            elif abs_pct >= meta["auffaellig_pct"]:
-                schwere = "auffaellig"
-            else:
-                schwere = "unauffaellig"
+    # FB-spezifische Numerik-Diffs
+    fb = a.get("foerderbereich")
+    if fb == "I" and v.get("foerderbereich") == "I":
+        aenderungen.extend(await _diff_fb_i_summen(a, v, db))
+    elif fb in ("II", "III", "IV"):
+        # FB II/III/IV: kein numerischer Förderbetrag im Schema vergleichbar.
+        # Wir liefern einen Hinweis, damit das UI sichtbar machen kann,
+        # warum der numerische Vergleich entfällt (statt stillschweigend
+        # leerer Liste).
         aenderungen.append({
-            "feld": feld,
-            "label": meta["label"],
-            "art": "numerisch",
-            "format": meta["format"],
-            "alt": alt_v,
-            "neu": neu_v,
-            "pct_veraenderung": pct,
-            "schwere": schwere,
+            "feld": "_hinweis",
+            "label": f"Förderbereich {fb}",
+            "art": "info",
+            "schwere": "unauffaellig",
+            "begruendung": (
+                f"Vorjahresvergleich der Fördersumme ist für FB {fb} aktuell "
+                f"nicht implementiert — es gibt keine direkt vergleichbare "
+                f"Summen-Spalte im fb_*-Detail-Schema."
+            ),
         })
 
-    # Strukturelle Diffs
+    # Strukturelle Diffs (gemeinsam für alle FBs)
     for feld, meta in STRUKTURELLE_FELDER.items():
         alt_v = v.get(feld)
         neu_v = a.get(feld)
@@ -120,7 +100,7 @@ async def vergleich_mit_vorjahr(antrag_id: str, db: SupabaseClient) -> dict[str,
             "schwere": meta["schwere"],
         })
 
-    # Sortierung: kritisch zuerst, dann auffällig, dann unauffällig
+    # Sortierung: kritisch zuerst
     schwere_rank = {"kritisch": 0, "auffaellig": 1, "unauffaellig": 2}
     aenderungen.sort(key=lambda x: schwere_rank.get(x["schwere"], 9))
 
@@ -128,7 +108,8 @@ async def vergleich_mit_vorjahr(antrag_id: str, db: SupabaseClient) -> dict[str,
         "vorjahr": {
             "id": v["id"],
             "haushaltsjahr": v.get("haushaltsjahr"),
-            "traeger": v.get("traeger"),
+            "dachverband": v.get("dachverband"),
+            "einrichtung": v.get("einrichtung"),
         },
         "aktuell_hj": hj,
         "aenderungen": aenderungen,
@@ -137,7 +118,63 @@ async def vergleich_mit_vorjahr(antrag_id: str, db: SupabaseClient) -> dict[str,
     }
 
 
+async def _diff_fb_i_summen(
+    a: dict, v: dict, db: SupabaseClient,
+) -> list[dict[str, Any]]:
+    """Vergleicht personalkosten_euro + sachkosten_euro pro FB-I-Antrag.
+
+    Klassifizierung:
+    - > 100 % YoY → kritisch
+    - > 30 %  YoY → auffaellig
+    - sonst       → unauffaellig
+    """
+    sums = {}
+    for label, row in (("aktuell", a), ("vorjahr", v)):
+        rows = await db.select(
+            "fb_i_projekt",
+            f"antrag_id=eq.{row['id']}"
+            "&select=personalkosten_euro,sachkosten_euro",
+        )
+        if not rows:
+            sums[label] = 0.0
+            continue
+        r = rows[0]
+        try:
+            sums[label] = float(r.get("personalkosten_euro") or 0) + float(
+                r.get("sachkosten_euro") or 0,
+            )
+        except (TypeError, ValueError):
+            sums[label] = 0.0
+
+    alt_f, neu_f = sums["vorjahr"], sums["aktuell"]
+    if alt_f == 0 and neu_f == 0:
+        return []
+    if alt_f == 0:
+        return [{
+            "feld": "fb_details.personal+sach",
+            "label": "Personal + Sachkosten (FB I)",
+            "art": "numerisch", "format": "euro",
+            "alt": alt_f, "neu": neu_f,
+            "pct_veraenderung": None,
+            "schwere": "kritisch" if neu_f > 0 else "unauffaellig",
+        }]
+    pct = ((neu_f - alt_f) / alt_f) * 100
+    abs_pct = abs(pct)
+    schwere = (
+        "kritisch" if abs_pct >= 100 else
+        "auffaellig" if abs_pct >= 30 else
+        "unauffaellig"
+    )
+    return [{
+        "feld": "fb_details.personal+sach",
+        "label": "Personal + Sachkosten (FB I)",
+        "art": "numerisch", "format": "euro",
+        "alt": alt_f, "neu": neu_f,
+        "pct_veraenderung": pct,
+        "schwere": schwere,
+    }]
+
+
 def _quote(s: str) -> str:
-    """PostgREST-encoding für eq.<value> mit Sonderzeichen."""
-    # PostgREST mag bestimmte Sonderzeichen in URL nicht ungekapselt
+    """PostgREST-Encoding für eq.<value> mit Sonderzeichen."""
     return s.replace(",", "%2C").replace("&", "%26").replace(" ", "%20")
