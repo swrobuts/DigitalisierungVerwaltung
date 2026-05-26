@@ -21,6 +21,10 @@ if (!URL || !KEY) {
 export const supabase = createClient(URL, KEY, {
   db: { schema: "apl" },
   auth: {
+    // Self-hosted GoTrue default ist Implicit-Flow (Magic-Link-Redirect
+    // liefert #access_token=... im URL-Fragment). supabase-js default ist
+    // PKCE und würde ?code=... erwarten → Mismatch → callback_timeout.
+    flowType: "implicit",
     persistSession: true,
     storageKey: "amt.auth",
     autoRefreshToken: true,
@@ -33,6 +37,10 @@ export const supabase = createClient(URL, KEY, {
 // leicht unterschiedliche Sub-Versionen resolvet — Laufzeit identisch.
 setSupabaseClient(supabase as never);
 
-export const AUTH_REDIRECT =
-  import.meta.env.VITE_AUTH_REDIRECT ??
-  `${window.location.origin}/auth/callback`;
+// Auth-Redirect IMMER aus der aktuellen Browser-Origin ableiten.
+// Hardcoding via VITE_AUTH_REDIRECT führt zu Cross-Domain-Bug:
+// Wer auf sachbearbeiter.butscher.cloud einloggt, würde sonst auf
+// amt.butscher.cloud landen — anderer Origin, anderer localStorage,
+// Session unerreichbar. Die App ist auf mehreren Hostnames erreichbar
+// (amt + sachbearbeiter) — Origin ist die einzig korrekte Quelle.
+export const AUTH_REDIRECT = `${window.location.origin}/auth/callback`;

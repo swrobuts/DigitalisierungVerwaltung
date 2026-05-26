@@ -10,7 +10,10 @@ services:
       args:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://supabase.butscher.cloud}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
-        VITE_AUTH_REDIRECT: ${VITE_AUTH_REDIRECT:-https://amt.butscher.cloud/auth/callback}
+        # VITE_AUTH_REDIRECT bewusst NICHT mehr gesetzt — die App leitet
+        # den Magic-Link-Redirect aus window.location.origin ab, sonst
+        # landet die Session auf der falschen Subdomain
+        # (sachbearbeiter vs amt).
     image: amt-frontend:latest
     restart: unless-stopped
     networks:
