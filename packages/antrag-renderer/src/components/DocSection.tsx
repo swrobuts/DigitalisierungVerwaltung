@@ -41,8 +41,8 @@ export function DocSection({
     // border-t auf der section — bringt zwischen mehreren Sections eine
     // klare Trennlinie. Der äußere Container setzt space-y-0 + die erste
     // Section bekommt im Container `first-of-type:border-t-0`-Override.
-    <section className="border-t border-slate-100 pt-10 first-of-type:border-t-0 first-of-type:pt-0">
-      <div className="flex items-start gap-2.5 mb-4">
+    <section className="border-t border-slate-100 pt-7 first-of-type:border-t-0 first-of-type:pt-0">
+      <div className="flex items-start gap-2.5 mb-3">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -64,7 +64,7 @@ export function DocSection({
         </button>
         {actions && <div className="shrink-0">{actions}</div>}
       </div>
-      {open && <div className="ml-[3rem]">{children}</div>}
+      {open && <div>{children}</div>}
     </section>
   );
 }

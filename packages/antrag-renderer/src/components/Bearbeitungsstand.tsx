@@ -59,7 +59,7 @@ export function Bearbeitungsstand({ status, sticky = true }: Props) {
             </span>
           )}
         </div>
-        <ol className="flex items-center gap-2.5">
+        <ol className="flex items-center">
           {FLOW.map((step, idx) => {
             const reached = idx <= currentIdx;
             const current = idx === currentIdx;
@@ -67,7 +67,7 @@ export function Bearbeitungsstand({ status, sticky = true }: Props) {
             return (
               <Fragment key={step.key}>
                 <li
-                  className="flex items-center gap-3 flex-1 min-w-0"
+                  className="flex items-center gap-2.5 shrink-0"
                   data-testid={current ? "bearbeitungsstand-aktiv" : undefined}
                 >
                   <span
@@ -117,8 +117,8 @@ export function Bearbeitungsstand({ status, sticky = true }: Props) {
                   <span
                     className={
                       idx < currentIdx
-                        ? "h-[2px] flex-1 bg-slate-700"
-                        : "h-[2px] flex-1 bg-slate-200"
+                        ? "h-[2px] flex-1 bg-slate-700 mx-4"
+                        : "h-[2px] flex-1 bg-slate-200 mx-4"
                     }
                     aria-hidden="true"
                   />
