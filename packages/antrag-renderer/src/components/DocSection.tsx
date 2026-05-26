@@ -39,7 +39,7 @@ export function DocSection({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <section>
-      <div className="flex items-start gap-2.5 mb-3">
+      <div className="flex items-start gap-2.5 mb-4">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}

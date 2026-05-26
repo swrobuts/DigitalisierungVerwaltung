@@ -87,16 +87,18 @@ export function AntragHeader({
 
   return (
     <>
-      {/* Briefkopf — Stadt-Würzburg-Band */}
-      <div className="bg-wue-rot text-white px-10 lg:px-14 py-3 flex flex-wrap items-baseline justify-between gap-2">
-        <div className="font-semibold tracking-[0.2em] text-sm">STADT WÜRZBURG</div>
-        <div className="text-xs opacity-90 tracking-wide">
+      {/* Briefkopf — schmales Stadt-Würzburg-Band; bewusst dezenter als
+          ein voller Marketing-Header, um die Verwaltungs-Anmutung zu
+          stärken. */}
+      <div className="bg-wue-rot text-white px-10 lg:px-14 py-2 flex flex-wrap items-baseline justify-between gap-2">
+        <div className="font-semibold tracking-[0.18em] text-[12px]">STADT WÜRZBURG</div>
+        <div className="text-[11px] opacity-85 tracking-wide">
           Sozialreferat · Beratungsstelle für Senioren
         </div>
       </div>
 
       {/* Titelblock */}
-      <div className="px-10 lg:px-14 pt-7 pb-5 border-b border-slate-200">
+      <div className="px-10 lg:px-14 pt-8 pb-7 border-b border-slate-200">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="min-w-0">
             <div className="text-[10.5px] uppercase tracking-[0.18em] text-slate-500 font-medium">

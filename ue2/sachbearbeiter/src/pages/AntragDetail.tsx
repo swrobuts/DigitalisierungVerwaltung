@@ -235,7 +235,7 @@ export function AntragDetail() {
               />
 
               {/* §-Sektionen */}
-              <div className="px-10 lg:px-14 py-8 space-y-8">
+              <div className="px-10 lg:px-14 py-10 space-y-10">
                 <DocSection
                   num="§ 1"
                   title="Antragsteller / Träger"
