@@ -117,8 +117,8 @@ export function Bearbeitungsstand({ status, sticky = true }: Props) {
                   <span
                     className={
                       idx < currentIdx
-                        ? "h-px flex-1 bg-slate-800"
-                        : "h-px flex-1 bg-slate-300"
+                        ? "h-[2px] flex-1 bg-slate-700"
+                        : "h-[2px] flex-1 bg-slate-200"
                     }
                     aria-hidden="true"
                   />

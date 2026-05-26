@@ -87,12 +87,15 @@ export function AntragHeader({
 
   return (
     <>
-      {/* Briefkopf — schmales Stadt-Würzburg-Band; bewusst dezenter als
-          ein voller Marketing-Header, um die Verwaltungs-Anmutung zu
-          stärken. */}
-      <div className="bg-wue-rot text-white px-10 lg:px-14 py-2 flex flex-wrap items-baseline justify-between gap-2">
-        <div className="font-semibold tracking-[0.18em] text-[12px]">STADT WÜRZBURG</div>
-        <div className="text-[11px] opacity-85 tracking-wide">
+      {/* Briefkopf — klassischer Verwaltungs-Stil:
+          dünne Wü-Rot-Akzentlinie oben + Behördenname in dezent-
+          gedämpftem Stadt-Würzburg-Rot auf Weiß. Wirkt offiziell ohne
+          aufdringlich zu sein (Vergleich klassische Stadt-Briefköpfe). */}
+      <div className="border-t-[3px] border-wue-rot bg-white px-10 lg:px-14 py-2 flex flex-wrap items-baseline justify-between gap-2">
+        <div className="font-semibold tracking-[0.18em] text-[12px] text-wue-rot">
+          STADT WÜRZBURG
+        </div>
+        <div className="text-[11px] text-slate-500 tracking-wide">
           Sozialreferat · Beratungsstelle für Senioren
         </div>
       </div>
