@@ -148,6 +148,38 @@ muss eine Änderung an FÜNF Stellen synchron laufen:
 
 UE2 + UE3 brauchen **nichts**. Das Schema propagiert automatisch.
 
+## UE3 Component-Hierarchie (nach Vollrestoration 2026-05-26)
+
+UE3 `AntragDetail` rendert ein 3-Spalten-Layout mit folgenden Cards:
+
+**Header (volle Breite, sticky):**
+- Inbox-Link, Antragsnummer, FB-Badge, Status-Badge, Durchlaufzeit-Ampel, „KI-Variante (UE3)"-Marker
+- `<Bearbeitungsstand status={antrag.status} entscheidung={…} />` — 3-Schritt-Stepper
+
+**Article (links, lg:col-span-2):**
+- `<AntragMetricsBar antrag history bescheideCount />` — Förderungs-Hero
+- `<AntragViewer fb=… data=… />` (aus `@dv/antrag-renderer`) — kapselt Antragsteller / Bank / FB-Detail / Anlagen mit Schema-Renderer
+- `<HistoryTimeline history />`
+
+**Aside (rechts, lg:col-span-1):**
+- `<PruefungsCard antragId onApplyEmpfehlung />` — KI-Konformität mit Empfehlung + Befunden + AHP-Wortlaut-Popover
+- `<BescheideListe bescheide onOpen onOpenDocx onDelete />` — PDF/DOCX-Download
+- `<ZweitpruefungsCard antragId antragStatus />` — Vier-Augen + Dissens-Berechnung
+- Workflow-Status-Buttons (Card)
+- `<VorjahresVergleich antragId />` — Delta-Tabelle
+- `<ExterneValidierungCard antragId />` — Perplexity-Träger-Recherche
+
+**Hook-Hierarchie:**
+- `useAntrag(id)` → Bundle mit `antrag`, `anlagen`, `history`, `fb_i/ii/iii/iv`-Detail
+- `usePruefung(id)` → letzter Konformitäts-Lauf (`apl.pruefprotokoll`), `pruefen()`-Action
+- `usePruefungen(id)` → Vier-Augen-Liste (`apl.pruefungen`), `triggerKiZweitpruefung()`
+- `useBescheide(id)` → Bescheid-Historie + PDF/DOCX-Download
+- `useVergleichVorjahr(id)` → Vorjahres-Delta
+- `useExterneValidierung(id)` → Perplexity
+- `useAhpTree()` → Doctree-Lookup (für AHP-Wortlaut)
+- `useSession()`, `useUserRole()` — Auth
+- `useManuellePruefung()` — Sektion-Status für SektionPruefung
+
 ## Materialien (Source of Truth für die Fachdomäne)
 
 Alles unter `materialien/wuerzburg-2026/`:
