@@ -39,7 +39,7 @@ export function DocSection({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <section>
-      <div className="flex items-start gap-3 mb-4">
+      <div className="flex items-start gap-2.5 mb-3">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -47,21 +47,21 @@ export function DocSection({
           aria-expanded={open}
         >
           <Chevron open={open} />
-          <span className="text-slate-400 font-semibold text-base tabular-nums shrink-0">
+          <span className="text-slate-400 font-semibold text-[13px] tabular-nums shrink-0">
             {num}
           </span>
-          <h2 className="text-[15px] font-semibold text-slate-900 tracking-tight group-hover:text-wue-rot transition-colors truncate">
+          <h2 className="text-[14px] font-semibold text-slate-900 tracking-tight group-hover:text-wue-rot transition-colors truncate">
             {title}
           </h2>
           {subtitle && (
-            <span className="text-xs text-slate-500 truncate hidden sm:inline">
+            <span className="text-[11px] text-slate-500 truncate hidden sm:inline">
               — {subtitle}
             </span>
           )}
         </button>
         {actions && <div className="shrink-0">{actions}</div>}
       </div>
-      {open && <div className="ml-[3.75rem]">{children}</div>}
+      {open && <div className="ml-[3rem]">{children}</div>}
     </section>
   );
 }

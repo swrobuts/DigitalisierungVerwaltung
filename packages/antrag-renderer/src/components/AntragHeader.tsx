@@ -96,22 +96,22 @@ export function AntragHeader({
       </div>
 
       {/* Titelblock */}
-      <div className="px-10 lg:px-14 pt-8 pb-6 border-b border-slate-200">
+      <div className="px-10 lg:px-14 pt-7 pb-5 border-b border-slate-200">
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-medium">
+            <div className="text-[10.5px] uppercase tracking-[0.18em] text-slate-500 font-medium">
               Förderantrag · Altentagesstätten APL 2
             </div>
             <div
-              className="text-[10.5px] text-slate-400 italic mt-0.5 leading-tight max-w-[60ch]"
+              className="text-[10px] text-slate-400 italic mt-0.5 leading-snug max-w-[60ch]"
               title="APL 2 ist nur das Aktenzeichen — geltende Rechtsgrundlage ist die AHP-Förderrichtlinie der Stadt Würzburg (Stand 2025-03-27)."
             >
               Aktenzeichen — Rechtsgrundlage: AHP-Förderrichtlinie Stadt Würzburg (Stand 2025-03-27)
             </div>
-            <h1 className="text-xl font-semibold text-slate-700 mt-1.5">
+            <h1 className="text-lg font-semibold text-slate-800 mt-1.5 leading-snug">
               {heroTitel}
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1">
               Haushaltsjahr{" "}
               <span className="font-semibold text-slate-800 tabular-nums">
                 {antrag.haushaltsjahr}
@@ -128,30 +128,30 @@ export function AntragHeader({
             </p>
           </div>
           <div className="text-right shrink-0 text-xs">
-            <div className="text-[11px] uppercase tracking-wider text-slate-500">
+            <div className="text-[10.5px] uppercase tracking-wider text-slate-500">
               Aktenzeichen
             </div>
-            <div className="font-mono text-sm font-semibold text-slate-900 mt-0.5">
+            <div className="font-mono text-[13px] font-semibold text-slate-900 mt-0.5">
               {antrag.antragsnummer ?? "—"}
             </div>
-            <div className="mt-2">
+            <div className="mt-1.5">
               {statusBadge ?? <FallbackStatusBadge status={antrag.status} />}
             </div>
           </div>
         </div>
 
         {/* Einrichtungs-Block — DAS ist der visuelle Anker */}
-        <div className="mt-7 border-l-[3px] border-wue-rot pl-5">
-          <div className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+        <div className="mt-5 border-l-[3px] border-wue-rot pl-4">
+          <div className="text-[10.5px] uppercase tracking-wider text-slate-500 font-medium">
             Einrichtung
           </div>
-          <div className="text-[22px] font-bold text-slate-900 mt-0.5 leading-tight">
+          <div className="text-[18px] font-bold text-slate-900 mt-0.5 leading-tight">
             {antrag.einrichtung}
           </div>
           {antrag.dachverband && (
-            <div className="text-sm text-slate-700 mt-0.5">{antrag.dachverband}</div>
+            <div className="text-[13px] text-slate-700 mt-0.5">{antrag.dachverband}</div>
           )}
-          <div className="text-sm text-slate-600 mt-1">
+          <div className="text-[13px] text-slate-600 mt-0.5">
             {formatAdresse(antrag)}
           </div>
         </div>
@@ -187,22 +187,22 @@ function AntragSummaryStrip({
   const summary = summaryFor(antrag.foerderbereich, fbI, fbIii, fbIv);
 
   return (
-    <div className="mt-6 grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 border rounded-sm px-5 py-4 bg-slate-50 border-slate-200">
+    <div className="mt-5 grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-4 border rounded-sm px-4 py-3 bg-slate-50 border-slate-200">
       <div>
-        <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500 font-medium">
+        <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium">
           Beantragte Förderung (Jahr)
         </div>
-        <div className="text-3xl font-bold tabular-nums leading-tight mt-0.5 text-slate-900">
+        <div className="text-2xl font-bold tabular-nums leading-tight mt-0.5 text-slate-900">
           {summary.betrag}
         </div>
       </div>
       <div className="sm:border-l sm:border-slate-300 sm:pl-4 flex flex-col justify-center">
-        <div className="text-sm text-slate-700">
+        <div className="text-[13px] text-slate-700">
           <span className="font-medium">
             FB {antrag.foerderbereich} — {FB_TITEL[antrag.foerderbereich]}
           </span>
         </div>
-        <div className="text-xs text-slate-500 mt-1">
+        <div className="text-[11px] text-slate-500 mt-0.5">
           {FB_AHP_PFAD[antrag.foerderbereich]} · {summary.subtext}
         </div>
       </div>

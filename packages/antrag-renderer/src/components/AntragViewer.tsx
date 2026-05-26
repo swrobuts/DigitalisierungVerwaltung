@@ -65,7 +65,7 @@ export function AntragViewer(props: Props) {
       if (!props.fbIi) return <Placeholder fb="II" />;
       const nextNum = start + FB_II_SECTIONS.length;
       return (
-        <div className="space-y-12">
+        <div className="space-y-8">
           <Sections sections={FB_II_SECTIONS} data={props.fbIi} paragraphStart={start} />
           <DocSection num={`§ ${nextNum}`} title="Helfer-Liste">
             <HelferTable helfer={props.fbIiHelfer ?? []} />
@@ -104,7 +104,7 @@ function Sections<T>({
   // BEVOR die §-Nummer vergeben wird — sonst entstehen Lücken wie § 1, § 3.
   const visible = sections.filter((s) => !s.conditional || s.conditional(data));
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {visible.map((s, i) => (
         <DocSection key={s.id} num={`§ ${paragraphStart + i}`} title={s.titel}>
           <SectionViewer section={s} data={data} />
