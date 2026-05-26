@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@dv/antrag-renderer": "workspace:*",
     "@dv/data-layer": "workspace:*",
     "@dv/foerderbereiche": "workspace:*",
     "@supabase/supabase-js": "^2.45.0",

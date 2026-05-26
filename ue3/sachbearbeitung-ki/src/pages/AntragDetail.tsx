@@ -18,7 +18,7 @@ import { FbBadge } from "../components/FbBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
 import { SektionPruefung } from "../components/SektionPruefung";
-import { FbIBlock, FbIiBlock, FbIiiBlock, FbIvBlock } from "../components/FbBlocks";
+import { AntragViewer } from "@dv/antrag-renderer";
 import { allowedTransitions, STATUS_LABELS, type Status } from "../lib/workflow";
 import {
   formatDateTime,
@@ -357,15 +357,18 @@ export function AntragDetail() {
 }
 
 function FbDispatcher({ bundle }: { bundle: NonNullable<ReturnType<typeof useAntrag>["bundle"]> }) {
-  const { antrag } = bundle;
-  switch (antrag.foerderbereich) {
-    case "I":
-      return <FbIBlock data={bundle.fb_i} />;
-    case "II":
-      return <FbIiBlock data={bundle.fb_ii} helfer={bundle.fb_ii_helfer} />;
-    case "III":
-      return <FbIiiBlock data={bundle.fb_iii} />;
-    case "IV":
-      return <FbIvBlock data={bundle.fb_iv} />;
-  }
+  // Anzeige kommt vollständig aus @dv/antrag-renderer — keine FB-spezifische
+  // Render-Logik mehr im Frontend. Single Source of Truth in
+  // packages/antrag-renderer/src/schemas/*. Wenn ein Feld in der DB fehlt,
+  // schlägt der field-coverage.test.ts in CI an, bevor es deployed wird.
+  return (
+    <AntragViewer
+      fb={bundle.antrag.foerderbereich}
+      fbI={bundle.fb_i}
+      fbIi={bundle.fb_ii}
+      fbIiHelfer={bundle.fb_ii_helfer}
+      fbIii={bundle.fb_iii}
+      fbIv={bundle.fb_iv}
+    />
+  );
 }

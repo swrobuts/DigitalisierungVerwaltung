@@ -15,7 +15,7 @@ import { FbBadge } from "../components/FbBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
 import { SektionPruefung } from "../components/SektionPruefung";
-import { FbIBlock, FbIiBlock, FbIiiBlock, FbIvBlock } from "../components/FbBlocks";
+import { AntragViewer } from "@dv/antrag-renderer";
 import { allowedTransitions, STATUS_LABELS, type Status } from "../lib/workflow";
 import {
   formatDateTime,
@@ -279,15 +279,16 @@ export function AntragDetail() {
 }
 
 function FbDispatcher({ bundle }: { bundle: NonNullable<ReturnType<typeof useAntrag>["bundle"]> }) {
-  const { antrag } = bundle;
-  switch (antrag.foerderbereich) {
-    case "I":
-      return <FbIBlock data={bundle.fb_i} />;
-    case "II":
-      return <FbIiBlock data={bundle.fb_ii} helfer={bundle.fb_ii_helfer} />;
-    case "III":
-      return <FbIiiBlock data={bundle.fb_iii} />;
-    case "IV":
-      return <FbIvBlock data={bundle.fb_iv} />;
-  }
+  // Single Source of Truth: @dv/antrag-renderer. UE2 sieht jetzt exakt
+  // dieselbe Feld-Auswahl wie UE3 (und perspektivisch UE1 read-only).
+  return (
+    <AntragViewer
+      fb={bundle.antrag.foerderbereich}
+      fbI={bundle.fb_i}
+      fbIi={bundle.fb_ii}
+      fbIiHelfer={bundle.fb_ii_helfer}
+      fbIii={bundle.fb_iii}
+      fbIv={bundle.fb_iv}
+    />
+  );
 }

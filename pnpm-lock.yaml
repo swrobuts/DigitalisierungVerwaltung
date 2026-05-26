@@ -12,6 +12,28 @@ importers:
         specifier: ^5.6.0
         version: 5.9.3
 
+  packages/antrag-renderer:
+    dependencies:
+      '@dv/data-layer':
+        specifier: workspace:*
+        version: link:../data-layer
+      '@dv/foerderbereiche':
+        specifier: workspace:*
+        version: link:../foerderbereiche
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.15
+      react:
+        specifier: ^19.0.0
+        version: 19.2.6
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.19.19)(jsdom@29.1.1)(lightningcss@1.32.0)
+
   packages/data-layer:
     dependencies:
       '@dv/foerderbereiche':
@@ -125,6 +147,9 @@ importers:
 
   ue2/sachbearbeiter:
     dependencies:
+      '@dv/antrag-renderer':
+        specifier: workspace:*
+        version: link:../../packages/antrag-renderer
       '@dv/data-layer':
         specifier: workspace:*
         version: link:../../packages/data-layer
@@ -183,6 +208,9 @@ importers:
 
   ue3/sachbearbeitung-ki:
     dependencies:
+      '@dv/antrag-renderer':
+        specifier: workspace:*
+        version: link:../../packages/antrag-renderer
       '@dv/data-layer':
         specifier: workspace:*
         version: link:../../packages/data-layer
