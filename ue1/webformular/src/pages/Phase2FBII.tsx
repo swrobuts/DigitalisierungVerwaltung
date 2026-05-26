@@ -1,19 +1,30 @@
 // FB II — Bürgerschaftliches Engagement + Helferliste (1:n).
+// Zwei Collapsible-Sections: Eckdaten / Helferliste.
 
 import { useState } from "react";
 import { useAntrag } from "../state/AntragContext";
 import { nonEmpty, type FieldErrors } from "../lib/validation";
 import { HelferTabelle } from "../components/HelferTabelle";
+import { CollapsibleSection } from "../components/CollapsibleSection";
 import { t } from "../lib/i18n";
 
+
 interface Props { onWeiter: () => void; onZurueck: () => void; }
+type SectionId = "eck" | "helfer";
 
 export function Phase2FBII({ onWeiter, onZurueck }: Props): JSX.Element {
   const { state, setState } = useAntrag();
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [offen, setOffen] = useState<Record<SectionId, boolean>>({
+    eck: true,
+    helfer: false,
+  });
 
   function update<K extends keyof typeof state.fb_ii>(key: K, value: (typeof state.fb_ii)[K]) {
     setState((s) => ({ ...s, fb_ii: { ...s.fb_ii, [key]: value } }));
+  }
+  function toggle(id: SectionId, next: boolean) {
+    setOffen((o) => ({ ...o, [id]: next }));
   }
 
   function validate(): boolean {
@@ -26,14 +37,37 @@ export function Phase2FBII({ onWeiter, onZurueck }: Props): JSX.Element {
     if (!Number.isFinite(s)) e.stunden = t("fehler.pflicht");
     else if (s < 0) e.stunden = t("fehler.negativ");
     setErrors(e);
+    if (Object.keys(e).length > 0) {
+      setOffen({ eck: true, helfer: offen.helfer });
+    }
     return Object.keys(e).length === 0;
   }
 
+  const eckPflichtOk =
+    nonEmpty(state.fb_ii.ehrenamt_titel) &&
+    Number.isFinite(parseInt(state.fb_ii.anzahl_helfer_vorjahr, 10)) &&
+    Number.isFinite(parseInt(state.fb_ii.gesamt_helferstunden_vorjahr, 10));
+  const eckFehler = !!(errors.ehrenamt_titel || errors.helfer || errors.stunden);
+
   return (
     <form onSubmit={(ev) => { ev.preventDefault(); if (validate()) onWeiter(); }} noValidate>
-      <h2>{t("fb2.titel")}</h2>
-      <fieldset>
-        <legend>Eckdaten</legend>
+      <h1>{t("fb2.titel")}</h1>
+      <p className="lead">{t("fb2.lead")}</p>
+
+      <CollapsibleSection
+        nummer={1}
+        titel={t("section.fb2.eck")}
+        beschreibung={t("section.fb2.eck.desc")}
+        status={
+          eckFehler
+            ? { kind: "error", label: t("status.bittepruefen") }
+            : eckPflichtOk
+              ? { kind: "ok", label: "3/3" }
+              : { kind: "todo", label: t("status.inbearbeitung") }
+        }
+        open={offen.eck}
+        onToggle={(o) => toggle("eck", o)}
+      >
         <div className="form-row">
           <label htmlFor="ehrenamt_titel">{t("fb2.ehrenamt_titel")} <span className="pflicht">*</span></label>
           <input id="ehrenamt_titel" type="text" required value={state.fb_ii.ehrenamt_titel}
@@ -66,12 +100,18 @@ export function Phase2FBII({ onWeiter, onZurueck }: Props): JSX.Element {
             <span>{t("fb2.kontakt_senioren")}</span>
           </label>
         </div>
-      </fieldset>
+      </CollapsibleSection>
 
-      <fieldset>
-        <legend>{t("fb2.helferliste")}</legend>
+      <CollapsibleSection
+        nummer={2}
+        titel={t("fb2.helferliste")}
+        beschreibung={t("section.fb2.helfer.desc")}
+        status={{ kind: "info", label: t("status.optionalhier") }}
+        open={offen.helfer}
+        onToggle={(o) => toggle("helfer", o)}
+      >
         <HelferTabelle />
-      </fieldset>
+      </CollapsibleSection>
 
       <div className="btn-row">
         <button type="button" className="btn btn-secondary" onClick={onZurueck}>{t("btn.zurueck")}</button>

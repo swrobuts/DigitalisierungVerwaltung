@@ -1,21 +1,31 @@
 // FB IV — Schwerpunktförderung mit Freitext-Feldern.
+// Zwei Collapsible-Sections: Vorhaben (Titel + 2 Freitexte) / Förderung & Laufzeit.
 
 import { useState } from "react";
 import { useAntrag } from "../state/AntragContext";
 import { evaluateRule, FB_IV } from "@dv/foerderbereiche";
 import { nonEmpty, type FieldErrors } from "../lib/validation";
-import { t } from "../lib/i18n";
+import { CollapsibleSection } from "../components/CollapsibleSection";
+import { t, tx } from "../lib/i18n";
 
 interface Props { onWeiter: () => void; onZurueck: () => void; }
+type SectionId = "vorhaben" | "laufzeit";
 
 const MAX_KURZ = 1000;
 
 export function Phase2FBIV({ onWeiter, onZurueck }: Props): JSX.Element {
   const { state, setState } = useAntrag();
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [offen, setOffen] = useState<Record<SectionId, boolean>>({
+    vorhaben: true,
+    laufzeit: false,
+  });
 
   function update<K extends keyof typeof state.fb_iv>(key: K, value: (typeof state.fb_iv)[K]) {
     setState((s) => ({ ...s, fb_iv: { ...s.fb_iv, [key]: value } }));
+  }
+  function toggle(id: SectionId, next: boolean) {
+    setOffen((o) => ({ ...o, [id]: next }));
   }
 
   function validate(): boolean {
@@ -26,16 +36,38 @@ export function Phase2FBIV({ onWeiter, onZurueck }: Props): JSX.Element {
       e.kurz = FB_IV.validation_rules[0]!.fehlermeldung;
     if (!nonEmpty(state.fb_iv.geplante_massnahmen)) e.massnahmen = t("fehler.pflicht");
     setErrors(e);
+    if (Object.keys(e).length > 0) {
+      setOffen({ vorhaben: true, laufzeit: offen.laufzeit });
+    }
     return Object.keys(e).length === 0;
   }
 
   const restZeichen = MAX_KURZ - state.fb_iv.kurzbeschreibung.length;
+  const vorhabenOk =
+    nonEmpty(state.fb_iv.vorhaben_titel) &&
+    nonEmpty(state.fb_iv.kurzbeschreibung) &&
+    nonEmpty(state.fb_iv.geplante_massnahmen);
+  const vorhabenFehler = !!(errors.vorhaben_titel || errors.kurz || errors.massnahmen);
 
   return (
     <form onSubmit={(ev) => { ev.preventDefault(); if (validate()) onWeiter(); }} noValidate>
-      <h2>{t("fb4.titel")}</h2>
-      <fieldset>
-        <legend>Vorhaben</legend>
+      <h1>{t("fb4.titel")}</h1>
+      <p className="lead">{t("fb4.lead")}</p>
+
+      <CollapsibleSection
+        nummer={1}
+        titel={t("section.fb4.vorhaben")}
+        beschreibung={t("section.fb4.vorhaben.desc")}
+        status={
+          vorhabenFehler
+            ? { kind: "error", label: t("status.bittepruefen") }
+            : vorhabenOk
+              ? { kind: "ok", label: "3/3" }
+              : { kind: "todo", label: t("status.inbearbeitung") }
+        }
+        open={offen.vorhaben}
+        onToggle={(o) => toggle("vorhaben", o)}
+      >
         <div className="form-row">
           <label htmlFor="vorhaben_titel">{t("fb4.vorhaben_titel")} <span className="pflicht">*</span></label>
           <input id="vorhaben_titel" type="text" required value={state.fb_iv.vorhaben_titel}
@@ -49,7 +81,7 @@ export function Phase2FBIV({ onWeiter, onZurueck }: Props): JSX.Element {
                     value={state.fb_iv.kurzbeschreibung}
                     aria-invalid={!!errors.kurz}
                     onChange={(e) => update("kurzbeschreibung", e.target.value)} />
-          <div className="zeichenzaehler">{restZeichen} Zeichen verbleibend</div>
+          <div className="zeichenzaehler">{tx("fb4.kurz_rest", { n: restZeichen })}</div>
           {errors.kurz && <div className="fehlermeldung">{errors.kurz}</div>}
         </div>
         <div className="form-row">
@@ -59,6 +91,16 @@ export function Phase2FBIV({ onWeiter, onZurueck }: Props): JSX.Element {
                     onChange={(e) => update("geplante_massnahmen", e.target.value)} />
           {errors.massnahmen && <div className="fehlermeldung">{errors.massnahmen}</div>}
         </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        nummer={2}
+        titel={t("section.fb4.foerderung")}
+        beschreibung={t("section.fb4.foerderung.desc")}
+        status={{ kind: "info", label: t("status.optional") }}
+        open={offen.laufzeit}
+        onToggle={(o) => toggle("laufzeit", o)}
+      >
         <div className="form-row two-col">
           <div>
             <label htmlFor="summe">{t("fb4.beantragte_summe")}</label>
@@ -73,7 +115,7 @@ export function Phase2FBIV({ onWeiter, onZurueck }: Props): JSX.Element {
                    onChange={(e) => update("laufzeit", e.target.value)} />
           </div>
         </div>
-      </fieldset>
+      </CollapsibleSection>
 
       <div className="btn-row">
         <button type="button" className="btn btn-secondary" onClick={onZurueck}>{t("btn.zurueck")}</button>

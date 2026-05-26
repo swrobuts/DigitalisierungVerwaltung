@@ -115,6 +115,10 @@ export function PrefillBootstrap(): JSX.Element {
                 vorname: h.vorname,
                 einsatzbereich: h.einsatzbereich ?? "",
                 eintritt: h.eintritt ?? "",
+                austritt: (h as unknown as { austritt?: string | null }).austritt ?? "",
+                stunden_monat: numToStr(
+                  (h as unknown as { stunden_monat?: number | null }).stunden_monat ?? null,
+                ),
                 stunden_jahr: numToStr(h.stunden_jahr),
               })),
             };

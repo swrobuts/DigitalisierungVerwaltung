@@ -22,7 +22,10 @@ function renderWith(page: React.ReactNode, patch: Partial<AntragState>) {
 describe("Page-Render-Smoke", () => {
   it("Phase 1 zeigt den Antragsteller-Block (mit FB I gesetzt)", () => {
     renderWith(<Phase1Antragsteller />, { foerderbereich: "I" });
-    expect(screen.getByText(/Angaben zum Antragsteller/)).toBeInTheDocument();
+    // Der Text "Angaben zum Antragsteller" steht zweimal im DOM:
+    // einmal als Page-Heading, einmal in der Stepper-Preview oben.
+    // → getAllByText nutzen statt getByText.
+    expect(screen.getAllByText(/Angaben zum Antragsteller/).length).toBeGreaterThan(0);
     expect(screen.getByLabelText(/IBAN/)).toBeInTheDocument();
   });
 

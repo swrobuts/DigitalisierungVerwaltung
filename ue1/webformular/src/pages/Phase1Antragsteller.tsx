@@ -1,22 +1,100 @@
 // Phase 1: gemeinsamer Antragsteller-Block für alle 4 FBs.
-// Validation: nonEmpty für Pflichtfelder, Email-Regex, PLZ 5-stellig, IBAN Mod-97.
+// 4 Collapsible-Sections (Träger, Anschrift, Kontakt, Bankverbindung)
+// mit Status-Badge pro Section + Smart-Open beim Submit-Fehler.
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAntrag } from "../state/AntragContext";
 import { Progress } from "../components/Progress";
-import { isEmail, isPLZ, isIBAN, nonEmpty, type FieldErrors } from "../lib/validation";
-import { t } from "../lib/i18n";
+import { CollapsibleSection } from "../components/CollapsibleSection";
+import {
+  isEmail,
+  isPLZ,
+  isIBAN,
+  nonEmpty,
+  fieldState,
+  aggregateSection,
+  type FieldErrors,
+  type FieldKind,
+  type FieldState,
+  type FieldSpec,
+} from "../lib/validation";
+import { t, tx } from "../lib/i18n";
+
+/** ValidatedInput — Text-Input + Live-Validation (✓/× rechts im Feld). */
+function ValidatedInput(props: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  kind: FieldKind;
+  transform?: (v: string) => string;
+  fehler?: string;
+  type?: "text" | "email" | "tel" | "url";
+  inputMode?: "numeric" | "text" | "email" | "tel" | "url";
+  maxLength?: number;
+  required?: boolean;
+}): JSX.Element {
+  const state: FieldState = fieldState(props.value, props.kind);
+  const showErr = !!props.fehler;
+  const showIcon = state !== "leer";
+  return (
+    <div>
+      <label htmlFor={props.id}>
+        {props.label}{" "}
+        {props.required && <span className="pflicht">*</span>}
+      </label>
+      <div className="input-wrap">
+        <input
+          id={props.id}
+          type={props.type ?? "text"}
+          inputMode={props.inputMode}
+          maxLength={props.maxLength}
+          required={props.required}
+          value={props.value}
+          aria-invalid={showErr || state === "fehler"}
+          data-valid={state === "ok" ? "true" : undefined}
+          onChange={(e) =>
+            props.onChange(props.transform ? props.transform(e.target.value) : e.target.value)
+          }
+        />
+        {showIcon && (
+          <span
+            className={`input-state-icon ${state === "ok" ? "ok" : "err"}`}
+            aria-hidden="true"
+          >
+            {state === "ok" ? "✓" : "✗"}
+          </span>
+        )}
+      </div>
+      {showErr && <div className="fehlermeldung">{props.fehler}</div>}
+    </div>
+  );
+}
+
+type SectionId = "traeger" | "anschrift" | "kontakt" | "bank";
 
 export function Phase1Antragsteller(): JSX.Element {
   const { state, setState } = useAntrag();
   const navigate = useNavigate();
   const [errors, setErrors] = useState<FieldErrors>({});
 
+  // Initial: Träger offen, Rest zu. Smart-Open bei Submit-Fehler weiter unten.
+  const [offen, setOffen] = useState<Record<SectionId, boolean>>({
+    traeger: true,
+    anschrift: false,
+    kontakt: false,
+    bank: false,
+  });
+
   if (!state.foerderbereich) return <Navigate to="/" replace />;
 
   function update<K extends keyof typeof state>(key: K, value: (typeof state)[K]) {
     setState((s) => ({ ...s, [key]: value }));
+  }
+
+  function toggle(id: SectionId, next: boolean) {
+    setOffen((o) => ({ ...o, [id]: next }));
   }
 
   function validate(): boolean {
@@ -43,128 +121,261 @@ export function Phase1Antragsteller(): JSX.Element {
     if (validate()) navigate("/antrag/phase-2");
   }
 
+  // Welche Sections enthalten Fehler? Die werden automatisch aufgeklappt,
+  // damit der Bürger nach dem „Weiter"-Klick sofort sieht, wo's hakt.
+  const sectionFelder: Record<SectionId, FieldSpec[]> = useMemo(
+    () => ({
+      traeger: [
+        { value: state.dachverband, kind: "optional" },
+        { value: state.einrichtung, kind: "pflicht" },
+        { value: state.ansprechpartner, kind: "pflicht" },
+      ],
+      anschrift: [
+        { value: state.strasse, kind: "pflicht" },
+        { value: state.hausnummer, kind: "optional" },
+        { value: state.plz, kind: "plz" },
+        { value: state.ort, kind: "pflicht" },
+      ],
+      kontakt: [
+        { value: state.telefon, kind: "telefon" },
+        { value: state.email, kind: "email" },
+        { value: state.homepage, kind: "optional" },
+      ],
+      bank: [
+        { value: state.bankname, kind: "pflicht" },
+        { value: state.iban, kind: "iban" },
+        { value: state.bic, kind: "pflicht" },
+      ],
+    }),
+    [state],
+  );
+
+  const sectionErrorKeys: Record<SectionId, ReadonlyArray<keyof FieldErrors>> = {
+    traeger: ["einrichtung", "ansprechpartner"],
+    anschrift: ["strasse", "plz", "ort"],
+    kontakt: ["telefon", "email"],
+    bank: ["bankname", "iban", "bic"],
+  };
+
+  function sectionHasError(id: SectionId): boolean {
+    return sectionErrorKeys[id].some((k) => !!errors[k as string]);
+  }
+
+  // Smart-Open: sobald nach Submit Fehler vorliegen, alle betroffenen Sections aufklappen.
+  useEffect(() => {
+    const hasAny = Object.keys(errors).length > 0;
+    if (!hasAny) return;
+    setOffen((o) => {
+      const next = { ...o };
+      (Object.keys(sectionErrorKeys) as SectionId[]).forEach((id) => {
+        if (sectionHasError(id)) next[id] = true;
+      });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errors]);
+
+  // Section-Status-Labels über i18n (DE/TR-fähig: „2 Fehler" → „2 hata", „Bitte prüfen" → „Lütfen kontrol edin")
+  const labelFn = (kind: "ok" | "todo" | "error", info: { ok: number; total: number; fehler: number }) => {
+    if (kind === "error") {
+      return info.fehler > 0 ? tx("status.fehler", { n: info.fehler }) : t("status.bittepruefen");
+    }
+    return `${info.ok}/${info.total}`;
+  };
+  function statusFor(id: SectionId) {
+    return aggregateSection(sectionFelder[id], sectionHasError(id), labelFn);
+  }
+
   return (
     <>
-      <Progress step={1} total={3} />
+      <Progress step={1} />
       <form className="form-wrap" onSubmit={weiter} noValidate>
         <h1>{t("phase.1.titel")}</h1>
-        <p className="lead">Förderbereich {state.foerderbereich}</p>
+        <p className="lead">{tx("phase.1.lead", { fb: state.foerderbereich })}</p>
 
-        <fieldset>
-          <legend>Träger</legend>
+        <CollapsibleSection
+          nummer={1}
+          titel={t("section.traeger")}
+          beschreibung={t("section.traeger.desc")}
+          status={statusFor("traeger")}
+          open={offen.traeger}
+          onToggle={(o) => toggle("traeger", o)}
+        >
           <div className="form-row">
-            <label htmlFor="dachverband">{t("antragsteller.dachverband")}</label>
-            <input id="dachverband" type="text" value={state.dachverband}
-                   onChange={(e) => update("dachverband", e.target.value)} />
+            <ValidatedInput
+              id="dachverband"
+              label={t("antragsteller.dachverband")}
+              value={state.dachverband}
+              onChange={(v) => update("dachverband", v)}
+              kind="optional"
+            />
           </div>
           <div className="form-row">
-            <label htmlFor="einrichtung">{t("antragsteller.einrichtung")} <span className="pflicht">*</span></label>
-            <input id="einrichtung" type="text" required value={state.einrichtung}
-                   aria-invalid={!!errors.einrichtung}
-                   onChange={(e) => update("einrichtung", e.target.value)} />
-            {errors.einrichtung && <div className="fehlermeldung">{errors.einrichtung}</div>}
+            <ValidatedInput
+              id="einrichtung"
+              label={t("antragsteller.einrichtung")}
+              value={state.einrichtung}
+              onChange={(v) => update("einrichtung", v)}
+              kind="pflicht"
+              required
+              fehler={errors.einrichtung}
+            />
           </div>
           <div className="form-row">
-            <label htmlFor="ansprechpartner">{t("antragsteller.ansprechpartner")} <span className="pflicht">*</span></label>
-            <input id="ansprechpartner" type="text" required value={state.ansprechpartner}
-                   aria-invalid={!!errors.ansprechpartner}
-                   onChange={(e) => update("ansprechpartner", e.target.value)} />
-            {errors.ansprechpartner && <div className="fehlermeldung">{errors.ansprechpartner}</div>}
+            <ValidatedInput
+              id="ansprechpartner"
+              label={t("antragsteller.ansprechpartner")}
+              value={state.ansprechpartner}
+              onChange={(v) => update("ansprechpartner", v)}
+              kind="pflicht"
+              required
+              fehler={errors.ansprechpartner}
+            />
           </div>
-        </fieldset>
+        </CollapsibleSection>
 
-        <fieldset>
-          <legend>Anschrift</legend>
+        <CollapsibleSection
+          nummer={2}
+          titel={t("section.anschrift")}
+          beschreibung={t("section.anschrift.desc")}
+          status={statusFor("anschrift")}
+          open={offen.anschrift}
+          onToggle={(o) => toggle("anschrift", o)}
+        >
           <div className="form-row two-col">
-            <div>
-              <label htmlFor="strasse">{t("antragsteller.strasse")} <span className="pflicht">*</span></label>
-              <input id="strasse" type="text" required value={state.strasse}
-                     aria-invalid={!!errors.strasse}
-                     onChange={(e) => update("strasse", e.target.value)} />
-              {errors.strasse && <div className="fehlermeldung">{errors.strasse}</div>}
-            </div>
-            <div>
-              <label htmlFor="hausnummer">{t("antragsteller.hausnummer")}</label>
-              <input id="hausnummer" type="text" value={state.hausnummer}
-                     onChange={(e) => update("hausnummer", e.target.value)} />
-            </div>
-          </div>
-          <div className="form-row two-col">
-            <div>
-              <label htmlFor="plz">{t("antragsteller.plz")} <span className="pflicht">*</span></label>
-              <input id="plz" type="text" required value={state.plz}
-                     inputMode="numeric" maxLength={5}
-                     aria-invalid={!!errors.plz}
-                     onChange={(e) => update("plz", e.target.value)} />
-              {errors.plz && <div className="fehlermeldung">{errors.plz}</div>}
-            </div>
-            <div>
-              <label htmlFor="ort">{t("antragsteller.ort")} <span className="pflicht">*</span></label>
-              <input id="ort" type="text" required value={state.ort}
-                     aria-invalid={!!errors.ort}
-                     onChange={(e) => update("ort", e.target.value)} />
-              {errors.ort && <div className="fehlermeldung">{errors.ort}</div>}
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Kontakt</legend>
-          <div className="form-row two-col">
-            <div>
-              <label htmlFor="telefon">{t("antragsteller.telefon")} <span className="pflicht">*</span></label>
-              <input id="telefon" type="tel" required value={state.telefon}
-                     aria-invalid={!!errors.telefon}
-                     onChange={(e) => update("telefon", e.target.value)} />
-              {errors.telefon && <div className="fehlermeldung">{errors.telefon}</div>}
-            </div>
-            <div>
-              <label htmlFor="email">{t("antragsteller.email")} <span className="pflicht">*</span></label>
-              <input id="email" type="email" required value={state.email}
-                     aria-invalid={!!errors.email}
-                     onChange={(e) => update("email", e.target.value)} />
-              {errors.email && <div className="fehlermeldung">{errors.email}</div>}
-            </div>
-          </div>
-          <div className="form-row">
-            <label htmlFor="homepage">{t("antragsteller.homepage")}</label>
-            <input id="homepage" type="url" value={state.homepage}
-                   onChange={(e) => update("homepage", e.target.value)} />
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Bankverbindung</legend>
-          <div className="form-row">
-            <label htmlFor="bankname">{t("antragsteller.bankname")} <span className="pflicht">*</span></label>
-            <input id="bankname" type="text" required value={state.bankname}
-                   aria-invalid={!!errors.bankname}
-                   onChange={(e) => update("bankname", e.target.value)} />
-            {errors.bankname && <div className="fehlermeldung">{errors.bankname}</div>}
+            <ValidatedInput
+              id="strasse"
+              label={t("antragsteller.strasse")}
+              value={state.strasse}
+              onChange={(v) => update("strasse", v)}
+              kind="pflicht"
+              required
+              fehler={errors.strasse}
+            />
+            <ValidatedInput
+              id="hausnummer"
+              label={t("antragsteller.hausnummer")}
+              value={state.hausnummer}
+              onChange={(v) => update("hausnummer", v)}
+              kind="optional"
+            />
           </div>
           <div className="form-row two-col">
-            <div>
-              <label htmlFor="iban">{t("antragsteller.iban")} <span className="pflicht">*</span></label>
-              <input id="iban" type="text" required value={state.iban}
-                     aria-invalid={!!errors.iban}
-                     onChange={(e) => update("iban", e.target.value.toUpperCase())} />
-              {errors.iban && <div className="fehlermeldung">{errors.iban}</div>}
-            </div>
-            <div>
-              <label htmlFor="bic">{t("antragsteller.bic")} <span className="pflicht">*</span></label>
-              <input id="bic" type="text" required value={state.bic}
-                     aria-invalid={!!errors.bic}
-                     onChange={(e) => update("bic", e.target.value.toUpperCase())} />
-              {errors.bic && <div className="fehlermeldung">{errors.bic}</div>}
-            </div>
+            <ValidatedInput
+              id="plz"
+              label={t("antragsteller.plz")}
+              value={state.plz}
+              onChange={(v) => update("plz", v)}
+              kind="plz"
+              inputMode="numeric"
+              maxLength={5}
+              required
+              fehler={errors.plz}
+            />
+            <ValidatedInput
+              id="ort"
+              label={t("antragsteller.ort")}
+              value={state.ort}
+              onChange={(v) => update("ort", v)}
+              kind="pflicht"
+              required
+              fehler={errors.ort}
+            />
           </div>
-        </fieldset>
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          nummer={3}
+          titel={t("section.kontakt")}
+          beschreibung={t("section.kontakt.desc")}
+          status={statusFor("kontakt")}
+          open={offen.kontakt}
+          onToggle={(o) => toggle("kontakt", o)}
+        >
+          <div className="form-row two-col">
+            <ValidatedInput
+              id="telefon"
+              label={t("antragsteller.telefon")}
+              value={state.telefon}
+              onChange={(v) => update("telefon", v)}
+              kind="telefon"
+              type="tel"
+              required
+              fehler={errors.telefon}
+            />
+            <ValidatedInput
+              id="email"
+              label={t("antragsteller.email")}
+              value={state.email}
+              onChange={(v) => update("email", v)}
+              kind="email"
+              type="email"
+              required
+              fehler={errors.email}
+            />
+          </div>
+          <div className="form-row">
+            <ValidatedInput
+              id="homepage"
+              label={t("antragsteller.homepage")}
+              value={state.homepage}
+              onChange={(v) => update("homepage", v)}
+              kind="optional"
+              type="url"
+            />
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          nummer={4}
+          titel={t("section.bank")}
+          beschreibung={t("section.bank.desc")}
+          status={statusFor("bank")}
+          open={offen.bank}
+          onToggle={(o) => toggle("bank", o)}
+        >
+          <div className="form-row">
+            <ValidatedInput
+              id="bankname"
+              label={t("antragsteller.bankname")}
+              value={state.bankname}
+              onChange={(v) => update("bankname", v)}
+              kind="pflicht"
+              required
+              fehler={errors.bankname}
+            />
+          </div>
+          <div className="form-row two-col">
+            <ValidatedInput
+              id="iban"
+              label={t("antragsteller.iban")}
+              value={state.iban}
+              onChange={(v) => update("iban", v)}
+              transform={(v) => v.toUpperCase()}
+              kind="iban"
+              required
+              fehler={errors.iban}
+            />
+            <ValidatedInput
+              id="bic"
+              label={t("antragsteller.bic")}
+              value={state.bic}
+              onChange={(v) => update("bic", v)}
+              transform={(v) => v.toUpperCase()}
+              kind="pflicht"
+              required
+              fehler={errors.bic}
+            />
+          </div>
+        </CollapsibleSection>
 
         <div className="btn-row">
           <button type="button" className="btn btn-secondary" onClick={() => navigate("/")}>
             {t("btn.zurueck")}
           </button>
-          <button type="submit" className="btn btn-primary">{t("btn.weiter")}</button>
+          <button type="submit" className="btn btn-primary">
+            {t("btn.weiter")}
+          </button>
         </div>
       </form>
     </>

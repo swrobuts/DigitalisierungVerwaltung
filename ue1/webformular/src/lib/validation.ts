@@ -48,3 +48,84 @@ export function nonEmpty(v: unknown): boolean {
   if (Array.isArray(v)) return v.length > 0;
   return true;
 }
+
+/**
+ * Live-Validation eines einzelnen Feldes — gibt ein Tristate zurück:
+ *   - "leer"  : noch nichts eingegeben oder noch nicht „berührt"
+ *   - "ok"    : Pflichterfüllt + Format gültig → grüner Rand + ✓
+ *   - "fehler": Pflicht/Format verletzt       → roter Rand + ×
+ *
+ * Wird in Phase1Antragsteller etc. pro Eingabefeld aufgerufen, sodass die
+ * Rückmeldung sofort beim Tippen erscheint (kein Wartezustand bis „Weiter").
+ */
+export type FieldState = "leer" | "ok" | "fehler";
+
+export type FieldKind =
+  | "pflicht"
+  | "email"
+  | "plz"
+  | "iban"
+  | "telefon"
+  | "optional";
+
+/**
+ * Aggregierter Section-Status für CollapsibleSection-Badges.
+ * Zählt Pflichtfelder, ok-Felder, Fehler — und liefert ein passendes
+ * Status-Objekt: „3/3 ✓" / „in Bearbeitung 1/3" / „1 Fehler".
+ *
+ * Optional `hatHardError`: Wenn der Parent nach Submit explizite Fehler
+ * im errors-Record gesetzt hat, kann das den Status auf „error" zwingen.
+ */
+export type FieldSpec = { value: string; kind: FieldKind };
+export type SectionAggKind = "ok" | "todo" | "error";
+export type SectionAggInfo = { ok: number; total: number; fehler: number };
+export type SectionLabelFn = (kind: SectionAggKind, info: SectionAggInfo) => string;
+
+export function aggregateSection(
+  felder: FieldSpec[],
+  hatHardError = false,
+  labelFn?: SectionLabelFn,
+): { kind: SectionAggKind; label: string } {
+  const pflicht = felder.filter((f) => f.kind !== "optional");
+  let ok = 0;
+  let fehler = 0;
+  for (const f of pflicht) {
+    const s = fieldState(f.value, f.kind);
+    if (s === "ok") ok++;
+    else if (s === "fehler") fehler++;
+  }
+  const total = pflicht.length;
+  const info: SectionAggInfo = { ok, total, fehler };
+  if (fehler > 0 || hatHardError) {
+    const kind: SectionAggKind = "error";
+    return {
+      kind,
+      label: labelFn?.(kind, info) ?? (fehler > 0 ? `${fehler} Fehler` : "Bitte prüfen"),
+    };
+  }
+  if (ok === total) {
+    const kind: SectionAggKind = "ok";
+    return { kind, label: labelFn?.(kind, info) ?? `${ok}/${total}` };
+  }
+  const kind: SectionAggKind = "todo";
+  return { kind, label: labelFn?.(kind, info) ?? `${ok}/${total}` };
+}
+
+export function fieldState(value: string, kind: FieldKind): FieldState {
+  const v = value?.trim() ?? "";
+  if (kind === "optional") return v ? "ok" : "leer";
+  if (!v) return "leer";
+  switch (kind) {
+    case "pflicht":
+      return "ok";
+    case "email":
+      return isEmail(v) ? "ok" : "fehler";
+    case "plz":
+      return isPLZ(v) ? "ok" : "fehler";
+    case "iban":
+      return isIBAN(v) ? "ok" : "fehler";
+    case "telefon":
+      // Pragmatisch: mind. 6 Ziffern (mit Spaces/+/-/() toleriert)
+      return /[0-9].*[0-9].*[0-9].*[0-9].*[0-9].*[0-9]/.test(v) ? "ok" : "fehler";
+  }
+}

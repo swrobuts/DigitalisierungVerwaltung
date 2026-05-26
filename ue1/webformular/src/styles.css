@@ -1,124 +1,473 @@
 @import "tailwindcss";
 
 @theme {
-  --color-wue-rot: #ad0e36;
-  --color-wue-rot-dunkel: #8a0b2b;
-  --color-wue-orange: #ff680e;
-  --color-wue-grau: #627f8d;
+  /* Würzburg-CI — synchron mit UE0/UE2/UE3 */
+  --color-wue-rot: #AD0E36;
+  --color-wue-rot-dark: #8A0B2B;
+  --color-wue-rot-soft: #FBE9EE;
+  --color-wue-orange: #FF680E;
+  --color-wue-grau: #4A4A4A;
+  --color-wue-grau-dunkel: #2D2D2D;
 }
 
 :root {
-  --wuerzburg-rot: #ad0e36;
-  --wuerzburg-rot-dunkel: #8a0b2b;
-  --wuerzburg-orange: #ff680e;
-  --wuerzburg-grau: #627f8d;
-  --wuerzburg-text: #1a1a1a;
-  --wuerzburg-muted: #6a6a6a;
+  --wuerzburg-rot: #AD0E36;
+  --wuerzburg-rot-dunkel: #8A0B2B;
+  --wuerzburg-rot-soft: #FBE9EE;
+  --wuerzburg-orange: #FF680E;
+  --wuerzburg-text: #2D2D2D;
+  --wuerzburg-muted: #6b6b6b;
   --error: #b00020;
   --ok: #006a4e;
-  --grey-line: #d6d6d6;
-  --grey-line-light: #e8e8e8;
-  --grey-bg: #f4f5f7;
-  --container-max: 960px;
-  --form-max: 720px;
+  --grey-line: #e5e5e5;
+  --grey-line-light: #f0f0f0;
+  --grey-bg: #fafafa;
+  --container-max: 1240px;
+  --form-max: 760px;
 }
 
 * { box-sizing: border-box; }
+html, body, #app { min-height: 100%; }
 html { scroll-behavior: smooth; }
 
 body {
-  font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: var(--grey-bg);
+  /* Helvetica-Stack analog UE0 (wuerzburg.de-Anmutung), kein „Open Sans" mehr */
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background: #ffffff;
   color: var(--wuerzburg-text);
   margin: 0;
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
-body::before {
-  content: "";
-  display: block;
-  height: 4px;
+a { color: var(--wuerzburg-rot); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { color: var(--wuerzburg-rot-dunkel); }
+
+/* ===== Top-Akzent (3px Würzburg-Rot — Marker aller Stadt-Wü-Subdomains) ===== */
+.wue-accent {
+  height: 3px;
   background: var(--wuerzburg-rot);
 }
 
-/* ===== Header ===== */
-.stadt-header { background: white; border-bottom: 1px solid var(--grey-line); }
-.stadt-header-inner {
-  max-width: var(--container-max); margin: 0 auto; padding: 1rem 1.5rem;
-  display: flex; justify-content: space-between; align-items: center;
-  gap: 1.5rem; flex-wrap: wrap;
+/* ===== Header (UE0-konform) ===== */
+.page-header {
+  background: #fff;
+  border-bottom: 1px solid var(--grey-line);
 }
-.stadt-brand { display: flex; align-items: center; gap: .9rem; text-decoration: none; color: inherit; }
-.stadt-wappen { width: 40px; height: 44px; flex-shrink: 0; }
-.stadt-wortmarke { font-weight: 700; font-size: 1.05rem; line-height: 1.15; }
-.stadt-tagline { font-size: .8rem; color: var(--wuerzburg-muted); margin-top: .1rem; }
-.sprach-nav { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: var(--wuerzburg-muted); }
-.sprach-nav select { padding: .25rem .5rem; border: 1px solid var(--grey-line); border-radius: 3px; }
-
-.stadt-subnav { background: #fff; border-bottom: 1px solid var(--grey-line-light); font-size: .82rem; color: var(--wuerzburg-muted); }
-.stadt-subnav-inner { max-width: var(--container-max); margin: 0 auto; padding: .6rem 1.5rem; }
-.stadt-subnav-inner a { color: var(--wuerzburg-grau); text-decoration: none; }
-.stadt-subnav-inner a:hover { text-decoration: underline; }
-.stadt-subnav-sep { margin: 0 .5rem; color: var(--grey-line); }
-
-/* ===== Layout ===== */
-.page { max-width: var(--container-max); margin: 0 auto; padding: 1.5rem; }
-.form-wrap { max-width: var(--form-max); margin: 0 auto; }
-
-h1 { font-size: 1.6rem; margin: 0 0 .5rem; color: var(--wuerzburg-text); }
-h2 { font-size: 1.2rem; margin: 1.5rem 0 .5rem; color: var(--wuerzburg-rot-dunkel); }
-h3 { font-size: 1rem; margin: 1rem 0 .25rem; }
-
-.lead { color: var(--wuerzburg-muted); margin: 0 0 1.5rem; }
-
-/* ===== FB-Karten (Wahl-Page) ===== */
-.fb-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem; margin: 1.5rem 0;
+.page-header-inner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 1.4rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
 }
-.fb-card {
-  background: white; border: 2px solid var(--grey-line); border-radius: 6px;
-  padding: 1.25rem; text-align: left; cursor: pointer; transition: all .15s;
-  display: flex; flex-direction: column; gap: .5rem; font-family: inherit;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  text-decoration: none;
   color: inherit;
 }
-.fb-card:hover, .fb-card:focus {
-  border-color: var(--wuerzburg-rot); transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(173, 14, 54, .12); outline: none;
+.brand:hover { color: inherit; }
+.brand-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
-.fb-icon { font-size: 2rem; }
-.fb-titel { font-weight: 700; font-size: 1.05rem; color: var(--wuerzburg-rot-dunkel); }
-.fb-kurz { font-size: .85rem; color: var(--wuerzburg-muted); }
-.fb-desc { font-size: .9rem; }
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.brand-stadt {
+  font-size: 18px;
+  color: var(--wuerzburg-text);
+}
+.brand-name {
+  font-size: 28px;
+  color: var(--wuerzburg-rot);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.page-nav { display: flex; align-items: center; gap: 1rem; }
+
+/* ===== Sprach-Dropdown (semantisches native <select>) ===== */
+.lang-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: 14px;
+  color: var(--wuerzburg-muted);
+  cursor: pointer;
+}
+.lang-icon { font-size: 16px; line-height: 1; }
+.lang-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: #fff
+    url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3e%3cpath fill='%23AD0E36' d='M0 0l5 6 5-6z'/%3e%3c/svg%3e")
+    no-repeat right 10px center;
+  border: 1px solid var(--grey-line);
+  border-radius: 999px;
+  padding: 7px 28px 7px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wuerzburg-text);
+  cursor: pointer;
+  min-width: 9.5rem;
+}
+.lang-select:hover { border-color: var(--wuerzburg-rot); }
+.lang-select:focus-visible {
+  outline: none;
+  border-color: var(--wuerzburg-rot);
+  box-shadow: 0 0 0 3px rgba(173, 14, 54, .15);
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
+}
+
+/* ===== Fallback-Banner unter dem Header ===== */
+.lang-fallback {
+  background: #fff8ec;
+  border-bottom: 1px solid #f3e0b8;
+  color: #6a4a05;
+}
+.lang-fallback-inner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: .55rem 1.5rem;
+  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1.25rem;
+  align-items: baseline;
+}
+.lang-fallback strong { font-weight: 600; }
+.lang-fallback .lang-fallback-de {
+  color: #8a6a30;
+  font-style: italic;
+}
+.lang-fallback-inner::before {
+  /* dezenter Info-Indicator als erstes Flex-Kind */
+  content: "i";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--wuerzburg-orange);
+  color: #fff;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 12px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* ===== Breadcrumb ===== */
+.breadcrumb { border-bottom: 1px solid var(--grey-line-light); }
+.breadcrumb-inner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0.6rem 1.5rem;
+  font-size: 14px;
+  color: var(--wuerzburg-muted);
+}
+.breadcrumb a { color: var(--wuerzburg-muted); text-decoration: none; }
+.breadcrumb a:hover { color: var(--wuerzburg-rot); text-decoration: underline; }
+.bc-sep { color: #b0b0b0; margin: 0 8px; }
+
+/* ===== Main / Layout ===== */
+.page-main {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+}
+.form-wrap { max-width: var(--form-max); margin: 0 auto; }
+/* Einstiegsseite (FBWahl): nutzt die volle Container-Breite — Karten
+   stehen links/rechts in einer Flucht mit dem Header. */
+.wahl-wrap { max-width: var(--container-max); margin: 0 auto; }
+.wahl-wrap .fb-grid {
+  /* Genau 2 Spalten, damit die Karten so breit wie der halbe Header sind. */
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (max-width: 700px) {
+  .wahl-wrap .fb-grid { grid-template-columns: 1fr; }
+}
+
+.page-titel {
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--wuerzburg-text);
+  margin: 0 0 0.6rem;
+}
+.page-untertitel {
+  font-size: 16px;
+  color: #4a4a4a;
+  margin: 0 0 1.8rem;
+}
+
+h1 { font-size: 28px; font-weight: 600; margin: 0 0 .6rem; color: var(--wuerzburg-text); }
+h2 { font-size: 18px; font-weight: 600; margin: 1.6rem 0 .6rem; color: var(--wuerzburg-text); }
+h3 { font-size: 15px; font-weight: 600; margin: 1rem 0 .35rem; }
+
+.lead { color: var(--wuerzburg-muted); margin: 0 0 1.5rem; font-size: 15px; }
+
+/* ===== UE1-Einstiegs-Hero (deutliche Differenzierung zu UE0) ===== */
+/* UE0 = PDF-Upload-Portal · UE1 = Webformular — der Bürger soll den
+   Unterschied sofort sehen, ohne die URL zu lesen. */
+.ue1-hero {
+  background: linear-gradient(135deg, #fff 0%, var(--wuerzburg-rot-soft) 100%);
+  border: 1px solid var(--grey-line);
+  border-left: 4px solid var(--wuerzburg-rot);
+  border-radius: 4px;
+  padding: 1.5rem 1.75rem;
+  margin: 0 0 1.5rem;
+}
+.ue1-hero-eyebrow {
+  display: inline-block;
+  background: var(--wuerzburg-rot);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 9px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  margin-bottom: .65rem;
+}
+.ue1-hero h1 {
+  margin: 0 0 .4rem;
+  font-size: 26px;
+  color: var(--wuerzburg-text);
+}
+.ue1-hero p {
+  margin: 0 0 1rem;
+  color: #4a4a4a;
+  font-size: 14.5px;
+  max-width: 60ch;
+}
+.ue1-pillen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+  margin-top: .25rem;
+}
+.ue1-pille {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  background: #fff;
+  border: 1px solid var(--grey-line);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  color: var(--wuerzburg-text);
+  font-weight: 500;
+}
+.ue1-pille::before {
+  content: "✓";
+  color: var(--ok);
+  font-weight: 700;
+}
+
+/* Cross-Link-Hinweis nach UE0 — bewusst kleiner als der Hero */
+.ue1-crosslink {
+  background: #f7f7f7;
+  border: 1px solid var(--grey-line);
+  border-radius: 4px;
+  padding: .75rem 1rem;
+  margin: 0 0 2rem;
+  font-size: 13.5px;
+  color: var(--wuerzburg-muted);
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  flex-wrap: wrap;
+}
+.ue1-crosslink strong { color: var(--wuerzburg-text); font-weight: 600; }
+.ue1-crosslink a {
+  font-weight: 600;
+  color: var(--wuerzburg-rot);
+  white-space: nowrap;
+}
+
+/* Optionaler 3-Phasen-Preview-Stepper (zeigt Bürger schon vor der FB-Wahl,
+   was kommt — Transparenz) */
+.phasen-preview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .5rem;
+  margin: 0 0 2rem;
+  font-size: 12.5px;
+  color: var(--wuerzburg-muted);
+}
+.phasen-preview > div {
+  background: #fff;
+  border: 1px solid var(--grey-line);
+  border-radius: 4px;
+  padding: .65rem .85rem;
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+}
+.phasen-preview .pp-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--wuerzburg-rot-soft);
+  color: var(--wuerzburg-rot);
+  font-weight: 700;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* ===== FB-Karten (Wahl-Page) — Layout identisch zu UE0 ===== */
+.fb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 2rem;
+}
+.fb-card {
+  background: white;
+  border: 1px solid var(--grey-line);
+  border-radius: 4px;
+  padding: 1.1rem 1.25rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+  font-family: inherit;
+  color: inherit;
+  position: relative;
+}
+.fb-card:hover, .fb-card:focus {
+  border-color: var(--wuerzburg-rot);
+  box-shadow: 0 2px 10px rgba(173, 14, 54, .08);
+  outline: none;
+  transform: translateY(-1px);
+}
+.fb-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: .75rem;
+}
+/* Outline-Pill (UE1-Variante) — UE0 nutzt eine gefüllte rote Pille,
+   UE1 die Outline-Variante, damit beim Querblick erkennbar wird:
+   anderer Einstieg, anderes Werkzeug. */
+.fb-card-marker {
+  display: inline-block;
+  background: transparent;
+  color: var(--wuerzburg-rot);
+  border: 1.5px solid var(--wuerzburg-rot);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.fb-card-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--wuerzburg-text);
+  line-height: 1.25;
+}
+.fb-card-desc {
+  font-size: 13.5px;
+  color: var(--wuerzburg-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.fb-card-cta {
+  margin-top: auto;
+  padding-top: .5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--wuerzburg-rot);
+}
+.fb-card-arrow {
+  font-size: 18px;
+  line-height: 1;
+}
 
 /* ===== Wizard-Hinweis ===== */
 .wizard-link-box {
-  background: white; border: 1px dashed var(--wuerzburg-grau); border-radius: 6px;
-  padding: 1rem; margin: 1rem 0; text-align: center;
+  background: #fafafa;
+  border: 1px solid var(--grey-line);
+  border-radius: 4px;
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  text-align: center;
 }
-.wizard-link-box button {
-  background: none; border: none; color: var(--wuerzburg-rot); cursor: pointer;
-  font-size: 1rem; font-weight: 600; text-decoration: underline; padding: 0;
+.wizard-questions {
+  background: white;
+  border: 1px solid var(--grey-line);
+  padding: 1rem 1.25rem;
+  margin-top: .5rem;
+  border-radius: 4px;
+  text-align: left;
 }
-.wizard-questions { background: white; border: 1px solid var(--grey-line); padding: 1rem; margin-top: .5rem; border-radius: 6px; }
-.wizard-answer { display: block; margin: .25rem 0; }
+.wizard-answer { display: block; margin: .35rem 0; font-size: 14px; }
+.wizard-answer input { margin-right: .5rem; }
 
 /* ===== Forms ===== */
 fieldset {
-  background: white; border: 1px solid var(--grey-line); border-radius: 6px;
-  padding: 1rem 1.5rem 1.5rem; margin: 0 0 1.5rem;
+  background: white; border: 1px solid var(--grey-line); border-radius: 4px;
+  padding: 1rem 1.5rem 1.5rem; margin: 0 0 1.25rem;
 }
-legend { font-weight: 700; color: var(--wuerzburg-rot-dunkel); padding: 0 .5rem; }
-.form-row { display: grid; gap: .25rem; margin: .75rem 0; }
+legend {
+  font-weight: 600; color: var(--wuerzburg-text); padding: 0 .5rem;
+  font-size: 14px; letter-spacing: 0.02em; text-transform: uppercase;
+}
+.form-row { display: grid; gap: .3rem; margin: .9rem 0; }
 .form-row.two-col { grid-template-columns: 1fr 1fr; gap: 1rem; }
 .form-row.three-col { grid-template-columns: 1fr 2fr 1fr; gap: 1rem; }
-label { font-weight: 600; font-size: .9rem; }
-label .pflicht { color: var(--wuerzburg-rot); }
+label { font-weight: 600; font-size: 14px; color: var(--wuerzburg-text); }
+label .pflicht { color: var(--wuerzburg-rot); margin-left: 2px; }
+
+/* Input-Wrapper für ✓/×-Icon rechts im Feld (Live-Validation) */
+.input-wrap { position: relative; }
+.input-wrap > input { padding-right: 2.25rem; }
+.input-state-icon {
+  position: absolute;
+  right: .65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  font-weight: 700;
+  pointer-events: none;
+  line-height: 1;
+}
+.input-state-icon.ok { color: var(--ok); }
+.input-state-icon.err { color: var(--error); }
+
 input[type=text], input[type=email], input[type=tel], input[type=url],
 input[type=number], input[type=date], select, textarea {
-  width: 100%; padding: .5rem .75rem; border: 1px solid var(--grey-line);
-  border-radius: 3px; font: inherit; background: white;
+  width: 100%; padding: .55rem .75rem; border: 1px solid var(--grey-line);
+  border-radius: 3px; font: inherit; font-size: 14px; background: white;
+  color: var(--wuerzburg-text);
+  transition: border-color .12s, box-shadow .12s;
 }
 input:focus, select:focus, textarea:focus {
   outline: none; border-color: var(--wuerzburg-rot);
@@ -127,22 +476,199 @@ input:focus, select:focus, textarea:focus {
 input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] {
   border-color: var(--error);
 }
-.feldhinweis { font-size: .8rem; color: var(--wuerzburg-muted); }
-.fehlermeldung { font-size: .8rem; color: var(--error); margin-top: .25rem; }
-.zeichenzaehler { font-size: .75rem; color: var(--wuerzburg-muted); text-align: right; }
+input[data-valid="true"], select[data-valid="true"], textarea[data-valid="true"] {
+  border-color: var(--ok);
+}
+.feldhinweis { font-size: 12.5px; color: var(--wuerzburg-muted); margin-top: .25rem; }
+.fehlermeldung { font-size: 12.5px; color: var(--error); margin-top: .25rem; font-weight: 500; }
+.zeichenzaehler { font-size: 12px; color: var(--wuerzburg-muted); text-align: right; }
 .checkbox-row { display: flex; align-items: center; gap: .5rem; }
 .checkbox-row input { width: auto; }
 
+/* ===== Collapsible Section (Accordion-Pattern für lange Formulare) ===== */
+.coll {
+  background: #fff;
+  border: 1px solid var(--grey-line);
+  border-radius: 4px;
+  margin: 0 0 .85rem;
+  overflow: hidden;
+  transition: border-color .12s;
+}
+.coll.is-open {
+  border-color: #c8c8c8;
+}
+.coll-head {
+  display: flex;
+  align-items: center;
+  gap: .9rem;
+  width: 100%;
+  padding: .9rem 1.1rem;
+  background: #fff;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--wuerzburg-text);
+  transition: background .1s;
+}
+.coll-head:hover { background: #fafafa; }
+.coll-head:focus-visible {
+  outline: 2px solid var(--wuerzburg-rot);
+  outline-offset: -2px;
+}
+.coll.is-open .coll-head {
+  background: #fafafa;
+  border-bottom: 1px solid var(--grey-line-light);
+}
+.coll-nummer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--wuerzburg-rot-soft);
+  color: var(--wuerzburg-rot);
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.coll.is-open .coll-nummer {
+  background: var(--wuerzburg-rot);
+  color: #fff;
+}
+.coll-titel-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+}
+.coll-titel {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--wuerzburg-text);
+  letter-spacing: 0.01em;
+}
+.coll-beschreibung {
+  font-size: 12.5px;
+  color: var(--wuerzburg-muted);
+  margin-top: 2px;
+}
+.coll-chevron {
+  display: inline-block;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--wuerzburg-muted);
+  transform: rotate(90deg);
+  transition: transform .15s, color .12s;
+  flex-shrink: 0;
+}
+.coll.is-open .coll-chevron {
+  transform: rotate(-90deg);
+  color: var(--wuerzburg-rot);
+}
+
+/* Status-Badge rechts (vor dem Chevron) */
+.coll-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.coll-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+}
+.coll-status-ok {
+  background: #e6f5ee;
+  color: var(--ok);
+}
+.coll-status-ok .coll-status-icon {
+  background: var(--ok);
+  color: #fff;
+}
+.coll-status-todo {
+  background: #f3f3f3;
+  color: var(--wuerzburg-muted);
+}
+.coll-status-error {
+  background: #fde7eb;
+  color: var(--error);
+}
+.coll-status-error .coll-status-icon {
+  background: var(--error);
+  color: #fff;
+}
+.coll-status-info {
+  background: var(--wuerzburg-rot-soft);
+  color: var(--wuerzburg-rot-dunkel);
+}
+
+.coll-panel-inner {
+  padding: 1rem 1.25rem 1.25rem;
+}
+/* Form-Row braucht im Panel etwas weniger Top-Margin (Panel-Padding reicht). */
+.coll-panel-inner .form-row:first-of-type { margin-top: .25rem; }
+
+/* Konditional sichtbarer Block (FB-III Varianten-spezifische Felder) */
+.kondblock {
+  border-left: 3px solid var(--wuerzburg-rot);
+  padding: .75rem 1rem .25rem;
+  background: var(--wuerzburg-rot-soft);
+  margin: 1rem 0;
+  border-radius: 0 4px 4px 0;
+}
+.kondblock-titel {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--wuerzburg-rot-dunkel); margin: 0 0 .5rem;
+}
+
 /* ===== Buttons ===== */
-.btn { padding: .6rem 1.25rem; border: 1px solid transparent; border-radius: 3px;
-  font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+.btn, .btn-primary, .btn-secondary {
+  padding: .65rem 1.4rem; border: 1px solid transparent; border-radius: 3px;
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  text-decoration: none; display: inline-block; line-height: 1.2;
+}
 .btn-primary { background: var(--wuerzburg-rot); color: white; }
-.btn-primary:hover { background: var(--wuerzburg-rot-dunkel); }
-.btn-primary:disabled { background: var(--grey-line); cursor: not-allowed; }
+.btn-primary:hover { background: var(--wuerzburg-rot-dunkel); color: #fff; text-decoration: none; }
+.btn-primary:disabled { background: #b0b0b0; cursor: not-allowed; }
 .btn-secondary { background: white; color: var(--wuerzburg-rot); border-color: var(--wuerzburg-rot); }
-.btn-secondary:hover { background: #fff3f5; }
-.btn-row { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; }
-.btn-mini { padding: .3rem .65rem; font-size: .85rem; }
+.btn-secondary:hover { background: var(--wuerzburg-rot-soft); text-decoration: none; }
+.btn-row { display: flex; justify-content: space-between; gap: 1rem; margin-top: 2rem; }
+.btn-mini { padding: .35rem .75rem; font-size: 13px; }
+
+/* ===== Helfer-Import (PDF → KI-Extraktion) ===== */
+.helfer-import-zone {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .65rem .85rem;
+  background: var(--wuerzburg-rot-soft);
+  border: 1px dashed var(--wuerzburg-rot);
+  border-radius: 4px;
+  margin-bottom: .75rem;
+  flex-wrap: wrap;
+}
+.helfer-import-hint {
+  font-size: 12.5px;
+  color: var(--wuerzburg-muted);
+  flex: 1 1 14rem;
+  min-width: 0;
+}
 
 /* ===== Helfer-Tabelle ===== */
 .helfer-tabelle { width: 100%; border-collapse: collapse; margin-top: .5rem; font-size: .85rem; }
@@ -162,31 +688,149 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 .anlage-titel { font-weight: 600; }
 .anlage-desc { font-size: .85rem; color: var(--wuerzburg-muted); margin-bottom: .5rem; }
 
-/* ===== Progress ===== */
-.progress {
-  background: white; border-bottom: 1px solid var(--grey-line);
-  padding: .5rem 1.5rem; font-size: .85rem; color: var(--wuerzburg-muted);
+/* ===== Stepper (3-Phasen-Indikator) ===== */
+.stepper {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  max-width: var(--form-max);
+  margin: 0 auto 2rem;
+  padding: 0;
+  list-style: none;
 }
-.progress-inner { max-width: var(--container-max); margin: 0 auto; display: flex; gap: 1rem; align-items: center; }
-.progress-track { flex: 1; height: 6px; background: var(--grey-line-light); border-radius: 3px; overflow: hidden; }
-.progress-fill { height: 100%; background: var(--wuerzburg-rot); transition: width .25s; }
+.stepper li {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  padding: 0 .25rem;
+  font-size: 13px;
+  text-align: center;
+  color: var(--wuerzburg-muted);
+}
+.stepper-bubble {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--grey-line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--wuerzburg-muted);
+  z-index: 1;
+}
+.stepper li.is-done .stepper-bubble {
+  background: var(--wuerzburg-rot);
+  border-color: var(--wuerzburg-rot);
+  color: #fff;
+}
+.stepper li.is-done .stepper-bubble::after { content: "✓"; }
+.stepper li.is-done .stepper-bubble > span { display: none; }
+.stepper li.is-active .stepper-bubble {
+  border-color: var(--wuerzburg-rot);
+  color: var(--wuerzburg-rot);
+  box-shadow: 0 0 0 4px var(--wuerzburg-rot-soft);
+}
+.stepper li.is-active .stepper-label {
+  color: var(--wuerzburg-text);
+  font-weight: 600;
+}
+.stepper-label { line-height: 1.25; max-width: 11rem; }
+/* Verbindungslinie zwischen den Bubbles */
+.stepper li::before, .stepper li::after {
+  content: "";
+  position: absolute;
+  top: 15px; /* halbe Bubble-Höhe */
+  height: 2px;
+  background: var(--grey-line);
+  z-index: 0;
+}
+.stepper li::before { left: 0; right: 50%; }
+.stepper li::after { left: 50%; right: 0; }
+.stepper li:first-child::before { display: none; }
+.stepper li:last-child::after { display: none; }
+.stepper li.is-done::before, .stepper li.is-done::after,
+.stepper li.is-active::before {
+  background: var(--wuerzburg-rot);
+}
 
-/* ===== Variante-Auswahl (FB III) ===== */
-.variante-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .75rem; margin: .75rem 0; }
+/* ===== Variante-Auswahl (FB III) — gleiche Optik wie FB-Karten (Outline) ===== */
+.variante-grid {
+  display: grid;
+  /* Genau 2 Spalten → 2×2-Anordnung für 4 Varianten (passt visuell, kein 3+1) */
+  grid-template-columns: repeat(2, 1fr);
+  gap: .75rem;
+  margin: 1rem 0 1.5rem;
+}
+@media (max-width: 600px) {
+  .variante-grid { grid-template-columns: 1fr; }
+}
 .variante-card {
-  background: white; border: 2px solid var(--grey-line); border-radius: 6px;
-  padding: .85rem; cursor: pointer; font-family: inherit; text-align: left;
+  background: white;
+  border: 1px solid var(--grey-line);
+  border-radius: 4px;
+  padding: .9rem 1rem;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  transition: border-color .12s, box-shadow .12s;
 }
-.variante-card.selected { border-color: var(--wuerzburg-rot); background: #fff3f5; }
-.variante-card:hover { border-color: var(--wuerzburg-rot); }
-.variante-card .icon { font-size: 1.5rem; }
-.variante-card .label { font-weight: 600; margin: .25rem 0; }
-.variante-card .grenze { font-size: .75rem; color: var(--wuerzburg-muted); }
+.variante-card:hover {
+  border-color: var(--wuerzburg-rot);
+  box-shadow: 0 2px 8px rgba(173, 14, 54, .08);
+}
+.variante-card.selected {
+  border-color: var(--wuerzburg-rot);
+  background: var(--wuerzburg-rot-soft);
+}
+.variante-card .vk-head { display: flex; align-items: baseline; gap: .55rem; }
+/* Outline-Pill — analog .fb-card-marker auf der Wahl-Seite */
+.variante-card .vk-marker {
+  display: inline-block;
+  background: transparent;
+  color: var(--wuerzburg-rot);
+  border: 1.5px solid var(--wuerzburg-rot);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 1px 7px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.variante-card .vk-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--wuerzburg-text);
+  line-height: 1.25;
+}
+.variante-card .vk-grenze {
+  font-size: 12.5px;
+  color: var(--wuerzburg-muted);
+}
 
-/* ===== Footer ===== */
-.stadt-footer { background: var(--wuerzburg-text); color: #ccc; margin-top: 3rem; padding: 2rem 0; }
-.stadt-footer-inner { max-width: var(--container-max); margin: 0 auto; padding: 0 1.5rem; font-size: .85rem; }
-.stadt-footer a { color: var(--wuerzburg-orange); }
+/* ===== Footer (UE0-konform) ===== */
+.page-footer {
+  background: var(--wuerzburg-text);
+  color: #ccc;
+  margin-top: 3rem;
+  padding: 2rem 0;
+}
+.page-footer-inner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.page-footer a { color: var(--wuerzburg-orange); }
 
 /* ===== Übersicht ===== */
 .uebersicht-box {
