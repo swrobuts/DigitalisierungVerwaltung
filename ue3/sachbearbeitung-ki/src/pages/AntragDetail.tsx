@@ -25,6 +25,7 @@ import { useParams, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAntrag } from "../hooks/useAntrag";
 import { useBescheide, type BescheidRow } from "../hooks/useBescheide";
+import { useSession } from "../hooks/useSession";
 import { ManuellePruefungProvider } from "../hooks/useManuellePruefung";
 import { DemoDatenBanner } from "../components/DemoDatenBanner";
 import { StatusBadge } from "../components/StatusBadge";
@@ -78,10 +79,12 @@ export function AntragDetail() {
   const {
     bescheide,
     error: bescheidError,
+    erstelleBescheid,
     downloadBescheidPdf,
     downloadBescheidDocx,
     loeschBescheid,
   } = useBescheide(id);
+  const { session } = useSession();
   const [confirmTo, setConfirmTo] = useState<Status | null>(null);
   const [kommentar, setKommentar] = useState("");
   const [busy, setBusy] = useState(false);
@@ -114,8 +117,36 @@ export function AntragDetail() {
     if (!confirmTo) return;
     setBusy(true);
     const res = await changeStatus(confirmTo, kommentar);
+    if (res.error) {
+      setBusy(false);
+      alert("Fehler: " + res.error);
+      return;
+    }
+    // Bei einer Entscheidungs-Transition (bewilligt / abgelehnt / rueckfrage)
+    // direkt einen Bescheid erstellen — die KI-Subsumtion läuft im
+    // pruefung-Backend, der Halluzinations-Validator ebenfalls.
+    // Das DOCX wird danach automatisch in einem neuen Tab geöffnet, damit der
+    // Sachbearbeiter sofort sieht, was rauskommt (frühere UX, ungewollt
+    // weggebrochen).
+    if (
+      confirmTo === "bewilligt" ||
+      confirmTo === "abgelehnt" ||
+      confirmTo === "rueckfrage"
+    ) {
+      const r = await erstelleBescheid({
+        entscheidung: confirmTo,
+        ausgestellt_von: session?.user?.email ?? null,
+        bearbeiter_kommentar: kommentar || null,
+      });
+      if (r.error) {
+        // Status ist schon gesetzt — User muss wissen, dass nur der Bescheid hängt
+        alert("Status gesetzt, aber Bescheid-Erstellung fehlgeschlagen:\n" + r.error);
+      } else if (r.result?.id) {
+        const url = await downloadBescheidDocx(r.result.id);
+        if (url) window.open(url, "_blank", "noopener");
+      }
+    }
     setBusy(false);
-    if (res.error) alert("Fehler: " + res.error);
     setConfirmTo(null);
     setKommentar("");
   }
