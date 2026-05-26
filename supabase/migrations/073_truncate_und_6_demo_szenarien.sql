@@ -140,7 +140,7 @@ with neu as (
     'Klaus-Dieter Müller',
     'Sanderring', '8', '97070', 'Würzburg',
     '0931 55512-99', 'demo-fbi-003@privat.example',
-    'Volksbank Raiffeisenbank', 'DE21790200760027913168', 'GENODEF1WUE',
+    'Volksbank Raiffeisenbank', 'DE87790900003456789012', 'GENODEF1WUE',
     'eingegangen',
     '2026-03-28 17:55:00+01', 'de'
   ) returning id
@@ -177,7 +177,7 @@ with neu as (
     'Pfarrer Michael Klein',
     'Friedrich-Ebert-Ring', '25', '97072', 'Würzburg',
     '0931 78403-0', 'demo-fbiii-004@pfarrei-st-adalbero.example',
-    'LIGA Bank', 'DE74750903000002154780', 'GENODEF1M05',
+    'LIGA Bank', 'DE19750903004567890123', 'GENODEF1M05',
     'eingegangen',
     '2026-05-15 11:08:00+02', 'de'
   ) returning id
@@ -219,7 +219,7 @@ with neu as (
     'Grombühlstraße', '23', '97080', 'Würzburg',
     '0931 80487-0', 'demo-fbiii-005@diakonie-wuerzburg.example',
     'https://www.diakonie-wuerzburg.de',
-    'Evangelische Bank', 'DE74520604100000091190', 'GENODEF1EK1',
+    'Evangelische Bank', 'DE62520604105678901234', 'GENODEF1EK1',
     'eingegangen',
     '2026-03-25 10:32:00+01', 'de'
   ) returning id
@@ -230,7 +230,7 @@ insert into apl.fb_iii_variante (
   d_ehrenamt_personen_jsonb
 )
 select id, 'D',
-  'Sarah Weber', 19.5, 84.5,
+  'Sarah Weber (50%% Stelle; weitere 50%% finanziert ueber Bayer. Quartiersbuero-Programm 2025/2026 — bitte Doppelfoerderung pruefen)', 19.5, 84.5,
   '[{"name":"Helga Brunner","stunden_monat":8},{"name":"Manfred Sailer","stunden_monat":6},{"hinweis":"Hauptamt Sarah Weber wird parallel ueber Bayerisches Quartiersbuero-Programm 2025/2026 finanziert (50 % Stelle)."}]'::jsonb
 from neu;
 
@@ -253,7 +253,7 @@ with neu as (
     'Ayşe Demir',
     'Sanderring', '14', '97070', 'Würzburg',
     '0931 12345-67', 'demo-fbiv-006@tds-wuerzburg.example',
-    'Sparkasse Mainfranken', 'DE92790500000045132198', 'BYLADEM1SWU',
+    'Sparkasse Mainfranken', 'DE51790500006789012345', 'BYLADEM1SWU',
     'eingegangen',
     '2026-03-30 16:18:00+01', 'de'
   ) returning id

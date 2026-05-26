@@ -106,15 +106,25 @@ class FbIiiPlugin:
         norm_statements: list[dict[str, Any]],
     ) -> str:
         relevante = filter_norm_statements_for_fb(norm_statements, self.fb_id)
-        # Wenn Variante bekannt: zusätzlich nach fb_iii_variante filtern
-        variante = antrag.get("variante")
+        # Wenn Variante bekannt: zusätzlich nach fb_iii_variante filtern.
+        # Im Multi-FB-Schema (apl) liegen FB-III-Felder unter antrag["fb_details"].
+        # Wir akzeptieren beide Ablagen (Legacy + Multi-FB), damit der Filter
+        # in beiden Code-Pfaden greift — sonst rendert das LLM Statements zu
+        # Variante A/B/C als „passt nicht" und der UI macht daraus 3 Pseudo-
+        # Verstöße bei einem Variante-D-Antrag.
+        fb_details = antrag.get("fb_details") or {}
+        variante = antrag.get("variante") or fb_details.get("variante")
         if variante:
             relevante = [
                 s for s in relevante
                 if s.get("fb_iii_variante") in (variante, None)
             ]
         norm_block = norm_statements_to_prompt_block(relevante)
-        hoechst = self.get_hoechstgrenze(variante, antrag.get("c_treffen_schwelle"))
+        c_treffen_schwelle = (
+            antrag.get("c_treffen_schwelle")
+            or fb_details.get("c_treffen_schwelle")
+        )
+        hoechst = self.get_hoechstgrenze(variante, c_treffen_schwelle)
         hoechst_hinweis = (
             f"Förderhöchstgrenze für Variante {variante}: {hoechst} €/Jahr"
             if hoechst is not None else
