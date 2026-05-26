@@ -17,9 +17,20 @@ from pruefung.models import Befund
 from pruefung.voyage_embed import semantic_search
 
 
-SYSTEM_PROMPT = """Du bist Verwaltungs-Prüfer der Stadt Würzburg.
-Du prüfst einen APL2-Antrag (Altenhilfeplan Nr. 2 — Altentagesstätten) gegen
-die AHP-Förderrichtlinie der Stadt Würzburg.
+_FB_LABEL = {
+    "I":   "Aufbau niedrigschwelliger Angebote",
+    "II":  "Pauschale Förderung bürgerschaftlichen Engagements",
+    "III": "Treffpunkte, Begegnungsstätten, Quartiersmanagement",
+    "IV":  "Struktur- und Schwerpunktförderung",
+}
+
+
+def _build_system_prompt(fb: str | None) -> str:
+    fb_label = _FB_LABEL.get(fb or "", "Allgemeine Förderung")
+    fb_id = fb or "?"
+    return f"""Du bist Verwaltungs-Prüfer der Stadt Würzburg.
+Du prüfst einen Antrag im Förderbereich {fb_id} — {fb_label} — gegen die
+AHP-Förderrichtlinie der Stadt Würzburg (Beschluss vom 27.03.2025).
 
 Die Richtlinie liegt als hierarchischer Doc-Tree vor — du navigierst sie via Tools.
 
@@ -32,7 +43,7 @@ Vorgehen:
 
 Pro Befund:
 - schwere: "verstoss" oder "hinweis"
-- feld: betroffenes Antragsfeld (z.B. "miete_jahr_euro"), oder weglassen
+- feld: betroffenes Antragsfeld (z.B. "fb_details.personalkosten_euro"), oder weglassen
 - beschreibung: knapp deutsch, was beanstandet wird
 - zitat: 1 Satz aus der Richtlinie (möglichst wörtlich)
 - section_path: Pfad zur zitierten Section (z.B. "§ 4.2")
@@ -40,14 +51,19 @@ Pro Befund:
 
 Antworte FINAL mit reinem JSON in einem Code-Block:
 ```json
-{"befunde": [...]}
+{{"befunde": [...]}}
 ```
-Wenn keine Befunde: {"befunde": []}.
+Wenn keine Befunde: {{"befunde": []}}.
 
-Wichtig: erfinde keine Paragraphen. Wenn du keine passende Vorgabe in der
-Richtlinie findest, melde KEIN Verstoss (nur ein hinweis mit niedriger Konfidenz
-oder gar nichts).
+Wichtig (Halluzinations-Schutz): erfinde keine Paragraphen, keine Werte und
+keine zusätzlichen Quellen. Wenn du keine passende Vorgabe in der Richtlinie
+findest, melde KEIN Verstoss (nur ein hinweis mit niedriger Konfidenz oder
+gar nichts).
 """
+
+
+# Backward-Compat: einige Tests referenzieren SYSTEM_PROMPT direkt.
+SYSTEM_PROMPT = _build_system_prompt(None)
 
 
 TOOLS = [
@@ -127,9 +143,10 @@ async def _run_claude_loop(
         },
     ]
 
+    system_prompt = _build_system_prompt(antrag.get("foerderbereich"))
     for _ in range(15):
         resp = await client.complete(
-            system=SYSTEM_PROMPT,
+            system=system_prompt,
             messages=messages,
             tools=TOOLS,
             max_tokens=4096,
