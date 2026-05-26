@@ -562,6 +562,38 @@ def _extract_ahp_path(paragraph_ref: str | None) -> str | None:
     return m.group(1) if m else None
 
 
+def _apply_legacy_field_aliases(antrag: dict[str, Any]) -> dict[str, Any]:
+    """Mappt neue apl.antraege-Feldnamen auf Legacy-Aliase, die das
+    bestehende Bescheid-Template (templates/bescheid.html.j2) und das
+    DOCX-Render noch erwarten.
+
+    Mapping (neu → legacy-alias):
+      - einrichtung    → name
+      - dachverband    → traeger (Fallback: einrichtung)
+      - bankname       → bankverbindung
+      - submitted_at   → antragsdatum (ISO-Date, nur das Datums-Präfix)
+
+    Nicht-destruktiv: Legacy-Aliase werden nur gesetzt, wenn sie nicht
+    bereits einen Wert haben — so überschreibt der Adapter nichts.
+    """
+    out = dict(antrag)
+    if not out.get("name"):
+        out["name"] = out.get("einrichtung") or out.get("name")
+    if not out.get("traeger"):
+        out["traeger"] = (
+            out.get("dachverband")
+            or out.get("einrichtung")
+            or out.get("traeger")
+        )
+    if not out.get("bankverbindung"):
+        out["bankverbindung"] = out.get("bankname") or out.get("bankverbindung")
+    if not out.get("antragsdatum"):
+        sub = out.get("submitted_at")
+        if sub:
+            out["antragsdatum"] = str(sub)[:10]
+    return out
+
+
 @app.post("/api/bescheid")
 async def bescheid(req: BescheidRequest) -> dict[str, Any]:
     """Erstellt einen Verwaltungsbescheid (PDF + apl.bescheide-Eintrag)
@@ -579,7 +611,7 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
     )
     if not antrag_rows:
         raise HTTPException(404, f"Antrag {req.antrag_id} nicht gefunden")
-    antrag = antrag_rows[0]
+    antrag = _apply_legacy_field_aliases(antrag_rows[0])
 
     # Bescheid-Sperre: solange Zweitprüfung offen oder im Dissens ist, darf
     # noch kein Bescheid erzeugt werden — der Sachbearbeiter muss erst die
@@ -654,14 +686,12 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
 
     # Liste aller AHP-Sections, gegen die geprüft wurde — für die
     # Transparenz-Sektion im Bescheid ("Geprüft gegen folgende AHP-Stellen").
-    # Wir ziehen die paragraph_refs aus ALLEN aktiven Ontologie-Regeln (nicht
-    # nur den verletzten), plus Layer-A-Bezug AHP 3.6, plus Layer-C wenn vorhanden.
-    rules_rows = await db.select(
-        "ontologie_rules",
-        "plan_id=eq.APL2&aktiv=eq.true&select=paragraph_ref",
-    )
+    # Ableitung aus den paragraph_refs ALLER Befunde des Protokolls (auch
+    # Hinweise) — die alte ontologie_rules-Tabelle existiert im neuen
+    # apl-Schema nicht mehr. So enthält die Liste reale AHP-Stellen, gegen
+    # die im konkreten Fall geprüft wurde.
     geprueft_gegen = sorted({
-        r["paragraph_ref"] for r in rules_rows if r.get("paragraph_ref")
+        b["paragraph_ref"] for b in befunde_raw if b.get("paragraph_ref")
     })
 
     # 5) Bescheid-Datensatz anlegen (vor PDF, damit wir die ID kennen)
@@ -793,20 +823,19 @@ async def bescheid_docx(bescheid_id: str) -> Response:
     )
     if not antrag_rows:
         raise HTTPException(404, f"Antrag {b['antrag_id']} nicht gefunden")
-    antrag = antrag_rows[0]
+    antrag = _apply_legacy_field_aliases(antrag_rows[0])
 
     # 3) Befunde direkt aus dem persistierten begruendung_jsonb übernehmen
     #    (sind beim POST /api/bescheid bereits mit Wortlaut + Subsumtion
     #    angereichert worden).
     befunde_for_template = (b.get("begruendung_jsonb") or {}).get("befunde", [])
 
-    # 4) Liste aller geprüften AHP-Stellen (analog POST)
-    rules_rows = await db.select(
-        "ontologie_rules",
-        "plan_id=eq.APL2&aktiv=eq.true&select=paragraph_ref",
-    )
+    # 4) Liste aller geprüften AHP-Stellen — aus den Befunden ableiten
+    #    (ontologie_rules-Tabelle existiert im neuen apl-Schema nicht mehr).
     geprueft_gegen = sorted({
-        r["paragraph_ref"] for r in rules_rows if r.get("paragraph_ref")
+        x["paragraph_ref"]
+        for x in befunde_for_template
+        if x.get("paragraph_ref")
     })
 
     ausgestellt_am = b.get("ausgestellt_am")
@@ -949,36 +978,25 @@ class RegelkatalogToggleRequest(BaseModel):
 
 @app.patch("/api/regelkatalog/{rule_id}/toggle")
 async def regelkatalog_toggle(
-    rule_id: str, req: RegelkatalogToggleRequest,
+    rule_id: str, req: RegelkatalogToggleRequest,  # noqa: ARG001
 ) -> dict[str, Any]:
-    """Schaltet eine Regel im Regelkatalog aktiv/inaktiv. Audit-Spalten
-    werden mitgeschrieben. Stufe-A-Edit nach Spec (Migration 041) —
-    Logik-Änderungen (Stufe C) sind weiterhin Code/Migration-Pflicht.
-
-    Läuft über Service-Role und umgeht damit das Owner-Problem (analog
-    bescheide DELETE)."""
-    if not req.aenderungsgrund.strip():
-        raise HTTPException(400, "Änderungsgrund ist Pflicht (Audit-Trail).")
-    db = SupabaseClient.from_env()
-    rows = await db.select("ontologie_rules", f"id=eq.{rule_id}&select=rule_name,aktiv")
-    if not rows:
-        raise HTTPException(404, f"Regel {rule_id} nicht gefunden")
-    patch = {
-        "aktiv": req.aktiv,
-        "geaendert_am": datetime.now(UTC).isoformat(),
-        "geaendert_von": req.geaendert_von,
-        "aenderungsgrund": req.aenderungsgrund,
-    }
-    updated = await db.update("ontologie_rules", f"id=eq.{rule_id}", patch)
-    return {
-        "rule_id": rule_id,
-        "rule_name": rows[0]["rule_name"],
-        "vorher": rows[0]["aktiv"],
-        "nachher": req.aktiv,
-        "geaendert_von": req.geaendert_von,
-        "aenderungsgrund": req.aenderungsgrund,
-        "updated": updated[0] if updated else None,
-    }
+    """DEPRECATED — apl.ontologie_rules wurde im Multi-FB-Refactor entfernt
+    (Migrationen 060-067). FB-spezifische Konformitäts-Regeln stecken jetzt
+    in den FB-Plugins (pruefung.foerderbereiche.<fb>.check_konformitaet);
+    ein dynamisches Toggle ist ohne separate Persistenz-Tabelle nicht mehr
+    möglich. Endpoint liefert 410 Gone, damit Frontends den Bruch
+    deterministisch erkennen statt auf 500-Serverfehler zu warten."""
+    raise HTTPException(
+        status_code=410,
+        detail={
+            "fehler": (
+                "apl.ontologie_rules existiert nicht mehr. "
+                "FB-spezifische Konformitätsregeln werden jetzt im "
+                "FB-Plugin (pruefung.foerderbereiche.<fb>.check_konformitaet) "
+                "gepflegt — Änderungen erfordern Code-/Migration-PR."
+            ),
+        },
+    )
 
 
 @app.get("/api/compliance/status")
