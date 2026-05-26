@@ -154,11 +154,19 @@ vi.mock("../src/lib/supabase", () => ({
   },
 }));
 
-// AntragViewer aus dem Renderer-Paket flachstubben, damit der Test
-// nicht an FB-Schema-Wiring scheitert.
-vi.mock("@dv/antrag-renderer", () => ({
-  AntragViewer: () => <div data-testid="antrag-viewer">[FB-Renderer-Stub]</div>,
-}));
+// Renderer-Paket teilweise stubben:
+//   - AntragViewer wird komplett ge-stubbt (Test soll nicht an
+//     FB-Schema-Wiring scheitern).
+//   - Bearbeitungsstand, AntragHeader, DocSection, FieldGrid, DocField
+//     werden über `importOriginal` echt mitgeladen, damit das wiederher-
+//     gestellte Layout (Stepper-Labels, §-Sektionen) im Render auftaucht.
+vi.mock("@dv/antrag-renderer", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@dv/antrag-renderer")>();
+  return {
+    ...actual,
+    AntragViewer: () => <div data-testid="antrag-viewer">[FB-Renderer-Stub]</div>,
+  };
+});
 
 // DemoDatenBanner greift auf window.localStorage zu — in der aktuellen
 // Vitest-Config nicht zuverlässig verfügbar. Stubben, der Banner ist für
@@ -179,15 +187,17 @@ describe("AntragDetail (Etappe D — Vollrestoration)", () => {
       </MemoryRouter>,
     );
 
-    // Header
-    expect(screen.getByText("2026-001")).toBeInTheDocument();
+    // Header — Antragsnummer erscheint mehrfach (mini-Header + Aktenzeichen
+    // im AntragHeader/Briefkopf des wiederhergestellten Layouts).
+    expect(screen.getAllByText("2026-001").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("KI-Variante (UE3)")).toBeInTheDocument();
 
-    // Bearbeitungsstand-Stepper (alle 3 Schritt-Labels). 'In Prüfung'
-    // erscheint zweimal — einmal im Stepper, einmal im StatusBadge.
-    expect(screen.getByText("Eingegangen")).toBeInTheDocument();
+    // Bearbeitungsstand-Stepper (alle 3 Phasen-Labels). 'In Prüfung'
+    // erscheint mehrfach — einmal im Stepper, einmal im StatusBadge,
+    // ggf. einmal in der AntragHeader-Statusanzeige (sticky-Header).
+    expect(screen.getAllByText("Eingegangen").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("In Prüfung").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Entschieden")).toBeInTheDocument();
+    expect(screen.getByText("Entscheidung")).toBeInTheDocument();
 
     // AntragMetricsBar (Header-Streifen)
     expect(screen.getByText("Prozess-Metriken")).toBeInTheDocument();

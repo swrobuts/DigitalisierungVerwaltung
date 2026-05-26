@@ -1,8 +1,9 @@
 /**
- * UE2 AntragDetail — Multi-FB-Sicht.
+ * UE2 AntragDetail — Pre-Hard-Cut-Layout-Restore (26.05.2026).
  *
- * Header + Antragsteller + FB-Block-Dispatcher + Anlagen + manuelle
- * Prüfung + Workflow-Sidebar. KEINE KI-Features (das ist UE3).
+ * Manuelle Variante (KEINE KI). Layout spiegelt UE3 (gleiche Komponenten
+ * aus @dv/antrag-renderer), nur die Aside-Spalte ist auf Workflow + Verlauf
+ * + manuelle Prüfungs-Sticky-Notes reduziert.
  */
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -15,11 +16,17 @@ import { FbBadge } from "../components/FbBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
 import { SektionPruefung } from "../components/SektionPruefung";
-import { AntragViewer } from "@dv/antrag-renderer";
+import {
+  AntragViewer,
+  Bearbeitungsstand,
+  AntragHeader,
+  DocSection,
+  FieldGrid,
+  DocField,
+} from "@dv/antrag-renderer";
 import { allowedTransitions, STATUS_LABELS, type Status } from "../lib/workflow";
 import {
   formatDateTime,
-  formatAdresse,
   formatDurchlaufzeit,
   durchlaufzeitAmpel,
   type DurchlaufzeitAmpel,
@@ -111,81 +118,108 @@ export function AntragDetail() {
           </div>
         </header>
 
+        {/* Bearbeitungsstand-Stepper — sticky direkt unter dem schmalen Header */}
+        <div className="px-4 lg:px-8 pt-4 sticky top-[3.5rem] lg:top-[4rem] z-20">
+          <Bearbeitungsstand status={antrag.status} sticky={false} />
+        </div>
+
         <DemoDatenBanner />
 
         <main className="w-full px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <article className="lg:col-span-2 bg-white border border-slate-200 shadow-sm rounded overflow-hidden">
-            <div className="bg-wue-rot text-white px-8 py-3">
-              <div className="font-semibold tracking-[0.2em] text-sm">STADT WÜRZBURG</div>
-              <div className="text-xs opacity-90">Sozialreferat · Beratungsstelle für Senioren</div>
-            </div>
+            <AntragHeader
+              antrag={antrag}
+              fbI={bundle.fb_i}
+              fbIii={bundle.fb_iii}
+              fbIv={bundle.fb_iv}
+              statusBadge={<StatusBadge status={antrag.status} />}
+            />
 
-            <div className="px-8 py-6 space-y-8">
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                    Antragsteller
-                  </h2>
-                  <SektionPruefung antragId={antrag.id} paragraph="antragsteller" />
-                </div>
-                <div className="text-base font-bold">{antrag.einrichtung}</div>
-                {antrag.dachverband && (
-                  <div className="text-sm text-slate-700">{antrag.dachverband}</div>
-                )}
-                <div className="text-sm text-slate-600 mt-1">
-                  {formatAdresse(antrag.strasse, antrag.hausnummer ?? "", antrag.plz, antrag.ort)}
-                </div>
-                <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
-                  <div>
-                    <div className="text-xs uppercase text-slate-500">Ansprechpartner</div>
-                    <div>{antrag.ansprechpartner}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase text-slate-500">Telefon</div>
-                    <a href={`tel:${antrag.telefon}`} className="text-slate-900">
+            <div className="px-10 lg:px-14 py-10 space-y-12">
+              <DocSection
+                num="§ 1"
+                title="Antragsteller / Träger"
+                actions={<SektionPruefung antragId={antrag.id} paragraph="antragsteller" />}
+              >
+                <FieldGrid>
+                  <DocField label="Träger" className="sm:col-span-2">
+                    {antrag.dachverband || antrag.einrichtung}
+                  </DocField>
+                  <DocField label="Ansprechpartner/in" className="sm:col-span-2">
+                    {antrag.ansprechpartner}
+                  </DocField>
+                  <DocField label="Telefon / Handy">
+                    <a
+                      href={`tel:${(antrag.telefon ?? "").replace(/\s+/g, "")}`}
+                      className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2"
+                    >
                       {antrag.telefon}
                     </a>
-                  </div>
-                  <div className="col-span-2">
-                    <div className="text-xs uppercase text-slate-500">E-Mail</div>
-                    <a href={`mailto:${antrag.email}`} className="text-slate-900">
+                  </DocField>
+                  <DocField label="E-Mail">
+                    <a
+                      href={`mailto:${antrag.email}`}
+                      className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2 break-all"
+                    >
                       {antrag.email}
                     </a>
-                  </div>
-                </div>
-              </section>
+                  </DocField>
+                  {antrag.homepage && (
+                    <DocField label="Homepage" className="sm:col-span-2">
+                      <a
+                        href={antrag.homepage}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2"
+                      >
+                        {antrag.homepage}
+                      </a>
+                    </DocField>
+                  )}
+                </FieldGrid>
+              </DocSection>
 
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                    Bankverbindung
-                  </h2>
-                  <SektionPruefung antragId={antrag.id} paragraph="bank" />
-                </div>
-                <div className="text-sm">
-                  <div>{antrag.bankname}</div>
-                  <div className="font-mono mt-1">{antrag.iban}</div>
-                  <div className="font-mono text-slate-600 text-xs">{antrag.bic}</div>
-                </div>
-              </section>
+              <DocSection
+                num="§ 2"
+                title="Bankverbindung"
+                actions={<SektionPruefung antragId={antrag.id} paragraph="bank" />}
+              >
+                <FieldGrid>
+                  <DocField label="Bankname" className="sm:col-span-2">
+                    {antrag.bankname}
+                  </DocField>
+                  <DocField label="IBAN" className="sm:col-span-2">
+                    <span className="font-mono text-[15px] tracking-wide text-slate-900">
+                      {antrag.iban}
+                    </span>
+                  </DocField>
+                  <DocField label="BIC">
+                    {antrag.bic ? (
+                      <span className="font-mono text-slate-700">{antrag.bic}</span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </DocField>
+                </FieldGrid>
+              </DocSection>
 
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                    Förderbereich-Detail
-                  </h2>
-                  <SektionPruefung antragId={antrag.id} paragraph="fb_detail" />
-                </div>
-                <FbDispatcher bundle={bundle} />
-              </section>
+              {/* § 3+: FB-spezifische Sektionen aus dem Renderer-Schema. */}
+              <AntragViewer
+                fb={bundle.antrag.foerderbereich}
+                fbI={bundle.fb_i}
+                fbIi={bundle.fb_ii}
+                fbIiHelfer={bundle.fb_ii_helfer}
+                fbIii={bundle.fb_iii}
+                fbIv={bundle.fb_iv}
+                paragraphStart={3}
+              />
 
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
-                    Anlagen ({anlagen.length})
-                  </h2>
-                  <SektionPruefung antragId={antrag.id} paragraph="anlagen" />
-                </div>
+              <DocSection
+                num="§"
+                title={`Anlagen (${anlagen.length})`}
+                subtitle="Mit dem Antrag eingereichte Belege"
+                actions={<SektionPruefung antragId={antrag.id} paragraph="anlagen" />}
+              >
                 {anlagen.length === 0 ? (
                   <p className="text-sm text-slate-500 italic">Keine Anlagen hochgeladen.</p>
                 ) : (
@@ -195,16 +229,33 @@ export function AntragDetail() {
                     ))}
                   </div>
                 )}
-              </section>
+              </DocSection>
             </div>
 
-            <div className="bg-slate-50 border-t border-slate-200 px-8 py-3 text-xs text-slate-500">
-              Eingegangen {formatDateTime(antrag.submitted_at)} · Sprache{" "}
-              {antrag.submitted_language.toUpperCase()} · Haushaltsjahr {antrag.haushaltsjahr}
+            {/* Submission-Footer — Eingangsstempel-Look */}
+            <div className="bg-slate-50 border-t-2 border-slate-200 px-10 lg:px-14 py-5">
+              <div className="flex flex-wrap items-baseline justify-between gap-4 text-xs">
+                <div className="text-slate-500">
+                  <span className="font-semibold uppercase tracking-wider">Eingegangen</span>
+                  <span className="ml-2 text-slate-700">
+                    {formatDateTime(antrag.submitted_at)}
+                  </span>
+                  <span className="ml-3 text-slate-400">·</span>
+                  <span className="ml-3">
+                    Sprache <span className="text-slate-700">{antrag.submitted_language.toUpperCase()}</span>
+                  </span>
+                  <span className="ml-3 text-slate-400">·</span>
+                  <span className="ml-3 font-semibold uppercase tracking-wider">Haushaltsjahr</span>
+                  <span className="ml-2 text-slate-700 tabular-nums">{antrag.haushaltsjahr}</span>
+                </div>
+                <div className="text-slate-400 text-[11px] font-mono">
+                  Elektronische Einreichung — keine Unterschrift erforderlich
+                </div>
+              </div>
             </div>
           </article>
 
-          <aside className="space-y-4 lg:sticky lg:top-[5rem] lg:self-start">
+          <aside className="space-y-4 lg:sticky lg:top-[6.5rem] lg:self-start">
             <Card>
               <CardHeader>
                 <CardTitle>Workflow · Status-Wechsel</CardTitle>
@@ -275,20 +326,5 @@ export function AntragDetail() {
         </main>
       </div>
     </ManuellePruefungProvider>
-  );
-}
-
-function FbDispatcher({ bundle }: { bundle: NonNullable<ReturnType<typeof useAntrag>["bundle"]> }) {
-  // Single Source of Truth: @dv/antrag-renderer. UE2 sieht jetzt exakt
-  // dieselbe Feld-Auswahl wie UE3 (und perspektivisch UE1 read-only).
-  return (
-    <AntragViewer
-      fb={bundle.antrag.foerderbereich}
-      fbI={bundle.fb_i}
-      fbIi={bundle.fb_ii}
-      fbIiHelfer={bundle.fb_ii_helfer}
-      fbIii={bundle.fb_iii}
-      fbIv={bundle.fb_iv}
-    />
   );
 }
