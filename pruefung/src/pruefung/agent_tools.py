@@ -35,8 +35,10 @@ FB_BESCHREIBUNGEN: dict[str, str] = {
            "regelmäßiger Betrieb. Vier Varianten: "
            "A=Mehrgenerationenhaus, B=Begegnungszentrum, "
            "C=Seniorenkreis (regelmäßige Treffen), D=Quartiersmanagement.",
-    "IV": "Struktur- und Schwerpunktförderung (formlos) für übergreifende "
-          "Vorhaben, die nicht in I/II/III fallen.",
+    "IV": "Struktur- und Schwerpunktförderung der Seniorenarbeit — laut "
+          "Stadt Würzburg FORMLOS (kein offizielles Formular). Der Bürger "
+          "verfasst seinen Antrag selbst und lädt ihn als PDF hoch. "
+          "Pflicht ist nur Antragsteller-/Bank-Block + dokument_path.",
 }
 
 FB_III_VARIANTEN_BESCHREIBUNGEN: dict[str, str] = {
@@ -257,12 +259,24 @@ FELD_LABELS: dict[str, dict[str, str]] = {
         "label": "Hauptamts-Wochenstunden",
         "beispiel": "20",
     },
-    # FB IV
-    "vorhaben_titel": {"label": "Vorhaben-Titel", "beispiel": "Strukturförderung Quartier"},
-    "kurzbeschreibung": {"label": "Kurzbeschreibung", "beispiel": "Aufbau eines Beirats..."},
-    "geplante_massnahmen": {
-        "label": "Geplante Maßnahmen",
-        "beispiel": "Workshops, Beratung, Vernetzung",
+    # FB IV — formlos (siehe docs/PDF-FELDER-AUDIT-2026-05-26.md).
+    # `dokument_path` ist nach Migration 071 das einzige strukturelle
+    # Pflichtfeld. `vorhaben_titel` und `kurzbeschreibung` sind optionale
+    # KI-Hilfsfelder für die Vor-Klassifikation; sie haben keine PDF-Quelle.
+    # `geplante_massnahmen`/`beantragte_summe_euro`/`laufzeit` waren
+    # Erfindungen der ersten Implementierung (Halluzinationsrisiko) und
+    # sind entfernt.
+    "dokument_path": {
+        "label": "Formloser PDF-Antrag (hochzuladen im Webformular)",
+        "beispiel": "fb-iv-antrag-2026.pdf",
+    },
+    "vorhaben_titel": {
+        "label": "Vorhaben-Titel (optional, nur als KI-Hilfe)",
+        "beispiel": "Strukturförderung Quartier",
+    },
+    "kurzbeschreibung": {
+        "label": "Kurzbeschreibung (optional, nur als KI-Hilfe)",
+        "beispiel": "Aufbau eines Beirats...",
     },
 }
 
