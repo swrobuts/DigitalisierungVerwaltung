@@ -67,28 +67,76 @@ app.add_middleware(
 )
 
 
+_FB_DETAIL_TABLE: dict[str, tuple[str, str]] = {
+    "I": (
+        "fb_i_projekt",
+        "projekt_titel,laufzeit,stadtteil,personalkosten_euro,sachkosten_euro,"
+        "drittmittel_jsonb,andere_mittel_jsonb",
+    ),
+    "II": (
+        "fb_ii_ehrenamt",
+        "ehrenamt_titel,anzahl_helfer_vorjahr,gesamt_helferstunden_vorjahr,"
+        "direkter_kontakt_senioren",
+    ),
+    "III": (
+        "fb_iii_variante",
+        "variante,a_anmerkung,b_anzahl_veranstaltungen,b_teilnehmer_senioren,"
+        "b_teilnehmer_generationen,b_stadtbewohner_anteil,"
+        "b_quartierstreffen_teilnahme,b_quartiere,b_quartier_person_name,"
+        "c_treffen_schwelle,c_teilnehmer_durchschnitt,c_quartierstreffen_anzahl,"
+        "c_quartier_kooperation,c_quartier_person_name,d_hauptamt_name,"
+        "d_hauptamt_stunden_woche,d_hauptamt_stunden_monat,"
+        "d_ehrenamt_personen_jsonb",
+    ),
+    "IV": (
+        "fb_iv_freitext",
+        "vorhaben_titel,kurzbeschreibung,dokument_path",
+    ),
+}
+
+_ANTRAG_COLS = (
+    "id,antragsnummer,haushaltsjahr,foerderbereich,status,submitted_at,"
+    "submitted_language,dachverband,einrichtung,ansprechpartner,"
+    "strasse,hausnummer,plz,ort,telefon,email,homepage,"
+    "bankname,iban,bic"
+)
+
+
 async def _fetch_antrag(antrag_id: str, db: SupabaseClient) -> dict[str, Any]:
+    """Lädt apl.antraege + passende FB-Detail-Tabelle (Multi-FB-Schema).
+
+    Liefert ein vereinheitlichtes Dict mit den gemeinsamen Antragsteller-
+    Feldern aus apl.antraege plus `fb_details: {...}` für FB-spezifische
+    Felder (FB I: apl.fb_i_projekt, FB II: apl.fb_ii_ehrenamt + helfer-
+    Liste, FB III: apl.fb_iii_variante, FB IV: apl.fb_iv_freitext).
+    """
     rows = await db.select(
-        "antrag_mit_summen",
-        (
-            f"id=eq.{antrag_id}"
-            "&select=id,antragsnummer,haushaltsjahr,antragsdatum,name,traeger,"
-            "strasse,hausnummer,plz,ort,"
-            "bankverbindung,iban,bic,ansprechpartner,telefon,email,"
-            "raeume_vorhanden,raeume_unentgeltlich,geforderte_foerdersumme_euro,"
-            "foerderbereich,zuwendungszweck,finanzplanung_vorhanden,"
-            "projektskizze_eingereicht,logo_verwendet,"
-            "betriebskosten_vorjahr_euro,personalkosten_vorjahr_euro,miete_jahr_euro"
-        ),
+        "antraege",
+        f"id=eq.{antrag_id}&select={_ANTRAG_COLS}",
     )
     if not rows:
         raise HTTPException(404, f"Antrag {antrag_id} nicht gefunden")
     antrag = rows[0]
-    oz = await db.select(
-        "oeffnungszeit",
-        f"antrag_id=eq.{antrag_id}&select=wochentag,oeffnungszeit,angebot",
-    )
-    antrag["oeffnungszeiten"] = oz
+    fb = antrag.get("foerderbereich")
+    table_cols = _FB_DETAIL_TABLE.get(fb) if fb else None
+    fb_details: dict[str, Any] = {}
+    if table_cols is not None:
+        table, cols = table_cols
+        d_rows = await db.select(
+            table, f"antrag_id=eq.{antrag_id}&select={cols}",
+        )
+        fb_details = d_rows[0] if d_rows else {}
+    # FB II: Helferliste 1:n nachladen
+    if fb == "II":
+        helfer = await db.select(
+            "fb_ii_helfer",
+            f"antrag_id=eq.{antrag_id}"
+            "&select=position,name,vorname,einsatzbereich,"
+            "eintritt,austritt,stunden_monat,stunden_jahr"
+            "&order=position.asc",
+        )
+        fb_details["helfer"] = helfer
+    antrag["fb_details"] = fb_details
     return antrag
 
 
