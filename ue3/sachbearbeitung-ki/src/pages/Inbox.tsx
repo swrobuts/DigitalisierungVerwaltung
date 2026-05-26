@@ -15,6 +15,7 @@
  */
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { prefetchAntragBundle } from "@dv/data-layer";
 import { useAntraege } from "../hooks/useAntraege";
 import { useUserRole } from "../hooks/useUserRole";
 import { useSession } from "../hooks/useSession";
@@ -208,8 +209,16 @@ export function Inbox() {
                   const summe = antragssummeText(a);
                   const entschieden = a.entscheidungs_typ !== null;
                   const ampel = durchlaufzeitAmpel(a.durchlaufzeit_tage, entschieden);
+                  // Hover/Focus → Antrag-Bundle im Hintergrund vorladen.
+                  // Beim Klick auf "Öffnen →" greift dann der TTL-Cache und
+                  // die AntragDetail-Page rendert in <100ms statt ~600ms.
+                  const prefetch = () => prefetchAntragBundle(a.id);
                   return (
-                    <TableRow key={a.id} className="hover:bg-blue-50/30">
+                    <TableRow
+                      key={a.id}
+                      className="hover:bg-blue-50/30"
+                      onMouseEnter={prefetch}
+                      onFocus={prefetch}>
                       <TableCell>
                         <FbBadge fb={a.foerderbereich} />
                       </TableCell>

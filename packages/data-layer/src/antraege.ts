@@ -70,7 +70,23 @@ export interface AntragBundleRow extends Antrag {
   antrag_history: AntragHistory[];
 }
 
-export async function getAntragBundle(id: string): Promise<AntragBundleRow | null> {
+// ── In-Memory-Cache für Hover-Prefetch ────────────────────────────
+//
+// Beim Mouseover auf eine Inbox-Zeile wird `prefetchAntragBundle(id)`
+// gefeuert; bis der User klickt (typisch 200-1500 ms) liegt das Bundle
+// schon im Cache und der eigentliche Aufruf gibt sofort zurück.
+//
+// TTL bewusst kurz (30 s): Wir wollen Hover-zu-Click-Race abfangen, NICHT
+// Antragsdaten verteilt cachen — Frische ist wichtiger als Hit-Rate.
+
+interface CacheEntry {
+  promise: Promise<AntragBundleRow | null>;
+  expiresAt: number;
+}
+const _bundleCache = new Map<string, CacheEntry>();
+const PREFETCH_TTL_MS = 30_000;
+
+async function _fetchBundle(id: string): Promise<AntragBundleRow | null> {
   const { data, error } = await getSupabase()
     .from("antraege")
     .select(
@@ -90,6 +106,46 @@ export async function getAntragBundle(id: string): Promise<AntragBundleRow | nul
     throw error;
   }
   return data as unknown as AntragBundleRow;
+}
+
+/**
+ * Lädt das Antrags-Bundle. Cache-aware: wenn `prefetchAntragBundle(id)`
+ * kürzlich (innerhalb TTL) gefeuert wurde, gibt der Promise sofort den
+ * Cache-Treffer zurück. Sonst startet er einen neuen Call und cached
+ * ihn.
+ */
+export async function getAntragBundle(id: string): Promise<AntragBundleRow | null> {
+  const now = Date.now();
+  const cached = _bundleCache.get(id);
+  if (cached && cached.expiresAt > now) {
+    return cached.promise;
+  }
+  const promise = _fetchBundle(id);
+  _bundleCache.set(id, { promise, expiresAt: now + PREFETCH_TTL_MS });
+  // Bei Fehlschlag den Cache räumen, damit der nächste Versuch frisch geht
+  promise.catch(() => _bundleCache.delete(id));
+  return promise;
+}
+
+/**
+ * Hover/Focus-Prefetch: feuert den Bundle-Call im Hintergrund (fire-and-
+ * forget). Beim späteren `getAntragBundle(id)` ist die Antwort schon im
+ * Cache — gefühlte Latenz fällt von ~600 ms auf <50 ms.
+ *
+ * Idempotent: mehrfache Aufrufe innerhalb TTL teilen denselben Promise.
+ */
+export function prefetchAntragBundle(id: string): void {
+  const now = Date.now();
+  const cached = _bundleCache.get(id);
+  if (cached && cached.expiresAt > now) return; // schon vorgeladen
+  const promise = _fetchBundle(id);
+  _bundleCache.set(id, { promise, expiresAt: now + PREFETCH_TTL_MS });
+  promise.catch(() => _bundleCache.delete(id));
+}
+
+/** Cache leeren (z.B. nach Status-Wechsel, damit Reload echte Daten holt). */
+export function invalidateAntragBundle(id: string): void {
+  _bundleCache.delete(id);
 }
 
 /**
@@ -117,4 +173,7 @@ export async function changeStatus(
     geaendert_von: "ui",
   });
   if (histError) throw histError;
+  // Frisch geänderter Antrag → Hover-Cache invalidieren, sonst zeigt
+  // der nächste getAntragBundle-Call den alten Status.
+  invalidateAntragBundle(antrag_id);
 }
