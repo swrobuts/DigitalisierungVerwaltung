@@ -30,7 +30,10 @@ import { ArrowLeft } from "lucide-react";
 import { useAntrag } from "../hooks/useAntrag";
 import { useBescheide, type BescheidRow } from "../hooks/useBescheide";
 import { useSession } from "../hooks/useSession";
-import { ManuellePruefungProvider } from "../hooks/useManuellePruefung";
+import {
+  ManuellePruefungProvider,
+  useManuellePruefung,
+} from "../hooks/useManuellePruefung";
 import { DemoDatenBanner } from "../components/DemoDatenBanner";
 import { StatusBadge } from "../components/StatusBadge";
 import { FbBadge } from "../components/FbBadge";
@@ -96,6 +99,13 @@ export function AntragDetail() {
     downloadBescheidDocx,
     loeschBescheid,
   } = useBescheide(id);
+  // Parallele Lade-Instanz der manuellen Sektions-Prüfungen für den
+  // Bescheid-Vier-Augen-Kontext (UE2). Der <ManuellePruefungProvider>
+  // weiter unten im Tree hält eine eigene Instanz für die SektionPruefung-
+  // Komponenten — das ist redundant beim ersten Render (ein zusätzlicher
+  // SELECT), aber simpel: handleCreateManualBescheid liegt außerhalb des
+  // Provider-Trees und braucht einen direkten Zugriff auf listAll().
+  const { listAll: listAllManuellePruefung } = useManuellePruefung(id);
   const [confirmTo, setConfirmTo] = useState<Status | null>(null);
   const [kommentar, setKommentar] = useState("");
   const [busy, setBusy] = useState(false);
@@ -175,10 +185,16 @@ export function AntragDetail() {
       entscheidung === "bewilligen" ? "bewilligt"
       : entscheidung === "ablehnen" ? "abgelehnt"
       : "rueckfrage";
+    // Vier-Augen-Kontext: alle bereits geprüften §-Sektionen mitgeben,
+    // damit der Bescheid die Sachbearbeiter-Bewertungen sichtbar macht.
+    const manuelleKontext = listAllManuellePruefung();
     const res = await erstelleBescheid({
       entscheidung: dbEntscheidung,
       ausgestellt_von: session?.user?.email ?? null,
       bearbeiter_kommentar: `Bescheid manuell erstellt (${entscheidung}).`,
+      manuelle_pruefung_kontext: manuelleKontext.length > 0
+        ? manuelleKontext
+        : undefined,
     });
     if (res?.error) return; // Fehler steht bereits in bescheidError
     const target = ENTSCHEIDUNG_TO_STATUS[entscheidung];

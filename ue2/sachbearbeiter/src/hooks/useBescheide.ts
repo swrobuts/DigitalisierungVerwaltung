@@ -42,13 +42,23 @@ export function useBescheide(antragId: string | undefined) {
   }, [reload]);
 
   /** Ruft pruefung-service POST /api/bescheid auf. Erwartet, dass das
-   * letzte Prüfprotokoll existiert (sonst leere Begründung). */
+   * letzte Prüfprotokoll existiert (sonst leere Begründung).
+   *
+   * UE2-Sonderfeld `manuelle_pruefung_kontext`: wenn gesetzt, wird der
+   * Sachbearbeiter-Vier-Augen-Kontext (Status + Kommentar pro §-Sektion
+   * aus apl.manuelle_pruefung) als Block in den Bescheid übernommen.
+   * UE3 lässt das Feld leer → Bescheid-Rendering unverändert. */
   const erstelleBescheid = useCallback(
     async (params: {
       entscheidung: "bewilligt" | "abgelehnt" | "rueckfrage";
       bewilligte_summe_euro?: number | null;
       bearbeiter_kommentar?: string | null;
       ausgestellt_von?: string | null;
+      manuelle_pruefung_kontext?: Array<{
+        paragraph: string;
+        status: string;
+        kommentar: string | null;
+      }>;
     }) => {
       if (!antragId) return { error: "Kein Antrag" };
       setCreating(true);
@@ -63,6 +73,8 @@ export function useBescheide(antragId: string | undefined) {
             bewilligte_summe_euro: params.bewilligte_summe_euro ?? null,
             bearbeiter_kommentar: params.bearbeiter_kommentar ?? null,
             ausgestellt_von: params.ausgestellt_von ?? null,
+            manuelle_pruefung_kontext:
+              params.manuelle_pruefung_kontext ?? null,
           }),
         });
         if (!res.ok) {

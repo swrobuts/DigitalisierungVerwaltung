@@ -35,6 +35,14 @@ export interface PruefEintrag {
 
 type PruefMap = Record<string, PruefEintrag>;
 
+/** Ein-Zeilen-Eintrag, der ans Backend POST /api/bescheid mitgegeben
+ *  werden kann (Vier-Augen-Kontext für UE2-Bescheid). */
+export interface ManuellePruefungKontextEintrag {
+  paragraph: string;
+  status: PruefStatus;
+  kommentar: string | null;
+}
+
 interface ManuellePruefungContextValue {
   loading: boolean;
   error: string | null;
@@ -44,6 +52,9 @@ interface ManuellePruefungContextValue {
     status: PruefStatus,
     kommentar: string | null,
   ) => Promise<{ error: string | null }>;
+  /** Liefert alle bisher gesetzten manuellen Bewertungen als Array
+   *  — z.B. um sie als Kontext mit dem manuellen Bescheid mitzusenden. */
+  listAll: () => ManuellePruefungKontextEintrag[];
 }
 
 const DEFAULT_ENTRY: PruefEintrag = {
@@ -114,6 +125,14 @@ export function useManuellePruefung(antragId: string | undefined) {
     [map],
   );
 
+  const listAll = useCallback((): ManuellePruefungKontextEintrag[] => {
+    return Object.entries(map).map(([paragraph, eintrag]) => ({
+      paragraph,
+      status: eintrag.status,
+      kommentar: eintrag.kommentar,
+    }));
+  }, [map]);
+
   const save = useCallback(
     async (
       paragraph: string,
@@ -175,7 +194,7 @@ export function useManuellePruefung(antragId: string | undefined) {
     [antragId, map],
   );
 
-  return { map, loading, error, get, save };
+  return { map, loading, error, get, save, listAll };
 }
 
 interface ProviderProps {
@@ -184,10 +203,10 @@ interface ProviderProps {
 }
 
 export function ManuellePruefungProvider({ antragId, children }: ProviderProps) {
-  const { loading, error, get, save } = useManuellePruefung(antragId);
+  const { loading, error, get, save, listAll } = useManuellePruefung(antragId);
   const value = useMemo<ManuellePruefungContextValue>(
-    () => ({ loading, error, get, save }),
-    [loading, error, get, save],
+    () => ({ loading, error, get, save, listAll }),
+    [loading, error, get, save, listAll],
   );
   return createElement(
     ManuellePruefungContext.Provider,
