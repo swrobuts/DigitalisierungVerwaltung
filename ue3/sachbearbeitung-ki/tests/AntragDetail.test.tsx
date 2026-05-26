@@ -207,8 +207,9 @@ describe("AntragDetail (Etappe D — Vollrestoration)", () => {
     // VorjahresVergleich (Lade-Zustand)
     expect(screen.getByText("Vorjahres-Vergleich")).toBeInTheDocument();
 
-    // ExterneValidierungCard
-    expect(screen.getByText("Externe Validierung")).toBeInTheDocument();
+    // ExterneValidierungCard — Titel kann mehrfach im DOM stehen
+    // (CardTitle + ggf. Erwähnung in Hinweis-Text)
+    expect(screen.getAllByText("Externe Validierung").length).toBeGreaterThanOrEqual(1);
 
     // HistoryTimeline-Wrapper
     expect(screen.getByText("Verlauf")).toBeInTheDocument();

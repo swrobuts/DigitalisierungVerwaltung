@@ -1,5 +1,16 @@
 import { getSupabase } from "./supabase-client";
-import type { Antrag, AntragInbox, FoerderbereichId } from "./db-types";
+import type {
+  Anlage,
+  Antrag,
+  AntragHistory,
+  AntragInbox,
+  FbIiEhrenamt,
+  FbIiHelfer,
+  FbIiiVarianteRow,
+  FbIProjekt,
+  FbIvFreitext,
+  FoerderbereichId,
+} from "./db-types";
 
 /**
  * Liste aller Anträge (View `antrag_inbox`), optional gefiltert nach FB.
@@ -34,6 +45,51 @@ export async function getAntrag(id: string): Promise<Antrag | null> {
     throw error;
   }
   return data as Antrag;
+}
+
+/**
+ * Bundle eines Antrags inkl. ALLER FB-Detail-Tabellen, Anlagen und
+ * History in EINEM PostgREST-Call (Embed via FK).
+ *
+ * Performance-Hintergrund: Self-hosted Supabase hat ~600ms TTFB pro
+ * Request (Kong+Traefik+CORS-Overhead, siehe Migration 058+task #120).
+ * 5 sequenzielle/parallele Requests = 1.5–2s wahrgenommene Lade-Zeit.
+ * Mit Embed: 1 Request, alles drin. Postgres-JOINs auf dieselbe
+ * Connection sind innerhalb der DB sub-millisekündig.
+ *
+ * FB-Detail-Tabellen werden alle vier embedded — pro FB ist immer nur
+ * EINE non-null, die anderen sind leer. Spart Dispatcher-Logik im UI.
+ */
+export interface AntragBundleRow extends Antrag {
+  fb_i_projekt: FbIProjekt | null;
+  fb_ii_ehrenamt: FbIiEhrenamt | null;
+  fb_ii_helfer: FbIiHelfer[];
+  fb_iii_variante: FbIiiVarianteRow | null;
+  fb_iv_freitext: FbIvFreitext | null;
+  anlagen: Anlage[];
+  antrag_history: AntragHistory[];
+}
+
+export async function getAntragBundle(id: string): Promise<AntragBundleRow | null> {
+  const { data, error } = await getSupabase()
+    .from("antraege")
+    .select(
+      "*," +
+        "fb_i_projekt(*)," +
+        "fb_ii_ehrenamt(*)," +
+        "fb_ii_helfer(*)," +
+        "fb_iii_variante(*)," +
+        "fb_iv_freitext(*)," +
+        "anlagen(*)," +
+        "antrag_history(*)",
+    )
+    .eq("id", id)
+    .single();
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    throw error;
+  }
+  return data as unknown as AntragBundleRow;
 }
 
 /**
