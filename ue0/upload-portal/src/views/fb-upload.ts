@@ -23,6 +23,7 @@ import type {
 } from "@dv/foerderbereiche";
 import { einreichen } from "../lib/api";
 import { createDropZone, filePreview } from "../lib/upload-zone";
+import { t, tx } from "../lib/i18n";
 
 interface RenderOpts {
   fb: FoerderbereichId;
@@ -39,7 +40,7 @@ export function renderFbUpload(opts: RenderOpts): HTMLElement {
   const back = document.createElement("a");
   back.className = "back-link";
   back.href = "#";
-  back.textContent = "‹ Zurück zur Förderbereich-Wahl";
+  back.textContent = t("fbup.back");
   back.addEventListener("click", (e) => {
     e.preventDefault();
     opts.navigate("");
@@ -48,12 +49,12 @@ export function renderFbUpload(opts: RenderOpts): HTMLElement {
 
   const titel = document.createElement("h1");
   titel.className = "page-titel";
-  titel.textContent = `FB ${fb.id} — ${fb.label_lang}`;
+  titel.textContent = tx("fbup.heading", { fb: fb.id, label: fb.label_lang });
   view.appendChild(titel);
 
   const sub = document.createElement("p");
   sub.className = "page-untertitel";
-  sub.textContent = fb.beschreibung;
+  sub.textContent = t(`fb_beschreibung.${fb.id}`);
   view.appendChild(sub);
 
   // ── FB III: Variante-Auswahl (wenn nicht in URL) ────────────────
@@ -73,7 +74,7 @@ export function renderFbUpload(opts: RenderOpts): HTMLElement {
   function showError(msg: string) {
     errBox.style.display = "block";
     errBox.innerHTML = `
-      <div class="status-fail-title">Fehler beim Hochladen</div>
+      <div class="status-fail-title">${t("fbup.err_title")}</div>
       <p style="margin: 0; font-size: 13.5px;">${msg}</p>
     `;
   }
@@ -81,11 +82,11 @@ export function renderFbUpload(opts: RenderOpts): HTMLElement {
   const mainBox = buildSlot({
     nummer: 1,
     pflicht: true,
-    titel: "Hauptantrag",
+    titel: t("fbup.slot.hauptantrag"),
     pdfUrl: `https://github.com/swrobuts/DigitalisierungVerwaltung/raw/main/${fb.quelle_pdf}`,
-    pdfLabel: `Antrag AHP ${fb.id} (PDF zum Download)`,
+    pdfLabel: tx("fbup.slot.hauptantrag_pdf", { fb: fb.id }),
     accept: ["application/pdf"],
-    hintText: "Nur PDF, max. 10 MB",
+    hintText: t("fbup.slot.hauptantrag_hint"),
     onFile: (f) => {
       mainFile = f;
       updateSubmit();
@@ -127,7 +128,7 @@ export function renderFbUpload(opts: RenderOpts): HTMLElement {
   const submitBtn = document.createElement("button");
   submitBtn.type = "button";
   submitBtn.className = "btn-primary";
-  submitBtn.textContent = "Antrag absenden";
+  submitBtn.textContent = t("fbup.submit");
   actions.appendChild(submitBtn);
   submitCard.appendChild(actions);
   submitCard.appendChild(errBox);
@@ -142,7 +143,7 @@ export function renderFbUpload(opts: RenderOpts): HTMLElement {
   submitBtn.addEventListener("click", async () => {
     if (!mainFile) return;
     submitBtn.disabled = true;
-    submitBtn.textContent = "Wird hochgeladen …";
+    submitBtn.textContent = t("fbup.submit_lauft");
     errBox.style.display = "none";
     try {
       const res = await einreichen({
@@ -155,7 +156,7 @@ export function renderFbUpload(opts: RenderOpts): HTMLElement {
       opts.navigate(`?status=${encodeURIComponent(res.einreichung_id)}`);
     } catch (e) {
       submitBtn.disabled = false;
-      submitBtn.textContent = "Antrag absenden";
+      submitBtn.textContent = t("fbup.submit");
       showError((e as Error).message);
     }
   });
@@ -193,7 +194,7 @@ function buildSlot(s: SlotOpts): HTMLElement {
   head.innerHTML = `
     <span class="antrag-section-num">${s.nummer}</span>
     <h2 class="antrag-section-title">${s.titel}</h2>
-    <span class="antrag-section-badge${s.pflicht ? "" : " badge-optional"}">${s.pflicht ? "Pflicht" : "Optional"}</span>
+    <span class="antrag-section-badge${s.pflicht ? "" : " badge-optional"}">${s.pflicht ? t("fbup.badge.pflicht") : t("fbup.badge.optional")}</span>
   `;
   box.appendChild(head);
 
@@ -243,15 +244,7 @@ function pickAnlageSlot(
 }
 
 function humanAnlageTitel(slot: AnlagenSlot): string {
-  const map: Record<AnlagenSlot["typ"], string> = {
-    projektskizze: "Projektskizze",
-    helferliste: "Helferliste",
-    foerderbestaetigung_bund: "Förderbestätigung Bundesprogramm",
-    programm_flyer: "Programm / Flyer",
-    stundenzettel: "Stundenzettel",
-    sonstige: "Beliebige Anlagen",
-  };
-  return map[slot.typ];
+  return t(`anlage.${slot.typ}`);
 }
 
 function renderVariantenWahl(navigate: (s: string) => void): HTMLElement {
@@ -259,12 +252,10 @@ function renderVariantenWahl(navigate: (s: string) => void): HTMLElement {
   const card = document.createElement("div");
   card.className = "card";
   card.innerHTML = `
-    <h3 class="card-h3">Welche Variante trifft auf Ihre Einrichtung zu?</h3>
+    <h3 class="card-h3">${t("variantenwahl.titel")}</h3>
     <div class="card-body">
       <p style="margin: 0 0 0.5rem; color: #555; font-size: 13.5px;">
-        FB III ist in vier Varianten unterteilt. Bitte wählen Sie die, die
-        Ihre Einrichtung beschreibt — die nachfolgende Anlage richtet sich
-        danach.
+        ${t("variantenwahl.lead")}
       </p>
     </div>
   `;
@@ -280,10 +271,10 @@ function renderVariantenWahl(navigate: (s: string) => void): HTMLElement {
     btn.innerHTML = `
       <div class="fb-card-icon" aria-hidden="true">${v.icon}</div>
       <div class="fb-card-body">
-        <div class="fb-card-roman">Variante ${v.id}</div>
+        <div class="fb-card-roman">${tx("variantenwahl.label", { id: v.id })}</div>
         <div class="fb-card-title">${v.label}</div>
         ${v.foerderhoechstgrenze_euro
-          ? `<div class="fb-card-desc">Förderhöchstgrenze ${v.foerderhoechstgrenze_euro.toLocaleString("de-DE")} €</div>`
+          ? `<div class="fb-card-desc">${tx("variantenwahl.grenze", { eur: v.foerderhoechstgrenze_euro.toLocaleString("de-DE") + " €" })}</div>`
           : ""}
       </div>
       <div class="fb-card-arrow" aria-hidden="true">›</div>

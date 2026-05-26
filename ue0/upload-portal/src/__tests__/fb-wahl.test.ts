@@ -1,7 +1,10 @@
 /**
- * Smoke-Tests fürs Multi-FB-Routing.
- * - FB-Wahl zeigt genau 4 Karten + Smart-Upload-Brücke
- * - Klick auf Karte navigiert mit korrekter ?fb=…-Query
+ * Smoke-Tests fürs UE0 Multi-FB-Routing.
+ *
+ * Aktualisiert nach Umbau zur „zwei-wege"-UI (Smart-Upload = Weg A,
+ * Förderbereich direkt = Weg B). FB-Karten haben jetzt `.fb-card-marker`
+ * statt `.fb-card-roman`, und der Smart-Upload-Brücken-Button sitzt in
+ * `.weg-card.weg-a .weg-card-btn` statt `.smart-upload-teaser`.
  */
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -12,7 +15,7 @@ describe("renderFbWahl", () => {
     document.body.innerHTML = "";
   });
 
-  it("rendert 4 FB-Karten", () => {
+  it("rendert 4 FB-Karten mit korrekten Markern", () => {
     const navigate = vi.fn();
     const view = renderFbWahl(navigate);
     document.body.appendChild(view);
@@ -20,10 +23,10 @@ describe("renderFbWahl", () => {
     const cards = document.querySelectorAll(".fb-grid .fb-card");
     expect(cards.length).toBe(4);
 
-    const romanNumerals = Array.from(cards).map(
-      (c) => c.querySelector(".fb-card-roman")?.textContent,
+    const markers = Array.from(cards).map(
+      (c) => c.querySelector(".fb-card-marker")?.textContent,
     );
-    expect(romanNumerals).toEqual(["FB I", "FB II", "FB III", "FB IV"]);
+    expect(markers).toEqual(["FB I", "FB II", "FB III", "FB IV"]);
   });
 
   it("navigiert zu ?fb=II bei Klick auf zweite Karte", () => {
@@ -36,16 +39,16 @@ describe("renderFbWahl", () => {
     expect(navigate).toHaveBeenCalledWith("?fb=II");
   });
 
-  it("zeigt Smart-Upload-Brücke + navigiert zu ?smart=1", () => {
+  it("Weg-A-Button (Smart-Upload) navigiert zu ?smart=1", () => {
     const navigate = vi.fn();
     const view = renderFbWahl(navigate);
     document.body.appendChild(view);
 
-    const teaser = document.querySelector(".smart-upload-teaser");
-    expect(teaser).not.toBeNull();
-
-    const btn = teaser!.querySelector("button");
-    (btn as HTMLButtonElement).click();
+    const wegA = document.querySelector(".weg-card.weg-a");
+    expect(wegA).not.toBeNull();
+    const btn = wegA!.querySelector(".weg-card-btn") as HTMLButtonElement;
+    expect(btn).not.toBeNull();
+    btn.click();
     expect(navigate).toHaveBeenCalledWith("?smart=1");
   });
 });

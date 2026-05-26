@@ -3,11 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Altenhilfeplan — Formularcenter (Demo)</title>
-    <!-- CSS wird via main.ts (`import "./styles.css"`) gebundlet. Vorher
-         standen hier zusätzlich <link rel="stylesheet" href="/src/styles.css">,
-         was im Production-Build 404 ergibt und das ganze Styling kippt
-         (Wappen riesengroß, keine Tailwind-Klassen). -->
+    <title data-i18n="app.titel">Altenhilfeplan — Formularcenter (Demo)</title>
     <link rel="icon" type="image/png" href="wuerzburg-wappen.png" />
   </head>
   <body>
@@ -24,10 +20,19 @@
           </span>
         </a>
         <nav class="page-nav" aria-label="Hauptnavigation">
-          <button class="nav-icon" aria-label="Barrierefreiheit" title="Barrierefreiheit">♿</button>
-          <button class="nav-icon" aria-label="Suche" title="Suche">🔍</button>
-          <span class="lang-pill" lang="de">🇩🇪 Deutsch ▾</span>
-          <button class="nav-menu" aria-label="Menü">☰ Menü</button>
+          <button class="nav-icon"
+                  data-i18n-aria="nav.barrierefreiheit"
+                  data-i18n-title="nav.barrierefreiheit">♿</button>
+          <button class="nav-icon"
+                  data-i18n-aria="nav.suche"
+                  data-i18n-title="nav.suche">🔍</button>
+          <!-- Sprach-Dropdown — wird von main.ts initialisiert -->
+          <label for="lang-select" class="lang-select-label"
+                 data-i18n-aria="nav.sprache" title="Sprache / Language">
+            <span aria-hidden="true" class="lang-icon">🌐</span>
+          </label>
+          <select id="lang-select" class="lang-select"></select>
+          <button class="nav-menu" data-i18n="nav.menu">☰ Menü</button>
         </nav>
       </div>
     </header>
@@ -35,9 +40,19 @@
     <!-- Breadcrumb wie auf wuerzburg.de -->
     <div class="breadcrumb">
       <div class="breadcrumb-inner">
-        <a href="">Startseite</a><span class="bc-sep">›</span>
-        <a href="">Rathaus</a><span class="bc-sep">›</span>
-        <a href="">Formularcenter</a>
+        <a href="" data-i18n="breadcrumb.start">Startseite</a><span class="bc-sep">›</span>
+        <a href="" data-i18n="breadcrumb.rathaus">Rathaus</a><span class="bc-sep">›</span>
+        <a href="" data-i18n="breadcrumb.formularcenter">Formularcenter</a>
+      </div>
+    </div>
+
+    <!-- Fallback-Banner (wird von main.ts ein-/ausgeblendet je Sprache) -->
+    <div id="lang-fallback" class="lang-fallback" hidden>
+      <div class="lang-fallback-inner">
+        <strong id="lang-fallback-text"></strong>
+        <span class="lang-fallback-de" lang="de">
+          Übersetzung in Vorbereitung — Anzeige derzeit auf Deutsch.
+        </span>
       </div>
     </div>
 
@@ -46,51 +61,41 @@
     <!-- Würzburg-Footer mit Demo-Disclaimer ──────────────────────────── -->
     <footer class="wue-footer">
       <div class="wue-footer-inner">
-        <!-- Demo-Disclaimer ganz oben, rot abgesetzt für rechtliche Klarheit -->
         <div class="demo-banner">
-          <strong>⚠ Demo-Webseite für Lehrzwecke (THWS).</strong>
-          Dies ist <u>kein</u> offizielles Angebot der Stadt Würzburg. Optik
-          und Texte orientieren sich am Original, der Upload-Workflow ist
-          eine eigene KI-Demonstration. Hochgeladene Dokumente werden
-          ausschließlich zur Demonstration verarbeitet und nach Vorlesungs­
-          ende gelöscht — bitte keine echten personenbezogenen Daten verwenden.
+          <strong data-i18n="footer.demo_banner_strong">⚠ Demo-Webseite für Lehrzwecke (THWS).</strong>
+          <span data-i18n="footer.demo_banner_text">Dies ist kein offizielles Angebot der Stadt Würzburg…</span>
         </div>
 
         <div class="wue-footer-grid">
-          <!-- Spalte 1: Service-Links -->
           <ul class="wue-footer-links">
-            <li><a href="#">› Notfall</a></li>
-            <li><a href="#">› Datenschutz</a></li>
-            <li><a href="#">› Impressum</a></li>
-            <li><a href="#">› Kontakt</a></li>
-            <li><a href="#">› Newsletter</a></li>
-            <li><a href="#">› Barrierefreiheit</a></li>
-            <li><a href="#">› Gebärdensprache</a></li>
-            <li><a href="#">› Leichte Sprache</a></li>
+            <li><a href="#" data-i18n="footer.link.notfall">› Notfall</a></li>
+            <li><a href="#" data-i18n="footer.link.datenschutz">› Datenschutz</a></li>
+            <li><a href="#" data-i18n="footer.link.impressum">› Impressum</a></li>
+            <li><a href="#" data-i18n="footer.link.kontakt">› Kontakt</a></li>
+            <li><a href="#" data-i18n="footer.link.newsletter">› Newsletter</a></li>
+            <li><a href="#" data-i18n="footer.link.barrierefreiheit">› Barrierefreiheit</a></li>
+            <li><a href="#" data-i18n="footer.link.gebaerden">› Gebärdensprache</a></li>
+            <li><a href="#" data-i18n="footer.link.leichte">› Leichte Sprache</a></li>
           </ul>
 
-          <!-- Spalte 2: Stadt -->
           <div class="wue-footer-col">
-            <h3>Stadt Würzburg</h3>
+            <h3 data-i18n="footer.stadt">Stadt Würzburg</h3>
             <p>Rückermainstraße 2<br />97070 Würzburg</p>
             <p>Tel.&nbsp;09 31/&nbsp;37-0<br />Fax&nbsp;09 31/&nbsp;37 33 73</p>
             <p>info@stadt.wuerzburg.de</p>
           </div>
 
-          <!-- Spalte 3: Tourist Info -->
           <div class="wue-footer-col">
-            <h3>Tourist Information &amp; Ticket Service</h3>
-            <p>im Falkenhaus am Markt<br />97070 Würzburg</p>
-            <p>Tel.&nbsp;+49 (0)9 31/&nbsp;37 23 98 (Tourist Information)<br />
+            <h3 data-i18n="footer.tourist">Tourist Information &amp; Ticket Service</h3>
+            <p><span data-i18n="footer.tourist_addr">im Falkenhaus am Markt</span><br />97070 Würzburg</p>
+            <p>Tel.&nbsp;+49 (0)9 31/&nbsp;37 23 98<br />
                Fax&nbsp;+49 (0)9 31/&nbsp;37 36 52</p>
-            <p>tourismus@wuerzburg.de<br /><a href="#">Allgemeine Geschäftsbedingungen</a></p>
+            <p>tourismus@wuerzburg.de<br /><a href="#" data-i18n="footer.agb">Allgemeine Geschäftsbedingungen</a></p>
           </div>
         </div>
 
         <div class="wue-footer-bottom">
-          © 2026 Stadt Würzburg. Alle Rechte vorbehalten. ·
-          <strong>Demo-Klon der Lehrveranstaltung THWS</strong> ·
-          Quelle:
+          <span data-i18n="footer.bottom">© 2026 Stadt Würzburg. Alle Rechte vorbehalten. · Demo-Klon der Lehrveranstaltung THWS · Quelle:</span>
           <a href="https://github.com/swrobuts/DigitalisierungVerwaltung"
              target="_blank" rel="noopener noreferrer">github.com/swrobuts</a>
         </div>

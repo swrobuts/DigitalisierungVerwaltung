@@ -21,6 +21,7 @@ import {
   type KlassifikationResult,
 } from "../lib/api";
 import { createDropZone, filePreview } from "../lib/upload-zone";
+import { t, tx } from "../lib/i18n";
 
 interface SmartItem {
   id: string;
@@ -43,7 +44,7 @@ export function renderSmartUpload(navigate: (search: string) => void): HTMLEleme
   const back = document.createElement("a");
   back.className = "back-link";
   back.href = "#";
-  back.textContent = "‹ Zurück zur Förderbereich-Wahl";
+  back.textContent = t("smart.back");
   back.addEventListener("click", (e) => {
     e.preventDefault();
     navigate("");
@@ -52,13 +53,12 @@ export function renderSmartUpload(navigate: (search: string) => void): HTMLEleme
 
   const titel = document.createElement("h1");
   titel.className = "page-titel";
-  titel.textContent = "🤖 Smart-Upload";
+  titel.textContent = t("smart.titel");
   view.appendChild(titel);
 
   const sub = document.createElement("p");
   sub.className = "page-untertitel";
-  sub.textContent =
-    "Laden Sie ein oder mehrere ausgefüllte Antrags-PDFs hoch. Die KI erkennt pro Datei den Förderbereich und (bei FB III) die Variante. Sie können den Vorschlag vor dem Absenden noch korrigieren.";
+  sub.textContent = t("smart.lead");
   view.appendChild(sub);
 
   const itemList = document.createElement("div");
@@ -72,7 +72,7 @@ export function renderSmartUpload(navigate: (search: string) => void): HTMLEleme
 
   function showError(msg: string) {
     errBox.style.display = "block";
-    errBox.innerHTML = `<div class="status-fail-title">Hinweis</div><p style="margin:0;font-size:13.5px;">${msg}</p>`;
+    errBox.innerHTML = `<div class="status-fail-title">${t("smart.hinweis")}</div><p style="margin:0;font-size:13.5px;">${msg}</p>`;
   }
 
   // ── Drop-Zone (multiple) ────────────────────────────────────────
@@ -81,12 +81,12 @@ export function renderSmartUpload(navigate: (search: string) => void): HTMLEleme
   zoneBox.innerHTML = `
     <div class="antrag-section-head">
       <span class="antrag-section-num">1</span>
-      <h2 class="antrag-section-title">PDFs hochladen</h2>
-      <span class="antrag-section-badge">Pflicht</span>
+      <h2 class="antrag-section-title">${t("smart.dropzone.titel")}</h2>
+      <span class="antrag-section-badge">${t("fbup.badge.pflicht")}</span>
     </div>
   `;
   zoneBox.appendChild(createDropZone({
-    hint: "Mehrere PDFs gleichzeitig möglich. Pro Datei erkennt die KI Förderbereich + Variante.",
+    hint: t("smart.dropzone.hint"),
     accept: ["application/pdf"],
     multiple: true,
     onFiles: (files) => {
@@ -108,7 +108,7 @@ export function renderSmartUpload(navigate: (search: string) => void): HTMLEleme
   const submitBtn = document.createElement("button");
   submitBtn.type = "button";
   submitBtn.className = "btn-primary";
-  submitBtn.textContent = "Alle einreichen";
+  submitBtn.textContent = t("smart.submit");
   actions.appendChild(submitBtn);
   submitCard.appendChild(actions);
   view.appendChild(submitCard);
@@ -137,7 +137,7 @@ export function renderSmartUpload(navigate: (search: string) => void): HTMLEleme
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "file-preview-remove";
-      remove.textContent = "Entfernen";
+      remove.textContent = t("smart.entfernen");
       remove.addEventListener("click", () => removeItem(item.id));
       header.appendChild(remove);
     }
@@ -149,37 +149,47 @@ export function renderSmartUpload(navigate: (search: string) => void): HTMLEleme
     if (item.state === "pending") {
       body.innerHTML = `
         <div class="status-spinner" style="width:20px;height:20px;display:inline-block;vertical-align:middle"></div>
-        <span style="margin-left:.6rem;color:#555;">Wird klassifiziert …</span>
+        <span style="margin-left:.6rem;color:#555;">${t("smart.wird_klassifiziert")}</span>
       `;
     } else if (item.state === "err") {
       body.innerHTML = `
-        <div class="status-fail-title">Klassifikation fehlgeschlagen</div>
-        <p style="margin:0;font-size:13px;color:#555;">${item.fehler ?? "Unbekannter Fehler"}</p>
-        <p style="margin:.4rem 0 0;font-size:13px;">Bitte wählen Sie den Förderbereich manuell:</p>
+        <div class="status-fail-title">${t("smart.klass_fail")}</div>
+        <p style="margin:0;font-size:13px;color:#555;">${item.fehler ?? t("smart.klass_unknown")}</p>
+        <p style="margin:.4rem 0 0;font-size:13px;">${t("smart.klass_manual_hint")}</p>
       `;
       body.appendChild(renderFbCorrectionUi(item));
     } else if (item.state === "done") {
       const k = item.klass!;
       const isLowConfidence = k.konfidenz < 0.5 || !k.fb;
       const fbLabel = item.effectiveFb
-        ? `FB ${item.effectiveFb} — ${ALL_FOERDERBEREICHE[item.effectiveFb].label_kurz}`
-        : "— (keine sichere Erkennung)";
+        ? tx("smart.fb_label", {
+            fb: item.effectiveFb,
+            label: ALL_FOERDERBEREICHE[item.effectiveFb].label_kurz,
+          })
+        : t("smart.fb_keine_erkennung");
       const variantLabel = item.effectiveFb === "III" && item.effectiveVariante
-        ? ` · Variante ${item.effectiveVariante} (${FB_III_VARIANTEN[item.effectiveVariante].label})`
+        ? tx("smart.variant_label", {
+            v: item.effectiveVariante,
+            label: FB_III_VARIANTEN[item.effectiveVariante].label,
+          })
         : "";
-      const konfidenz = `${Math.round(k.konfidenz * 100)} %`;
+      const fullLabel = `${fbLabel}${variantLabel}`;
+      const headline = isLowConfidence
+        ? tx("smart.unsicher", { label: fullLabel })
+        : tx("smart.erkannt", { label: fullLabel });
       body.innerHTML = `
         <div class="${isLowConfidence ? "status-fail" : "status-ok"}" style="padding:.8rem 1rem;">
           <div class="${isLowConfidence ? "status-fail-title" : "status-ok-title"}">
-            ${isLowConfidence ? "⚠ Unsichere Erkennung" : "✓ Erkannt"}: ${fbLabel}${variantLabel}
+            ${headline}
           </div>
           <p style="margin:.3rem 0 0;font-size:13px;color:#555;">
-            Konfidenz ${konfidenz} — ${escapeHtml(k.begruendung)}
+            ${tx("smart.konfidenz", { pct: `${Math.round(k.konfidenz * 100)} %`, grund: escapeHtml(k.begruendung) })}
           </p>
         </div>
       `;
       if (!item.einreichungId) body.appendChild(renderFbCorrectionUi(item));
-      else body.innerHTML += `<p style="margin:.6rem 0 0;font-size:13px;color:#047857;">✓ Eingereicht (ID ${item.einreichungId.slice(0, 8)}…)</p>`;
+      else
+        body.innerHTML += `<p style="margin:.6rem 0 0;font-size:13px;color:#047857;">${tx("smart.eingereicht", { id: item.einreichungId.slice(0, 8) })}</p>`;
     }
     card.appendChild(body);
     return card;
@@ -190,30 +200,32 @@ export function renderSmartUpload(navigate: (search: string) => void): HTMLEleme
     wrap.className = "smart-item-correction";
 
     const fbLabel = document.createElement("label");
-    fbLabel.textContent = "Förderbereich: ";
+    fbLabel.textContent = t("smart.foerderbereich_select") + " ";
     const fbSel = document.createElement("select");
     const blank = document.createElement("option");
     blank.value = "";
-    blank.textContent = "— bitte wählen —";
+    blank.textContent = t("smart.bitte_waehlen");
     fbSel.appendChild(blank);
     for (const id of ["I", "II", "III", "IV"] as FoerderbereichId[]) {
       const opt = document.createElement("option");
       opt.value = id;
-      opt.textContent = `FB ${id} — ${ALL_FOERDERBEREICHE[id].label_lang}`;
+      opt.textContent = tx("smart.fb_label_long", {
+        fb: id,
+        label: ALL_FOERDERBEREICHE[id].label_lang,
+      });
       if (item.effectiveFb === id) opt.selected = true;
       fbSel.appendChild(opt);
     }
     fbLabel.appendChild(fbSel);
     wrap.appendChild(fbLabel);
 
-    // Varianten-Select (nur FB III) — initial gemäß effectiveFb sichtbar/versteckt
     const vLabel = document.createElement("label");
     vLabel.style.marginLeft = "1rem";
-    vLabel.textContent = "Variante: ";
+    vLabel.textContent = t("smart.variante_select") + " ";
     const vSel = document.createElement("select");
     const vBlank = document.createElement("option");
     vBlank.value = "";
-    vBlank.textContent = "— bitte wählen —";
+    vBlank.textContent = t("smart.bitte_waehlen");
     vSel.appendChild(vBlank);
     for (const id of ["A", "B", "C", "D"] as FbIiiVarianteId[]) {
       const opt = document.createElement("option");
@@ -279,14 +291,14 @@ export function renderSmartUpload(navigate: (search: string) => void): HTMLEleme
 
   submitBtn.addEventListener("click", async () => {
     submitBtn.disabled = true;
-    submitBtn.textContent = "Wird hochgeladen …";
+    submitBtn.textContent = t("smart.submit_lauft");
     errBox.style.display = "none";
 
     const queue = items.filter((i) => i.effectiveFb !== null && !i.einreichungId);
     if (queue.length === 0) {
       submitBtn.disabled = false;
-      submitBtn.textContent = "Alle einreichen";
-      showError("Bitte mindestens eine Datei mit gewähltem Förderbereich vorbereiten.");
+      submitBtn.textContent = t("smart.submit");
+      showError(t("smart.min_eine_datei"));
       return;
     }
 
@@ -308,7 +320,7 @@ export function renderSmartUpload(navigate: (search: string) => void): HTMLEleme
     }
 
     submitBtn.disabled = false;
-    submitBtn.textContent = "Alle einreichen";
+    submitBtn.textContent = t("smart.submit");
 
     // Single-File-Convenience: direkt zur Status-Page.
     if (queue.length === 1 && queue[0]?.einreichungId) {
@@ -318,13 +330,12 @@ export function renderSmartUpload(navigate: (search: string) => void): HTMLEleme
     // Multi-File: User bleibt auf der Seite, sieht pro Item den Status + Link.
     const successCount = queue.filter((i) => i.einreichungId).length;
     if (successCount > 0) {
-      showError(`${successCount} von ${queue.length} Anträgen eingereicht. Klicken Sie auf eine eingereichte Datei für den Status (siehe unten).`);
-      // Status-Links unter jedem erfolgreichen Item rendern
+      showError(tx("smart.queue_done", { ok: successCount, total: queue.length }));
       for (const item of queue) {
         if (!item.einreichungId) continue;
         const link = document.createElement("a");
         link.href = `?status=${encodeURIComponent(item.einreichungId)}`;
-        link.textContent = `Status zu „${item.file.name}" ansehen ›`;
+        link.textContent = tx("smart.status_link", { file: item.file.name });
         link.style.display = "block";
         link.style.marginTop = "0.6rem";
         link.addEventListener("click", (e) => {

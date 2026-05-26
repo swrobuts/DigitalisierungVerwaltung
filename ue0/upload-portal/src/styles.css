@@ -116,6 +116,81 @@ a:hover {
   cursor: default;
 }
 
+/* Sprach-Dropdown (native <select>, im UE1-Look) */
+.lang-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  cursor: pointer;
+  color: #555;
+}
+.lang-icon { font-size: 16px; line-height: 1; }
+.lang-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: #fff
+    url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3e%3cpath fill='%23AD0E36' d='M0 0l5 6 5-6z'/%3e%3c/svg%3e")
+    no-repeat right 10px center;
+  border: 1px solid #e5e5e5;
+  border-radius: 999px;
+  padding: 6px 26px 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2D2D2D;
+  cursor: pointer;
+  min-width: 8.5rem;
+}
+.lang-select:hover { border-color: var(--color-wue-rot); }
+.lang-select:focus-visible {
+  outline: none;
+  border-color: var(--color-wue-rot);
+  box-shadow: 0 0 0 3px rgba(173, 14, 54, .15);
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
+}
+
+/* Fallback-Banner (IT/RU/FR fallen auf DE zurück) */
+.lang-fallback {
+  background: #fff8ec;
+  border-bottom: 1px solid #f3e0b8;
+  color: #6a4a05;
+}
+.lang-fallback[hidden] { display: none; }
+.lang-fallback-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: .55rem 1.5rem;
+  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1.25rem;
+  align-items: baseline;
+}
+.lang-fallback-inner::before {
+  content: "i";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #FF680E;
+  color: #fff;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 12px;
+  flex-shrink: 0;
+  align-self: center;
+}
+.lang-fallback strong { font-weight: 600; }
+.lang-fallback .lang-fallback-de { color: #8a6a30; font-style: italic; }
+
 .nav-menu {
   background: none;
   border: none;
@@ -155,6 +230,42 @@ a:hover {
   max-width: 1240px;
   margin: 0 auto;
   padding: 2rem 1.5rem 3rem;
+}
+
+/* Eyebrow „PDF-Upload-Portal" — Differenzierung zum UE1-Webformular.
+   UE1 trägt die Mirror-Variante (Eyebrow „Webformular"). */
+.ue0-hero-eyebrow {
+  display: inline-block;
+  background: var(--color-wue-grau-dunkel);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 9px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  margin-bottom: .7rem;
+}
+
+/* Cross-Link nach UE1 — kleiner als der Zwei-Wege-Hero */
+.ue0-crosslink {
+  background: #f7f7f7;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  padding: .75rem 1rem;
+  margin: 0 0 1.5rem;
+  font-size: 13.5px;
+  color: #6b6b6b;
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  flex-wrap: wrap;
+}
+.ue0-crosslink strong { color: var(--color-wue-grau-dunkel); font-weight: 600; }
+.ue0-crosslink a {
+  font-weight: 600;
+  color: var(--color-wue-rot);
+  white-space: nowrap;
 }
 
 .page-titel {
