@@ -139,6 +139,10 @@ _NICHT_HEILBARE_MARKER = (
     "doppelförderung",                  # AHP § 4 — Doppelförderung ausgeschlossen
     "kein dachverband",                 # AHP 2.1 — FB I Dachverband Pflicht
     "ohne dachverband",                 # AHP 2.1 — Variante
+    "nicht antragsberechtigt",          # AHP § 3.1 — Trägerstatus fehlt
+    "kein anerkannter träger",          # AHP § 3.1 — Variante
+    "privatinitiative",                 # AHP § 3.1 — Privatpersonen ausgeschlossen
+    "kein trägerstatus",                # AHP § 3.1 — Variante
 )
 
 
