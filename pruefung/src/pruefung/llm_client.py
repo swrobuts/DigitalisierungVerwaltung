@@ -217,9 +217,55 @@ class AnthropicLlmClient:
         self, prompt: str,
     ) -> list[dict[str, Any]]:
         """Layer-B-Subsumtion via Anthropic Tool-Use → strukturiertes JSON
-        pro Norm-Aussage. Provider-agnostischer Helper kümmert sich um den
-        eigentlichen Call + Block-Extraktion."""
-        return await _subsumiere_via_complete(self, prompt)
+        pro Norm-Aussage.
+
+        Performance-Optimierung: Anthropic Prompt-Caching greift, wenn wir
+        den Prompt in einen STATISCHEN Vorab-Teil (Anweisungen +
+        Norm-Statements — ändert sich kaum) und einen DYNAMISCHEN Teil
+        (der konkrete Antrag) splittern und den statischen mit
+        `cache_control: ephemeral` markieren.
+
+        Cache-TTL ist 5 Minuten — bei einer Demo-Session werden
+        nacheinander mehrere Anträge geprüft, alle vom gleichen FB → sehr
+        hohe Cache-Hit-Rate. Spart ~90 % Latenz auf dem statischen Teil
+        (typischerweise 2k–4k Tokens).
+
+        Split-Marker ist '\\n\\nAntrag:' — alle FB-Plugin-Prompts nutzen
+        ihn (siehe `baue_subsumtions_prompt` in fb_i/ii/iii/iv.py). Falls
+        ein Plugin in Zukunft den Marker ändert, fällt das Caching
+        stillschweigend aus und der Call bleibt funktional korrekt.
+        """
+        SPLIT_MARKER = "\n\nAntrag:"
+        if SPLIT_MARKER in prompt:
+            static_part, dynamic_part = prompt.split(SPLIT_MARKER, maxsplit=1)
+            user_content: Any = [
+                {
+                    "type": "text",
+                    "text": static_part,
+                    "cache_control": {"type": "ephemeral"},
+                },
+                {
+                    "type": "text",
+                    "text": "Antrag:" + dynamic_part,
+                },
+            ]
+        else:
+            user_content = prompt
+
+        resp = await self.complete(
+            system=_SUBSUMTION_SYSTEM,
+            messages=[{"role": "user", "content": user_content}],
+            tools=[SUBSUMTION_TOOL],
+            max_tokens=4096,
+        )
+        for block in resp.content:
+            btype = getattr(block, "type", None)
+            bname = getattr(block, "name", None)
+            if btype == "tool_use" and bname == "liefere_subsumtion":
+                inp = getattr(block, "input", None) or {}
+                befunde = inp.get("befunde") if isinstance(inp, dict) else None
+                return list(befunde or [])
+        return []
 
 
 # ── LM Studio (lokal, OpenAI-kompatibel) ─────────────────────────────
