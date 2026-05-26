@@ -33,8 +33,25 @@ deploy_ue() {
     *) echo "Unbekanntes UE: $UE (erlaubt: ue2 | ue3)"; exit 1 ;;
   esac
 
-  echo "▶ Building $UE …"
   cd "$REPO_ROOT/$DIR"
+
+  # Vite inlined ENV-Vars zur Build-Zeit. Wenn .env fehlt oder ANON_KEY
+  # leer ist, baut Vite klaglos — und die App crasht im Browser mit
+  # "VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY müssen in .env stehen".
+  # Drum hier hart prüfen, BEVOR wir bauen + nach VPS pushen.
+  if [[ ! -f .env ]]; then
+    echo "✖ .env fehlt in $DIR — kopiere .env.example und trage den ANON_KEY ein:" >&2
+    echo "    cp $DIR/.env.example $DIR/.env" >&2
+    echo "    ANON_KEY auf VPS: grep '^ANON_KEY=' /root/supabase/docker/.env" >&2
+    exit 1
+  fi
+  if ! grep -q '^VITE_SUPABASE_ANON_KEY=eyJ' .env; then
+    echo "✖ VITE_SUPABASE_ANON_KEY in $DIR/.env fehlt oder ist kein JWT (eyJ…)" >&2
+    echo "  Lies den Wert: ssh $VPS_USER@$VPS_HOST 'grep ^ANON_KEY= /root/supabase/docker/.env'" >&2
+    exit 1
+  fi
+
+  echo "▶ Building $UE …"
   pnpm build
 
   echo "▶ Syncing $UE → $VPS_HOST:/opt/dv-dist/$SUBDIR/ …"
