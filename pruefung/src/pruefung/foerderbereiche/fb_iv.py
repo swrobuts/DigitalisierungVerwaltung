@@ -85,6 +85,12 @@ class FbIvPlugin:
     def post_process_kibescheid(self, raw: str) -> dict[str, Any]:
         return parse_ki_json_or_fallback(raw)
 
+    def check_konformitaet(
+        self, antrag: dict[str, Any], db: Any = None,  # noqa: ARG002
+    ) -> list[Any]:
+        """Keine FB-IV-spezifischen Hard-Regeln in Layer B (formlos)."""
+        return []
+
     def render_bescheid_template(
         self,
         antrag: dict[str, Any],

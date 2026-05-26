@@ -62,6 +62,13 @@ class FbIPlugin:
     def post_process_kibescheid(self, raw: str) -> dict[str, Any]:
         return parse_ki_json_or_fallback(raw)
 
+    def check_konformitaet(
+        self, antrag: dict[str, Any], db: Any = None,  # noqa: ARG002
+    ) -> list[Any]:
+        """Keine FB-I-spezifischen Hard-Regeln in Layer B — die
+        Subsumtion erledigt das LLM in Layer C / Bescheid-Pfad."""
+        return []
+
     def render_bescheid_template(
         self,
         antrag: dict[str, Any],

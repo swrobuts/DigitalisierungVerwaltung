@@ -142,6 +142,36 @@ class FbIiiPlugin:
     def post_process_kibescheid(self, raw: str) -> dict[str, Any]:
         return parse_ki_json_or_fallback(raw)
 
+    def check_konformitaet(
+        self, antrag: dict[str, Any], db: Any = None,  # noqa: ARG002
+    ) -> list[Any]:
+        """FB-III-spezifische Cross-Field-Konformitäts-Hinweise.
+
+        Aktuell: Variante C — Treffen-Schwelle muss eine der in der
+        AHP-Richtlinie vorgesehenen Stufen sein (GT_10/GT_20/GT_40).
+        Bei unbekannter Schwelle: hinweis, dass die Höchstgrenze nicht
+        bestimmt werden kann.
+        """
+        from pruefung.models import Befund
+
+        befunde: list[Any] = []
+        details = antrag.get("fb_details") or {}
+        variante = details.get("variante")
+        if variante == "C":
+            schwelle = details.get("c_treffen_schwelle")
+            if schwelle and schwelle not in HOECHSTGRENZE_C_BY_STAFFEL:
+                befunde.append(Befund(
+                    schwere="hinweis", layer="B",
+                    feld="fb_details.c_treffen_schwelle",
+                    beschreibung=(
+                        f"Treffen-Schwelle {schwelle!r} ist in der AHP-Richtlinie "
+                        f"nicht vorgesehen. Erwartet: 'GT_10', 'GT_20' oder 'GT_40' "
+                        f"(siehe AHP 2.3 Variante C)."
+                    ),
+                    paragraph_ref="AHP 2.3 (Förderbereich III, Variante C)",
+                ))
+        return befunde
+
     def render_bescheid_template(
         self,
         antrag: dict[str, Any],
