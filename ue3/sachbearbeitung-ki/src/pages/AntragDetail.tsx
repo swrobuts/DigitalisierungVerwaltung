@@ -13,9 +13,7 @@
  *     - Aside (rechts, lg:col-span-1): PruefungsCard (KI-Konformität mit
  *       Empfehlung + Befunden + AHP-Wortlaut), BescheideListe (PDF/DOCX),
  *       ZweitpruefungsCard (Vier-Augen-Prinzip), Workflow-Status-Buttons,
- *       VorjahresVergleich.
- *
- * ExterneValidierungCard folgt im zweiten Schritt der Etappe E.
+ *       VorjahresVergleich, ExterneValidierungCard (Perplexity-Recherche).
  */
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -35,6 +33,7 @@ import { PruefungsCard } from "../components/PruefungsCard";
 import { BescheideListe } from "../components/BescheideListe";
 import { VorjahresVergleich } from "../components/VorjahresVergleich";
 import { ZweitpruefungsCard } from "../components/ZweitpruefungsCard";
+import { ExterneValidierungCard } from "../components/ExterneValidierungCard";
 import { AntragViewer } from "@dv/antrag-renderer";
 import { allowedTransitions, STATUS_LABELS, type Status } from "../lib/workflow";
 import {
@@ -355,6 +354,8 @@ export function AntragDetail() {
             </Card>
 
             <VorjahresVergleich antragId={id!} />
+
+            <ExterneValidierungCard antragId={id!} />
           </aside>
         </main>
       </div>

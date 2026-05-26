@@ -110,6 +110,15 @@ vi.mock("../src/hooks/useAhpTree", () => ({
   pathFromParagraphRef: () => null,
 }));
 
+vi.mock("../src/hooks/useExterneValidierung", () => ({
+  useExterneValidierung: () => ({
+    data: null,
+    running: false,
+    error: null,
+    validieren: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 vi.mock("../src/hooks/useVergleichVorjahr", () => ({
   useVergleichVorjahr: () => ({
     data: null,
@@ -197,6 +206,9 @@ describe("AntragDetail (Etappe D — Vollrestoration)", () => {
 
     // VorjahresVergleich (Lade-Zustand)
     expect(screen.getByText("Vorjahres-Vergleich")).toBeInTheDocument();
+
+    // ExterneValidierungCard
+    expect(screen.getByText("Externe Validierung")).toBeInTheDocument();
 
     // HistoryTimeline-Wrapper
     expect(screen.getByText("Verlauf")).toBeInTheDocument();
