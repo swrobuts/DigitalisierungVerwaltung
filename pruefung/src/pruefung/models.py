@@ -123,6 +123,9 @@ class Empfehlung(BaseModel):
 # und Layer-A-Fixtexte.
 _NICHT_HEILBARE_MARKER = (
     "verfristet",                       # AHP 3.3 — Frist verpasst, nicht reparabel
+    "antragsfrist",                     # AHP 3.3 — LLM-Formulierung "Antragsfrist überschritten"
+    "frist überschritten",              # AHP 3.3 — Variante derselben Aussage
+    "frist abgelaufen",                 # AHP 3.3 — weitere Variante
     "sitz liegt nicht in der stadt",    # AHP 3.1 — Träger-Sitz, struktureller Mangel
     "ahp-obergrenze",                   # Förderhöchstgrenze in absoluter Höhe überschritten
     # "anteilig berechnete höchstauszahlung" gehört NICHT in diese Liste:
@@ -133,6 +136,9 @@ _NICHT_HEILBARE_MARKER = (
     "förderbereich i ist auf maximal 3 jahre",  # AHP 2.1 — Befristung
     "ist erst ab haushaltsjahr 2025",   # AHP 2.3.5 — Förderlinie noch nicht offen
     "passt nicht zur ahp-staffelung",   # Treffenstaffel passt nicht
+    "doppelförderung",                  # AHP § 4 — Doppelförderung ausgeschlossen
+    "kein dachverband",                 # AHP 2.1 — FB I Dachverband Pflicht
+    "ohne dachverband",                 # AHP 2.1 — Variante
 )
 
 
