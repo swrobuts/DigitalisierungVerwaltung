@@ -17,15 +17,17 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 from .agent_tools import (
     ALLOWED_FBS,
     FB_BESCHREIBUNGEN,
     FB_III_VARIANTEN_BESCHREIBUNGEN,
+    _ANTRAG_BASIS_FELDER,
+    tool_bereite_uebernahme_vor,
     tool_get_pflichtfelder,
     tool_klassifiziere_foerderbereich,
-    tool_submit_antrag,
     tool_validate_field,
 )
 
@@ -75,8 +77,57 @@ HARTE REGELN (NICHT verhandelbar):
 4. Du darfst KEINE Paragraphen (§) zitieren. Wenn der User nach
    Rechtsgrundlage fragt: „Die Rechtsgrundlage und alle Zitate stehen
    im späteren Bescheid."
-5. Sei freundlich, klar, zurückhaltend. Frage IMMER nur EIN Feld auf
-   einmal. Antworte auf Deutsch, gendergerecht.
+5. Sei freundlich, klar, zurückhaltend. Antworte auf Deutsch,
+   gendergerecht. WICHTIG zur Effizienz:
+   - Frage die Pflichtfelder in 5 LOGISCHEN BLÖCKEN, nicht einzeln:
+       Block 1 „Träger"   : Einrichtung + Ansprechpartner:in
+       Block 2 „Anschrift" : Straße + Hausnummer + PLZ + Ort
+       Block 3 „Kontakt"   : Telefon + E-Mail
+       Block 4 „Bank"      : Bankname + IBAN + BIC
+       Block 5 „FB-Details": Pflichtfelder für den gewählten FB
+         (aus get_pflichtfelder, wieder in einem Schwung)
+   - Pro Block: 1 Frage mit kurzer Aufzählung, der Bürger antwortet
+     typisch mit allen Feldern in einer Nachricht. Du parst sie und
+     rufst pro extrahiertem Feld einmal `validate_field` auf — das
+     darfst du PARALLEL machen (mehrere tool_use-Blocks in einer
+     Assistant-Antwort sind erlaubt).
+   - Frage NICHT nach Feldern, die du bereits aus der Konversation
+     kennst — nutze die Historie und den Server-Draft.
+   - Wenn ein Block-Wert fehlt oder unklar ist, frage GEZIELT genau
+     dieses eine Feld nach (nicht den ganzen Block neu).
+   - WICHTIG für `validate_field`: nutze AUSSCHLIESSLICH diese exakten
+     `field_name`-Werte (sonst landen sie im falschen Slot beim UE1-
+     Hand-off):
+       Antragsteller-Block:
+         einrichtung, ansprechpartner, strasse, hausnummer, plz, ort,
+         telefon, email, bankname, iban, bic, haushaltsjahr,
+         dachverband, homepage
+       FB I:    projekt_titel, laufzeit, stadtteil,
+                personalkosten_euro, sachkosten_euro
+       FB II:   ehrenamt_titel, anzahl_helfer_vorjahr,
+                gesamt_helferstunden_vorjahr, direkter_kontakt_senioren
+       FB III:  variante  (A/B/C/D), plus die varianten-spezifischen
+                Felder (b_*, c_*, d_*)
+       FB IV:   vorhaben_titel, kurzbeschreibung, geplante_massnahmen,
+                beantragte_summe_euro, laufzeit
+     Verwende „ansprechpartner" — NICHT „ansprechperson", „kontaktperson"
+     oder „name". Verwende „einrichtung" — NICHT „organisation" oder
+     „traeger". Verwende „bankname" — NICHT „bank" oder „kreditinstitut".
+   - SPEZIELL FB-III Variante C (Seniorenkreis):
+       - `c_treffen_schwelle` ist ein ENUM: nur „GT_10", „GT_20" oder
+         „GT_40". Wenn der Bürger „20 Treffen" sagt → validate_field
+         (`c_treffen_schwelle`, „GT_20"). Wenn er „über 40" sagt →
+         „GT_40". Niemals einfach „20" als Wert übergeben.
+       - `c_teilnehmer_durchschnitt` ist eine Zahl (z.B. „9").
+   - SPEZIELL FB-III Variante B (Begegnungszentrum):
+       - `b_anzahl_veranstaltungen`, `b_teilnehmer_senioren`,
+         `b_teilnehmer_generationen` sind Zahlen.
+       - `b_stadtbewohner_anteil` ist ein Dezimalwert zwischen 0 und 1
+         (z.B. „0.85" für 85% Würzburger Anteil).
+   - SPEZIELL FB-III Variante D (Quartiersmanagement):
+       - `d_hauptamt_name` ist Name der Person.
+       - `d_hauptamt_stunden_woche` und `d_hauptamt_stunden_monat` sind
+         Zahlen (Stunden pro Woche / Monat).
 
 ABLAUF:
 - Beim allerersten User-Beitrag: rufe `klassifiziere_foerderbereich` auf.
@@ -88,11 +139,16 @@ ABLAUF:
   antwortet, rufe `validate_field` auf. Bei Fehler: nett erklären und
   nochmal fragen.
 - Wenn alle Pflichtfelder gefüllt sind: fasse den Antrag zusammen und
-  frage explizit nach Bestätigung („Soll ich den Antrag jetzt für Sie
-  einreichen?"). Erst NACH der Bestätigung `submit_antrag` aufrufen.
-- Nach Submit: nenne die Antragsnummer und die nächsten Schritte
-  („Sie erhalten eine Eingangsbestätigung per E-Mail, die
-  Sachbearbeitung meldet sich i.d.R. innerhalb von 4 Wochen.").
+  frage explizit nach Bestätigung („Passen alle Angaben so? Dann übergebe
+  ich Sie ans Webformular, wo Sie alles nochmal in Ruhe prüfen und
+  abschicken können.").
+- Erst NACH der Bestätigung rufe `bereite_uebernahme_vor` auf. Das Tool
+  returnt eine `webformular_url` — gib genau diese URL in deiner Antwort
+  zurück und sage z.B.: „Alles vorbereitet — ich leite Sie jetzt ins
+  Webformular weiter, dort können Sie noch einmal alles prüfen und
+  endgültig absenden." Das Frontend leitet automatisch weiter.
+- Rufe NIEMALS `submit_antrag` auf. Der Bürger sendet den Antrag selbst
+  ab — auf dem strukturierten UE1-Webformular. Du sammelst und übergibst.
 
 WENN DAS THEMA NICHT PASST:
 - KFZ-Förderung, Bau-Anträge, BAföG, Wohngeld etc. sind KEINE AHP-Themen.
@@ -163,11 +219,14 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         },
     },
     {
-        "name": "submit_antrag",
+        "name": "bereite_uebernahme_vor",
         "description": (
-            "Reicht den fertigen Antrag ein. NUR aufrufen, NACHDEM der User "
-            "den Antrag in seiner Gesamtheit bestätigt hat. Returnt "
-            "antrag_id, antragsnummer, status."
+            "Bereitet die Übergabe des Antrags ans UE1-Webformular vor. NUR "
+            "aufrufen, NACHDEM der User alle Angaben bestätigt hat. Der "
+            "Agent submitted NICHT selbst — er gibt die Daten ans Webformular "
+            "weiter, wo der Bürger sie strukturiert prüft und endgültig "
+            "absendet. Returnt {webformular_url, status='ready_for_handoff'}. "
+            "Das Frontend leitet anhand der URL automatisch weiter."
         ),
         "input_schema": {
             "type": "object",
@@ -175,8 +234,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "draft": {
                     "type": "object",
                     "description": (
-                        "Antrags-Draft mit foerderbereich, antragsteller, "
-                        "fb_specific."
+                        "Antrags-Draft mit foerderbereich, fb_iii_variante, "
+                        "antragsteller, fb_specific."
                     ),
                 },
             },
@@ -219,11 +278,53 @@ async def _dispatch_tool(
             input_.get("field_name", ""),
             input_.get("value", ""),
         )
-    if name == "submit_antrag":
-        return await tool_submit_antrag(
-            input_.get("draft", {}), db=db,
+    if name in ("bereite_uebernahme_vor", "submit_antrag"):
+        # Wichtig: das LLM rekonstruiert den `draft`-Argument oft nur aus
+        # der letzten Konversation und vergisst Felder, die früh im Chat
+        # gefallen sind. Wir mergen daher den serverseitigen `current_draft`
+        # (der im run_agent_turn-Loop gepflegt wird) als Basis und lassen
+        # das LLM-Argument nur ergänzen/überschreiben. Das stellt sicher,
+        # dass alle gesammelten Antragsteller-/FB-Felder im URL-Hash
+        # ankommen — keine Lücken durch LLM-Vergesslichkeit.
+        llm_draft = input_.get("draft", {}) or {}
+        merged = _merge_drafts(_CURRENT_DRAFT_REF.get(), llm_draft)
+        return await tool_bereite_uebernahme_vor(
+            merged,
+            ue1_base_url=os.environ.get("UE1_BASE_URL", "https://antrag.butscher.cloud"),
         )
     return {"fehler": f"Unbekanntes Tool: {name}"}
+
+
+# ── Draft-Merge-Helper ────────────────────────────────────────────────
+
+
+class _DraftRef:
+    """Mini-Container, damit _dispatch_tool ohne extra Param-Drehrad an
+    den aktuellen Server-Draft kommt. Wird pro run_agent_turn neu gesetzt."""
+    def __init__(self) -> None:
+        self._d: dict[str, Any] = {}
+    def set(self, d: dict[str, Any]) -> None:
+        self._d = dict(d or {})
+    def get(self) -> dict[str, Any]:
+        return self._d
+
+
+_CURRENT_DRAFT_REF = _DraftRef()
+
+
+def _merge_drafts(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+    """Tief-Merge zweier Drafts. Overlay-Werte gewinnen, NULL-Felder
+    werden NICHT übernommen (sonst löscht ein vergesslicher LLM-Aufruf
+    bereits gesammelte Felder)."""
+    out = dict(base)
+    for k, v in (overlay or {}).items():
+        if v in (None, "", {}):
+            continue
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _merge_drafts(out[k], v)
+        else:
+            out[k] = v
+    return out
 
 
 def _serialize_messages(
@@ -332,11 +433,115 @@ def _merge_tool_results_into_draft(
                 updated["foerderbereich"] = fb
                 if variante:
                     updated["fb_iii_variante"] = variante
-        elif name == "submit_antrag":
-            if res.get("antrag_id"):
-                updated["antrag_id"] = res["antrag_id"]
-                updated["antragsnummer"] = res.get("antragsnummer")
-                updated["status"] = "submitted"
+        elif name == "validate_field":
+            # Wenn ein Feld erfolgreich validiert wurde, schreiben wir den
+            # Wert in den Server-Draft. Sonst hat das Frontend (und der
+            # nächste Tool-Call) keine Chance, die gesammelten Bürger-
+            # Eingaben zu rekonstruieren — das LLM würde sie alle wieder
+            # neu aus der Chat-History parsen müssen.
+            if res.get("ok"):
+                field_name = call.get("input", {}).get("field_name")
+                value = call.get("input", {}).get("value")
+                # LLM-Synonym-Normalisierung: das LLM nennt das Feld
+                # gelegentlich anders als unsere kanonischen Namen.
+                # Vorher landete „ansprechperson" in fb_specific und das
+                # UE1-Webformular zeigte ein leeres Ansprechpartner-Feld.
+                _FIELD_ALIASES = {
+                    "ansprechperson": "ansprechpartner",
+                    "kontaktperson": "ansprechpartner",
+                    "kontakt": "ansprechpartner",
+                    "kontaktname": "ansprechpartner",
+                    "organisation": "einrichtung",
+                    "traeger": "einrichtung",
+                    "verein": "einrichtung",
+                    "kirche": "einrichtung",
+                    "antragsteller": "einrichtung",
+                    # bewusst NICHT: "name" → mehrdeutig (Einrichtung vs. Person)
+                    "strasse_hausnummer": "strasse",
+                    "address": "strasse",
+                    "adresse": "strasse",
+                    "postleitzahl": "plz",
+                    "stadt": "ort",
+                    "telefonnummer": "telefon",
+                    "tel": "telefon",
+                    "mail": "email",
+                    "e_mail": "email",
+                    "bankverbindung": "bankname",
+                    "bank": "bankname",
+                    "kreditinstitut": "bankname",
+                    "fb_iii_variante": "variante",
+                    # FB-III-Variante-Felder (Treffen, Teilnehmer, Quartier)
+                    "treffen_pro_jahr": "c_treffen_schwelle",
+                    "anzahl_treffen": "c_treffen_schwelle",
+                    "treffen_anzahl": "c_treffen_schwelle",
+                    "teilnehmer_pro_treffen": "c_teilnehmer_durchschnitt",
+                    "durchschnittliche_teilnehmer": "c_teilnehmer_durchschnitt",
+                    "teilnehmer_durchschnitt": "c_teilnehmer_durchschnitt",
+                    "quartier_anzahl": "c_quartierstreffen_anzahl",
+                    "quartierstreffen": "c_quartierstreffen_anzahl",
+                    "quartier_kooperation": "c_quartier_kooperation",
+                    # FB-III-Variante-B (Begegnungszentrum)
+                    "veranstaltungen": "b_anzahl_veranstaltungen",
+                    "anzahl_veranstaltungen": "b_anzahl_veranstaltungen",
+                    "teilnehmer_senioren": "b_teilnehmer_senioren",
+                    "teilnehmer_generationen": "b_teilnehmer_generationen",
+                    "stadtbewohner_anteil": "b_stadtbewohner_anteil",
+                    # FB-III-Variante-D (Quartiersmanagement)
+                    "hauptamt_name": "d_hauptamt_name",
+                    "hauptamt_stunden_woche": "d_hauptamt_stunden_woche",
+                    "stunden_pro_woche": "d_hauptamt_stunden_woche",
+                    "hauptamt_stunden_monat": "d_hauptamt_stunden_monat",
+                    "stunden_pro_monat": "d_hauptamt_stunden_monat",
+                }
+                # Wert-Transform für c_treffen_schwelle: numerische
+                # Eingabe ("20") in das Enum mappen ("GT_20"). Wenn der
+                # Agent das nicht selbst macht, holen wir's hier nach.
+                if field_name == "c_treffen_schwelle" or call.get("input", {}).get("field_name") in (
+                    "treffen_pro_jahr", "anzahl_treffen", "treffen_anzahl",
+                ):
+                    raw = str(value or "").strip().upper()
+                    if raw not in ("GT_10", "GT_20", "GT_40"):
+                        try:
+                            n = int(re.sub(r"[^0-9]", "", raw))
+                            if n >= 40:
+                                value = "GT_40"
+                            elif n >= 20:
+                                value = "GT_20"
+                            elif n >= 10:
+                                value = "GT_10"
+                        except (ValueError, TypeError):
+                            pass
+                if field_name in _FIELD_ALIASES:
+                    field_name = _FIELD_ALIASES[field_name]
+                if field_name and value not in (None, ""):
+                    # Variante separat (in der DB ein eigenes Top-Level-Feld,
+                    # nicht in fb_specific). Akzeptiert sowohl "variante" als
+                    # auch "fb_iii_variante" als Field-Name (LLM-Drift).
+                    if field_name in ("variante", "fb_iii_variante"):
+                        v = (value or "").strip().upper()
+                        if v in ("A", "B", "C", "D"):
+                            updated["fb_iii_variante"] = v
+                    # Antragsteller-Block: einrichtung/iban/email/...
+                    # (inkl. optionale Felder dachverband/hausnummer/homepage)
+                    elif field_name in _ANTRAG_BASIS_FELDER or field_name in (
+                        "dachverband", "hausnummer", "homepage",
+                    ):
+                        antragsteller = dict(updated.get("antragsteller") or {})
+                        antragsteller[field_name] = value
+                        updated["antragsteller"] = antragsteller
+                    else:
+                        # FB-spezifische Felder (b_*, c_*, d_*, ehrenamt_titel,
+                        # projekt_titel, vorhaben_titel, kurzbeschreibung etc.)
+                        fb_specific = dict(updated.get("fb_specific") or {})
+                        fb_specific[field_name] = value
+                        updated["fb_specific"] = fb_specific
+        elif name in ("bereite_uebernahme_vor", "submit_antrag"):
+            # Beide routen auf den Hand-off-Pfad: kein direct-submit mehr.
+            # webformular_url im Draft → Frontend triggert Redirect.
+            url = res.get("webformular_url")
+            if url:
+                updated["webformular_url"] = url
+                updated["status"] = "ready_for_handoff"
     return updated
 
 
@@ -381,6 +586,11 @@ async def run_agent_turn(
 
     messages = _serialize_messages(history, user_message)
     draft = dict(current_draft or {})
+    # Auch frühere Tool-Outputs aus der History rekonstruieren, damit der
+    # Server-Draft nicht „leer" startet, wenn das Frontend nur den minimalen
+    # current_draft schickt. Außerdem Antragsteller-Felder aus User-Messages
+    # extrahieren (heuristisch via klassifiziere_foerderbereich-Logs).
+    _CURRENT_DRAFT_REF.set(draft)
     tool_trace: list[dict[str, Any]] = []
 
     for _iter in range(max_tool_iters):
@@ -434,6 +644,9 @@ async def run_agent_turn(
             })
         messages.append({"role": "user", "content": tool_results_for_message})
         draft = _merge_tool_results_into_draft(draft, tool_uses, tool_outputs)
+        # Server-Draft-Ref aktualisieren, damit der nächste Tool-Aufruf
+        # (insb. bereite_uebernahme_vor) den vollen Stand sieht.
+        _CURRENT_DRAFT_REF.set(draft)
 
         # Falls das LLM end_turn signalisiert und trotzdem noch tool_use
         # geliefert hat (sollte nicht passieren), brechen wir nach diesem
@@ -456,13 +669,17 @@ async def run_agent_turn(
 
 def _infer_next_action(draft: dict[str, Any], assistant_text: str) -> str:
     """Heuristische Nächste-Schritt-Markierung für die UI."""
+    if draft.get("webformular_url"):
+        # Frontend sieht das und triggert window.location.href = webformular_url
+        return "ready_for_handoff"
     if draft.get("status") == "submitted":
-        return "submitted"
+        return "submitted"  # Legacy-Pfad, sollte nicht mehr getriggert werden
     if not draft.get("foerderbereich"):
         return "ask_foerderbereich"
     text_lower = assistant_text.lower() if assistant_text else ""
     if any(s in text_lower for s in (
-        "soll ich den antrag", "darf ich den antrag", "antrag einreichen", "bestätigen sie",
+        "soll ich den antrag", "darf ich den antrag", "antrag einreichen",
+        "bestätigen sie", "passen alle angaben", "übergebe ich sie ans webformular",
     )):
         return "ready_to_submit"
     return "ask_field"

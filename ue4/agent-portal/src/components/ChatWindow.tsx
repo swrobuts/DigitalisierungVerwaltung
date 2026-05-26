@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "../lib/types";
 
 interface Props {
@@ -82,10 +82,35 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   );
 }
 
+/**
+ * Spinner mit Sekunden-Counter und progressiv genauerem Status-Text.
+ *
+ * Hintergrund: ein Block-Turn (z.B. „validiere alle 13 Pflichtfelder")
+ * dauert 20–30s, weil der Agent mehrere Tool-Iterationen parallel
+ * ausführt (Klassifikation + Pflichtfelder-Lookup + N×validate_field +
+ * finale Text-Antwort). Ohne sichtbares Lebenszeichen wirkt das wie
+ * „die App hängt" — deshalb live counter + erklärender Subtext.
+ */
 function ThinkingBubble() {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const id = setInterval(() => {
+      setSeconds(Math.floor((Date.now() - start) / 1000));
+    }, 500);
+    return () => clearInterval(id);
+  }, []);
+
+  // Progressiv genauerer Subtext, damit der User weiß: wir arbeiten
+  // wirklich, das dauert manchmal — kein Hänger.
+  let subtext = "";
+  if (seconds >= 25) subtext = "Letzter Schliff — bin gleich fertig.";
+  else if (seconds >= 12) subtext = "Validiere Ihre Angaben mit den Förderregeln …";
+  else if (seconds >= 4) subtext = "Anna verarbeitet Ihre Eingabe …";
+
   return (
     <div data-testid="thinking-bubble" className="flex justify-start">
-      <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white border border-slate-200 shadow-sm">
+      <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white border border-slate-200 shadow-sm max-w-md">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-wue-rot/60 animate-bounce" />
           <span
@@ -97,9 +122,13 @@ function ThinkingBubble() {
             style={{ animationDelay: "0.3s" }}
           />
           <span className="ml-2 text-sm text-slate-500">
-            Anna denkt nach …
+            Anna denkt nach …{" "}
+            <span className="tabular-nums text-slate-400">({seconds}s)</span>
           </span>
         </div>
+        {subtext && (
+          <div className="mt-1 text-xs text-slate-400 pl-1">{subtext}</div>
+        )}
       </div>
     </div>
   );

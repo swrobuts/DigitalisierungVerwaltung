@@ -60,10 +60,28 @@ export function parseDraft(raw: unknown): AntragDraft {
   }
   if (typeof r.antrag_id === "string") draft.antrag_id = r.antrag_id;
   if (typeof r.antragsnummer === "string") draft.antragsnummer = r.antragsnummer;
+  // Hand-off-URL nur akzeptieren, wenn sie auf eine erwartete UE1-Domain zeigt
+  // (Open-Redirect-Schutz: kein blindes window.location.href = serverseitige URL).
+  if (typeof r.webformular_url === "string") {
+    try {
+      const u = new URL(r.webformular_url);
+      const allowedHosts = new Set([
+        "antrag.butscher.cloud",
+        "swrobuts.github.io",
+        "localhost",
+      ]);
+      if (allowedHosts.has(u.hostname) && u.pathname.includes("/antrag/uebernahme-chat")) {
+        draft.webformular_url = r.webformular_url;
+      }
+    } catch {
+      /* ungültige URL → ignorieren */
+    }
+  }
   if (typeof r.status === "string") {
     const s = r.status;
     if (
-      s === "neu" || s === "in_progress" || s === "ready_to_submit" || s === "submitted"
+      s === "neu" || s === "in_progress" || s === "ready_to_submit" ||
+      s === "submitted" || s === "ready_for_handoff"
     ) {
       draft.status = s;
     }

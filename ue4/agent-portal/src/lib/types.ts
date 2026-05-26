@@ -40,9 +40,11 @@ export interface AntragDraft {
   antragsteller?: AntragstellerBlock;
   fb_specific?: Record<string, string | number | undefined>;
   anlagen?: Array<{ dateiname: string; storage_path: string; anlagentyp: string }>;
-  status?: "neu" | "in_progress" | "ready_to_submit" | "submitted";
+  status?: "neu" | "in_progress" | "ready_to_submit" | "submitted" | "ready_for_handoff";
   antrag_id?: string;
   antragsnummer?: string;
+  /** Hand-off-URL ins UE1-Webformular (mit base64-Payload als Hash). */
+  webformular_url?: string;
 }
 
 export interface ToolTraceEntry {

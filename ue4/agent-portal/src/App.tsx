@@ -53,6 +53,21 @@ export default function App() {
               ? "ready_to_submit"
               : "in_progress",
       }));
+
+      // Hand-off ans UE1-Webformular: wenn der Agent das tool
+      // `bereite_uebernahme_vor` aufgerufen hat, liefert das Backend eine
+      // bereits validierte (Open-Redirect-geschützte) webformular_url. Der
+      // Bürger sieht kurz die Abschiedsnachricht des Agenten und wird dann
+      // automatisch zum vorausgefüllten UE1-Formular weitergeleitet.
+      if (
+        res.next_action === "ready_for_handoff" &&
+        res.updated_draft.webformular_url
+      ) {
+        const url = res.updated_draft.webformular_url;
+        setTimeout(() => {
+          window.location.href = url;
+        }, 2500);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

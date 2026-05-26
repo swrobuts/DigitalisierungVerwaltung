@@ -460,11 +460,48 @@ async def tool_submit_antrag(
     }
 
 
+async def tool_bereite_uebernahme_vor(
+    draft: dict[str, Any],
+    *,
+    ue1_base_url: str = "https://antrag.butscher.cloud",
+) -> dict[str, Any]:
+    """Bereitet die Übergabe des gesammelten Drafts an das UE1-Webformular vor.
+
+    Der Agent schreibt *nicht selbst* in apl.antraege. Stattdessen serialisiert
+    er den Draft als URL-sicheres Base64-JSON und returnt eine UE1-URL mit
+    Hash-Fragment. Das Frontend redirected dorthin; UE1 dekodiert das Hash,
+    füllt sein Webformular vor und der Bürger sieht alles strukturiert,
+    kann korrigieren und final selbst absenden.
+
+    Vorteile gegenüber direct-submit:
+      - Bürger hat Kontrolle über den finalen Schritt (echtes Webformular)
+      - Keine "halbgaren" DB-Inserts wenn was schiefgeht
+      - Konsistenz mit UE0→UE1-Hybrid-Brücke (gleiche Architektur)
+      - Sachbearbeitung sieht später nur saubere, vom Bürger bestätigte Anträge
+    """
+    import base64
+    payload = {
+        "foerderbereich": draft.get("foerderbereich"),
+        "fb_iii_variante": draft.get("fb_iii_variante"),
+        "antragsteller": draft.get("antragsteller") or {},
+        "fb_specific": draft.get("fb_specific") or {},
+    }
+    raw = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    b64 = base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+    url = f"{ue1_base_url.rstrip('/')}/antrag/uebernahme-chat#{b64}"
+    return {
+        "status": "ready_for_handoff",
+        "webformular_url": url,
+        "payload_size_bytes": len(raw),
+    }
+
+
 __all__ = [
     "tool_klassifiziere_foerderbereich",
     "tool_get_pflichtfelder",
     "tool_validate_field",
     "tool_submit_antrag",
+    "tool_bereite_uebernahme_vor",
     "FELD_LABELS",
     "FB_BESCHREIBUNGEN",
     "FB_III_VARIANTEN_BESCHREIBUNGEN",
