@@ -65,3 +65,53 @@ async def test_unbekannter_fb_keine_befunde():
     antrag = {"foerderbereich": None}
     befunde = await check_ontologie(antrag, plan_id="APL2", db=_FakeDb())
     assert befunde == []
+
+
+class _FbIDb:
+    """DB mit Norm-Statements für FB I — testet die KI-Subsumtion-
+    Verdrahtung in check_ontologie."""
+
+    async def select(self, table, query):  # noqa: ARG002
+        if table == "ahp_norm_statements":
+            return [
+                {
+                    "ref": "AHP 2.2",
+                    "foerderbereich": "I",
+                    "statement_typ": "pflicht",
+                    "kurz_aussage": "Senioren-Bezug Pflicht.",
+                    "woertliches_zitat": "Bezug zur Seniorenarbeit erforderlich.",
+                    "aktiv": True,
+                },
+            ]
+        return []
+
+
+class _FakeLlm:
+    async def subsumiere_normstatements(self, prompt):  # noqa: ARG002
+        return [{
+            "ref": "AHP 2.2", "beurteilung": "passt_nicht",
+            "begruendung": "Antrag adressiert keine Senioren.",
+        }]
+
+
+@pytest.mark.asyncio
+async def test_check_ontologie_ruft_ki_subsumtion_wenn_llm_uebergeben():
+    """Wenn db + llm gesetzt sind, läuft Layer B Plus (KI-Subsumtion) zusätzlich
+    zu den Plugin-Hard-Regeln."""
+    antrag = {"foerderbereich": "I", "fb_details": {"projekt_titel": "X"}}
+    befunde = await check_ontologie(
+        antrag, plan_id="APL2", db=_FbIDb(), llm=_FakeLlm(),
+    )
+    assert any(
+        b.layer == "B" and b.paragraph_ref == "AHP 2.2" and b.schwere == "verstoss"
+        for b in befunde
+    ), f"Erwartet AHP-2.2-Verstoss aus KI-Subsumtion, got: {befunde}"
+
+
+@pytest.mark.asyncio
+async def test_check_ontologie_ohne_llm_ueberspringt_ki_subsumtion():
+    """Default-Aufruf ohne llm → nur Plugin-Hard-Regeln."""
+    antrag = {"foerderbereich": "I", "fb_details": {"projekt_titel": "X"}}
+    befunde = await check_ontologie(antrag, plan_id="APL2", db=_FbIDb())
+    # FB I hat keine Hard-Regeln, also leer
+    assert befunde == []

@@ -167,12 +167,20 @@ async def pruefen(req: PruefungsRequest) -> dict[str, Any]:
 
     # UsageTracker sammelt Token-/Kosten-Daten aller LLM-Calls dieses
     # Prüfungs-Laufs — wird ins pruefprotokoll mit persistiert.
-    from pruefung.llm_client import UsageTracker
+    from pruefung.llm_client import UsageTracker, get_llm_client
     usage = UsageTracker()
+
+    # LLM-Client für Layer B (KI-Subsumtion gegen ahp_norm_statements).
+    # Best-effort: wenn kein API-Key vorhanden ist, läuft Layer B nur mit
+    # Hard-Regeln aus den FB-Plugins (Subsumtion wird übersprungen).
+    try:
+        llm = get_llm_client()
+    except (KeyError, RuntimeError, ValueError):
+        llm = None
 
     befunde: list[Befund] = []
     befunde.extend(check_strukturell(antrag))
-    befunde.extend(await check_ontologie(antrag, plan_id="APL2", db=db))
+    befunde.extend(await check_ontologie(antrag, plan_id="APL2", db=db, llm=llm))
 
     tree, version = await _fetch_doctree(db)
     if tree.get("children"):
