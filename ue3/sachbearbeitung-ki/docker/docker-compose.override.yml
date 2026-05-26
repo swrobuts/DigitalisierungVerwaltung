@@ -1,0 +1,16 @@
+# Fast-Deploy Override für lokales Bauen + rsync.
+#
+# Wenn /opt/dv-dist/ue3 auf der VPS existiert, überlagert dieser
+# Volume-Mount die im Image geCOPYte dist. Damit:
+#   - Du baust lokal (`pnpm build` auf dem Mac, ~30 Sek)
+#   - rsync nach /opt/dv-dist/ue3 (~5 Sek)
+#   - nginx liest die neuen Files SOFORT, kein Container-Restart nötig
+#
+# Aktivierung: Nur wenn /opt/dv-dist/ue3 existiert wird gemountet
+# (sonst läuft der Container mit seiner internen dist wie gehabt).
+# Compose ignoriert override.yml NICHT — wenn du den klassischen
+# Build-Path willst, override.yml temporär umbenennen.
+services:
+  amt-ki-frontend:
+    volumes:
+      - /opt/dv-dist/ue3:/usr/share/nginx/html:ro

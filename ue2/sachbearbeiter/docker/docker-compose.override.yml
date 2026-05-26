@@ -1,0 +1,6 @@
+# Fast-Deploy Override für lokales Bauen + rsync.
+# Siehe ue3/.../docker-compose.override.yml für vollständige Doku.
+services:
+  amt-frontend:
+    volumes:
+      - /opt/dv-dist/ue2:/usr/share/nginx/html:ro
