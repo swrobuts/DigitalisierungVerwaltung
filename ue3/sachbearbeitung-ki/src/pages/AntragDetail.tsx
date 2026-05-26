@@ -12,9 +12,10 @@
  *       HistoryTimeline.
  *     - Aside (rechts, lg:col-span-1): PruefungsCard (KI-Konformität mit
  *       Empfehlung + Befunden + AHP-Wortlaut), BescheideListe (PDF/DOCX),
- *       Workflow-Status-Buttons, VorjahresVergleich.
+ *       ZweitpruefungsCard (Vier-Augen-Prinzip), Workflow-Status-Buttons,
+ *       VorjahresVergleich.
  *
- * ZweitpruefungsCard + ExterneValidierungCard folgen in Etappe E.
+ * ExterneValidierungCard folgt im zweiten Schritt der Etappe E.
  */
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -33,6 +34,7 @@ import { AntragMetricsBar } from "../components/AntragMetricsBar";
 import { PruefungsCard } from "../components/PruefungsCard";
 import { BescheideListe } from "../components/BescheideListe";
 import { VorjahresVergleich } from "../components/VorjahresVergleich";
+import { ZweitpruefungsCard } from "../components/ZweitpruefungsCard";
 import { AntragViewer } from "@dv/antrag-renderer";
 import { allowedTransitions, STATUS_LABELS, type Status } from "../lib/workflow";
 import {
@@ -297,6 +299,8 @@ export function AntragDetail() {
               onDelete={handleDeleteBescheid}
               error={bescheidError}
             />
+
+            <ZweitpruefungsCard antragId={id!} antragStatus={antrag.status} />
 
             <Card>
               <CardHeader>

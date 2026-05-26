@@ -82,6 +82,21 @@ vi.mock("../src/hooks/usePruefung", () => ({
   }),
 }));
 
+vi.mock("../src/hooks/usePruefungen", () => ({
+  usePruefungen: () => ({
+    pruefungen: [],
+    erstpruefung: undefined,
+    zweitpruefung: undefined,
+    loading: false,
+    error: null,
+    kiZweitpruefungRunning: false,
+    upsert: vi.fn().mockResolvedValue({}),
+    triggerKiZweitpruefung: vi.fn().mockResolvedValue({}),
+    loesche: vi.fn().mockResolvedValue({}),
+    reload: vi.fn(),
+  }),
+}));
+
 vi.mock("../src/hooks/useSession", () => ({
   useSession: () => ({
     session: { user: { email: "test@thws.de" } } as never,
@@ -157,7 +172,7 @@ describe("AntragDetail (Etappe D — Vollrestoration)", () => {
 
     // Header
     expect(screen.getByText("2026-001")).toBeInTheDocument();
-    expect(screen.getByText(/KI-Variante/i)).toBeInTheDocument();
+    expect(screen.getByText("KI-Variante (UE3)")).toBeInTheDocument();
 
     // Bearbeitungsstand-Stepper (alle 3 Schritt-Labels). 'In Prüfung'
     // erscheint zweimal — einmal im Stepper, einmal im StatusBadge.
@@ -173,6 +188,9 @@ describe("AntragDetail (Etappe D — Vollrestoration)", () => {
 
     // PruefungsCard
     expect(screen.getByText("Konformität per KI prüfen")).toBeInTheDocument();
+
+    // ZweitpruefungsCard (optional, weil keine Pflicht-Empfehlung)
+    expect(screen.getByText(/Zweitprüfung \(optional\)/)).toBeInTheDocument();
 
     // Workflow-Card
     expect(screen.getByText("Workflow · Status-Wechsel")).toBeInTheDocument();
