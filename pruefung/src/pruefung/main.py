@@ -541,6 +541,18 @@ def _vorschlag_to_db(vorschlag: str | None) -> str | None:
     return None
 
 
+class ManuellePruefungEintrag(BaseModel):
+    """Ein Sektionsstatus aus der manuellen Sachbearbeiter-Prüfung (UE2).
+
+    Wird vom UE2-Frontend pro Antrag aus `apl.manuelle_pruefung` geladen
+    und als Kontext an /api/bescheid mitgegeben, damit die manuellen
+    Befunde im Bescheid sichtbar werden (Vier-Augen-Prinzip).
+    """
+    paragraph: str  # z.B. 'antragsteller' | 'bank' | 'fb_detail' | 'anlagen'
+    status: str  # 'offen' | 'ok' | 'fraglich' | 'fehlt'
+    kommentar: str | None = None
+
+
 class BescheidRequest(BaseModel):
     """Body von POST /api/bescheid."""
     antrag_id: str
@@ -548,6 +560,10 @@ class BescheidRequest(BaseModel):
     bewilligte_summe_euro: float | None = None
     bearbeiter_kommentar: str | None = None
     ausgestellt_von: str | None = None
+    # UE2-Pfad: optionaler Kontext aus der manuellen Sachbearbeiter-Prüfung.
+    # Wird vom UE2-Frontend gesetzt; UE3 nutzt KI-Prüfprotokoll und lässt
+    # das Feld leer (default None → Bescheid-Verhalten unverändert).
+    manuelle_pruefung_kontext: list[ManuellePruefungEintrag] | None = None
 
 
 def _find_section_by_path(tree: dict, target: str) -> dict | None:
@@ -600,6 +616,60 @@ def _apply_legacy_field_aliases(antrag: dict[str, Any]) -> dict[str, Any]:
         if sub:
             out["antragsdatum"] = str(sub)[:10]
     return out
+
+
+# Label-Mapping für die Sektion-Slugs aus apl.manuelle_pruefung.
+# Hält den Bescheid-Text lesbar, statt rohe Slugs ('fb_detail') zu zeigen.
+_MANUELLE_PRUEFUNG_LABEL = {
+    "antragsteller": "Antragsteller / Träger",
+    "bank":          "Bankverbindung",
+    "fb_detail":     "Förderbereichs-Details",
+    "anlagen":       "Anlagen / Belege",
+    "kosten":        "Kosten- und Finanzierungsplan",
+    "frist":         "Antragsfrist",
+}
+
+_MANUELLE_PRUEFUNG_STATUS_LABEL = {
+    "ok":       "✓ OK",
+    "fraglich": "⚠ fraglich",
+    "fehlt":    "✗ fehlt",
+    "offen":    "○ offen",
+}
+
+
+def _build_manuelle_pruefung_block(
+    eintraege: list[ManuellePruefungEintrag] | None,
+) -> str | None:
+    """Baut den Text-Block „Manuelle Vier-Augen-Prüfung" für den Bescheid.
+
+    Returnt None, wenn keine Einträge da sind oder alle Einträge im Status
+    'offen' (noch nicht geprüft) sind — dann wäre der Block nur Rauschen.
+
+    Robert-Regel: Dieser Block ist nur Kontext für Sachbearbeiter/Bürger.
+    Der Halluzinations-Validator (`validiere_oder_abbrechen` gegen
+    apl.ahp_norm_statements) läuft im Anschluss unverändert und verhindert,
+    dass im Bescheid §-Referenzen auftauchen, die nicht in der Norm-Quelle
+    existieren — auch wenn ein Sachbearbeiter-Kommentar einen erfundenen
+    § erwähnen sollte.
+    """
+    if not eintraege:
+        return None
+    relevant = [e for e in eintraege if e.status and e.status != "offen"]
+    if not relevant:
+        return None
+    zeilen: list[str] = []
+    for e in relevant:
+        label = _MANUELLE_PRUEFUNG_LABEL.get(e.paragraph, e.paragraph)
+        status = _MANUELLE_PRUEFUNG_STATUS_LABEL.get(e.status, e.status)
+        zeile = f"  - {label}: {status}"
+        if e.kommentar and e.kommentar.strip():
+            zeile += f" — Kommentar: „{e.kommentar.strip()}\""
+        zeilen.append(zeile)
+    return (
+        "MANUELLE PRÜFUNG des Sachbearbeiters "
+        "(UE2 — Vier-Augen-Prinzip):\n"
+        + "\n".join(zeilen)
+    )
 
 
 @app.post("/api/bescheid")
@@ -702,13 +772,26 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
         b["paragraph_ref"] for b in befunde_raw if b.get("paragraph_ref")
     })
 
+    # 4b) UE2-Vier-Augen-Kontext: manuelle Sachbearbeiter-Bewertungen
+    #     pro §-Sektion in einen lesbaren Text-Block übersetzen. Wird im
+    #     Bescheid-Template UND im persistierten begruendung_jsonb mit-
+    #     geführt, damit der DOCX-Re-Render dieselbe Begründung sieht.
+    #     UE3 sendet kein manuelle_pruefung_kontext → Block bleibt None,
+    #     Template rendert ihn nicht (unverändertes Verhalten).
+    manuelle_pruefung_block = _build_manuelle_pruefung_block(
+        req.manuelle_pruefung_kontext,
+    )
+
     # 5) Bescheid-Datensatz anlegen (vor PDF, damit wir die ID kennen)
     ausgestellt_am = datetime.now(UTC)
+    begruendung_jsonb: dict[str, Any] = {"befunde": befunde_for_template}
+    if manuelle_pruefung_block:
+        begruendung_jsonb["manuelle_pruefung_block"] = manuelle_pruefung_block
     inserted = await db.insert("bescheide", {
         "antrag_id": req.antrag_id,
         "entscheidung": req.entscheidung,
         "bewilligte_summe_euro": req.bewilligte_summe_euro,
-        "begruendung_jsonb": {"befunde": befunde_for_template},
+        "begruendung_jsonb": begruendung_jsonb,
         "bearbeiter_kommentar": req.bearbeiter_kommentar,
         "ausgestellt_von": req.ausgestellt_von,
         "ausgestellt_am": ausgestellt_am.isoformat(),
@@ -735,6 +818,7 @@ async def bescheid(req: BescheidRequest) -> dict[str, Any]:
         ausgestellt_am=ausgestellt_am,
         doctree_version=doctree_version,
         geprueft_gegen=geprueft_gegen,
+        manuelle_pruefung_block=manuelle_pruefung_block,
     )
 
     # Hard-Fail-Halluzinations-Schutz (Spec §12.1): jeder im finalen
@@ -836,7 +920,9 @@ async def bescheid_docx(bescheid_id: str) -> Response:
     # 3) Befunde direkt aus dem persistierten begruendung_jsonb übernehmen
     #    (sind beim POST /api/bescheid bereits mit Wortlaut + Subsumtion
     #    angereichert worden).
-    befunde_for_template = (b.get("begruendung_jsonb") or {}).get("befunde", [])
+    begruendung = b.get("begruendung_jsonb") or {}
+    befunde_for_template = begruendung.get("befunde", [])
+    manuelle_pruefung_block = begruendung.get("manuelle_pruefung_block")
 
     # 4) Liste aller geprüften AHP-Stellen — aus den Befunden ableiten
     #    (ontologie_rules-Tabelle existiert im neuen apl-Schema nicht mehr).
@@ -865,6 +951,7 @@ async def bescheid_docx(bescheid_id: str) -> Response:
         ausgestellt_am=ausgestellt_am,
         doctree_version=b.get("doctree_version"),
         geprueft_gegen=geprueft_gegen,
+        manuelle_pruefung_block=manuelle_pruefung_block,
     )
 
     nummer = antrag.get("antragsnummer") or bescheid_id[:8]

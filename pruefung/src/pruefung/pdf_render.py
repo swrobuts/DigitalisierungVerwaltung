@@ -67,6 +67,7 @@ def render_bescheid_html(
     ausgestellt_am: datetime,
     doctree_version: str | None,
     geprueft_gegen: list[str] | None = None,
+    manuelle_pruefung_block: str | None = None,
 ) -> tuple[str, Path]:
     """Rendert nur den HTML-Bescheid (ohne PDF-Konvertierung).
 
@@ -91,6 +92,7 @@ def render_bescheid_html(
         geprueft_gegen=geprueft_gegen or [],
         wappen_src=wappen_path.as_uri(),
         hoechstgrenze=get_hoechstgrenze(antrag.get("foerderbereich")),
+        manuelle_pruefung_block=manuelle_pruefung_block,
     )
     return html, wappen_path
 
@@ -107,6 +109,7 @@ def render_bescheid_pdf(
     ausgestellt_am: datetime,
     doctree_version: str | None,
     geprueft_gegen: list[str] | None = None,
+    manuelle_pruefung_block: str | None = None,
 ) -> bytes:
     """Rendert einen Verwaltungsbescheid (bewilligt/abgelehnt/rueckfrage).
 
@@ -126,6 +129,7 @@ def render_bescheid_pdf(
         ausgestellt_am=ausgestellt_am,
         doctree_version=doctree_version,
         geprueft_gegen=geprueft_gegen,
+        manuelle_pruefung_block=manuelle_pruefung_block,
     )
     from weasyprint import HTML
     return HTML(string=html, base_url=str(wappen_path.parent)).write_pdf()
@@ -264,6 +268,7 @@ def render_bescheid_docx(
     ausgestellt_am: datetime,
     doctree_version: str | None,
     geprueft_gegen: list[str] | None = None,
+    manuelle_pruefung_block: str | None = None,
 ) -> bytes:
     """Editierbare DOCX-Variante mit demselben Layout wie das PDF.
 
@@ -679,6 +684,27 @@ def render_bescheid_docx(
             "wird die Prüfung fortgesetzt."
         )
         rf_p.paragraph_format.space_before = Pt(8)
+
+    # ── 8b. MANUELLE VIER-AUGEN-PRÜFUNG (UE2-Kontext) ──────────────
+    #     Nur sichtbar, wenn das UE2-Frontend manuelle Sektionsbewertungen
+    #     mitgegeben hat. UE3 liefert keinen Block → übersprungen.
+    if manuelle_pruefung_block:
+        mp_tbl = doc.add_table(rows=1, cols=1)
+        mp_tbl.autofit = False
+        _docx_set_col_widths(mp_tbl, [16.5])
+        mp_cell = mp_tbl.rows[0].cells[0]
+        _docx_set_cell_shading(mp_cell, "F0F4F8")
+        _docx_set_cell_borders(mp_cell, color="2563EB", size=4, sides=("left",))
+        mp_lbl_p = mp_cell.paragraphs[0]
+        mp_lbl_r = mp_lbl_p.add_run(
+            "MANUELLE VIER-AUGEN-PRÜFUNG (Sachbearbeitung)"
+        )
+        mp_lbl_r.bold = True
+        mp_lbl_r.font.size = Pt(7.5)
+        mp_lbl_r.font.color.rgb = RGBColor.from_string(_CI_HELLGRAU)
+        mp_body_p = mp_cell.add_paragraph()
+        mp_body_r = mp_body_p.add_run(manuelle_pruefung_block)
+        mp_body_r.font.size = Pt(9.5)
 
     # ── 9. SACHBEARBEITER-KOMMENTAR ────────────────────────────────
     if bearbeiter_kommentar:

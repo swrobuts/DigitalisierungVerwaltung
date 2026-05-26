@@ -536,6 +536,16 @@
 </p>
 {% endif %}
 
+{# ── Manuelle Vier-Augen-Prüfung (UE2-Kontext) ────────────────── #}
+{% if manuelle_pruefung_block %}
+<div style="margin-top: 5mm; padding: 3mm 4mm; background: #F0F4F8; border-left: 2pt solid #2563EB;">
+  <div style="font-size: 7.5pt; font-weight: bold; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2mm;">
+    Manuelle Vier-Augen-Prüfung (Sachbearbeitung)
+  </div>
+  <p style="margin: 0; white-space: pre-wrap; font-size: 9.5pt; font-family: 'Calibri', sans-serif;">{{ manuelle_pruefung_block }}</p>
+</div>
+{% endif %}
+
 {# ── Sachbearbeiter-Kommentar ─────────────────────────────────── #}
 {% if bearbeiter_kommentar %}
 <div class="kommentar">
