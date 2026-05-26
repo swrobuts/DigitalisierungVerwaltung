@@ -189,7 +189,7 @@ insert into apl.fb_iii_variante (
   c_quartier_person_name
 )
 select id, 'C',
-  '12', 18,
+  'GT_10'::apl.treffen_schwelle_enum, 18,
   4, true,
   'Pfr. Michael Klein'
 from neu;
