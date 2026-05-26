@@ -1,12 +1,26 @@
-"""Layer A — strukturelle Validierung (Defense-in-Depth, redundant zu Frontend).
+"""Layer A — strukturelle Pflichtfeld- und Format-Prüfung, FB-aware via Plugin.
 
-Pflichtfelder gem. Migration 048 (PDF-Voll-Sync, Robert-Entscheidung
-2026-05-24) — Layer A prüft die *strukturelle* Validität jedes
-PDF-Pflichtfelds. Felder werden über das antrag-Dict aus der View
-`antrag_mit_summen` reingereicht (siehe pruefung.main._fetch_antrag).
+Pflichtfelder kombinieren den gemeinsamen Antragsteller-Block aus
+apl.antraege mit FB-spezifischen Pflichtfeldern aus dem jeweiligen
+FB-Plugin (pruefung.foerderbereiche.plugin_for(fb_id)).
+
+Die Plugin-Pflichtfelder werden nach folgendem Schema aufgelöst:
+1. zuerst `antrag[feld]` (gemeinsame Antragsteller-Felder)
+2. dann `antrag["fb_details"][feld]` (FB-spezifische Felder)
+
+So müssen die Plugin-Listen nicht zwischen apl.antraege- und
+fb_*-Spalten unterscheiden — Layer A tut das transparent.
 """
+from __future__ import annotations
+
 import re
+from typing import Any
+
+from pruefung.foerderbereiche import plugin_for
 from pruefung.models import Befund
+
+
+# ── Format-Validatoren ─────────────────────────────────────────────────
 
 
 def _is_valid_iban(s: str) -> bool:
@@ -23,7 +37,7 @@ def _is_valid_iban(s: str) -> bool:
 
 
 def _is_valid_bic(s: str) -> bool:
-    """ISO 9362: 8 oder 11 Zeichen, Großbuchstaben/Ziffern. Whitespace tolerant."""
+    """ISO 9362: 8 oder 11 Zeichen, Großbuchstaben/Ziffern."""
     s = re.sub(r"\s+", "", (s or "").upper())
     return bool(re.fullmatch(r"[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?", s))
 
@@ -36,153 +50,148 @@ def _is_valid_plz(s: str) -> bool:
     return bool(re.fullmatch(r"\d{5}", s or ""))
 
 
-def _is_non_empty(antrag: dict, key: str) -> bool:
-    v = antrag.get(key)
-    if v is None:
+# ── Pflichtfeld-Auflösung ─────────────────────────────────────────────
+
+
+def _resolve(antrag: dict[str, Any], feld: str) -> Any:
+    """Sucht Feld zuerst top-level, dann in fb_details.
+
+    Ermöglicht, dass Plugin-Pflichtfeld-Listen apl.antraege- und
+    fb_*-Spalten ohne Pfad-Prefix mischen können.
+    """
+    if "." in feld:
+        # Explizit qualifizierter Pfad (z.B. 'fb_details.projekt_titel')
+        cur: Any = antrag
+        for part in feld.split("."):
+            if isinstance(cur, dict):
+                cur = cur.get(part)
+            else:
+                return None
+        return cur
+    if feld in antrag:
+        return antrag[feld]
+    details = antrag.get("fb_details") or {}
+    return details.get(feld)
+
+
+def _is_present(value: Any) -> bool:
+    """Wert ist „vorhanden" (Pflichtfeld erfüllt). Leerer String / leere
+    Liste / leeres Dict / None gelten als fehlend."""
+    if value is None:
         return False
-    if isinstance(v, str):
-        return bool(v.strip())
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, dict)):
+        return len(value) > 0
     return True
 
 
-def _check_text_field(
-    antrag: dict, feld: str, label: str, paragraph_ref: str,
-) -> Befund | None:
-    """Hilfs-Funktion: meldet Verstoss wenn das Textfeld leer/None ist."""
-    if _is_non_empty(antrag, feld):
-        return None
-    return Befund(
-        schwere="verstoss", layer="A", feld=feld,
-        beschreibung=f"{label} fehlt (Pflichtfeld).",
-        paragraph_ref=paragraph_ref,
-    )
+# ── Plugin-Pflichtfeld-Abfrage ────────────────────────────────────────
 
 
-def check_strukturell(antrag: dict) -> list[Befund]:
+def _plugin_pflichtfelder(plugin, antrag: dict[str, Any]) -> list[str]:
+    """Holt Pflichtfeld-Liste vom Plugin, FB-III ggf. mit Variante."""
+    if plugin is None:
+        return []
+    if plugin.fb_id == "III":
+        variante = (antrag.get("fb_details") or {}).get("variante")
+        return plugin.get_pflicht_felder(variante=variante)
+    return plugin.get_pflicht_felder()
+
+
+# ── Haupt-Check ───────────────────────────────────────────────────────
+
+
+def check_strukturell(antrag: dict[str, Any]) -> list[Befund]:
     """Liefert Befunde mit layer='A'. Leere Liste = strukturell OK.
 
-    Erwartet `antrag` aus der View `apl.antrag_mit_summen`. Die View
-    aggregiert die Kosten-Belegpositionen, daher prüfen wir
-    betriebskosten/personalkosten direkt am Aggregat (`> 0`).
-
-    TODO Phase 4A.2: apl.antrag_mit_summen existiert im neuen apl-Schema
-    nicht (mehr). Ersatz ist apl.antrag_inbox (View) — diese hat aber
-    andere Spalten (Antragsteller-Block + Status, keine Belegpositions-
-    Summen). Die Strukturprüfung muss in Phase 4B auf die Plugin-Architektur
-    umgestellt werden: Pflichtfelder kommen pro FB aus dem Plugin
-    (siehe pruefung.foerderbereiche.<fb>.get_pflicht_felder).
+    Ablauf:
+    1) Pflichtfelder vom FB-Plugin holen (kombiniert apl.antraege + fb_*)
+    2) Jedes Pflichtfeld via _resolve in `antrag` ODER `antrag.fb_details`
+       suchen — fehlt es: Verstoss
+    3) Generische Format-Checks für IBAN / BIC / PLZ / E-Mail
     """
     befunde: list[Befund] = []
+    fb = antrag.get("foerderbereich")
+    plugin = None
+    if fb:
+        try:
+            plugin = plugin_for(fb)
+        except ValueError:
+            befunde.append(Befund(
+                schwere="verstoss", layer="A", feld="foerderbereich",
+                beschreibung=f"Unbekannter Förderbereich: {fb!r}",
+            ))
 
-    # ── Antragsnummer (System-Pflicht, kein PDF-Feld) ─────────────
-    if not (antrag.get("antragsnummer") or "").strip():
-        befunde.append(Befund(
-            schwere="verstoss", layer="A", feld="antragsnummer",
-            beschreibung="Antragsnummer fehlt.",
-            paragraph_ref="AHP 3.2 a) Antragstellung auf Formblättern",
-        ))
+    # 1+2) Pflichtfelder per Plugin
+    pflicht = _plugin_pflichtfelder(plugin, antrag)
+    for feld in pflicht:
+        value = _resolve(antrag, feld)
+        if not _is_present(value):
+            # Befund-Feld qualifiziert anzeigen, wenn das Feld aus fb_details kommt
+            in_details = feld not in antrag and (
+                isinstance(antrag.get("fb_details"), dict)
+                and feld in (antrag.get("fb_details") or {})
+            )
+            label = (
+                f"fb_details.{feld}" if (in_details or _looks_like_fb_field(feld))
+                else feld
+            )
+            befunde.append(Befund(
+                schwere="verstoss", layer="A", feld=label,
+                beschreibung=f"Pflichtfeld '{label}' fehlt (FB {fb}).",
+            ))
 
-    # ── Textfelder (PDF-Pflichtfelder gem. Migration 048) ─────────
-    text_pflichten = [
-        ("name",            "Name der Einrichtung",     "PDF Feld 2 Name"),
-        ("traeger",         "Träger",                   "PDF Feld 4 Träger"),
-        ("strasse",         "Straße",                   "PDF Feld 3 Anschrift"),
-        ("hausnummer",      "Hausnummer",               "PDF Feld 3 Anschrift"),
-        ("ort",             "Ort",                      "PDF Feld 3 Anschrift"),
-        ("bankverbindung",  "Bankverbindung (Bankname)",
-         "PDF Feld 5 — Verwaltungspraxis Sozialreferat"),
-        ("ansprechpartner", "Ansprechpartner/in",
-         "PDF Feld 8 — Verwaltungspraxis Sozialreferat"),
-        ("telefon",         "Telefon / Handy",
-         "PDF Feld 9 — Verwaltungspraxis Sozialreferat"),
-    ]
-    for feld, label, ref in text_pflichten:
-        b = _check_text_field(antrag, feld, label, ref)
-        if b is not None:
-            befunde.append(b)
-
-    # ── Format-Checks ─────────────────────────────────────────────
-    if not _is_valid_iban(antrag.get("iban", "") or ""):
+    # 3) Format-Checks (nur wenn Wert vorhanden — Pflicht-Verstoss
+    #    melden wir oben schon)
+    iban = antrag.get("iban")
+    if iban and not _is_valid_iban(iban):
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="iban",
             beschreibung="IBAN ungültig (Format oder mod-97-Checksumme).",
             paragraph_ref="AHP 3.6 Auszahlung des Zuschusses",
         ))
-
-    # BIC: ist seit Migration 055 NOT NULL — strukturelle Validität dennoch prüfen.
-    if not _is_valid_bic(antrag.get("bic", "") or ""):
+    bic = antrag.get("bic")
+    if bic and not _is_valid_bic(bic):
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="bic",
             beschreibung="BIC ungültig (Format: 8 oder 11 Zeichen, A–Z/0–9).",
-            paragraph_ref="PDF Feld 7 — Verwaltungspraxis Sozialreferat",
         ))
-
-    if not _is_valid_plz(antrag.get("plz", "") or ""):
+    plz = antrag.get("plz")
+    if plz and not _is_valid_plz(plz):
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="plz",
             beschreibung="PLZ muss aus 5 Ziffern bestehen.",
-            paragraph_ref="PDF Feld 3 Anschrift",
         ))
-
-    if not _is_valid_email(antrag.get("email", "") or ""):
+    email = antrag.get("email")
+    if email and not _is_valid_email(email):
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="email",
             beschreibung="E-Mail-Format ungültig.",
-            paragraph_ref="Verwaltungspraxis: Korrespondenz-Kanal (nicht AHP-explizit)",
         ))
 
+    # Haushaltsjahr-Plausibilität
     jahr = antrag.get("haushaltsjahr")
-    if not (isinstance(jahr, int) and 2020 <= jahr <= 2030):
+    if jahr is not None and not (isinstance(jahr, int) and 2020 <= jahr <= 2030):
         befunde.append(Befund(
             schwere="verstoss", layer="A", feld="haushaltsjahr",
             beschreibung="Haushaltsjahr außerhalb 2020–2030.",
-            paragraph_ref="AHP 3.7 Rechnungsjahr (1.1.–31.12.)",
-        ))
-
-    # ── Räumlichkeiten (PDF Felder 13/14) ─────────────────────────
-    for feld, label, ref in [
-        ("raeume_vorhanden",     "Vorhandene Räumlichkeiten des Trägers",
-         "PDF Feld 13 Räumlichkeiten"),
-        ("raeume_unentgeltlich", "Unentgeltlich bereitgestellte Räume anderer Träger",
-         "PDF Feld 14 Räumlichkeiten"),
-    ]:
-        v = antrag.get(feld)
-        if v not in ("ja", "nein"):
-            befunde.append(Befund(
-                schwere="verstoss", layer="A", feld=feld,
-                beschreibung=f"{label} muss 'ja' oder 'nein' sein.",
-                paragraph_ref=ref,
-            ))
-
-    # ── Antragsdatum (PDF Feld 16 „Würzburg, [Datum]") ────────────
-    if not _is_non_empty(antrag, "antragsdatum"):
-        befunde.append(Befund(
-            schwere="verstoss", layer="A", feld="antragsdatum",
-            beschreibung="Antragsdatum fehlt.",
-            paragraph_ref="PDF Feld 16 Würzburg, [Datum]",
-        ))
-
-    # ── Kosten-Aggregate (PDF Felder 11/12 → belegposition-Summen) ─
-    # Werte kommen aus der View `antrag_mit_summen` (Sum über belegposition).
-    # Strukturell verlangen wir, dass MINDESTENS EINE der beiden
-    # Kosten-Kategorien > 0 ist — die spezifische Layer-B-Regel
-    # `mindestens_eine_kostenposition` macht denselben Check (Defense-in-Depth).
-    try:
-        bk = float(antrag.get("betriebskosten_vorjahr_euro") or 0)
-    except (TypeError, ValueError):
-        bk = 0.0
-    try:
-        pk = float(antrag.get("personalkosten_vorjahr_euro") or 0)
-    except (TypeError, ValueError):
-        pk = 0.0
-    if bk <= 0 and pk <= 0:
-        befunde.append(Befund(
-            schwere="verstoss", layer="A", feld="kostenpositionen",
-            beschreibung=(
-                "Mindestens eine Kostenposition (Betriebskosten oder "
-                "Personalkosten) muss > 0 sein."
-            ),
-            paragraph_ref="PDF Felder 11/12 — Nachgewiesene Kosten Vorjahr",
         ))
 
     return befunde
+
+
+_FB_DETAIL_FIELD_PATTERNS = (
+    "projekt_titel", "personalkosten_euro", "sachkosten_euro",
+    "ehrenamt_titel", "anzahl_helfer_vorjahr", "gesamt_helferstunden_vorjahr",
+    "direkter_kontakt_senioren",
+    "variante", "a_", "b_", "c_", "d_",
+    "anlage_foerderbestaetigung_bund",
+    "vorhaben_titel", "kurzbeschreibung", "dokument_path",
+    "laufzeit", "stadtteil",
+)
+
+
+def _looks_like_fb_field(feld: str) -> bool:
+    """Heuristik: Feld gehört zu fb_details (für Label-Qualifizierung)."""
+    return any(feld == p or feld.startswith(p) for p in _FB_DETAIL_FIELD_PATTERNS)
