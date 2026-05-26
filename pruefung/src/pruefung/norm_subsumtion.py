@@ -51,8 +51,8 @@ async def subsumiere_gegen_normstatements(
     rows = await db.select(
         "ahp_norm_statements",
         (
-            "select=ref,foerderbereich,statement_typ,kurz_aussage,"
-            "ausfuehrlich,woertliches_zitat,aktiv"
+            "select=ref,foerderbereich,fb_iii_variante,statement_typ,"
+            "kurz_aussage,ausfuehrlich,woertliches_zitat,aktiv"
             "&aktiv=eq.true"
             f"&or=(foerderbereich.eq.{fb},foerderbereich.is.null)"
         ),
