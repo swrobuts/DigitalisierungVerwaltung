@@ -78,6 +78,100 @@ class LlmClient(Protocol):
     ) -> LlmResponse: ...
 
 
+# Tool-Schema für die Layer-B-Subsumtion. Wird vom LLM via tool_choice
+# erzwungen → strukturiertes JSON pro Norm-Aussage, kein Free-Form.
+# Der norm_subsumtion-Validator vergleicht die `ref`-Werte mit der
+# vorab geladenen DB-Liste — erfundene refs werden dort verworfen.
+SUBSUMTION_TOOL: dict[str, Any] = {
+    "name": "liefere_subsumtion",
+    "description": (
+        "Beurteilt pro Norm-Aussage, ob der Antrag dazu passt. "
+        "Liefere einen Eintrag pro Norm-Aussage, die im Prompt-Block "
+        "'Norm-Statements' aufgeführt ist. Keine Aussagen erfinden — "
+        "wenn ein Statement nicht beurteilbar ist, 'unklar' wählen."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "befunde": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "ref": {
+                            "type": "string",
+                            "description": (
+                                "Die genaue ref aus dem Prompt-Block, "
+                                "z.B. 'AHP 2.1.4'. Darf NICHT erfunden werden."
+                            ),
+                        },
+                        "beurteilung": {
+                            "type": "string",
+                            "enum": ["passt", "passt_nicht", "unklar"],
+                        },
+                        "begruendung": {
+                            "type": "string",
+                            "description": (
+                                "Maximal 2 Sätze, konkreter Bezug zum Antrag. "
+                                "Keine Quellen außerhalb der Norm-Aussage nennen."
+                            ),
+                        },
+                        "konfidenz": {
+                            "type": "number",
+                            "minimum": 0.0,
+                            "maximum": 1.0,
+                        },
+                    },
+                    "required": ["ref", "beurteilung", "begruendung"],
+                },
+            },
+        },
+        "required": ["befunde"],
+    },
+}
+
+
+_SUBSUMTION_SYSTEM = (
+    "Du bist Sachbearbeiter:in für AHP-Förderungen der Stadt Würzburg "
+    "und subsumierst Anträge gegen kuratierte Norm-Aussagen.\n\n"
+    "HALLUZINATIONS-SCHUTZ (absolut bindend): Es darf NIE etwas erfunden "
+    "oder hinzugefügt werden, was weder in der Rechtsgrundlage noch in "
+    "den PDFs enthalten ist. Du beurteilst NUR die im Prompt aufgeführten "
+    "Norm-Aussagen — keine eigenen § zitieren, keine zusätzlichen Quellen, "
+    "keine Werte erfinden. Wenn die Datenlage nicht reicht, wähle 'unklar'."
+)
+
+
+async def _subsumiere_via_complete(
+    client: "LlmClient",
+    prompt: str,
+    *,
+    max_tokens: int = 4096,
+) -> list[dict[str, Any]]:
+    """Provider-agnostischer Helper: ruft client.complete() mit dem
+    Subsumtions-Tool auf und extrahiert die `befunde`-Liste aus dem
+    tool_use-Block.
+
+    Liefert leere Liste, wenn das LLM keinen tool_use-Block produziert
+    (kann passieren wenn das Modell den Tool-Use ignoriert — wir wollen
+    dann lieber 0 Befunde als einen Crash).
+    """
+    resp = await client.complete(
+        system=_SUBSUMTION_SYSTEM,
+        messages=[{"role": "user", "content": prompt}],
+        tools=[SUBSUMTION_TOOL],
+        max_tokens=max_tokens,
+    )
+    for block in resp.content:
+        btype = getattr(block, "type", None)
+        bname = getattr(block, "name", None)
+        if btype == "tool_use" and bname == "liefere_subsumtion":
+            inp = getattr(block, "input", None) or {}
+            befunde = inp.get("befunde") if isinstance(inp, dict) else None
+            return list(befunde or [])
+    return []
+
+
 # ── Anthropic-Implementation ─────────────────────────────────────────
 
 class AnthropicLlmClient:
@@ -118,6 +212,14 @@ class AnthropicLlmClient:
             usage=usage,
             cost_usd_estimate=_cost_usd(m, usage),
         )
+
+    async def subsumiere_normstatements(
+        self, prompt: str,
+    ) -> list[dict[str, Any]]:
+        """Layer-B-Subsumtion via Anthropic Tool-Use → strukturiertes JSON
+        pro Norm-Aussage. Provider-agnostischer Helper kümmert sich um den
+        eigentlichen Call + Block-Extraktion."""
+        return await _subsumiere_via_complete(self, prompt)
 
 
 # ── LM Studio (lokal, OpenAI-kompatibel) ─────────────────────────────
@@ -200,6 +302,14 @@ class LMStudioLlmClient:
             usage=usage,
             cost_usd_estimate=0.0,  # lokales Modell — keine Kosten
         )
+
+    async def subsumiere_normstatements(
+        self, prompt: str,
+    ) -> list[dict[str, Any]]:
+        """Layer-B-Subsumtion. Auf LM Studio läuft dasselbe Tool-Schema
+        — der Mapper übersetzt Anthropic-Tool → OpenAI-Function und das
+        tool_use-Result zurück, sodass die Aufrufer-Logik identisch ist."""
+        return await _subsumiere_via_complete(self, prompt)
 
 
 # ── Format-Mapping Anthropic ↔ OpenAI ────────────────────────────────

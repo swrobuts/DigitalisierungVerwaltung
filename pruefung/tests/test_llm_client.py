@@ -110,6 +110,78 @@ def test_anthropic_zu_openai_tool_mapping():
     assert openai_tool["function"]["parameters"]["properties"]["id"]["type"] == "string"
 
 
+def test_subsumtion_tool_schema_hat_erforderliche_felder():
+    """Tool-Schema muss `ref`, `beurteilung`, `begruendung` als required
+    haben — sonst kann das LLM unvollständige Befunde liefern."""
+    from pruefung.llm_client import SUBSUMTION_TOOL
+
+    schema = SUBSUMTION_TOOL["input_schema"]
+    assert schema["required"] == ["befunde"]
+    items = schema["properties"]["befunde"]["items"]
+    assert set(items["required"]) == {"ref", "beurteilung", "begruendung"}
+    assert items["properties"]["beurteilung"]["enum"] == [
+        "passt", "passt_nicht", "unklar",
+    ]
+
+
+import pytest as _pytest  # noqa: E402
+
+
+@_pytest.mark.asyncio
+async def test_subsumiere_via_complete_extrahiert_tool_use_block():
+    """Helper soll den `befunde`-Array aus dem tool_use-Block ziehen."""
+    from pruefung.llm_client import LlmResponse, _SimpleBlock, _subsumiere_via_complete
+
+    class FakeClient:
+        def __init__(self):
+            self.last_call = None
+
+        async def complete(self, **kwargs):
+            self.last_call = kwargs
+            block = _SimpleBlock(
+                type="tool_use",
+                name="liefere_subsumtion",
+                id="toolu_1",
+                input={"befunde": [
+                    {"ref": "AHP 2.1", "beurteilung": "passt", "begruendung": "ok"},
+                ]},
+            )
+            return LlmResponse(
+                content=[block], stop_reason="tool_use",
+                model="claude-sonnet-4-5",
+                usage={"input_tokens": 10, "output_tokens": 5},
+                cost_usd_estimate=0.0001,
+            )
+
+    c = FakeClient()
+    out = await _subsumiere_via_complete(c, "PROMPT")
+    assert out == [{"ref": "AHP 2.1", "beurteilung": "passt", "begruendung": "ok"}]
+    # System-Prompt muss Robert-Regel enthalten
+    assert "Halluzinations-Schutz" in c.last_call["system"].replace(
+        "HALLUZINATIONS-SCHUTZ", "Halluzinations-Schutz",
+    ) or "erfunden" in c.last_call["system"]
+
+
+@_pytest.mark.asyncio
+async def test_subsumiere_via_complete_leeres_resultat_wenn_kein_tool_use():
+    """Wenn das LLM nur Text liefert (Tool ignoriert) → leere Liste,
+    KEIN Crash."""
+    from pruefung.llm_client import LlmResponse, _SimpleBlock, _subsumiere_via_complete
+
+    class FakeClient:
+        async def complete(self, **kwargs):  # noqa: ARG002
+            return LlmResponse(
+                content=[_SimpleBlock(type="text", text="nope")],
+                stop_reason="end_turn",
+                model="claude-sonnet-4-5",
+                usage={"input_tokens": 5, "output_tokens": 3},
+                cost_usd_estimate=0.0,
+            )
+
+    out = await _subsumiere_via_complete(FakeClient(), "PROMPT")
+    assert out == []
+
+
 def test_openai_response_zu_anthropic_blocks():
     from pruefung.llm_client import _openai_to_anthropic_content
     # Text + Tool-Call wie OpenAI sie liefert
