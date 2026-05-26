@@ -2,13 +2,32 @@ import { useCallback, useEffect, useState } from "react";
 
 const PRUEFUNG_SERVICE = "https://pruefung.butscher.cloud";
 
+/** Eine konkrete Änderung zwischen Vorjahres- und aktuellem Antrag. */
+export interface VorjahresAenderung {
+  feld: string;
+  label: string;
+  art: "numerisch" | "strukturell";
+  format?: "euro" | "int" | "pct";
+  alt: unknown;
+  neu: unknown;
+  pct_veraenderung?: number | null;
+  schwere: "kritisch" | "auffaellig" | "unauffaellig";
+  /** Optional: konkrete rechtliche/finanzielle Konsequenz, wenn die
+   *  Änderung über die reine Heuristik hinausgeht (z.B. Anteil drückt
+   *  Auszahlung unter geforderte Summe). */
+  konsequenz?: string;
+}
+
+/** Response-Form von pruefung-service GET /api/antrag/{id}/vergleich-vorjahr.
+ *  `vorjahr=null` bedeutet: kein passender Antrag desselben Trägers im
+ *  Haushaltsjahr davor gefunden (Erstantrag oder Trägername abweichend). */
 export interface VorjahresVergleichErgebnis {
-  hat_vorjahr: boolean;
-  vorjahr_antragsnummer?: string;
-  vorjahr_bewilligt_euro?: number;
-  vorjahr_entscheidung?: string;
-  delta_bewilligung_pct?: number;
-  abweichende_felder?: Array<{ feld: string; vorjahr: unknown; jetzt: unknown }>;
+  vorjahr: { id: string; haushaltsjahr: number; traeger: string } | null;
+  aktuell_hj?: number;
+  gesucht_hj?: number;
+  aenderungen: VorjahresAenderung[];
+  anzahl_kritisch?: number;
+  anzahl_auffaellig?: number;
 }
 
 export function useVergleichVorjahr(antragId: string | undefined) {
