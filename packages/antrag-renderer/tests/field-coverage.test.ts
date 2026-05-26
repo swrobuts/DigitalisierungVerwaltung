@@ -83,12 +83,17 @@ const FB_III_DB_COLUMNS = [
   "d_ehrenamt_personen_jsonb",
 ];
 
+// FB IV ist laut Stadt Würzburg ein FORMLOSER Antrag (kein PDF-Formular).
+// Migration 071 macht die alten erfundenen Pflichtfelder nullable und
+// ergänzt `dokument_path` für den hochgeladenen PDF-Antrag.
+// Die Legacy-Spalten geplante_massnahmen, beantragte_summe_euro, laufzeit
+// bleiben in der DB (nullable, kein DROP) als reines Demo-Anschauungs-
+// material und werden bewusst NICHT mehr im Anzeige-Schema verlangt.
+// Siehe docs/PDF-FELDER-AUDIT-2026-05-26.md.
 const FB_IV_DB_COLUMNS = [
   "vorhaben_titel",
   "kurzbeschreibung",
-  "geplante_massnahmen",
-  "beantragte_summe_euro",
-  "laufzeit",
+  "dokument_path",
 ];
 
 describe("Field-Coverage: jede DB-Spalte ist im Anzeige-Schema", () => {

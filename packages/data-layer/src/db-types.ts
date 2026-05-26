@@ -137,13 +137,21 @@ export interface FbIiiVarianteRow {
 }
 
 // ── apl.fb_iv_freitext (1:1) ───────────────────────────────────────────────
+//
+// Migration 071 hat alle vorher-NOT-NULL-Spalten nullable gemacht und die
+// Spalte `dokument_path` ergänzt. FB IV ist laut Stadt Würzburg ein
+// FORMLOSER Antrag — Pflicht ist nur das hochgeladene PDF (dokument_path).
+// Die alten Felder bleiben als nullable Legacy-Spalten erhalten und
+// werden nicht mehr im Anzeige-Schema gefordert
+// (siehe docs/PDF-FELDER-AUDIT-2026-05-26.md).
 export interface FbIvFreitext {
   antrag_id: string;
-  vorhaben_titel: string;
-  kurzbeschreibung: string;
-  geplante_massnahmen: string;
+  vorhaben_titel: string | null;
+  kurzbeschreibung: string | null;
+  geplante_massnahmen: string | null;
   beantragte_summe_euro: number | null;
   laufzeit: string | null;
+  dokument_path: string | null;
 }
 
 // ── apl.anlagen ────────────────────────────────────────────────────────────
