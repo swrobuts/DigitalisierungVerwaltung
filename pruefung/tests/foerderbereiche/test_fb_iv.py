@@ -30,9 +30,11 @@ SAMPLE_ANTRAG = {
     "strasse": "Schwerpunktstr. 8", "plz": "97070", "ort": "Würzburg",
     "telefon": "0931 7", "email": "info@netzwerk.de",
     "bankname": "Volksbank", "iban": "DE12500105170648489890", "bic": "INGDDEFFXXX",
+    # Pflicht-Anlage (Migration 071): formloser Antrag als PDF
+    "dokument_path": "fb_iv/2026/AHP-2026-IV-0099/antrag.pdf",
+    # optionale KI-Klassifikations-Hilfsfelder
     "vorhaben_titel": "Digitales Begegnungsnetz",
     "kurzbeschreibung": "Wir bauen ein digitales Begegnungsnetz für Senior:innen.",
-    "geplante_massnahmen": "Schulungen, Tablet-Verleih, Online-Stammtisch",
 }
 
 
@@ -46,14 +48,21 @@ def test_registry_liefert_dieses_plugin():
     assert isinstance(plugin_for("IV"), FbIvPlugin)
 
 
-def test_pflichtfelder_enthalten_freitext_felder():
+def test_pflichtfelder_formloser_antrag():
+    """FB IV ist laut Stadt Würzburg formlos — strukturelle Pflicht ist nur
+    das hochgeladene PDF (dokument_path, Migration 071). Die alten
+    erfundenen Freitext-Pflichten sind raus (siehe PDF-Audit 2026-05-26)."""
     plugin = FbIvPlugin()
     pf = plugin.get_pflicht_felder()
-    for f in ["vorhaben_titel", "kurzbeschreibung", "geplante_massnahmen",
-              "einrichtung", "iban"]:
+    # Antragsteller-Block (apl.antraege) bleibt Pflicht
+    for f in ["einrichtung", "ansprechpartner", "iban", "haushaltsjahr"]:
         assert f in pf
-    # beantragte_summe_euro ist optional, darf NICHT in Pflichtfeldern stehen
-    assert "beantragte_summe_euro" not in pf
+    # einzige strukturelle FB-IV-Pflicht ist der PDF-Upload
+    assert "dokument_path" in pf
+    # die alten erfundenen Pflichten dürfen NICHT mehr drin stehen
+    for f in ["vorhaben_titel", "kurzbeschreibung", "geplante_massnahmen",
+              "beantragte_summe_euro", "laufzeit"]:
+        assert f not in pf, f"{f} ist seit Migration 071 KEIN Pflichtfeld mehr"
 
 
 def test_subsumtions_prompt_enthaelt_quellen_pin():

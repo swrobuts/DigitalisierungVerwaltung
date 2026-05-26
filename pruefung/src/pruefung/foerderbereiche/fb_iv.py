@@ -1,8 +1,19 @@
 """Plugin für FB IV — Struktur- und Schwerpunktförderung (formlos).
 
-Pflichtfelder kombinieren apl.antraege (gemeinsamer Block, Migration 060)
-mit apl.fb_iv_freitext (Migration 061). beantragte_summe_euro ist optional
-— bei FB IV ist die Förderhöhe individuell auszuhandeln.
+Stadt Würzburg sagt „FB IV: Formlos" (siehe https://www.wuerzburg.de/
+themen/gesundheit-soziales/senioren/antragswesen/index.html, Stand
+2026-05-26) — es gibt KEIN offizielles Antragsformular-PDF.
+
+Pflicht ist deshalb nur das hochgeladene PDF (apl.fb_iv_freitext.
+dokument_path, Migration 071). Vorhaben-Titel, Kurzbeschreibung und alle
+weiteren Freitext-Felder sind optionale KI-Klassifikations-Hilfen — die
+alten Strict-Checks darauf waren eine Erfindung der ersten
+Implementierung und verletzen den Halluzinations-Schutz (siehe
+docs/PDF-FELDER-AUDIT-2026-05-26.md).
+
+Ein Cap-Check auf beantragte_summe_euro entfällt: die Website der Stadt
+Würzburg nennt KEINEN FB-IV-spezifischen Förder-Cap; bei FB IV ist die
+Förderhöhe individuell auszuhandeln.
 """
 from __future__ import annotations
 
@@ -21,16 +32,25 @@ class FbIvPlugin:
     label = "Struktur- und Schwerpunktförderung"
 
     def get_pflicht_felder(self) -> list[str]:
-        """NOT-NULL-Felder aus apl.antraege + apl.fb_iv_freitext."""
+        """Pflichtfelder bei FB IV.
+
+        Aus apl.antraege bleibt der gemeinsame Antragsteller-Block Pflicht
+        (einrichtung, ansprechpartner, Adresse, Bank, Haushaltsjahr).
+        Aus apl.fb_iv_freitext ist nach Migration 071 nur noch
+        `dokument_path` strukturell verpflichtend — der formlose PDF-
+        Antrag, den der Bürger selbst verfasst und hochlädt.
+
+        vorhaben_titel/kurzbeschreibung sind explizit KEINE Pflichtfelder
+        mehr; geplante_massnahmen/beantragte_summe_euro/laufzeit waren
+        ohnehin Erfindungen und werden hier ebenfalls nicht mehr gefordert.
+        """
         return [
             # apl.antraege
             "einrichtung", "ansprechpartner", "strasse", "plz", "ort",
             "telefon", "email", "bankname", "iban", "bic",
             "haushaltsjahr",
-            # apl.fb_iv_freitext
-            "vorhaben_titel",
-            "kurzbeschreibung",
-            "geplante_massnahmen",
+            # apl.fb_iv_freitext (formloser Antrag)
+            "dokument_path",
         ]
 
     def baue_subsumtions_prompt(
@@ -42,7 +62,8 @@ class FbIvPlugin:
         norm_block = norm_statements_to_prompt_block(relevante)
         return (
             "Du subsumierst einen Antrag nach AHP Würzburg, Förderbereich IV "
-            "(Struktur- und Schwerpunktförderung, formlose Antragstellung).\n\n"
+            "(Struktur- und Schwerpunktförderung, FORMLOSE Antragstellung — "
+            "es gibt kein offizielles PDF-Formular der Stadt Würzburg).\n\n"
             f"Norm-Statements (Quellen-gepinnt, NUR diese sind erlaubt):\n{norm_block}\n\n"
             f"Antrag: {antrag}\n\n"
             "Erzeuge ein JSON-Objekt mit den Schlüsseln:\n"
@@ -56,6 +77,8 @@ class FbIvPlugin:
             "- Keine § erfinden, keine Förderhöhen halluzinieren. FB IV ist "
             "individuell — wenn die Norm-Statements keine konkrete Höhe nennen, "
             "schreib das in die Begründung statt eine Zahl zu nennen.\n"
+            "- Wenn das Pflicht-PDF (dokument_path) fehlt: "
+            "entscheidung='rueckfragen' mit Hinweis auf die fehlende Anlage.\n"
             "- Bei unklarem Vorhaben: entscheidung='rueckfragen'."
         )
 

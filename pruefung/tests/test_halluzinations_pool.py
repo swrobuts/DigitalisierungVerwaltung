@@ -97,13 +97,14 @@ HALLU_ANTRAEGE: list[dict] = [
             # KEIN c_treffen_schwelle, KEIN c_teilnehmer_durchschnitt
         },
     },
-    # 4. FB IV — Vorhaben-Titel fehlt
+    # 4. FB IV — formloser PDF-Antrag fehlt (Migration 071 / PDF-Audit
+    #    2026-05-26: einzige strukturelle Pflicht ist dokument_path,
+    #    vorhaben_titel & co. sind nur noch optionale KI-Hilfsfelder)
     {
-        "name": "FB IV ohne Vorhaben",
+        "name": "FB IV ohne formloses PDF",
         "foerderbereich": "IV",
         "fallstrick_typ": "fehlende_pflicht_fb_iv",
-        "fehlende_pflichtfelder": ["vorhaben_titel", "kurzbeschreibung",
-                                    "geplante_massnahmen"],
+        "fehlende_pflichtfelder": ["dokument_path"],
         "daten": {
             "antragsnummer": "AHP-2026-IV-T04",
             "foerderbereich": "IV",
@@ -113,7 +114,7 @@ HALLU_ANTRAEGE: list[dict] = [
             "telefon": "0931 4", "email": "info@zukunft.de",
             "bankname": "VR Bank", "iban": "DE12500105170648489890",
             "bic": "INGDDEFFXXX", "haushaltsjahr": 2026,
-            # KEIN vorhaben_titel, kurzbeschreibung, geplante_massnahmen
+            # KEIN dokument_path — formloser Antrag wurde nicht hochgeladen
         },
     },
     # 5. FB I — Bescheid-Text mit erfundenem § 99.9
