@@ -83,7 +83,8 @@ export function AntragHeader({
   fbIv,
   statusBadge,
 }: Props) {
-  const heroTitel = FB_TITEL[antrag.foerderbereich];
+  // (heroTitel als Hauptüberschrift entfällt — würde zum Summary-Strip
+  // doppeln; FB-Label wird nur dort gezeigt.)
 
   return (
     <>
@@ -113,10 +114,10 @@ export function AntragHeader({
             >
               Aktenzeichen — Rechtsgrundlage: AHP-Förderrichtlinie Stadt Würzburg (Stand 2025-03-27)
             </div>
-            <h1 className="text-[19px] font-semibold text-slate-800 mt-3 leading-snug">
-              {heroTitel}
-            </h1>
-            <p className="text-[11px] text-slate-500 mt-2">
+            {/* Hauptüberschrift bewusst weggelassen — der FB-Titel würde
+                doppeln zum Summary-Strip („FB III — Förderung bewährter
+                Strukturen"). Stattdessen ist die EINRICHTUNG der Anker. */}
+            <p className="text-[11px] text-slate-500 mt-3">
               Haushaltsjahr{" "}
               <span className="font-semibold text-slate-800 tabular-nums">
                 {antrag.haushaltsjahr}
@@ -145,19 +146,19 @@ export function AntragHeader({
           </div>
         </div>
 
-        {/* Einrichtungs-Block — sekundär zur Hauptüberschrift; Name semibold
-            (nicht bold), damit das Auge nicht konkurriert. */}
+        {/* Einrichtungs-Block — DAS ist der Hauptanker (Hauptüberschrift
+            entfällt, weil sie zum Summary-Strip doppeln würde). */}
         <div className="mt-8 border-l-[3px] border-wue-rot pl-4">
           <div className="text-[10.5px] uppercase tracking-wider text-slate-500 font-medium">
             Einrichtung
           </div>
-          <div className="text-[16px] font-semibold text-slate-900 mt-1 leading-tight">
+          <h1 className="text-[20px] font-bold text-slate-900 mt-1 leading-tight">
             {antrag.einrichtung}
-          </div>
+          </h1>
           {antrag.dachverband && (
-            <div className="text-[12.5px] text-slate-700 mt-1">{antrag.dachverband}</div>
+            <div className="text-[13px] text-slate-700 mt-1.5">{antrag.dachverband}</div>
           )}
-          <div className="text-[12.5px] text-slate-600 mt-0.5">
+          <div className="text-[13px] text-slate-600 mt-0.5">
             {formatAdresse(antrag)}
           </div>
         </div>
@@ -193,22 +194,22 @@ function AntragSummaryStrip({
   const summary = summaryFor(antrag.foerderbereich, fbI, fbIii, fbIv);
 
   return (
-    <div className="mt-7 grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-5 border rounded-sm px-5 py-4 bg-slate-50 border-slate-200">
+    <div className="mt-8 pt-6 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-6">
       <div>
         <div className="text-[10.5px] uppercase tracking-[0.14em] text-slate-500 font-medium">
           Beantragte Förderung (Jahr)
         </div>
-        <div className="text-xl font-bold tabular-nums leading-tight mt-1 text-slate-900">
+        <div className="text-[22px] font-bold tabular-nums leading-tight mt-1 text-slate-900">
           {summary.betrag}
         </div>
       </div>
-      <div className="sm:border-l sm:border-slate-300 sm:pl-5 flex flex-col justify-center">
-        <div className="text-[12.5px] text-slate-700">
+      <div className="sm:pl-6 flex flex-col justify-center min-w-0">
+        <div className="text-[13px] text-slate-700">
           <span className="font-medium">
             FB {antrag.foerderbereich} — {FB_TITEL[antrag.foerderbereich]}
           </span>
         </div>
-        <div className="text-[10.5px] text-slate-500 mt-1">
+        <div className="text-[11px] text-slate-500 mt-1 leading-snug">
           {FB_AHP_PFAD[antrag.foerderbereich]} · {summary.subtext}
         </div>
       </div>

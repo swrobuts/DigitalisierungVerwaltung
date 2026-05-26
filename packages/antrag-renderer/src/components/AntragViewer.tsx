@@ -64,13 +64,16 @@ export function AntragViewer(props: Props) {
     case "II": {
       if (!props.fbIi) return <Placeholder fb="II" />;
       const nextNum = start + FB_II_SECTIONS.length;
+      // Fragment statt <div>-Wrapper, damit die DocSections weiterhin
+      // direkte Kinder des äußeren Containers bleiben (siehe Sections()
+      // unten — :first-of-type-Selektor in DocSection muss global wirken).
       return (
-        <div className="space-y-12">
+        <>
           <Sections sections={FB_II_SECTIONS} data={props.fbIi} paragraphStart={start} />
           <DocSection num={`§ ${nextNum}`} title="Helfer-Liste">
             <HelferTable helfer={props.fbIiHelfer ?? []} />
           </DocSection>
-        </div>
+        </>
       );
     }
 
@@ -103,14 +106,18 @@ function Sections<T>({
   // Conditional Sections (z.B. FB-III Variante-spezifisch) werden gefiltert
   // BEVOR die §-Nummer vergeben wird — sonst entstehen Lücken wie § 1, § 3.
   const visible = sections.filter((s) => !s.conditional || s.conditional(data));
+  // Fragment statt <div>: DocSections müssen direkte Kinder des äußeren
+  // Containers (AntragDetail) sein, damit der :first-of-type-Selektor
+  // in DocSection.tsx global gilt — sonst hätte § 3 (erste hier) keine
+  // Trennlinie zur darüberliegenden § 2 in der Page.
   return (
-    <div className="space-y-12">
+    <>
       {visible.map((s, i) => (
         <DocSection key={s.id} num={`§ ${paragraphStart + i}`} title={s.titel}>
           <SectionViewer section={s} data={data} />
         </DocSection>
       ))}
-    </div>
+    </>
   );
 }
 

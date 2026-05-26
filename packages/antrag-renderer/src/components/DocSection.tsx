@@ -38,7 +38,10 @@ export function DocSection({
 }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section>
+    // border-t auf der section — bringt zwischen mehreren Sections eine
+    // klare Trennlinie. Der äußere Container setzt space-y-0 + die erste
+    // Section bekommt im Container `first-of-type:border-t-0`-Override.
+    <section className="border-t border-slate-100 pt-10 first-of-type:border-t-0 first-of-type:pt-0">
       <div className="flex items-start gap-2.5 mb-4">
         <button
           type="button"
