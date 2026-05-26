@@ -119,12 +119,13 @@ export function buildPayload(state: AntragState): Record<string, unknown> {
     }
     base.fb_iii_variante = row;
   } else if (state.foerderbereich === "IV") {
+    // FB IV ist laut Stadt Würzburg ein FORMLOSER Antrag — Pflicht ist
+    // nur der PDF-Upload (siehe docs/PDF-FELDER-AUDIT-2026-05-26.md).
+    // Titel + Kurzbeschreibung sind optionale KI-Klassifikations-Hilfe.
     base.fb_iv_freitext = {
-      vorhaben_titel: state.fb_iv.vorhaben_titel,
-      kurzbeschreibung: state.fb_iv.kurzbeschreibung,
-      geplante_massnahmen: state.fb_iv.geplante_massnahmen,
-      beantragte_summe_euro: toNum(state.fb_iv.beantragte_summe_euro),
-      laufzeit: state.fb_iv.laufzeit || null,
+      vorhaben_titel: state.fb_iv.vorhaben_titel || null,
+      kurzbeschreibung: state.fb_iv.kurzbeschreibung || null,
+      dokument_upload_key: state.fb_iv.dokument_file ? "fb_iv_dokument" : null,
     };
   }
 
@@ -146,6 +147,14 @@ export async function submitAntrag(state: AntragState): Promise<SubmitOk> {
   state.anlagen.forEach((a, i) => {
     if (a.file) fd.append(`file_${i}`, a.file, a.dateiname);
   });
+  // FB IV: zusätzlich das formlose Antrags-PDF als separates Upload-Feld.
+  if (state.foerderbereich === "IV" && state.fb_iv.dokument_file) {
+    fd.append(
+      "fb_iv_dokument",
+      state.fb_iv.dokument_file,
+      state.fb_iv.dokument_dateiname ?? state.fb_iv.dokument_file.name,
+    );
+  }
 
   const headers: Record<string, string> = {};
   const anon = getAnonKey();

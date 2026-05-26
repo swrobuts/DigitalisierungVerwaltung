@@ -149,11 +149,13 @@ const dict: Partial<Record<Sprache, Record<string, string>>> = {
       "Sobald Sie oben eine Variante wählen, erscheinen hier die passenden Felder.",
     "section.fb3.zusatz.titel_warten": "Zusatzfelder erscheinen nach Varianten-Wahl",
 
-    // Sections (FB-IV)
-    "section.fb4.vorhaben": "Vorhaben",
-    "section.fb4.vorhaben.desc": "Titel, Kurzbeschreibung, geplante Maßnahmen",
-    "section.fb4.foerderung": "Förderung & Laufzeit",
-    "section.fb4.foerderung.desc": "Beantragte Summe und Vorhaben-Laufzeit",
+    // Sections (FB-IV — formloser Antrag, siehe PDF-Audit 2026-05-26)
+    "section.fb4.hinweis": "Hinweis zum Antrag",
+    "section.fb4.hinweis.desc": "FB IV ist ein formloser Antrag — kein offizielles PDF-Formular",
+    "section.fb4.upload": "Formloser Antrag (PDF)",
+    "section.fb4.upload.desc": "Laden Sie Ihren selbst verfassten Antrag als PDF hoch",
+    "section.fb4.klassifikation": "Klassifikations-Hilfe (optional)",
+    "section.fb4.klassifikation.desc": "Optional: Titel + Kurzbeschreibung helfen der KI beim Vorsortieren",
 
     // Sections (Phase 3)
     "section.phase3.anlagen.desc.keine": "Für diesen Förderbereich keine Anlagen erforderlich",
@@ -168,6 +170,7 @@ const dict: Partial<Record<Sprache, Record<string, string>>> = {
     "status.inbearbeitung": "in Bearbeitung",
     "status.optional": "optional",
     "status.optionalhier": "optional hier",
+    "status.hinweis": "Hinweis",
     "status.vollstaendig": "vollständig",
     "status.keineerf": "keine erforderlich",
     "status.wartetvariante": "wartet auf Variante",
@@ -259,16 +262,23 @@ const dict: Partial<Record<Sprache, Record<string, string>>> = {
     "fb3.D.hauptamt_stunden_woche": "Stunden pro Woche",
     "fb3.D.hauptamt_stunden_monat": "Stunden pro Monat (optional)",
 
-    // FB IV
-    "fb4.titel": "Schwerpunkt-Vorhaben",
+    // FB IV — formloser Antrag (PDF-Upload Pflicht, Freitexte optional)
+    "fb4.titel": "Schwerpunktförderung (formloser Antrag)",
     "fb4.lead":
-      "Förderbereich IV — Individuelles Vorhaben, das nicht in FB I–III passt (Strukturförderung, Schwerpunktinitiative, Pilotprojekt).",
-    "fb4.vorhaben_titel": "Vorhaben — Titel",
-    "fb4.kurzbeschreibung": "Kurzbeschreibung (max. 1000 Zeichen)",
+      "Förderbereich IV ist ein formloser Antrag. Bitte laden Sie Ihren eigenen Antrag als PDF hoch.",
+    "fb4.hinweis.body":
+      "Förderbereich IV — Schwerpunktförderung ist ein formloser Antrag. Es gibt kein offizielles Antragsformular der Stadt Würzburg. Bitte laden Sie Ihren eigenen formlosen Antrag als PDF hoch.",
+    "fb4.hinweis.link": "Informationen der Stadt Würzburg zum Antragswesen",
+    "fb4.upload.label": "Formloser Antrag als PDF",
+    "fb4.upload.hint": "Erlaubt: PDF · max. 10 MB",
+    "fb4.upload.dateiname": "Datei",
+    "fb4.upload.groesse": "{n} KB",
+    "fb4.optional.titel": "Klassifikations-Hilfe (optional)",
+    "fb4.optional.kurz":
+      "Diese Angaben helfen der KI nur beim Vorsortieren — Sie müssen sie nicht ausfüllen.",
+    "fb4.optional.label_titel": "Vorhaben-Titel (optional)",
+    "fb4.optional.label_kurz": "Kurzbeschreibung (optional, max. 1000 Zeichen)",
     "fb4.kurz_rest": "{n} Zeichen verbleibend",
-    "fb4.geplante_massnahmen": "Geplante Maßnahmen",
-    "fb4.beantragte_summe": "Beantragte Summe (EUR)",
-    "fb4.laufzeit": "Laufzeit",
 
     // Anlagen
     "anlagen.titel": "Anlagen",
@@ -301,6 +311,9 @@ const dict: Partial<Record<Sprache, Record<string, string>>> = {
     "fehler.negativ": "Wert darf nicht negativ sein.",
     "fehler.submit": "Das Absenden ist fehlgeschlagen. Bitte später erneut versuchen.",
     "fehler.anlage_pflicht": "Bitte alle Pflicht-Anlagen hochladen.",
+    "fehler.fb4.dokument_pflicht": "Bitte laden Sie den formlosen Antrag als PDF hoch.",
+    "fehler.fb4.dokument_typ": "Bitte eine PDF-Datei hochladen.",
+    "fehler.fb4.dokument_zu_gross": "Datei zu groß (max. 10 MB).",
 
     // Danke
     "danke.titel": "Vielen Dank — Ihr Antrag ist eingegangen.",
@@ -392,10 +405,12 @@ const dict: Partial<Record<Sprache, Record<string, string>>> = {
       "Yukarıdan bir varyant seçtiğinizde uygun alanlar burada görünecektir.",
     "section.fb3.zusatz.titel_warten": "Ek alanlar varyant seçildikten sonra görünür",
 
-    "section.fb4.vorhaben": "Proje",
-    "section.fb4.vorhaben.desc": "Başlık, kısa açıklama, planlanan önlemler",
-    "section.fb4.foerderung": "Destek ve süre",
-    "section.fb4.foerderung.desc": "Talep edilen tutar ve proje süresi",
+    "section.fb4.hinweis": "Başvuru bilgisi",
+    "section.fb4.hinweis.desc": "FB IV serbest bir başvurudur — resmi PDF formu yoktur",
+    "section.fb4.upload": "Serbest başvuru (PDF)",
+    "section.fb4.upload.desc": "Kendi yazdığınız başvuruyu PDF olarak yükleyin",
+    "section.fb4.klassifikation": "Sınıflandırma yardımı (isteğe bağlı)",
+    "section.fb4.klassifikation.desc": "İsteğe bağlı: Başlık + kısa açıklama yapay zekânın ön sıralama yapmasına yardımcı olur",
 
     "section.phase3.anlagen.desc.keine": "Bu destek alanı için ek gerekmez",
     "section.phase3.anlagen.desc.pflicht": "{total} zorunlu ekten {ok} yüklendi",
@@ -408,6 +423,7 @@ const dict: Partial<Record<Sprache, Record<string, string>>> = {
     "status.inbearbeitung": "işleniyor",
     "status.optional": "isteğe bağlı",
     "status.optionalhier": "burada isteğe bağlı",
+    "status.hinweis": "Bilgi",
     "status.vollstaendig": "tamamlandı",
     "status.keineerf": "gerekli değil",
     "status.wartetvariante": "varyant seçimini bekliyor",
@@ -495,15 +511,22 @@ const dict: Partial<Record<Sprache, Record<string, string>>> = {
     "fb3.D.hauptamt_stunden_woche": "Haftalık saat",
     "fb3.D.hauptamt_stunden_monat": "Aylık saat (isteğe bağlı)",
 
-    "fb4.titel": "Odak projesi",
+    "fb4.titel": "Özel destek (serbest başvuru)",
     "fb4.lead":
-      "Destek alanı IV — FB I–III'e uymayan bireysel projeler (yapısal destek, odak girişimi, pilot proje).",
-    "fb4.vorhaben_titel": "Proje — başlık",
-    "fb4.kurzbeschreibung": "Kısa açıklama (en fazla 1000 karakter)",
+      "Destek alanı IV serbest bir başvurudur. Lütfen kendi başvurunuzu PDF olarak yükleyin.",
+    "fb4.hinweis.body":
+      "Destek alanı IV — Özel destek serbest bir başvurudur. Würzburg Şehri için resmi bir başvuru formu yoktur. Lütfen kendi serbest başvurunuzu PDF olarak yükleyin.",
+    "fb4.hinweis.link": "Würzburg Şehri başvuru süreci hakkında bilgi",
+    "fb4.upload.label": "Serbest başvuru (PDF)",
+    "fb4.upload.hint": "İzin verilen: PDF · en fazla 10 MB",
+    "fb4.upload.dateiname": "Dosya",
+    "fb4.upload.groesse": "{n} KB",
+    "fb4.optional.titel": "Sınıflandırma yardımı (isteğe bağlı)",
+    "fb4.optional.kurz":
+      "Bu bilgiler yalnızca yapay zekânın ön sıralama yapmasına yardımcı olur — doldurmak zorunda değilsiniz.",
+    "fb4.optional.label_titel": "Proje başlığı (isteğe bağlı)",
+    "fb4.optional.label_kurz": "Kısa açıklama (isteğe bağlı, en fazla 1000 karakter)",
     "fb4.kurz_rest": "{n} karakter kaldı",
-    "fb4.geplante_massnahmen": "Planlanan önlemler",
-    "fb4.beantragte_summe": "Talep edilen tutar (EUR)",
-    "fb4.laufzeit": "Süre",
 
     "anlagen.titel": "Ekler",
     "anlagen.pflicht": "Zorunlu",
@@ -532,6 +555,9 @@ const dict: Partial<Record<Sprache, Record<string, string>>> = {
     "fehler.negativ": "Değer negatif olamaz.",
     "fehler.submit": "Gönderim başarısız oldu. Lütfen daha sonra tekrar deneyin.",
     "fehler.anlage_pflicht": "Lütfen tüm zorunlu ekleri yükleyin.",
+    "fehler.fb4.dokument_pflicht": "Lütfen serbest başvuruyu PDF olarak yükleyin.",
+    "fehler.fb4.dokument_typ": "Lütfen bir PDF dosyası yükleyin.",
+    "fehler.fb4.dokument_zu_gross": "Dosya çok büyük (en fazla 10 MB).",
 
     "danke.titel": "Teşekkürler — başvurunuz alındı.",
     "danke.nummer_label": "Başvuru numaranız:",

@@ -149,12 +149,11 @@ export function PrefillBootstrap(): JSX.Element {
         } else if (antrag.foerderbereich === "IV") {
           const fb = await getFbIvFreitext(antragId);
           if (fb) {
+            // FB IV ist formlos — wir prefillen nur die optionalen
+            // KI-Klassifikations-Hilfsfelder (siehe AntragContext.fb_iv).
             next.fb_iv = {
-              vorhaben_titel: fb.vorhaben_titel,
-              kurzbeschreibung: fb.kurzbeschreibung,
-              geplante_massnahmen: fb.geplante_massnahmen,
-              beantragte_summe_euro: numToStr(fb.beantragte_summe_euro),
-              laufzeit: fb.laufzeit ?? "",
+              vorhaben_titel: fb.vorhaben_titel ?? "",
+              kurzbeschreibung: fb.kurzbeschreibung ?? "",
             };
           }
         }

@@ -46,9 +46,16 @@ describe("Page-Render-Smoke", () => {
     expect(screen.getByTestId("variante-D")).toBeInTheDocument();
   });
 
-  it("Phase 2 — FB IV zeigt Zeichenzähler", () => {
+  it("Phase 2 — FB IV zeigt formloser-Antrag-Hinweis + PDF-Upload-Input", () => {
     renderWith(<Phase2Dispatch />, { foerderbereich: "IV" });
-    expect(screen.getByText(/Zeichen verbleibend/)).toBeInTheDocument();
+    // Hinweis-Section ist standardmäßig offen — der Begriff
+    // „formloser Antrag" kommt mehrfach vor (Lead, Hinweis-Body).
+    expect(screen.getAllByText(/formloser Antrag/i).length).toBeGreaterThan(0);
+    // PDF-Upload-Section ist standardmäßig offen
+    expect(screen.getByLabelText(/Formloser Antrag als PDF/)).toBeInTheDocument();
+    // alte erfundene Felder dürfen nicht mehr vorkommen
+    expect(screen.queryByText(/Geplante Maßnahmen/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Beantragte Summe/i)).not.toBeInTheDocument();
   });
 
   it("Phase 3 zeigt Anlagen-Slot für FB I (Projektskizze)", () => {

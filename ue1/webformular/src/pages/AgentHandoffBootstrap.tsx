@@ -137,12 +137,12 @@ function payloadToState(p: unknown): AntragState {
       d_hauptamt_stunden_monat: str("d_hauptamt_stunden_monat"),
     };
   } else if (fb === "IV") {
+    // FB IV formlos — nur optionale KI-Klassifikations-Hilfsfelder
+    // (Agent-Handoff kennt keinen File-Upload; das PDF muss der Bürger
+    // selbst auf der FBIV-Seite hochladen).
     next.fb_iv = {
       vorhaben_titel: str("vorhaben_titel"),
       kurzbeschreibung: str("kurzbeschreibung"),
-      geplante_massnahmen: str("geplante_massnahmen"),
-      beantragte_summe_euro: str("beantragte_summe_euro"),
-      laufzeit: str("laufzeit"),
     };
   }
 

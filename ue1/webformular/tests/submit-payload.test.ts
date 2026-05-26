@@ -71,17 +71,40 @@ describe("buildPayload pro FB", () => {
     expect(p.fb_iii_variante.b_anzahl_veranstaltungen).toBeUndefined();
   });
 
-  it("FB IV — fb_iv_freitext mit Numerik-Konvertierung", () => {
+  it("FB IV — fb_iv_freitext mit optionalen Freitext-Feldern (ohne Upload)", () => {
     const s: AntragState = {
       ...basisState(),
       foerderbereich: "IV",
-      fb_iv: { vorhaben_titel: "Pilot-Projekt", kurzbeschreibung: "kurz",
-               geplante_massnahmen: "Maßnahmen", beantragte_summe_euro: "12500",
-               laufzeit: "18 Monate" },
+      fb_iv: { vorhaben_titel: "Pilot-Projekt", kurzbeschreibung: "kurz" },
     };
     const p = buildPayload(s) as any;
     expect(p.fb_iv_freitext.vorhaben_titel).toBe("Pilot-Projekt");
-    expect(p.fb_iv_freitext.beantragte_summe_euro).toBe(12500);
+    expect(p.fb_iv_freitext.kurzbeschreibung).toBe("kurz");
+    // Ohne dokument_file ist dokument_upload_key null — Backend lehnt ab
+    expect(p.fb_iv_freitext.dokument_upload_key).toBeNull();
+    // erfundene Felder (Migration 071 / PDF-Audit 2026-05-26) sind weg
+    expect(p.fb_iv_freitext.geplante_massnahmen).toBeUndefined();
+    expect(p.fb_iv_freitext.beantragte_summe_euro).toBeUndefined();
+    expect(p.fb_iv_freitext.laufzeit).toBeUndefined();
+  });
+
+  it("FB IV — leere Freitexte werden zu null, dokument_upload_key bei File gesetzt", () => {
+    const file = new File(["%PDF-1.4\n"], "antrag.pdf", { type: "application/pdf" });
+    const s: AntragState = {
+      ...basisState(),
+      foerderbereich: "IV",
+      fb_iv: {
+        vorhaben_titel: "",
+        kurzbeschreibung: "",
+        dokument_file: file,
+        dokument_dateiname: "antrag.pdf",
+        dokument_groesse_bytes: file.size,
+      },
+    };
+    const p = buildPayload(s) as any;
+    expect(p.fb_iv_freitext.vorhaben_titel).toBeNull();
+    expect(p.fb_iv_freitext.kurzbeschreibung).toBeNull();
+    expect(p.fb_iv_freitext.dokument_upload_key).toBe("fb_iv_dokument");
   });
 
   it("Anlagen-Liste enthält upload_key fürs Multipart-Mapping", () => {

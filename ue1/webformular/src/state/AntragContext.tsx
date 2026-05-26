@@ -89,13 +89,18 @@ export interface AntragState {
     d_hauptamt_stunden_monat: string;
   };
 
-  // FB IV
+  // FB IV — formloser Antrag (siehe docs/PDF-FELDER-AUDIT-2026-05-26.md).
+  // Stadt Würzburg sagt „FB IV: Formlos" — es gibt KEIN offizielles
+  // Antragsformular-PDF. Pflicht ist nur der PDF-Upload des selbst
+  // verfassten formlosen Antrags. Vorhaben-Titel + Kurzbeschreibung sind
+  // optional und dienen ausschließlich als KI-Klassifikations-Hilfe für
+  // das Backend-Routing.
   fb_iv: {
     vorhaben_titel: string;
     kurzbeschreibung: string;
-    geplante_massnahmen: string;
-    beantragte_summe_euro: string;
-    laufzeit: string;
+    dokument_file?: File;
+    dokument_dateiname?: string;
+    dokument_groesse_bytes?: number;
   };
 
   // Anlagen
@@ -127,8 +132,7 @@ export const initialAntragState: AntragState = {
     d_hauptamt_name: "", d_hauptamt_stunden_woche: "",
     d_hauptamt_stunden_monat: "",
   },
-  fb_iv: { vorhaben_titel: "", kurzbeschreibung: "",
-    geplante_massnahmen: "", beantragte_summe_euro: "", laufzeit: "" },
+  fb_iv: { vorhaben_titel: "", kurzbeschreibung: "" },
   anlagen: [],
 };
 
@@ -152,6 +156,14 @@ function serializableClone(s: AntragState): AntragState {
       groesse_bytes: a.groesse_bytes,
       storage_path: a.storage_path,
     })),
+    fb_iv: {
+      vorhaben_titel: s.fb_iv.vorhaben_titel,
+      kurzbeschreibung: s.fb_iv.kurzbeschreibung,
+      // dokument_file (File) wird bewusst nicht persistiert; Dateiname /
+      // Größe behalten wir als Hinweis-Info im LocalStorage.
+      dokument_dateiname: s.fb_iv.dokument_dateiname,
+      dokument_groesse_bytes: s.fb_iv.dokument_groesse_bytes,
+    },
   };
 }
 
