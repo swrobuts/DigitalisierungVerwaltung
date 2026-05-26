@@ -2,11 +2,42 @@ import { useCallback, useState } from "react";
 
 const PRUEFUNG_SERVICE = "https://pruefung.butscher.cloud";
 
+/**
+ * Response-Schema POST /api/antrag/{id}/validiere-extern.
+ *
+ * Backend liefert pro Validierungsdimension (Adresse, Träger, Einrichtung
+ * etc.) einen Befund mit eigenen Quellen + Konfidenz. Halluzinations-
+ * Schutz: `parse_fehler=true` bedeutet, dass Perplexity etwas
+ * zurückgeliefert hat, das wir nicht sicher parsen konnten — UI muss
+ * das als „nicht verlässlich" kennzeichnen.
+ */
+export type ExterneValidierungBefundArt =
+  | "neutral"
+  | "kritisch"
+  | "fehler"
+  | "info";
+
+export interface ExterneValidierungBefund {
+  name: string;
+  titel: string;
+  art: ExterneValidierungBefundArt;
+  konfidenz: number;
+  kommentar: string;
+  quellen: string[];
+  details?: Record<string, unknown>;
+  parse_fehler?: boolean;
+}
+
+export interface ExterneValidierungSummary {
+  kritisch: number;
+  neutral: number;
+  fehler: number;
+}
+
 export interface ExterneValidierungErgebnis {
-  recherche_summary: string;
-  gefundene_quellen: Array<{ url: string; titel: string; relevanz: string }>;
-  warnungen: string[];
-  geprueft_am: string;
+  befunde: ExterneValidierungBefund[];
+  summary: ExterneValidierungSummary;
+  geprueft_am: string; // wird vom Hook gesetzt, Backend liefert es (noch) nicht
 }
 
 export function useExterneValidierung(antragId: string | undefined) {
@@ -27,7 +58,19 @@ export function useExterneValidierung(antragId: string | undefined) {
         setError(`HTTP ${res.status}`);
         return;
       }
-      setData(await res.json());
+      const raw = await res.json();
+      // Defensive: Backend könnte Felder weglassen — wir reichern nichts
+      // an, was die KI nicht geliefert hat, aber fallen sauber zurück,
+      // damit das UI nicht crasht.
+      setData({
+        befunde: Array.isArray(raw?.befunde) ? raw.befunde : [],
+        summary: {
+          kritisch: Number(raw?.summary?.kritisch ?? 0),
+          neutral: Number(raw?.summary?.neutral ?? 0),
+          fehler: Number(raw?.summary?.fehler ?? 0),
+        },
+        geprueft_am: new Date().toISOString(),
+      });
     } catch (e) {
       setError((e as Error).message);
     } finally {

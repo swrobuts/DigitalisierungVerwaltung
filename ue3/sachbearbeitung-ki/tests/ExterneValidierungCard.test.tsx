@@ -44,26 +44,80 @@ describe("ExterneValidierungCard", () => {
     expect(screen.getByText(/Recherche läuft/)).toBeInTheDocument();
   });
 
-  it("rendert Zusammenfassung, Quellen und Warnungen wenn data vorhanden", () => {
+  it("rendert neutralen Befund mit Quellen + Konfidenz", () => {
     validierungState.data = {
-      recherche_summary: "Träger ist als gemeinnütziger Verein eingetragen.",
-      gefundene_quellen: [
+      befunde: [
         {
-          url: "https://www.beispiel.de/verein",
-          titel: "Vereinsregister-Eintrag",
-          relevanz: "hoch",
+          name: "adresse",
+          titel: "Adress-Existenz + Stadtgebiet",
+          art: "neutral",
+          konfidenz: 0.92,
+          kommentar: "Adresse in Verzeichnissen belegt, Stadtteil Heuchelhof.",
+          quellen: ["https://wuerzburgwiki.de/wiki/Berner_Stra%C3%9Fe"],
+          details: { adresse_existiert: true },
+          parse_fehler: false,
         },
       ],
-      warnungen: ["Adresse weicht von OSM-Eintrag ab"],
+      summary: { kritisch: 0, neutral: 1, fehler: 0 },
+      geprueft_am: "2026-05-26T10:00:00Z",
+    };
+    render(<ExterneValidierungCard antragId="a-1" />);
+    expect(screen.getByText(/1 Recherche ohne Auffälligkeit/)).toBeInTheDocument();
+    expect(screen.getByText(/Adress-Existenz \+ Stadtgebiet/)).toBeInTheDocument();
+    expect(screen.getByText(/Heuchelhof/)).toBeInTheDocument();
+    expect(screen.getByText("92%")).toBeInTheDocument();
+    expect(screen.getByText("wuerzburgwiki.de")).toBeInTheDocument();
+  });
+
+  it("hebt kritischen Befund hervor und zählt Summary", () => {
+    validierungState.data = {
+      befunde: [
+        {
+          name: "traeger",
+          titel: "Träger-Existenz",
+          art: "kritisch",
+          konfidenz: 0.7,
+          kommentar: "Träger im Vereinsregister nicht eindeutig auffindbar.",
+          quellen: [],
+          parse_fehler: false,
+        },
+        {
+          name: "adresse",
+          titel: "Adresse",
+          art: "neutral",
+          konfidenz: 0.95,
+          kommentar: "Adresse bestätigt.",
+          quellen: [],
+        },
+      ],
+      summary: { kritisch: 1, neutral: 1, fehler: 0 },
+      geprueft_am: "2026-05-26T10:00:00Z",
+    };
+    render(<ExterneValidierungCard antragId="a-1" />);
+    expect(screen.getByText(/1 Auffälligkeit gefunden/)).toBeInTheDocument();
+    expect(screen.getByText(/Träger im Vereinsregister/)).toBeInTheDocument();
+  });
+
+  it("zeigt parse_fehler-Hinweis bei unsicher geparsten Antworten", () => {
+    validierungState.data = {
+      befunde: [
+        {
+          name: "einrichtung",
+          titel: "Einrichtungstyp",
+          art: "neutral",
+          konfidenz: 0.4,
+          kommentar: "Konnte nicht eindeutig zugeordnet werden.",
+          quellen: [],
+          parse_fehler: true,
+        },
+      ],
+      summary: { kritisch: 0, neutral: 1, fehler: 0 },
       geprueft_am: "2026-05-26T10:00:00Z",
     };
     render(<ExterneValidierungCard antragId="a-1" />);
     expect(
-      screen.getByText(/Träger ist als gemeinnütziger Verein eingetragen/),
+      screen.getByText(/Antwort konnte nicht sicher geparst werden/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Adresse weicht von OSM-Eintrag ab/)).toBeInTheDocument();
-    expect(screen.getByText("Vereinsregister-Eintrag")).toBeInTheDocument();
-    expect(screen.getByText("beispiel.de")).toBeInTheDocument();
   });
 
   it("zeigt Fehler-Banner wenn error gesetzt ist", () => {
