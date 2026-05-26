@@ -11,9 +11,10 @@
  *       (Antragsteller, Bank, FB-Detail via Schema-Renderer) + Anlagen +
  *       HistoryTimeline.
  *     - Aside (rechts, lg:col-span-1): PruefungsCard (KI-Konformität mit
- *       Empfehlung + Befunden + AHP-Wortlaut), BescheideListe (PDF/DOCX),
+ *       Empfehlung + Befunden + AHP-Wortlaut), ExterneValidierungCard
+ *       (Perplexity-Recherche), BescheideListe (PDF/DOCX),
  *       ZweitpruefungsCard (Vier-Augen-Prinzip), Workflow-Status-Buttons,
- *       VorjahresVergleich, ExterneValidierungCard (Perplexity-Recherche).
+ *       VorjahresVergleich.
  */
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
@@ -290,6 +291,8 @@ export function AntragDetail() {
                 setConfirmTo(target);
               }}
             />
+
+            <ExterneValidierungCard antragId={id!} />
 
             <BescheideListe
               bescheide={bescheide}
