@@ -50,8 +50,8 @@ export function Bearbeitungsstand({ status, sticky = true }: Props) {
   const stickyCls = sticky ? "sticky top-0 z-30" : "";
   return (
     <div className={`bg-white border border-slate-200 rounded-sm shadow-sm ${stickyCls}`}>
-      <div className="px-6 lg:px-10 py-4">
-        <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-2">
+      <div className="px-8 lg:px-14 py-5">
+        <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-500 font-medium mb-3">
           <span>Bearbeitungsstand</span>
           {status === "rueckfrage" && (
             <span className="text-amber-700 normal-case tracking-normal text-[12px]">
@@ -59,7 +59,7 @@ export function Bearbeitungsstand({ status, sticky = true }: Props) {
             </span>
           )}
         </div>
-        <ol className="flex items-center gap-2">
+        <ol className="flex items-center gap-3">
           {FLOW.map((step, idx) => {
             const reached = idx <= currentIdx;
             const current = idx === currentIdx;
@@ -73,10 +73,10 @@ export function Bearbeitungsstand({ status, sticky = true }: Props) {
                   <span
                     className={
                       current
-                        ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-wue-rot text-white text-[12px] font-semibold tabular-nums shadow-sm shrink-0"
+                        ? "inline-flex h-10 w-10 items-center justify-center rounded-full bg-wue-rot text-white text-base font-bold tabular-nums shadow-md shrink-0 ring-4 ring-wue-rot/15"
                         : reached
-                          ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-white text-[12px] font-semibold tabular-nums shrink-0"
-                          : "inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-300 bg-white text-slate-400 text-[12px] font-semibold tabular-nums shrink-0"
+                          ? "inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-white text-base font-bold tabular-nums shrink-0"
+                          : "inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-slate-300 bg-white text-slate-400 text-base font-bold tabular-nums shrink-0"
                     }
                     aria-current={current ? "step" : undefined}
                   >
@@ -86,10 +86,10 @@ export function Bearbeitungsstand({ status, sticky = true }: Props) {
                     <div
                       className={
                         current
-                          ? "text-[13px] font-semibold text-slate-900 truncate"
+                          ? "text-[15px] font-semibold text-slate-900 truncate"
                           : reached
-                            ? "text-[13px] font-medium text-slate-700 truncate"
-                            : "text-[13px] text-slate-400 truncate"
+                            ? "text-[15px] font-medium text-slate-700 truncate"
+                            : "text-[15px] text-slate-400 truncate"
                       }
                     >
                       {step.label}
@@ -117,8 +117,8 @@ export function Bearbeitungsstand({ status, sticky = true }: Props) {
                   <span
                     className={
                       idx < currentIdx
-                        ? "h-px flex-1 bg-slate-800"
-                        : "h-px flex-1 bg-slate-200"
+                        ? "h-[2px] flex-1 bg-slate-800 mx-1"
+                        : "h-[2px] flex-1 bg-slate-300 mx-1"
                     }
                     aria-hidden="true"
                   />

@@ -32,7 +32,6 @@ import { FbBadge } from "../components/FbBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
 import { SektionPruefung } from "../components/SektionPruefung";
-import { AntragMetricsBar } from "../components/AntragMetricsBar";
 import { PruefungsCard } from "../components/PruefungsCard";
 import { BescheideListe } from "../components/BescheideListe";
 import { VorjahresVergleich } from "../components/VorjahresVergleich";
@@ -175,12 +174,6 @@ export function AntragDetail() {
 
         <main className="w-full px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <article className="lg:col-span-2 space-y-4">
-            <AntragMetricsBar
-              antrag={antrag}
-              history={history}
-              bescheideCount={bescheide.length}
-            />
-
             <div className="bg-white border border-slate-200 shadow-sm rounded overflow-hidden">
               <AntragHeader
                 antrag={antrag}

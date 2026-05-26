@@ -199,8 +199,8 @@ describe("AntragDetail (Etappe D — Vollrestoration)", () => {
     expect(screen.getAllByText("In Prüfung").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Entscheidung")).toBeInTheDocument();
 
-    // AntragMetricsBar (Header-Streifen)
-    expect(screen.getByText("Prozess-Metriken")).toBeInTheDocument();
+    // AntragMetricsBar wurde entfernt (war im Original-Layout 7754322 nicht
+    // vorhanden — Robert wollte das schlankere Hero ohne KPI-Card davor).
 
     // AntragViewer-Stub
     expect(screen.getByTestId("antrag-viewer")).toBeInTheDocument();

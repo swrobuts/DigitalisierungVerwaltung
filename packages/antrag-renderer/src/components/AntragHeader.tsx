@@ -100,14 +100,13 @@ export function AntragHeader({
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="min-w-0">
             <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-medium">
-              Förderantrag · Antragswesen Pflegen und Leben
+              Förderantrag · Altentagesstätten APL 2
             </div>
             <div
               className="text-[10.5px] text-slate-400 italic mt-0.5 leading-tight max-w-[60ch]"
-              title="Förderbereich gemäß AHP-Förderrichtlinie der Stadt Würzburg (Stand 2025-03-27)."
+              title="APL 2 ist nur das Aktenzeichen — geltende Rechtsgrundlage ist die AHP-Förderrichtlinie der Stadt Würzburg (Stand 2025-03-27)."
             >
-              Rechtsgrundlage: AHP-Förderrichtlinie Stadt Würzburg (Stand 2025-03-27),{" "}
-              Förderbereich {antrag.foerderbereich} ({FB_AHP_PFAD[antrag.foerderbereich]})
+              Aktenzeichen — Rechtsgrundlage: AHP-Förderrichtlinie Stadt Würzburg (Stand 2025-03-27)
             </div>
             <h1 className="text-xl font-semibold text-slate-700 mt-1.5">
               {heroTitel}
