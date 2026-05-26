@@ -31,7 +31,17 @@ def _quote(s: Any) -> str:
     return "„" + str(s if s is not None else "—") + "“"
 
 
+# Labels & Höchstgrenzen kennen jetzt sowohl Enum-Keys ('I'/'II'/'III'/'IV')
+# als auch die historischen Slug-Keys ('begegnungszentren' etc.). Der
+# /api/bescheid-Endpoint übergibt den Enum-Key (apl.foerderbereich) — die
+# Slug-Keys bleiben als Backward-Compat für Tests/Audit-Trails erhalten.
 _FOERDERBEREICH_LABEL = {
+    # Multi-FB-Enum (apl.foerderbereich)
+    "I":   "Aufbau niedrigschwelliger Angebote (Förderbereich I)",
+    "II":  "Pauschale Förderung bürgerschaftlichen Engagements (Förderbereich II)",
+    "III": "Treffpunkte/Begegnungsstätten/Quartiersmanagement (Förderbereich III)",
+    "IV":  "Struktur- und Schwerpunktförderung (Förderbereich IV)",
+    # Legacy-Slug-Keys (Audit-Trail, deprecated)
     "aufbau_niedrigschwellige_angebote": "Aufbau niedrigschwelliger Angebote (Förderbereich I)",
     "buergerschaftliches_engagement":    "bürgerschaftliches Engagement (Förderbereich II)",
     "mehrgenerationenhaeuser":           "Mehrgenerationenhaus (Förderbereich III)",
@@ -43,6 +53,15 @@ _FOERDERBEREICH_LABEL = {
 }
 
 _FOERDERBEREICH_HOECHSTGRENZE = {
+    # Enum-Keys — FB III & IV haben mehrere Stufen bzw. keine feste Grenze.
+    # Wir nehmen die jeweils strengste/maximale FB-III-Stufe, FB I nicht
+    # gedeckelt vom AHP (Projekt-Fördersumme einzelfallabhängig), FB IV
+    # individuell — siehe FB-Plugin get_hoechstgrenze().
+    "I":   None,
+    "II":  4250,
+    "III": 10000,  # Maximum (Variante A/B); FB-III-Plugin liefert Variante-genau
+    "IV":  None,
+    # Legacy-Slug-Keys (Audit-Trail)
     "aufbau_niedrigschwellige_angebote": 3000,
     # AHP 2.2: 750 € Pauschal + Staffel max 3.500 € = 4.250 €
     "buergerschaftliches_engagement":    4250,
@@ -53,9 +72,14 @@ _FOERDERBEREICH_HOECHSTGRENZE = {
     "quartiersmanagement_altenarbeit":   7500,
 }
 
+
 def get_hoechstgrenze(foerderbereich: str | None) -> float | None:
     """Förderhöchstgrenze (€/Jahr) für einen Förderbereich; None wenn
-    Förderbereich unbekannt."""
+    Förderbereich unbekannt oder keine feste Grenze definiert.
+
+    Akzeptiert sowohl Enum-Keys ('I'/'II'/'III'/'IV') als auch Legacy-
+    Slug-Keys ('begegnungszentren' etc.).
+    """
     if foerderbereich is None:
         return None
     return _FOERDERBEREICH_HOECHSTGRENZE.get(foerderbereich)
@@ -74,16 +98,27 @@ def build_subsumtion(
     plz = antrag.get("plz") or "—"
     ort = antrag.get("ort") or "—"
     email = antrag.get("email") or "—"
-    name = antrag.get("name") or "—"
-    traeger = antrag.get("traeger") or "—"
+    # Neue apl.antraege-Felder mit Fallback auf Legacy-Aliase
+    name = antrag.get("einrichtung") or antrag.get("name") or "—"
+    traeger = (
+        antrag.get("dachverband")
+        or antrag.get("traeger")
+        or antrag.get("einrichtung")
+        or "—"
+    )
     strasse = antrag.get("strasse") or "—"
     hausnummer = antrag.get("hausnummer") or "—"
-    antragsdatum = _format_date(antrag.get("antragsdatum"))
+    antragsdatum = _format_date(
+        antrag.get("antragsdatum") or antrag.get("submitted_at")
+    )
     haushaltsjahr = antrag.get("haushaltsjahr", "—")
     fb = antrag.get("foerderbereich")
     fb_label = _FOERDERBEREICH_LABEL.get(fb or "", fb or "—")
     hoechstgrenze = _FOERDERBEREICH_HOECHSTGRENZE.get(fb) if fb else None
+    # Geforderte Summe: Legacy direkt, sonst FB-spezifisch aus fb_details
     forderung = antrag.get("geforderte_foerdersumme_euro")
+    if forderung is None:
+        forderung = _forderung_aus_fb_details(antrag)
 
     # Layer A — IBAN
     if "iban ungültig" in bes:
@@ -248,6 +283,26 @@ def build_subsumtion(
             f"liegt folgender Befund vor: {befund.get('beschreibung','—')}"
         ),
     }
+
+
+def _forderung_aus_fb_details(antrag: dict[str, Any]) -> float | None:
+    """Ableitung der geforderten Summe aus FB-spezifischen Details.
+
+    - FB I:  personalkosten_euro + sachkosten_euro (aus fb_i_projekt)
+    - FB II/III/IV: kein direkter Förderbetrag im Schema (Pauschalen FB II,
+      Variante-abhängig FB III, individuell FB IV) → None.
+    """
+    details = antrag.get("fb_details") or {}
+    fb = antrag.get("foerderbereich")
+    if fb == "I":
+        try:
+            return (
+                float(details.get("personalkosten_euro") or 0)
+                + float(details.get("sachkosten_euro") or 0)
+            ) or None
+        except (TypeError, ValueError):
+            return None
+    return None
 
 
 def _format_date(v: Any) -> str:
