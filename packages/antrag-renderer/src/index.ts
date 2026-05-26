@@ -26,6 +26,13 @@ export { SectionViewer } from "./components/SectionViewer";
 export { HelferTable } from "./components/HelferTable";
 export { FieldRow } from "./components/FieldRow";
 
+// Layout-Komponenten (Pre-Hard-Cut-Restore, 2026-05-26)
+export { Bearbeitungsstand } from "./components/Bearbeitungsstand";
+export { AntragHeader } from "./components/AntragHeader";
+export { DocSection } from "./components/DocSection";
+export { FieldGrid } from "./components/FieldGrid";
+export { DocField } from "./components/DocField";
+
 // Pure Helper (für Tests + UE4-Agent)
 export { renderFieldValue } from "./render";
 export {
