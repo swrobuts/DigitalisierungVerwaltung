@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Tailwind v4 auto-scannt nur den eigenen Projekt-Tree. Workspace-Packages
+   müssen explizit als @source angegeben werden, sonst fehlen ihre
+   Tailwind-Klassen im finalen Bundle (z.B. `bg-slate-800` aus
+   Bearbeitungsstand.tsx → unsichtbare Stepper-Kreise). */
+@source "../../../packages/antrag-renderer/src/**/*.{ts,tsx}";
+
 @theme {
   /* Würzburg-CI (offizielle Stadtfarbe Würzburger Rot, abgeleitet aus dem
      Sozialreferats-Briefkopf — analog zu UE3/UE1 für visuelle Konsistenz). */
