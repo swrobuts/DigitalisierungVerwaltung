@@ -1,14 +1,35 @@
 /**
- * UE2 AntragDetail — Pre-Hard-Cut-Layout-Restore (26.05.2026).
+ * UE2 AntragDetail — Parität zu UE3, ohne KI-Cards (Pre-Hard-Cut-Layout).
  *
- * Manuelle Variante (KEINE KI). Layout spiegelt UE3 (gleiche Komponenten
- * aus @dv/antrag-renderer), nur die Aside-Spalte ist auf Workflow + Verlauf
- * + manuelle Prüfungs-Sticky-Notes reduziert.
+ * Layout spiegelt UE3 1:1:
+ *  1. Schmaler Top-Header (Inbox-Link, Antragsnummer, FB-Badge, Status-
+ *     Badge, Durchlaufzeit-Ampel, UE2-Marker statt KI-Variante).
+ *  2. Bearbeitungsstand-Stepper (volle Breite, sticky).
+ *  3. DemoDatenBanner (conditional).
+ *  4. Zweispaltiges Grid:
+ *     - Article (links): AntragMetricsBar + weißer Container
+ *       (AntragHeader + §-Sektionen + Footer). + Verlauf.
+ *     - Aside (rechts): BescheideListe (mit manueller Erstellung als
+ *       Haupt-Aktion), ZweitpruefungsCard (withKi={false}),
+ *       Workflow-Status-Wechsel, VorjahresVergleich.
+ *
+ * Unterschied zu UE3:
+ *  - KEINE PruefungsCard (KI-Konformitätsprüfung)
+ *  - KEINE ExterneValidierungCard (externe AHP-Validierung)
+ *  - ZweitpruefungsCard mit `withKi={false}` (Mensch-Zweitprüfung only)
+ *  - BescheideListe mit `onCreateManual` → POST /api/bescheid (selber
+ *    Backend-Endpoint + selber Halluzinations-Validator wie UE3).
+ *
+ * Halluzinations-Schutz: Wenn der Backend-Validator (422) eine erfundene
+ * §-Referenz im gerenderten Bescheid-Text findet, wird die Erstellung
+ * abgewiesen und der UI-Fehler im `bescheidError`-State angezeigt.
  */
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAntrag } from "../hooks/useAntrag";
+import { useBescheide, type BescheidRow } from "../hooks/useBescheide";
+import { useSession } from "../hooks/useSession";
 import { ManuellePruefungProvider } from "../hooks/useManuellePruefung";
 import { DemoDatenBanner } from "../components/DemoDatenBanner";
 import { StatusBadge } from "../components/StatusBadge";
@@ -16,6 +37,10 @@ import { FbBadge } from "../components/FbBadge";
 import { HistoryTimeline } from "../components/HistoryTimeline";
 import { AnlageDownload } from "../components/AnlageDownload";
 import { SektionPruefung } from "../components/SektionPruefung";
+import { AntragMetricsBar } from "../components/AntragMetricsBar";
+import { BescheideListe } from "../components/BescheideListe";
+import { VorjahresVergleich } from "../components/VorjahresVergleich";
+import { ZweitpruefungsCard } from "../components/ZweitpruefungsCard";
 import {
   AntragViewer,
   Bearbeitungsstand,
@@ -51,9 +76,27 @@ const AMPEL_BG: Record<DurchlaufzeitAmpel, string> = {
   gray: "bg-slate-400",
 };
 
+/** Mapping Entscheidung → Folge-Status (für den automatischen Workflow-
+ *  Übergang nach erfolgreicher Bescheid-Erstellung). */
+const ENTSCHEIDUNG_TO_STATUS: Record<string, Status> = {
+  bewilligen: "bewilligt",
+  ablehnen: "abgelehnt",
+  rueckfrage: "rueckfrage",
+};
+
 export function AntragDetail() {
   const { id } = useParams<{ id: string }>();
   const { bundle, loading, error, changeStatus } = useAntrag(id);
+  const { session } = useSession();
+  const {
+    bescheide,
+    error: bescheidError,
+    creating: bescheidCreating,
+    erstelleBescheid,
+    downloadBescheidPdf,
+    downloadBescheidDocx,
+    loeschBescheid,
+  } = useBescheide(id);
   const [confirmTo, setConfirmTo] = useState<Status | null>(null);
   const [kommentar, setKommentar] = useState("");
   const [busy, setBusy] = useState(false);
@@ -92,6 +135,59 @@ export function AntragDetail() {
     setKommentar("");
   }
 
+  async function handleOpenBescheidPdf(b: BescheidRow) {
+    if (!b.pdf_storage_path) {
+      alert("Für diesen Bescheid liegt keine PDF im Storage.");
+      return;
+    }
+    const url = await downloadBescheidPdf(b.pdf_storage_path);
+    if (url) window.open(url, "_blank", "noopener");
+  }
+
+  async function handleOpenBescheidDocx(b: BescheidRow) {
+    const url = await downloadBescheidDocx(b.id);
+    if (url) window.open(url, "_blank", "noopener");
+  }
+
+  async function handleDeleteBescheid(b: BescheidRow) {
+    if (!window.confirm(`Bescheid „${b.entscheidung}" wirklich löschen?`)) return;
+    await loeschBescheid(b.id, b.pdf_storage_path);
+  }
+
+  /**
+   * Manueller Bescheid-Flow für UE2.
+   *
+   * Backend-Pfad ist identisch zum KI-Flow (POST /api/bescheid). Der
+   * Halluzinations-Validator (`validiere_oder_abbrechen`) läuft auch
+   * hier — wenn er greift, kommt 422 zurück und useBescheide setzt
+   * den `error`-State (sichtbar als rote Box in der BescheideListe).
+   *
+   * Nach Erfolg: Antrags-Status passend zur Entscheidung weiterschalten,
+   * damit der Workflow konsistent bleibt (Bescheid bewilligt → Antrag
+   * bewilligt). Wenn der Status-Wechsel laut Workflow nicht erlaubt
+   * ist (z.B. weil eine Zweitprüfung noch offen ist), wird er übersprungen
+   * — der Sachbearbeiter sieht den Bescheid trotzdem und kann manuell
+   * weiterklicken.
+   */
+  async function handleCreateManualBescheid(
+    entscheidung: "bewilligen" | "ablehnen" | "rueckfrage",
+  ) {
+    const dbEntscheidung =
+      entscheidung === "bewilligen" ? "bewilligt"
+      : entscheidung === "ablehnen" ? "abgelehnt"
+      : "rueckfrage";
+    const res = await erstelleBescheid({
+      entscheidung: dbEntscheidung,
+      ausgestellt_von: session?.user?.email ?? null,
+      bearbeiter_kommentar: `Bescheid manuell erstellt (${entscheidung}).`,
+    });
+    if (res?.error) return; // Fehler steht bereits in bescheidError
+    const target = ENTSCHEIDUNG_TO_STATUS[entscheidung];
+    if (target && allowedTransitions(antrag.status).includes(target)) {
+      await changeStatus(target, `Bescheid manuell ${entscheidung}`);
+    }
+  }
+
   return (
     <ManuellePruefungProvider antragId={antrag.id}>
       <div className="min-h-screen bg-slate-100">
@@ -115,6 +211,9 @@ export function AntragDetail() {
               />
               {formatDurchlaufzeit(durchlauf, entschieden)}
             </span>
+            <span className="ml-auto inline-flex items-center gap-1 text-xs text-slate-600 font-semibold uppercase">
+              Manuelle Variante (UE2)
+            </span>
           </div>
         </header>
 
@@ -126,136 +225,170 @@ export function AntragDetail() {
         <DemoDatenBanner />
 
         <main className="w-full px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          <article className="lg:col-span-2 bg-white border border-slate-200 shadow-sm rounded overflow-hidden">
-            <AntragHeader
+          <article className="lg:col-span-2 space-y-4">
+            <AntragMetricsBar
               antrag={antrag}
-              fbI={bundle.fb_i}
-              fbIii={bundle.fb_iii}
-              fbIv={bundle.fb_iv}
-              statusBadge={<StatusBadge status={antrag.status} />}
+              history={history}
+              bescheideCount={bescheide.length}
             />
 
-            <div className="px-10 lg:px-14 py-10 space-y-12">
-              <DocSection
-                num="§ 1"
-                title="Antragsteller / Träger"
-                actions={<SektionPruefung antragId={antrag.id} paragraph="antragsteller" />}
-              >
-                <FieldGrid>
-                  <DocField label="Träger" className="sm:col-span-2">
-                    {antrag.dachverband || antrag.einrichtung}
-                  </DocField>
-                  <DocField label="Ansprechpartner/in" className="sm:col-span-2">
-                    {antrag.ansprechpartner}
-                  </DocField>
-                  <DocField label="Telefon / Handy">
-                    <a
-                      href={`tel:${(antrag.telefon ?? "").replace(/\s+/g, "")}`}
-                      className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2"
-                    >
-                      {antrag.telefon}
-                    </a>
-                  </DocField>
-                  <DocField label="E-Mail">
-                    <a
-                      href={`mailto:${antrag.email}`}
-                      className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2 break-all"
-                    >
-                      {antrag.email}
-                    </a>
-                  </DocField>
-                  {antrag.homepage && (
-                    <DocField label="Homepage" className="sm:col-span-2">
-                      <a
-                        href={antrag.homepage}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2"
-                      >
-                        {antrag.homepage}
-                      </a>
-                    </DocField>
-                  )}
-                </FieldGrid>
-              </DocSection>
-
-              <DocSection
-                num="§ 2"
-                title="Bankverbindung"
-                actions={<SektionPruefung antragId={antrag.id} paragraph="bank" />}
-              >
-                <FieldGrid>
-                  <DocField label="Bankname" className="sm:col-span-2">
-                    {antrag.bankname}
-                  </DocField>
-                  <DocField label="IBAN" className="sm:col-span-2">
-                    <span className="font-mono text-[15px] tracking-wide text-slate-900">
-                      {antrag.iban}
-                    </span>
-                  </DocField>
-                  <DocField label="BIC">
-                    {antrag.bic ? (
-                      <span className="font-mono text-slate-700">{antrag.bic}</span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </DocField>
-                </FieldGrid>
-              </DocSection>
-
-              {/* § 3+: FB-spezifische Sektionen aus dem Renderer-Schema. */}
-              <AntragViewer
-                fb={bundle.antrag.foerderbereich}
+            <div className="bg-white border border-slate-200 shadow-sm rounded overflow-hidden">
+              <AntragHeader
+                antrag={antrag}
                 fbI={bundle.fb_i}
-                fbIi={bundle.fb_ii}
-                fbIiHelfer={bundle.fb_ii_helfer}
                 fbIii={bundle.fb_iii}
                 fbIv={bundle.fb_iv}
-                paragraphStart={3}
+                statusBadge={<StatusBadge status={antrag.status} />}
               />
 
-              <DocSection
-                num="§"
-                title={`Anlagen (${anlagen.length})`}
-                subtitle="Mit dem Antrag eingereichte Belege"
-                actions={<SektionPruefung antragId={antrag.id} paragraph="anlagen" />}
-              >
-                {anlagen.length === 0 ? (
-                  <p className="text-sm text-slate-500 italic">Keine Anlagen hochgeladen.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {anlagen.map((a) => (
-                      <AnlageDownload key={a.id} anlage={a} />
-                    ))}
-                  </div>
-                )}
-              </DocSection>
-            </div>
+              {/* §-Sektionen */}
+              <div className="px-10 lg:px-14 py-10 space-y-12">
+                <DocSection
+                  num="§ 1"
+                  title="Antragsteller / Träger"
+                  actions={<SektionPruefung antragId={antrag.id} paragraph="antragsteller" />}
+                >
+                  <FieldGrid>
+                    <DocField label="Träger" className="sm:col-span-2">
+                      {antrag.dachverband || antrag.einrichtung}
+                    </DocField>
+                    <DocField label="Ansprechpartner/in" className="sm:col-span-2">
+                      {antrag.ansprechpartner}
+                    </DocField>
+                    <DocField label="Telefon / Handy">
+                      <a
+                        href={`tel:${(antrag.telefon ?? "").replace(/\s+/g, "")}`}
+                        className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2"
+                      >
+                        {antrag.telefon}
+                      </a>
+                    </DocField>
+                    <DocField label="E-Mail">
+                      <a
+                        href={`mailto:${antrag.email}`}
+                        className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2 break-all"
+                      >
+                        {antrag.email}
+                      </a>
+                    </DocField>
+                    {antrag.homepage && (
+                      <DocField label="Homepage" className="sm:col-span-2">
+                        <a
+                          href={antrag.homepage}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-slate-800 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-600 underline-offset-2"
+                        >
+                          {antrag.homepage}
+                        </a>
+                      </DocField>
+                    )}
+                  </FieldGrid>
+                </DocSection>
 
-            {/* Submission-Footer — Eingangsstempel-Look */}
-            <div className="bg-slate-50 border-t-2 border-slate-200 px-10 lg:px-14 py-5">
-              <div className="flex flex-wrap items-baseline justify-between gap-4 text-xs">
-                <div className="text-slate-500">
-                  <span className="font-semibold uppercase tracking-wider">Eingegangen</span>
-                  <span className="ml-2 text-slate-700">
-                    {formatDateTime(antrag.submitted_at)}
-                  </span>
-                  <span className="ml-3 text-slate-400">·</span>
-                  <span className="ml-3">
-                    Sprache <span className="text-slate-700">{antrag.submitted_language.toUpperCase()}</span>
-                  </span>
-                  <span className="ml-3 text-slate-400">·</span>
-                  <span className="ml-3 font-semibold uppercase tracking-wider">Haushaltsjahr</span>
-                  <span className="ml-2 text-slate-700 tabular-nums">{antrag.haushaltsjahr}</span>
-                </div>
-                <div className="text-slate-400 text-[11px] font-mono">
-                  Elektronische Einreichung — keine Unterschrift erforderlich
+                <DocSection
+                  num="§ 2"
+                  title="Bankverbindung"
+                  actions={<SektionPruefung antragId={antrag.id} paragraph="bank" />}
+                >
+                  <FieldGrid>
+                    <DocField label="Bankname" className="sm:col-span-2">
+                      {antrag.bankname}
+                    </DocField>
+                    <DocField label="IBAN" className="sm:col-span-2">
+                      <span className="font-mono text-[15px] tracking-wide text-slate-900">
+                        {antrag.iban}
+                      </span>
+                    </DocField>
+                    <DocField label="BIC">
+                      {antrag.bic ? (
+                        <span className="font-mono text-slate-700">{antrag.bic}</span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </DocField>
+                  </FieldGrid>
+                </DocSection>
+
+                {/* § 3+: FB-spezifische Sektionen aus dem Renderer-Schema. */}
+                <AntragViewer
+                  fb={bundle.antrag.foerderbereich}
+                  fbI={bundle.fb_i}
+                  fbIi={bundle.fb_ii}
+                  fbIiHelfer={bundle.fb_ii_helfer}
+                  fbIii={bundle.fb_iii}
+                  fbIv={bundle.fb_iv}
+                  paragraphStart={3}
+                />
+
+                <DocSection
+                  num="§"
+                  title={`Anlagen (${anlagen.length})`}
+                  subtitle="Mit dem Antrag eingereichte Belege"
+                  actions={<SektionPruefung antragId={antrag.id} paragraph="anlagen" />}
+                >
+                  {anlagen.length === 0 ? (
+                    <p className="text-sm text-slate-500 italic">Keine Anlagen.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {anlagen.map((a) => (
+                        <AnlageDownload key={a.id} anlage={a} />
+                      ))}
+                    </div>
+                  )}
+                </DocSection>
+              </div>
+
+              {/* Submission-Footer — Eingangsstempel-Look */}
+              <div className="bg-slate-50 border-t-2 border-slate-200 px-10 lg:px-14 py-5">
+                <div className="flex flex-wrap items-baseline justify-between gap-4 text-xs">
+                  <div className="text-slate-500">
+                    <span className="font-semibold uppercase tracking-wider">Eingegangen</span>
+                    <span className="ml-2 text-slate-700">
+                      {formatDateTime(antrag.submitted_at)}
+                    </span>
+                    <span className="ml-3 text-slate-400">·</span>
+                    <span className="ml-3">
+                      Sprache <span className="text-slate-700">{antrag.submitted_language.toUpperCase()}</span>
+                    </span>
+                    <span className="ml-3 text-slate-400">·</span>
+                    <span className="ml-3 font-semibold uppercase tracking-wider">Haushaltsjahr</span>
+                    <span className="ml-2 text-slate-700 tabular-nums">{antrag.haushaltsjahr}</span>
+                  </div>
+                  <div className="text-slate-400 text-[11px] font-mono">
+                    Elektronische Einreichung — keine Unterschrift erforderlich
+                  </div>
                 </div>
               </div>
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Verlauf</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <HistoryTimeline history={history} />
+              </CardContent>
+            </Card>
           </article>
 
           <aside className="space-y-4 lg:sticky lg:top-[6.5rem] lg:self-start">
+            <BescheideListe
+              bescheide={bescheide}
+              onOpen={handleOpenBescheidPdf}
+              onOpenDocx={handleOpenBescheidDocx}
+              onDelete={handleDeleteBescheid}
+              error={bescheidError}
+              onCreateManual={handleCreateManualBescheid}
+              creatingManual={bescheidCreating}
+            />
+
+            <ZweitpruefungsCard
+              antragId={id!}
+              antragStatus={antrag.status}
+              withKi={false}
+            />
+
             <Card>
               <CardHeader>
                 <CardTitle>Workflow · Status-Wechsel</CardTitle>
@@ -263,7 +396,7 @@ export function AntragDetail() {
               <CardContent className="space-y-2">
                 {folgeStatus.length === 0 ? (
                   <p className="text-sm text-slate-500">
-                    Status ist ein Endstatus — keine weiteren Übergänge.
+                    Status ist Endstatus — keine weiteren Übergänge.
                   </p>
                 ) : (
                   folgeStatus.map((s) => (
@@ -314,14 +447,7 @@ export function AntragDetail() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Verlauf</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <HistoryTimeline history={history} />
-              </CardContent>
-            </Card>
+            <VorjahresVergleich antragId={id!} />
           </aside>
         </main>
       </div>
