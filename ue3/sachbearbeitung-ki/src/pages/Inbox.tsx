@@ -15,73 +15,15 @@
  */
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { prefetchAntragBundle } from "@dv/data-layer";
 import { useAntraege } from "../hooks/useAntraege";
 import { useUserRole } from "../hooks/useUserRole";
 import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
-import { StatusBadge } from "../components/StatusBadge";
-import { FbBadge } from "../components/FbBadge";
 import { DemoDatenBanner } from "../components/DemoDatenBanner";
-import {
-  formatDate,
-  formatEuro,
-  formatDurchlaufzeit,
-  durchlaufzeitAmpel,
-  type DurchlaufzeitAmpel,
-} from "../lib/format";
+import { InboxTable } from "../components/InboxTable";
 import { ALL_FOERDERBEREICHE, type FoerderbereichId } from "@dv/foerderbereiche";
-import type { AntragInbox } from "@dv/data-layer";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-
-const AMPEL_BG: Record<DurchlaufzeitAmpel, string> = {
-  green: "bg-emerald-500",
-  yellow: "bg-amber-500",
-  red: "bg-red-500",
-  gray: "bg-slate-400",
-};
-
-/**
- * FB-spezifische „Antragssumme" — die View liefert pro FB unterschiedliche
- * Felder. Wir wählen das passende.
- */
-function antragssummeText(a: AntragInbox): { text: string; numeric: number | null } {
-  switch (a.foerderbereich) {
-    case "I":
-      return a.fb_i_gesamtkosten_euro != null
-        ? { text: formatEuro(a.fb_i_gesamtkosten_euro), numeric: a.fb_i_gesamtkosten_euro }
-        : { text: "—", numeric: null };
-    case "II":
-      return { text: "Pauschale", numeric: null };
-    case "III":
-      if (a.fb_iii_c_betrag_euro != null) {
-        return {
-          text: formatEuro(a.fb_iii_c_betrag_euro),
-          numeric: a.fb_iii_c_betrag_euro,
-        };
-      }
-      return {
-        text: a.fb_iii_variante ? `Variante ${a.fb_iii_variante}` : "—",
-        numeric: null,
-      };
-    case "IV":
-      return a.fb_iv_beantragte_summe_euro != null
-        ? {
-            text: formatEuro(a.fb_iv_beantragte_summe_euro),
-            numeric: a.fb_iv_beantragte_summe_euro,
-          }
-        : { text: "—", numeric: null };
-  }
-}
 
 export function Inbox() {
   const { antraege, loading, error } = useAntraege();
@@ -187,94 +129,17 @@ export function Inbox() {
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded overflow-x-auto">
-          {loading && <div className="p-8 text-slate-500">Lade …</div>}
-          {error && <div className="p-4 text-rose-700">Fehler: {error}</div>}
-          {!loading && !error && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Förderbereich</TableHead>
-                  <TableHead>Antragsnummer</TableHead>
-                  <TableHead>Einrichtung</TableHead>
-                  <TableHead>Eingang</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Durchlaufzeit</TableHead>
-                  <TableHead className="text-right">Antragssumme</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((a) => {
-                  const summe = antragssummeText(a);
-                  const entschieden = a.entscheidungs_typ !== null;
-                  const ampel = durchlaufzeitAmpel(a.durchlaufzeit_tage, entschieden);
-                  // Hover/Focus → Antrag-Bundle im Hintergrund vorladen.
-                  // Beim Klick auf "Öffnen →" greift dann der TTL-Cache und
-                  // die AntragDetail-Page rendert in <100ms statt ~600ms.
-                  const prefetch = () => prefetchAntragBundle(a.id);
-                  return (
-                    <TableRow
-                      key={a.id}
-                      className="hover:bg-blue-50/30"
-                      onMouseEnter={prefetch}
-                      onFocus={prefetch}>
-                      <TableCell>
-                        <FbBadge fb={a.foerderbereich} />
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-slate-500 whitespace-nowrap">
-                        {a.antragsnummer ?? "—"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm text-slate-900">{a.einrichtung}</div>
-                        {a.dachverband && (
-                          <div className="text-xs text-slate-500">{a.dachverband}</div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs text-slate-500 whitespace-nowrap">
-                        {formatDate(a.submitted_at)}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={a.status} />
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-xs">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span
-                            className={`inline-block h-2 w-2 rounded-full ${AMPEL_BG[ampel]}`}
-                            aria-hidden="true"
-                          />
-                          {formatDurchlaufzeit(a.durchlaufzeit_tage, entschieden)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">
-                        {summe.numeric != null ? (
-                          <span className="font-medium text-slate-900">{summe.text}</span>
-                        ) : (
-                          <span className="text-slate-500 italic">{summe.text}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap pr-4">
-                        <Link
-                          to={`/antrag/${a.id}`}
-                          className="inline-flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-3 py-1.5"
-                        >
-                          Öffnen →
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center text-slate-500 py-8">
-                      Keine Anträge gefunden.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+        {loading && (
+          <div className="bg-white border border-slate-200 rounded p-8 text-slate-500">
+            Lade …
+          </div>
+        )}
+        {error && (
+          <div className="bg-white border border-slate-200 rounded p-4 text-rose-700">
+            Fehler: {error}
+          </div>
+        )}
+        {!loading && !error && <InboxTable antraege={filtered} />}
       </main>
     </div>
   );
