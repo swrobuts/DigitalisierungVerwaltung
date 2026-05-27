@@ -156,17 +156,41 @@ class QuellenValidationError(Exception):
 # numerischen Teil (mit optionalem Buchstaben-Suffix) als Identifier.
 _PARAGRAPH_RE = re.compile(r"§\s*([0-9]+(?:\.[0-9]+)*[a-z]?)")
 
+# Bekannte externe Gesetzes-Tokens, die als Kontext das § disqualifizieren
+# (= nicht AHP). Auch "SGB XII", "SGB V" etc. werden gefangen via die
+# optionale römische Zahl.
+_LAW_TOKEN = (
+    r"(?:SGB(?:\s+[IVX]+)?"
+    r"|VwGO|BGB|GG|AGSG|HGB|StGB|StPO|AO|VwVfG|VwZG|GwG|AGB)"
+)
+_LAW_BEFORE_RE = re.compile(rf"{_LAW_TOKEN}\s*$", re.IGNORECASE)
+_LAW_AFTER_RE = re.compile(rf"\s*[\(\,/]?\s*{_LAW_TOKEN}\b", re.IGNORECASE)
+
 
 def extract_paragraph_refs(text: str) -> list[str]:
-    """Extrahiert alle '§ X.Y'-Zitate aus dem Text, sortiert und dedupliziert.
+    """Extrahiert alle AHP-'§ X.Y'-Zitate aus dem Text, sortiert + dedupliziert.
 
-    Beispiele: '§ 2.3.4', '§2.1', '§ 4' werden alle gefangen. Tolerant
-    gegen unterschiedliches Whitespace und führendes/nachfolgendes
-    Satzzeichen.
+    Beispiele: '§ 2.3.4', '§2.1', '§ 4' werden gefangen.
+
+    Ausgeschlossen werden Paragraphen aus externen Gesetzen (SGB, VwGO,
+    BGB, GG, AGSG, etc.) — diese sollen NICHT gegen apl.ahp_norm_statements
+    validiert werden. Beispiele die NICHT gefangen werden:
+      - "SGB XII § 71 zu vermerken"
+      - "§ 70 VwGO"
+      - "§ 4 BGB"
     """
     if not text:
         return []
-    return sorted(set(_PARAGRAPH_RE.findall(text)))
+    refs: list[str] = []
+    for m in _PARAGRAPH_RE.finditer(text):
+        before = text[max(0, m.start() - 30) : m.start()]
+        after = text[m.end() : m.end() + 40]
+        if _LAW_BEFORE_RE.search(before):
+            continue
+        if _LAW_AFTER_RE.match(after):
+            continue
+        refs.append(m.group(1))
+    return sorted(set(refs))
 
 
 def _normalize_ref(ref: str) -> str:
