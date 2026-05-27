@@ -262,25 +262,33 @@ function summaryFor(
           subtext: "Variante noch nicht zugeordnet (AHP 2.3)",
         };
       }
+      // Werte exakt aus AHP § 2.3 (Stand 2025-03-27, Seiten 7–8).
+      // Die Backend-Förderhöchstgrenzen in pruefung/foerderbereiche/fb_iii.py
+      // halten dieselben Beträge — bei Änderung beide synchronisieren.
+      const c_staffel: Record<string, { betrag: string; treffen: string }> = {
+        GT_10: { betrag: "750 €",   treffen: "ab 10 Treffen/Jahr" },
+        GT_20: { betrag: "1.250 €", treffen: "ab 20 Treffen/Jahr" },
+        GT_40: { betrag: "2.000 €", treffen: "ab 40 Treffen/Jahr" },
+      };
+      const cInfo =
+        (fbIii?.c_treffen_schwelle && c_staffel[fbIii.c_treffen_schwelle]) ||
+        { betrag: "750 / 1.250 / 2.000 €", treffen: "Staffel je nach Treffen-Anzahl" };
       const map: Record<NonNullable<typeof variante>, SummaryFields> = {
         A: {
-          betrag: "bis 800 €",
-          subtext: "Variante A · Mehrgenerationenhaus (AHP 2.3 Pkt. 1) — Förderhöchstgrenze",
+          betrag: "bis 10.000 €",
+          subtext: "Variante A · Mehrgenerationenhaus (AHP 2.3 Pkt. 1) — pauschale Förderung pro Jahr",
         },
         B: {
-          betrag: "bis 1.200 €",
-          subtext: "Variante B · Begegnungszentrum/Bildungsträger (AHP 2.3 Pkt. 2/3) — Förderhöchstgrenze",
+          betrag: "bis 10.000 €",
+          subtext: "Variante B · Begegnungszentrum (AHP 2.3 Pkt. 2) — Bildungsträger separat bis 6.000 €",
         },
         C: {
-          betrag:
-            fbIii?.c_treffen_schwelle === "GT_20" || fbIii?.c_treffen_schwelle === "GT_40"
-              ? "bis 750 €"
-              : "bis 600 €",
-          subtext: `Variante C · Seniorenkreis (AHP 2.3 Pkt. 4) — ${fbIii?.c_treffen_schwelle === "GT_20" || fbIii?.c_treffen_schwelle === "GT_40" ? "Treffen-Staffel ab 20+/Jahr" : "Treffen-Staffel ab 10+/Jahr"}`,
+          betrag: `bis ${cInfo.betrag}`,
+          subtext: `Variante C · Seniorenkreis (AHP 2.3 Pkt. 4) — ${cInfo.treffen}`,
         },
         D: {
-          betrag: "bis 2.400 €",
-          subtext: "Variante D · Quartiersmanagement (AHP 2.3 Pkt. 5) — Förderhöchstgrenze",
+          betrag: "bis 7.500 €",
+          subtext: "Variante D · Quartiersmanagement (AHP 2.3 Pkt. 5) — pauschale Förderung pro Jahr",
         },
       };
       return map[variante];
