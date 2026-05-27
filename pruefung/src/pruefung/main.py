@@ -1243,6 +1243,12 @@ class AgentChatRequest(BaseModel):
     history: list[dict[str, Any]] = []
     user_message: str
     current_draft: dict[str, Any] = {}
+    # UI-Sprache aus dem Sprach-Picker (DE/TR/IT/RU/FR). Optional —
+    # alte UE4-Clients schicken das Feld nicht. Wird derzeit nur
+    # entgegengenommen und ans Frontend rückgemeldet; der LLM antwortet
+    # heute schon zuverlässig in der Eingabe-Sprache des Bürgers, eine
+    # explizite System-Prompt-Anpassung folgt im nächsten Sprint.
+    sprache: str | None = None
 
 
 @app.post("/api/agent/chat")

@@ -15,10 +15,15 @@ Halluzinations-Schutz (oberste Priorität, nicht-verhandelbar):
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 import os
 import re
+import time
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 from .agent_tools import (
     ALLOWED_FBS,
@@ -602,13 +607,53 @@ async def run_agent_turn(
     _CURRENT_DRAFT_REF.set(draft)
     tool_trace: list[dict[str, Any]] = []
 
+    # Prompt-Caching aktivieren: System-Prompt (~1900 Tokens) und
+    # Tool-Schemas (~600 Tokens) sind über alle Iterationen identisch.
+    # Mit `cache_control: ephemeral` cached Anthropic den Prefix für
+    # 5 Minuten → der zweite bis fünfte Call pro Turn liest die ~2500
+    # Tokens als cache-read statt cache-write (~10x schneller laut
+    # Anthropic-Docs). Auch über Turns hinweg innerhalb derselben
+    # Session bleibt der Cache warm.
+    # Wir taggen NUR die letzten beiden Blöcke (Anthropic-Maximum sind
+    # 4 cache breakpoints) — system + tools. Die `messages` wachsen mit
+    # jedem Tool-Result und werden bewusst NICHT gecached, sonst
+    # invalidiert jeder neue Turn den Cache.
+    system_blocks = [
+        {
+            "type": "text",
+            "text": SYSTEM_PROMPT,
+            "cache_control": {"type": "ephemeral"},
+        },
+    ]
+    # Tool-Schemas-Liste: cache_control auf das LETZTE Tool — markiert
+    # alle vorherigen Tools im Schema-Array als gecacht.
+    tools_with_cache: list[dict[str, Any]] = [dict(t) for t in TOOL_SCHEMAS]
+    if tools_with_cache:
+        tools_with_cache[-1] = {
+            **tools_with_cache[-1],
+            "cache_control": {"type": "ephemeral"},
+        }
+
+    t_turn_start = time.monotonic()
     for _iter in range(max_tool_iters):
+        t_call_start = time.monotonic()
         response = await anthropic_client.messages.create(
             model=model,
             max_tokens=1500,
-            system=SYSTEM_PROMPT,
-            tools=TOOL_SCHEMAS,
+            system=system_blocks,
+            tools=tools_with_cache,
             messages=messages,
+        )
+        usage = getattr(response, "usage", None)
+        # Cache-Treffer im Log sichtbar machen — für späteres Profiling
+        cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+        cache_write = getattr(usage, "cache_creation_input_tokens", 0) or 0
+        in_tok = getattr(usage, "input_tokens", 0) or 0
+        out_tok = getattr(usage, "output_tokens", 0) or 0
+        _log.info(
+            "agent_chat iter=%d dt=%.2fs in=%d out=%d cache_read=%d cache_write=%d",
+            _iter, time.monotonic() - t_call_start,
+            in_tok, out_tok, cache_read, cache_write,
         )
 
         content_blocks = response.content if response.content else []
@@ -634,15 +679,28 @@ async def run_agent_turn(
             "role": "assistant",
             "content": _content_blocks_for_history(content_blocks),
         })
-        # Dann die Tool-Results sammeln
+        # Tool-Results parallel sammeln. Vorher sequenziell — bei einem
+        # Multi-Validation-Turn (Bürger schickt 4 Felder auf einmal, der
+        # Agent ruft 4× validate_field parallel) war das eine
+        # vermeidbare Latenz-Multiplikation. asyncio.gather läuft alle
+        # Tools nebenläufig (FastAPI-Worker hat Spielraum) und wartet
+        # nur auf das langsamste statt auf die Summe.
+        t_tools = time.monotonic()
+        tool_outputs = await asyncio.gather(
+            *[
+                _dispatch_tool(
+                    tc["name"], tc["input"] or {},
+                    db=db, anthropic_client=anthropic_client,
+                )
+                for tc in tool_uses
+            ],
+        )
+        _log.info(
+            "agent_chat iter=%d tools=%d dt=%.2fs (parallel)",
+            _iter, len(tool_uses), time.monotonic() - t_tools,
+        )
         tool_results_for_message: list[dict[str, Any]] = []
-        tool_outputs: list[dict[str, Any]] = []
-        for tc in tool_uses:
-            output = await _dispatch_tool(
-                tc["name"], tc["input"] or {},
-                db=db, anthropic_client=anthropic_client,
-            )
-            tool_outputs.append(output)
+        for tc, output in zip(tool_uses, tool_outputs, strict=True):
             tool_results_for_message.append({
                 "type": "tool_result",
                 "tool_use_id": tc["id"],

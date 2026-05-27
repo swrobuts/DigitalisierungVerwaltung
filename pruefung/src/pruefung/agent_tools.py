@@ -113,8 +113,16 @@ async def tool_klassifiziere_foerderbereich(
     beschreibung: str,
     *,
     anthropic_client: Any | None = None,
-    model: str = "claude-sonnet-4-5",
+    # Klassifikation in 4 FBs ist ein einfacher Routing-Task — Haiku
+    # liefert hier dieselbe Qualität wie Sonnet 4.5, ist aber 3–4×
+    # schneller und ~10× günstiger. Sonnet-Qualität war hier overkill
+    # (kein freier Output, sondern Fixed-Choice-Klassifikation).
+    # Via ENV überschreibbar, damit ein evtl. abweichendes Tag in
+    # neueren API-Versionen ohne Rebuild korrigiert werden kann.
+    model: str | None = None,
 ) -> dict[str, Any]:
+    if model is None:
+        model = os.environ.get("ANTHROPIC_KLASSIFIKATIONS_MODEL", "claude-haiku-4-5")
     """Klassifiziert eine Freitext-Beschreibung in einen FB.
 
     Returnt {fb, variante, konfidenz, begruendung}. fb ist garantiert
