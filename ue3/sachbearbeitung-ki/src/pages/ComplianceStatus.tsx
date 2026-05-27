@@ -213,7 +213,123 @@ function Hero({ data }: { data: ComplianceData }) {
           </div>
         </div>
       </details>
+
+      <RisikoBeherrschung />
     </div>
+  );
+}
+
+// ── RISIKO-BEHERRSCHUNG ─────────────────────────────────────────────
+//
+// Aufklappbare Sektion direkt im Hero. Zeigt juristisch fundierte
+// Gegenmaßnahmen zur Risikoklasse "Hochrisiko". Quellen:
+//   • EU AI Act (VO 2024/1689): Art. 9, 13, 14, 50
+//   • DSGVO Art. 22 (automatisierte Einzelentscheidung)
+//   • § 35a VwVfG (vollautomatisierter Verwaltungsakt — nur bei
+//     gebundenen Entscheidungen, NICHT bei Ermessen)
+//
+// Wichtig: alle § zitiert mit Artikelnummer und kurzem Wortlaut. Keine
+// erfundenen Quellen.
+
+interface Massnahme {
+  titel: string;
+  rechtsgrundlage: string;
+  wortlaut: string;
+  umsetzung: string;
+}
+
+const MASSNAHMEN: Massnahme[] = [
+  {
+    titel: "Human-in-the-Loop: Sachbearbeitung entscheidet, KI schlägt nur vor",
+    rechtsgrundlage: "AI Act Art. 14 Abs. 4 lit. d",
+    wortlaut: `Aufsichtsperson muss "in any particular situation, not to use the high-risk AI system or to otherwise disregard, override or reverse the output" können.`,
+    umsetzung: `Jede KI-Empfehlung wird explizit als Vorschlag gekennzeichnet (Button "Empfehlung umsetzen" vs. "Stattdessen ablehnen / bewilligen"). Finale Entscheidung trifft der Sozialausschuss der Stadt Würzburg (AHP § 3.4).`,
+  },
+  {
+    titel: "Verbot der vollautomatisierten Einzelentscheidung",
+    rechtsgrundlage: "DSGVO Art. 22 Abs. 1 + § 35a VwVfG",
+    wortlaut: `DSGVO Art. 22(1): "Die betroffene Person hat das Recht, nicht einer ausschließlich auf einer automatisierten Verarbeitung beruhenden Entscheidung unterworfen zu werden." § 35a VwVfG erlaubt vollautomatisierte Verwaltungsakte nur bei gebundenen Entscheidungen ohne Ermessen.`,
+    umsetzung: `Kein Bescheid wird ohne menschliche Bestätigung erlassen. Der KI-Vorgang ist immer Vorprüfung; die ausstellende Person ist immer eine natürliche Person (Bescheid-Feld "ausgestellt_von").`,
+  },
+  {
+    titel: "Anti-Automation-Bias: Override-Tracking",
+    rechtsgrundlage: "AI Act Art. 14 Abs. 4 lit. b",
+    wortlaut: `"remain aware of the possible tendency of automatically relying or over-relying on the output (automation bias)"`,
+    umsetzung: `Jede Übernahme/Ablehnung einer KI-Empfehlung wird persistiert. Tab "Aufsichts-Metriken" zeigt die Übernahme-Quote pro Aktion; zu hohe Quoten lösen einen "Automation-Bias-Verdacht"-Indikator aus.`,
+  },
+  {
+    titel: "Stop-Funktion + Vier-Augen-Prinzip",
+    rechtsgrundlage: "AI Act Art. 14 Abs. 4 lit. e",
+    wortlaut: `"to intervene in the operation of the high-risk AI system or interrupt the system through a 'stop' button or a similar procedure"`,
+    umsetzung: `UE3 bietet jederzeit den Klick auf "Stattdessen ablehnen/bewilligen". Optional: KI-adversarielle Zweitprüfung als methodische Ergänzung zum klassischen Vier-Augen-Prinzip.`,
+  },
+  {
+    titel: "Halluzinations-Hard-Fail: Source-Pinning",
+    rechtsgrundlage: "AI Act Art. 9 (Risk Management) + Art. 13 (Transparency)",
+    wortlaut: `Risiken müssen "reasonably mitigated or eliminated through the development or design" werden; Informationen müssen "in an appropriate and understandable form" bereitgestellt werden.`,
+    umsetzung: `quellen_validator.py prüft VOR PDF-Render, dass jeder im Bescheid zitierte AHP-§ in apl.ahp_norm_statements existiert. Bei erfundenem § → HTTP 422, Bescheid wird NICHT erstellt.`,
+  },
+  {
+    titel: "Vollständiger Audit-Trail",
+    rechtsgrundlage: "AI Act Art. 12 (Record-Keeping) + DSGVO Art. 5 Abs. 1 lit. f",
+    wortlaut: `Hochrisiko-KI müssen "automatically record events ('logs') over the lifetime of the system" — über die gesamte Lebensdauer.`,
+    umsetzung: `apl.antrag_history (Status-Wechsel), apl.manuelle_pruefung (Sachbearbeiter-Bewertungen), Bescheid-Audit (geprueft_gegen, doctree_version) sind alle persistiert und retrievbar.`,
+  },
+  {
+    titel: "Transparenz gegenüber dem Antragsteller",
+    rechtsgrundlage: "AI Act Art. 50 Abs. 1 + DSGVO Art. 13/14",
+    wortlaut: `"providers shall ensure that AI systems intended to interact directly with natural persons are designed and developed in such a way that the natural persons concerned are informed that they are interacting with an AI system"`,
+    umsetzung: `Jeder Bescheid trägt einen sichtbaren Hinweis "Dieser Bescheid wurde unter Nutzung eines KI-Systems (Anthropic Claude Sonnet 4.5) vorbereitet — die finale Entscheidung wurde von [Person] getroffen."`,
+  },
+  {
+    titel: "Risiko-Management-System mit kontinuierlicher Re-Bewertung",
+    rechtsgrundlage: "AI Act Art. 9 Abs. 2",
+    wortlaut: `"a continuous iterative process ... identification, estimation, evaluation, adoption of risk-management measures"`,
+    umsetzung: `Compliance-Cockpit liefert Live-Metriken (Übernahme-Quote, KI-Lauf-Häufigkeit, Token-/CO₂-Verbrauch); Regelkatalog ist Stufe-A-editierbar (apl.ontologie_rules mit aktiv-Flag + Audit-Spalten).`,
+  },
+];
+
+function RisikoBeherrschung() {
+  return (
+    <details className="mt-3 group">
+      <summary className="text-xs cursor-pointer list-none flex items-center gap-1.5 text-amber-700 hover:text-amber-900 font-medium">
+        <span className="text-amber-500 group-open:rotate-90 transition-transform">›</span>
+        Wie wir das Hochrisiko beherrschen — rechtskonforme Nutzung
+        <span className="ml-1 text-slate-400 font-normal">
+          ({MASSNAHMEN.length} Gegenmaßnahmen, juristisch verankert)
+        </span>
+      </summary>
+      <div className="mt-3 pl-3 border-l-2 border-amber-200 space-y-3">
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Die Klassifikation als Hochrisiko-KI nach AI-Act Anhang III (Zugang zu
+          öffentlichen Leistungen) verbietet den Betrieb nicht, sondern verlangt
+          ein dokumentiertes Bündel an Gegenmaßnahmen. Folgende sind in diesem
+          System konkret umgesetzt — mit wörtlichem Wortlaut der Rechtsgrundlage:
+        </p>
+        {MASSNAHMEN.map((m, i) => (
+          <div key={i} className="text-xs">
+            <p className="font-semibold text-slate-900">
+              {i + 1}. {m.titel}
+            </p>
+            <p className="text-[11px] text-amber-700 font-mono mt-0.5">
+              {m.rechtsgrundlage}
+            </p>
+            <p className="text-slate-700 mt-1 italic">„{m.wortlaut}"</p>
+            <p className="text-slate-700 mt-1">
+              <span className="font-medium text-slate-600">Umsetzung im System:</span>{" "}
+              {m.umsetzung}
+            </p>
+          </div>
+        ))}
+        <div className="mt-4 pt-3 border-t border-amber-100 text-[11px] text-slate-500">
+          <span className="font-semibold text-slate-700">Hinweis:</span>{" "}
+          Diese Liste ersetzt nicht die formelle Konformitätsbewertung nach
+          AI Act Art. 43 oder die DSGVO-Datenschutz-Folgenabschätzung (Art. 35).
+          Beides ist Pflicht der betreibenden Stelle (Stadt Würzburg) vor
+          produktiver Inbetriebnahme.
+        </div>
+      </div>
+    </details>
   );
 }
 
