@@ -836,10 +836,11 @@ function AufsichtsMetrikenTab({ metriken }: { metriken: AufsichtsMetriken | null
       </div>
 
       <p className="text-[10px] text-slate-400 italic">
-        Macht Automation Bias sichtbar — wenn die finale Entscheidung in &gt;90 %
-        der Fälle der KI-Empfehlung folgt, läuft das Vier-Augen-Prinzip Gefahr
-        zur Hülle zu werden. Daten direkt aus pruefprotokoll + bescheide
-        abgeleitet, keine separate Telemetrie.
+        Macht Automation Bias sichtbar: wenn die finale Entscheidung in
+        &gt;90 % der Fälle der KI-Empfehlung folgt, droht das
+        Vier-Augen-Prinzip zur leeren Formalie zu werden. Die Daten
+        werden direkt aus pruefprotokoll + bescheide abgeleitet — keine
+        separate Telemetrie.
       </p>
     </div>
   );

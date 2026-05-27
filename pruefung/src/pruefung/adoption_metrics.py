@@ -97,8 +97,10 @@ async def berechne_adoption(db: SupabaseClient) -> dict[str, Any]:
     if uebernahme_quote > 0.9:
         health = "automation_bias_verdacht"
         health_text = (
-            "Sehr hohe Übernahme-Quote (>90%) — Verdacht auf Automation "
-            "Bias. Vier-Augen-Prinzip könnte zur Hülle werden."
+            "Sehr hohe Übernahme-Quote (>90 %) — Verdacht auf Automation "
+            "Bias. Das Vier-Augen-Prinzip droht zur leeren Formalie zu "
+            "werden, wenn die KI-Empfehlung faktisch nie mehr überstimmt "
+            "wird."
         )
     elif uebernahme_quote < 0.4:
         health = "ki_unzuverlaessig"
