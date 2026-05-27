@@ -88,16 +88,25 @@ export default function App() {
       <header className="bg-white border-b border-slate-200 relative">
         <div className="absolute inset-x-0 top-0 h-[3px] bg-wue-rot" />
         <div className="w-full px-4 py-3 flex items-center justify-between gap-6">
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.18em] text-wue-rot font-semibold">
-              Stadt Würzburg · Sozialreferat
+          <div className="flex items-center gap-4">
+            {/* Stadtwappen Würzburg — Feder zerstäubt in Pixel
+                (visuelle Brücke „klassische Verwaltung → Digitalisierung") */}
+            <img
+              src="/logo-wue-digital.png"
+              alt="Stadt Würzburg · digital"
+              className="h-12 w-auto shrink-0"
+            />
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-wue-rot font-semibold">
+                Stadt Würzburg · Sozialreferat
+              </div>
+              <h1 className="text-xl font-bold leading-tight">
+                CIVA — KI-Antrags-Assistent
+              </h1>
+              <p className="text-sm text-slate-500">
+                Konversationelle Antragstellung (Reifegrad 4)
+              </p>
             </div>
-            <h1 className="text-xl font-bold leading-tight">
-              CIVA — KI-Antrags-Assistent
-            </h1>
-            <p className="text-sm text-slate-500">
-              Konversationelle Antragstellung (Reifegrad 4)
-            </p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-slate-400 hidden sm:inline">
