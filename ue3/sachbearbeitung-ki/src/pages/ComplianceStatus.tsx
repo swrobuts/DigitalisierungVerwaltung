@@ -19,29 +19,44 @@ import {
 } from "lucide-react";
 
 /**
- * CO2-Faktor für LLM-Inferenz — grobe Schätzung 0.5 g CO2eq pro 1.000 Tokens.
- * Mittelwert aus Hugging Face Carbontracker, MLPerf-Power, Anthropic-
- * Transparenzberichten 2024/2025. Reine Inferenz; Training nicht eingerechnet.
+ * CO₂-Faktor für LLM-Inferenz — 3 g CO₂eq pro 1.000 Tokens (Mittel).
+ *
+ * Quelle: Luccioni et al., "Power Hungry Processing: Watts Driving the Cost
+ * of AI Deployment?" (ACM FAccT 2024). Für GPT-3-Klassen ergibt sich
+ * 4,32 g CO₂eq pro Query bei ~100 Tokens (= 43 g / 1.000 Tokens). Für
+ * effizientere/kleinere Modelle (Claude Sonnet/Haiku) und Frontier-Hardware
+ * (H100/H200) liegen aktuelle Schätzungen bei 0,5–5 g / 1.000 Tokens.
+ * Wir nehmen den konservativen Mittelwert 3 g/1.000 Tokens (Inferenz only).
+ *   https://arxiv.org/abs/2311.16863
+ *   https://arxiv.org/abs/2410.02950  (LLMCO2, 2024)
  */
-const CO2_GRAMM_PRO_TOKEN = 0.0005;
+const CO2_GRAMM_PRO_TOKEN = 0.003;
 
 /**
- * Kostensatz Claude Opus 4.7 (Anthropic Listpreise Stand 2026):
- *   $15 / 1M input-Token, $75 / 1M output-Token
+ * Kostensatz Claude Opus 4.7 (Anthropic Listpreise 2026):
+ *   $5 / 1M input-Token, $25 / 1M output-Token  (Standard-Tier)
+ *   https://platform.claude.com/docs/en/about-claude/pricing
+ *   https://www.finout.io/blog/claude-opus-4.7-pricing-the-real-cost-story-behind-the-unchanged-price-tag
  * Aufgrund fehlender Input/Output-Trennung in der Persistenz nehmen wir
  * eine gewichtete Mischung 60% input / 40% output:
- *   (15 × 0.6 + 75 × 0.4) / 1_000_000 = $39 / 1M Token = $0.000039 / Token
+ *   (5 × 0.6 + 25 × 0.4) = $13 / 1M Token = $0,000013 / Token
  */
-const OPUS_USD_PRO_TOKEN = 0.000039;
+const OPUS_USD_PRO_TOKEN = 0.000013;
 
 /**
- * Baseline-Tokens für das gesamte Projekt-Setup BIS HEUTE — Ontologie-Aufbau,
- * PDF-Extraktion (AHP, 4 Antrags-PDFs), Backend-Plugins, Frontend-Komponenten,
- * Iteratives Debugging, Demo-Daten-Pflege. Grobe Konsoliderung aus
- * Claude-Code-Sessions, geschätzt ~100 Mio Tokens (konservativ).
- *
- * Live-Tokens aus apl.bescheide_runs werden ON TOP addiert, sobald die
- * Persistenz nach Phase 4B angeschlossen ist.
+ * EUR/USD-Wechselkurs (konservativ gerundet 2026):
+ *   1 USD = 0,92 EUR (Stand Mai 2026, EZB-Referenzkurs gerundet)
+ *   https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/
+ */
+const USD_ZU_EUR = 0.92;
+const OPUS_EUR_PRO_TOKEN = OPUS_USD_PRO_TOKEN * USD_ZU_EUR;
+
+/**
+ * Baseline-Tokens für das gesamte Projekt-Setup bis heute — Ontologie-Aufbau,
+ * PDF-Extraktion (AHP-Richtlinie + 4 Antrags-PDFs), Backend-Plugins,
+ * Frontend-Komponenten, iteratives Debugging, Demo-Daten-Pflege.
+ * Grobe Konsolidierung aus Claude-Code-Sessions, geschätzt ~100 Mio Tokens.
+ * Live-Tokens aus der Persistenz werden on top addiert (Phase 4B).
  */
 const BASELINE_PROJEKT_TOKENS = 100_000_000;
 
@@ -49,18 +64,26 @@ function gesamtTokens(live: number): number {
   return BASELINE_PROJEKT_TOKENS + (live ?? 0);
 }
 
-function formatCo2(tokens: number): string {
-  const gramm = tokens * CO2_GRAMM_PRO_TOKEN;
-  if (gramm < 1) return `${(gramm * 1000).toFixed(0)} mg`;
-  if (gramm < 1000) return `${gramm.toFixed(1)} g`;
-  return `${(gramm / 1000).toFixed(2)} kg`;
+/** Deutsches Zahlenformat mit Trennzeichen "." (Tausender) und "," (Dezimal). */
+function nf(n: number, frac = 0): string {
+  return n.toLocaleString("de-DE", {
+    minimumFractionDigits: frac,
+    maximumFractionDigits: frac,
+  });
 }
 
-function formatUsd(tokens: number): string {
-  const usd = tokens * OPUS_USD_PRO_TOKEN;
-  if (usd < 1) return `$ ${usd.toFixed(2)}`;
-  if (usd < 1000) return `$ ${usd.toFixed(0)}`;
-  return `$ ${(usd / 1000).toFixed(1)}k`;
+function formatCo2(tokens: number): string {
+  const gramm = tokens * CO2_GRAMM_PRO_TOKEN;
+  if (gramm < 1) return `${nf(gramm * 1000)} mg`;
+  if (gramm < 1000) return `${nf(gramm, 1)} g`;
+  return `${nf(gramm / 1000, 1)} kg`;
+}
+
+function formatEur(tokens: number): string {
+  const eur = tokens * OPUS_EUR_PRO_TOKEN;
+  if (eur < 1) return `${nf(eur, 2).replace(".", ",")} €`;
+  if (eur < 1000) return `${nf(eur)} €`;
+  return `${nf(eur / 1000, 1)} k €`;
 }
 import { Card, CardContent } from "../components/ui/card";
 
@@ -402,15 +425,17 @@ function KennzahlenStrip({
       <Tile
         icon={<Eye className="h-3.5 w-3.5" />}
         label="LLM-Token (Projekt)"
-        wert={gesamtTokens(metriken.llm_token_gesamt).toLocaleString("de-DE")}
-        sub={`≈ ${formatUsd(gesamtTokens(metriken.llm_token_gesamt))} · Opus 4.7 ($39/M)`}
+        wert={nf(gesamtTokens(metriken.llm_token_gesamt))}
+        sub={`≈ ${formatEur(gesamtTokens(metriken.llm_token_gesamt))} · Opus 4.7`}
+        titleAttr="Anthropic Opus 4.7: $5/M Input + $25/M Output. Gewichtet (60/40) = $13/M ≈ 12 € /M Tokens. Quelle: platform.claude.com/docs/pricing"
       />
       <Tile
         icon={<Leaf className="h-3.5 w-3.5" />}
         label="CO₂-Fußabdruck"
         wert={formatCo2(gesamtTokens(metriken.llm_token_gesamt))}
-        sub="≈ 0,5 g/1.000 Tokens · Inferenz"
+        sub="≈ 3 g / 1.000 Tokens · Inferenz"
         tone="lokal"
+        titleAttr="Konservativer Mittelwert 3 g CO₂eq pro 1.000 Tokens — Inferenz only. Quellen: Luccioni et al. 2024 (arxiv.org/abs/2311.16863), LLMCO2 2024 (arxiv.org/abs/2410.02950)"
       />
       <ProviderTile provider={provider} />
     </div>
@@ -418,13 +443,15 @@ function KennzahlenStrip({
 }
 
 function Tile({
-  icon, label, wert, sub, tone = "neutral",
+  icon, label, wert, sub, tone = "neutral", titleAttr,
 }: {
   icon: React.ReactNode;
   label: string;
   wert: string | number;
   sub?: string;
   tone?: "neutral" | "lokal" | "extern";
+  /** Hover-Tooltip mit Quellenangabe (browser-native title-Attribut). */
+  titleAttr?: string;
 }) {
   const palette = {
     neutral: "bg-white border-slate-200",
@@ -432,7 +459,10 @@ function Tile({
     extern: "bg-sky-50 border-sky-300",
   }[tone];
   return (
-    <div className={`border rounded-sm px-3 py-2.5 ${palette}`}>
+    <div
+      className={`border rounded-sm px-3 py-2.5 ${palette} ${titleAttr ? "cursor-help" : ""}`}
+      title={titleAttr}
+    >
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 font-medium">
         {icon}
         <span>{label}</span>
