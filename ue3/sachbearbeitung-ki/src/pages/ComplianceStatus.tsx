@@ -81,9 +81,10 @@ function formatCo2(tokens: number): string {
 
 function formatEur(tokens: number): string {
   const eur = tokens * OPUS_EUR_PRO_TOKEN;
-  if (eur < 1) return `${nf(eur, 2).replace(".", ",")} €`;
-  if (eur < 1000) return `${nf(eur)} €`;
-  return `${nf(eur / 1000, 1)} k €`;
+  if (eur < 1) return `${nf(eur, 2)} €`;
+  // Ganze Zahlen mit Tausenderpunkt, keine k-Schreibweise — der volle Betrag
+  // ist transparenter als "1,2 k €".
+  return `${nf(eur)} €`;
 }
 import { Card, CardContent } from "../components/ui/card";
 
