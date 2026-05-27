@@ -37,7 +37,7 @@ import {
 import { DemoDatenBanner } from "../components/DemoDatenBanner";
 import { StatusBadge } from "../components/StatusBadge";
 import { FbBadge } from "../components/FbBadge";
-import { HistoryTimeline } from "../components/HistoryTimeline";
+import { VerlaufCard } from "../components/VerlaufCard";
 import { AnlageDownload } from "../components/AnlageDownload";
 import { SektionPruefung } from "../components/SektionPruefung";
 import { BescheideListe } from "../components/BescheideListe";
@@ -371,14 +371,6 @@ export function AntragDetail() {
               </div>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Verlauf</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <HistoryTimeline history={history} />
-              </CardContent>
-            </Card>
           </article>
 
           <aside className="space-y-4 lg:sticky lg:top-[6.5rem] lg:self-start">
@@ -457,6 +449,8 @@ export function AntragDetail() {
             </Card>
 
             <VorjahresVergleich antragId={id!} />
+
+            <VerlaufCard history={history} />
           </aside>
         </main>
       </div>
