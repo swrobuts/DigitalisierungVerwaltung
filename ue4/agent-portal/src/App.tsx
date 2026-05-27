@@ -15,6 +15,10 @@ export default function App() {
   const [isThinking, setIsThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Empty-State = noch kein Turn gelaufen UND der Agent „denkt" auch nicht.
+  // Steuert das Layout: Hero (Google-mäßig) vs. Chat (Verlauf + Bar unten).
+  const isEmpty = session.messages.length === 0 && !isThinking;
+
   useEffect(() => {
     saveSession(session);
   }, [session]);
@@ -136,8 +140,43 @@ export default function App() {
               Fehler: {error}
             </div>
           )}
-          <ChatWindow messages={session.messages} isThinking={isThinking} />
-          <MessageInput onSend={handleSend} disabled={isThinking} />
+          {isEmpty ? (
+            // Empty-State: Google-mäßig prominent. Begrüßung + großes
+            // Eingabefeld vertikal mittig. Sobald der erste Turn da ist,
+            // klappt das Layout in den normalen Chat-Modus (Verlauf oben,
+            // schmale Bar unten) — analog Google Search-Page → Result-Page.
+            <div className="flex-1 flex items-center justify-center overflow-y-auto p-6">
+              <div className="w-full max-w-2xl">
+                <div className="text-center mb-10">
+                  <div
+                    data-testid="chat-empty-state"
+                    className="text-6xl mb-6 text-wue-rot"
+                    aria-hidden
+                  >
+                    ◉
+                  </div>
+                  <h2 className="text-3xl font-bold text-wue-grau mb-3">
+                    Hallo, ich bin CIVA.
+                  </h2>
+                  <p className="text-lg text-slate-600 leading-relaxed">
+                    Beschreiben Sie kurz, was Sie fördern lassen möchten —
+                    ich helfe Ihnen, den passenden Förderbereich zu finden
+                    und den Antrag auszufüllen.
+                  </p>
+                </div>
+                <MessageInput
+                  onSend={handleSend}
+                  disabled={isThinking}
+                  variant="hero"
+                />
+              </div>
+            </div>
+          ) : (
+            <>
+              <ChatWindow messages={session.messages} isThinking={isThinking} />
+              <MessageInput onSend={handleSend} disabled={isThinking} />
+            </>
+          )}
         </section>
 
         {/* Sidebar */}

@@ -4,13 +4,25 @@ interface Props {
   onSend: (text: string) => void;
   disabled: boolean;
   placeholder?: string;
+  /**
+   * `default` — schmale Bar am unteren Rand (Chat-Verlauf-Modus).
+   * `hero`    — prominent zentriert, Google-mäßig, für den Empty-State.
+   *             Größeres Eingabefeld, größerer Button, mehr Padding,
+   *             Apple-Shadow + Auto-Focus.
+   */
+  variant?: "default" | "hero";
 }
 
 /**
  * Multi-Line-Input mit Enter zum Senden (Shift+Enter = Newline).
  * Disabled während der Agent denkt — wir wollen keine Double-Submits.
  */
-export function MessageInput({ onSend, disabled, placeholder }: Props) {
+export function MessageInput({
+  onSend,
+  disabled,
+  placeholder,
+  variant = "default",
+}: Props) {
   const [value, setValue] = useState("");
 
   function handleSend() {
@@ -25,6 +37,40 @@ export function MessageInput({ onSend, disabled, placeholder }: Props) {
       e.preventDefault();
       handleSend();
     }
+  }
+
+  if (variant === "hero") {
+    return (
+      <div className="w-full">
+        <div className="flex flex-col gap-3">
+          <textarea
+            data-testid="message-input"
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            rows={3}
+            disabled={disabled}
+            placeholder={
+              placeholder ??
+              "Beschreiben Sie hier kurz Ihr Vorhaben … (Enter zum Senden, Shift+Enter für neue Zeile)"
+            }
+            className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-5 py-4 text-[17px] leading-relaxed shadow-[0_8px_30px_rgba(0,0,0,0.06)] focus:outline-none focus:border-wue-rot focus:ring-2 focus:ring-wue-rot/20 disabled:bg-slate-100 disabled:text-slate-400 placeholder:text-slate-400"
+          />
+          <div className="flex justify-end">
+            <button
+              data-testid="send-button"
+              type="button"
+              onClick={handleSend}
+              disabled={disabled || !value.trim()}
+              className="rounded-xl bg-wue-rot text-white px-7 py-3 text-base font-semibold shadow-sm hover:bg-wue-rot-dark disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+            >
+              Senden
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
