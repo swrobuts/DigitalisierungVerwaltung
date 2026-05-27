@@ -52,13 +52,25 @@ const USD_ZU_EUR = 0.92;
 const OPUS_EUR_PRO_TOKEN = OPUS_USD_PRO_TOKEN * USD_ZU_EUR;
 
 /**
- * Baseline-Tokens für das gesamte Projekt-Setup bis heute — Ontologie-Aufbau,
- * PDF-Extraktion (AHP-Richtlinie + 4 Antrags-PDFs), Backend-Plugins,
- * Frontend-Komponenten, iteratives Debugging, Demo-Daten-Pflege.
- * Grobe Konsolidierung aus Claude-Code-Sessions, geschätzt ~100 Mio Tokens.
- * Live-Tokens aus der Persistenz werden on top addiert (Phase 4B).
+ * Baseline-Tokens für das gesamte Projekt-Setup seit Stichtag 22.05.2026
+ * (Beginn der intensiven Phase nach Hard-Cut auf apl-Schema):
+ * Ontologie-Aufbau, PDF-Extraktion (AHP-Richtlinie + 4 Antrags-PDFs),
+ * Backend-Plugins, Frontend-Komponenten, Compliance-Cockpit, iteratives
+ * Debugging, Demo-Daten-Pflege.
+ *
+ * Datenquelle: Anthropic Console (console.anthropic.com → Nutzung).
+ * Aus dem Wochen-Screenshot 18.-24.05.2026 abgelesen:
+ *   22.05.: ~6,2 Mio (Hard-Cut + Multi-FB-Refactor)
+ *   23.05.: ~2,2 Mio
+ *   24.05.: ~3,5 Mio
+ *   Summe 22.-24.05. = ~12 Mio (Anthropic-Dashboard nachweisbar)
+ * Plus konservativ geschätzte 10 Mio für 25.-27.05. (Bugfix-Welle,
+ * Compliance-Cockpit, Risikobeherrschung) = ~22 Mio Total.
+ *
+ * Wenn echte Zahl aus Anthropic-Dashboard für 22.05.–heute vorliegt:
+ * hier eintragen.
  */
-const BASELINE_PROJEKT_TOKENS = 100_000_000;
+const BASELINE_PROJEKT_TOKENS = 22_000_000;
 
 function gesamtTokens(live: number): number {
   return BASELINE_PROJEKT_TOKENS + (live ?? 0);
