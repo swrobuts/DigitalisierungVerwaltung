@@ -110,6 +110,7 @@ export function Inbox() {
               return (
                 <FilterPill
                   key={fb}
+                  fb={fb}
                   label={
                     <span className="inline-flex items-center gap-1.5">
                       <FbIcon name={cfg.icon} className="h-3.5 w-3.5" />
@@ -151,25 +152,51 @@ export function Inbox() {
   );
 }
 
+/** Farb-Paletten pro Förderbereich — gleiche Töne wie FbBadge in der
+ *  Tabelle, damit Filter-Pillen und Badges visuell konsistent sind.
+ *  Active = volle Sättigung, Inactive = blasses BG + farbige Border. */
+const FB_PILL_COLORS: Record<FoerderbereichId, { active: string; inactive: string }> = {
+  I: {
+    active: "bg-emerald-600 text-white border-emerald-600",
+    inactive: "bg-emerald-50 text-emerald-900 border-emerald-300 hover:border-emerald-500",
+  },
+  II: {
+    active: "bg-amber-600 text-white border-amber-600",
+    inactive: "bg-amber-50 text-amber-900 border-amber-300 hover:border-amber-500",
+  },
+  III: {
+    active: "bg-blue-600 text-white border-blue-600",
+    inactive: "bg-blue-50 text-blue-900 border-blue-300 hover:border-blue-500",
+  },
+  IV: {
+    active: "bg-violet-600 text-white border-violet-600",
+    inactive: "bg-violet-50 text-violet-900 border-violet-300 hover:border-violet-500",
+  },
+};
+
 function FilterPill({
   label,
   active,
   onClick,
+  fb,
 }: {
   label: React.ReactNode;
   active: boolean;
   onClick: () => void;
+  /** Wenn gesetzt, übernimmt die Pille den Farbcode des Förderbereichs.
+   *  Ohne fb (z.B. "Alle"-Filter): neutrales Slate. */
+  fb?: FoerderbereichId;
 }) {
+  const palette = fb
+    ? (active ? FB_PILL_COLORS[fb].active : FB_PILL_COLORS[fb].inactive)
+    : (active
+        ? "bg-slate-900 text-white border-slate-900"
+        : "bg-white text-slate-700 border-slate-300 hover:border-slate-500");
   return (
     <button
       type="button"
       onClick={onClick}
-      className={
-        "text-xs px-3 py-1.5 rounded-full border transition-colors " +
-        (active
-          ? "bg-slate-900 text-white border-slate-900"
-          : "bg-white text-slate-700 border-slate-300 hover:border-slate-500")
-      }
+      className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${palette}`}
     >
       {label}
     </button>
