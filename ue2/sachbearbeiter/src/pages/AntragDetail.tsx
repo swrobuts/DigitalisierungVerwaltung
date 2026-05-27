@@ -233,7 +233,7 @@ export function AntragDetail() {
         </header>
 
         {/* Bearbeitungsstand-Stepper — sticky direkt unter dem schmalen Header */}
-        <div className="px-4 lg:px-8 pt-4 sticky top-[3.5rem] lg:top-[4rem] z-20">
+        <div className="px-4 lg:px-8 pt-4 pb-3 sticky top-[3.5rem] lg:top-[4rem] z-20 bg-slate-100 shadow-[0_4px_8px_-4px_rgba(15,23,42,0.06)]">
           <Bearbeitungsstand status={antrag.status} sticky={false} />
         </div>
 
@@ -241,7 +241,7 @@ export function AntragDetail() {
 
         <main className="w-full px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <article className="lg:col-span-2 space-y-4">
-            <div className="bg-white border border-slate-200 shadow-sm rounded overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-[0_1px_3px_rgba(15,23,42,0.05),0_8px_24px_-4px_rgba(15,23,42,0.08)]">
               <AntragHeader
                 antrag={antrag}
                 fbI={bundle.fb_i}
