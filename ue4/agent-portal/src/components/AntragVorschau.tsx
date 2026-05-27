@@ -1,5 +1,6 @@
 import { CheckCircle2, MessagesSquare, Sparkles, FileText } from "lucide-react";
 import type { AntragDraft, FoerderbereichId } from "../lib/types";
+import { t, tx } from "../lib/i18n";
 
 interface Props {
   draft: AntragDraft;
@@ -68,31 +69,36 @@ export function AntragVorschau({ draft }: Props) {
         className="w-80 shrink-0 border-l border-slate-200 bg-slate-50/60 overflow-y-auto"
       >
         <div className="p-5 space-y-4">
-          <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-            So funktioniert CIVA
+          <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider civa-rise">
+            {t("side.howitworks")}
           </div>
-          <OnboardingStep
-            n={1}
-            icon={MessagesSquare}
-            title="Vorhaben beschreiben"
-            text="Erzählen Sie mit Ihren Worten, was Sie planen — ein Begegnungszentrum, eine Pauschale fürs Ehrenamt, ein Quartiersprojekt."
-          />
-          <OnboardingStep
-            n={2}
-            icon={Sparkles}
-            title="Förderbereich finden"
-            text="CIVA ordnet Ihr Vorhaben dem passenden Förderbereich zu und fragt nur die wirklich nötigen Angaben ab."
-          />
-          <OnboardingStep
-            n={3}
-            icon={FileText}
-            title="Antrag übernehmen"
-            text="Am Ende übergibt CIVA Ihre Angaben an das städtische Webformular — Sie prüfen und reichen ein."
-          />
+          <div className="civa-rise civa-rise-delay-1">
+            <OnboardingStep
+              n={1}
+              icon={MessagesSquare}
+              title={t("side.step1.title")}
+              text={t("side.step1.text")}
+            />
+          </div>
+          <div className="civa-rise civa-rise-delay-2">
+            <OnboardingStep
+              n={2}
+              icon={Sparkles}
+              title={t("side.step2.title")}
+              text={t("side.step2.text")}
+            />
+          </div>
+          <div className="civa-rise civa-rise-delay-3">
+            <OnboardingStep
+              n={3}
+              icon={FileText}
+              title={t("side.step3.title")}
+              text={t("side.step3.text")}
+            />
+          </div>
           <div className="pt-2 mt-2 border-t border-slate-200/70 text-[11px] text-slate-500 leading-snug">
-            <span className="font-semibold text-slate-600">Tipp:</span> Sie
-            können Belege direkt im Chat anhängen (PDF, JPG, Excel) — CIVA
-            erkennt typische Antragsanlagen automatisch.
+            <span className="font-semibold text-slate-600">{t("side.tip")}</span>{" "}
+            {t("side.tip.text")}
           </div>
         </div>
       </aside>
@@ -108,7 +114,7 @@ export function AntragVorschau({ draft }: Props) {
       <div className="p-4 space-y-3">
         {/* Förderbereich — nur wenn erkannt */}
         {fb && (
-          <Card title="Förderbereich" icon={Sparkles}>
+          <Card title={t("side.area")} icon={Sparkles}>
             <div data-testid="fb-display" className="space-y-0.5">
               <div className="font-semibold text-slate-900 text-[15px]">
                 FB {fb}
@@ -126,10 +132,13 @@ export function AntragVorschau({ draft }: Props) {
 
         {/* Antragsteller — nur wenn min. 1 Feld erfasst */}
         {ausgefuellt.length > 0 && (
-          <Card title="Antragsteller">
+          <Card title={t("side.applicant")}>
             <div className="flex items-baseline justify-between mb-2 text-xs">
               <span className="text-slate-500 tabular-nums">
-                {ausgefuellt.length} von {ANTRAGSTELLER_FELDER.length} Pflichtfeldern
+                {tx("side.applicant.fields", {
+                  n: ausgefuellt.length,
+                  total: ANTRAGSTELLER_FELDER.length,
+                })}
               </span>
               <span className="text-slate-400 tabular-nums">
                 {Math.round(
@@ -161,7 +170,7 @@ export function AntragVorschau({ draft }: Props) {
               {fehlend.length > 0 && (
                 <details className="text-xs text-slate-400 mt-2">
                   <summary className="cursor-pointer hover:text-slate-600">
-                    {fehlend.length} Felder offen
+                    {tx("side.applicant.more", { n: fehlend.length })}
                   </summary>
                   <ul className="mt-1 pl-3 list-disc space-y-0.5">
                     {fehlend.map((f) => (
@@ -182,24 +191,22 @@ export function AntragVorschau({ draft }: Props) {
           >
             <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 uppercase mb-1">
               <CheckCircle2 className="w-4 h-4" />
-              Antrag eingereicht
+              {t("side.submitted")}
             </div>
             <div className="font-mono text-sm text-emerald-900 break-all">
               {draft.antragsnummer}
             </div>
             <div className="text-xs text-emerald-700 mt-2">
-              Die Sachbearbeitung meldet sich innerhalb von ca. 4 Wochen.
+              {t("side.submitted.text")}
             </div>
           </div>
         )}
 
         {/* Reifegrad-Hinweis bleibt immer sichtbar, sobald irgendwas
             erfasst ist — als ehrlicher Disclaimer. */}
-        <Card title="Reifegrad-Hinweis" tone="warn">
+        <Card title={t("side.disclaimer.title")} tone="warn">
           <p className="text-xs text-slate-600 leading-snug">
-            Dieser Assistent zitiert keine § und nennt keine
-            Förderhöhen. Beides steht im rechtssicheren Bescheid der
-            Sachbearbeitung.
+            {t("side.disclaimer.text")}
           </p>
         </Card>
       </div>

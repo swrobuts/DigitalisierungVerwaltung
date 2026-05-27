@@ -5,10 +5,13 @@ import { AntragVorschau } from "../src/components/AntragVorschau";
 describe("AntragVorschau", () => {
   it("zeigt Onboarding-Steps im Empty-State (statt leerer Cards)", () => {
     render(<AntragVorschau draft={{}} />);
+    // i18n-DE: "So funktioniert CIVA" + drei Schritte mit allgemeinen
+    // Texten (nicht mehr förder-spezifisch — CIVA soll perspektivisch
+    // alle Bürgeranliegen abdecken).
     expect(screen.getByText(/So funktioniert CIVA/)).toBeInTheDocument();
-    expect(screen.getByText(/Vorhaben beschreiben/)).toBeInTheDocument();
-    expect(screen.getByText(/Förderbereich finden/)).toBeInTheDocument();
-    expect(screen.getByText(/Antrag übernehmen/)).toBeInTheDocument();
+    expect(screen.getByText(/Anliegen schildern/)).toBeInTheDocument();
+    expect(screen.getByText(/Passenden Weg finden/)).toBeInTheDocument();
+    expect(screen.getByText(/Vorgang übernehmen/)).toBeInTheDocument();
     // Im Empty-State KEINE leeren Pflichtfeld-Karten („0 von 11") und
     // KEINE FB-Karte mit Erkennungs-Platzhalter — die erscheinen erst,
     // sobald der Dialog tatsächlich was produziert.

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatMessage } from "../lib/types";
+import { t } from "../lib/i18n";
 
 interface Props {
   messages: ChatMessage[];
@@ -20,24 +21,18 @@ export function ChatWindow({ messages, isThinking }: Props) {
   }, [messages.length, isThinking]);
 
   if (messages.length === 0 && !isThinking) {
+    // Fallback-Empty-State (für isolierte Tests). Im produktiven
+    // Layout wird stattdessen das Hero-Layout in App.tsx gerendert.
     return (
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-center max-w-md">
-          <div
-            data-testid="chat-empty-state"
-            className="text-5xl mb-4"
-            aria-hidden
-          >
+          <div data-testid="chat-empty-state" className="text-5xl mb-4" aria-hidden>
             ◉
           </div>
           <h2 className="text-xl font-semibold text-wue-grau mb-2">
-            Hallo, ich bin CIVA.
+            {t("hero.greeting")}
           </h2>
-          <p className="text-slate-600">
-            Beschreiben Sie kurz, was Sie fördern lassen möchten — ich
-            helfe Ihnen, den passenden Förderbereich zu finden und den
-            Antrag auszufüllen.
-          </p>
+          <p className="text-slate-600">{t("hero.subtitle")}</p>
         </div>
       </div>
     );
@@ -73,7 +68,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       >
         {!isUser && (
           <div className="text-[11px] font-semibold text-wue-rot mb-0.5">
-            CIVA · Sozialamt-Assistent
+            CIVA
           </div>
         )}
         {isUser ? (
@@ -121,25 +116,25 @@ function ThinkingBubble() {
   // Progressiv genauerer Subtext, damit der User weiß: wir arbeiten
   // wirklich, das dauert manchmal — kein Hänger.
   let subtext = "";
-  if (seconds >= 25) subtext = "Letzter Schliff — bin gleich fertig.";
-  else if (seconds >= 12) subtext = "Validiere Ihre Angaben mit den Förderregeln …";
-  else if (seconds >= 4) subtext = "CIVA verarbeitet Ihre Eingabe …";
+  if (seconds >= 25) subtext = t("think.late");
+  else if (seconds >= 12) subtext = t("think.mid");
+  else if (seconds >= 4) subtext = t("think.early");
 
   return (
     <div data-testid="thinking-bubble" className="flex justify-start">
       <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white border border-slate-200 shadow-sm max-w-md">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-wue-rot/60 animate-bounce" />
+          <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" />
           <span
-            className="w-2 h-2 rounded-full bg-wue-rot/60 animate-bounce"
+            className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"
             style={{ animationDelay: "0.15s" }}
           />
           <span
-            className="w-2 h-2 rounded-full bg-wue-rot/60 animate-bounce"
+            className="w-2 h-2 rounded-full bg-slate-400 animate-bounce"
             style={{ animationDelay: "0.3s" }}
           />
           <span className="ml-2 text-sm text-slate-500">
-            CIVA denkt nach …{" "}
+            {t("think.label")} …{" "}
             <span className="tabular-nums text-slate-400">({seconds}s)</span>
           </span>
         </div>

@@ -94,6 +94,11 @@ export interface ChatCallParams {
   history: ChatMessage[];
   userMessage: string;
   currentDraft: AntragDraft;
+  /** UI-Sprache als Hint für den Agent (DE / TR / IT / RU / FR).
+   *  Default-Antwortsprache, falls aus dem User-Text die Sprache nicht
+   *  eindeutig zu erkennen ist. Der Agent ignoriert das, sobald die
+   *  Bürgerin in einer anderen Sprache schreibt. */
+  sprache?: string;
   signal?: AbortSignal;
 }
 
@@ -108,6 +113,7 @@ export async function postAgentChat(
       history: params.history,
       user_message: params.userMessage,
       current_draft: params.currentDraft,
+      sprache: params.sprache,
     }),
     signal: params.signal,
   });
