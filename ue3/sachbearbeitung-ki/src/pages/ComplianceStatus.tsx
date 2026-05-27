@@ -92,6 +92,30 @@ function formatCo2(tokens: number): string {
   return `${nf(gramm / 1000, 1)} kg`;
 }
 
+/**
+ * PKW-Vergleichsfaktor: 119,8 g CO₂ pro Kilometer.
+ *
+ * Quelle: Kraftfahrt-Bundesamt (KBA), Pressemitteilung 01/2025 vom
+ * 06.01.2025 zur Jahresbilanz Fahrzeugzulassungen Dezember 2024:
+ * "die durchschnittliche CO2-Emission der neu zugelassenen Pkw stieg
+ * 2024 um +4,2 Prozent auf 119,8 g/km".
+ *   https://www.kba.de/DE/Presse/Pressemitteilungen/Fahrzeugzulassungen/2025/pm01_2025_n_12_24_pm_komplett.html
+ *
+ * Hinweis: WLTP-Norm — unterschätzt den Realverbrauch laut ICCT um
+ * ca. 14%. Für die Bestandsflotte (älter, mehr Diesel/Benziner) wäre
+ * der Wert höher (~150 g/km lt. UBA). Wir nehmen den offiziellen KBA-
+ * Wert für Neuzulassungen, weil er transparent nachprüfbar ist.
+ */
+const PKW_GRAMM_CO2_PRO_KM = 119.8;
+
+function formatPkwAequivalent(tokens: number): string {
+  const gramm = tokens * CO2_GRAMM_PRO_TOKEN;
+  const meter = (gramm / PKW_GRAMM_CO2_PRO_KM) * 1000;
+  if (meter < 1000) return `${nf(meter)} m PKW-Fahrt`;
+  if (meter < 10_000) return `${nf(meter / 1000, 1)} km PKW-Fahrt`;
+  return `${nf(meter / 1000)} km PKW-Fahrt`;
+}
+
 function formatEur(eur: number): string {
   if (eur < 1) return `${nf(eur, 2)} €`;
   return `${nf(eur)} €`;
@@ -451,9 +475,9 @@ function KennzahlenStrip({
         icon={<Leaf className="h-3.5 w-3.5" />}
         label="CO₂-Fußabdruck"
         wert={formatCo2(gesamtTokens(metriken.llm_token_gesamt))}
-        sub="≈ 3 g / 1.000 Tokens · Inferenz"
+        sub={`≈ ${formatPkwAequivalent(gesamtTokens(metriken.llm_token_gesamt))}`}
         tone="lokal"
-        titleAttr="Konservativer Mittelwert 3 g CO₂eq pro 1.000 Tokens — Inferenz only. Quellen: Luccioni et al. 2024 (arxiv.org/abs/2311.16863), LLMCO2 2024 (arxiv.org/abs/2410.02950)"
+        titleAttr="CO₂-Faktor 3 g pro 1.000 Tokens (Inferenz). PKW-Vergleich: 119,8 g CO₂/km (KBA, Neuzulassungen 2024, WLTP). Quellen: Luccioni et al. 2024 (arxiv.org/abs/2311.16863), LLMCO2 2024 (arxiv.org/abs/2410.02950), KBA Pressemitteilung 01/2025"
       />
       <ProviderTile provider={provider} />
     </div>
