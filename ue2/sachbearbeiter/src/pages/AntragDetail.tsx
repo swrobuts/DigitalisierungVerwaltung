@@ -250,6 +250,30 @@ export function AntragDetail() {
                 statusBadge={<StatusBadge status={antrag.status} />}
               />
 
+              {/* Submission-Meta — direkt unter dem Header, damit
+                  Eingangsdatum/Sprache/Haushaltsjahr immer sofort sichtbar
+                  sind. */}
+              <div className="bg-slate-50 border-y border-slate-200 px-10 lg:px-14 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-4 text-xs">
+                  <div className="text-slate-500">
+                    <span className="font-semibold uppercase tracking-wider">Eingegangen</span>
+                    <span className="ml-2 text-slate-700">
+                      {formatDateTime(antrag.submitted_at)}
+                    </span>
+                    <span className="ml-3 text-slate-400">·</span>
+                    <span className="ml-3">
+                      Sprache <span className="text-slate-700">{antrag.submitted_language.toUpperCase()}</span>
+                    </span>
+                    <span className="ml-3 text-slate-400">·</span>
+                    <span className="ml-3 font-semibold uppercase tracking-wider">Haushaltsjahr</span>
+                    <span className="ml-2 text-slate-700 tabular-nums">{antrag.haushaltsjahr}</span>
+                  </div>
+                  <div className="text-slate-400 text-[11px] font-mono">
+                    Elektronische Einreichung — keine Unterschrift erforderlich
+                  </div>
+                </div>
+              </div>
+
               {/* §-Sektionen */}
               <div className="px-10 lg:px-14 py-10 space-y-0">
                 <DocSection
@@ -348,27 +372,6 @@ export function AntragDetail() {
                 </DocSection>
               </div>
 
-              {/* Submission-Footer — Eingangsstempel-Look */}
-              <div className="bg-slate-50 border-t-2 border-slate-200 px-10 lg:px-14 py-5">
-                <div className="flex flex-wrap items-baseline justify-between gap-4 text-xs">
-                  <div className="text-slate-500">
-                    <span className="font-semibold uppercase tracking-wider">Eingegangen</span>
-                    <span className="ml-2 text-slate-700">
-                      {formatDateTime(antrag.submitted_at)}
-                    </span>
-                    <span className="ml-3 text-slate-400">·</span>
-                    <span className="ml-3">
-                      Sprache <span className="text-slate-700">{antrag.submitted_language.toUpperCase()}</span>
-                    </span>
-                    <span className="ml-3 text-slate-400">·</span>
-                    <span className="ml-3 font-semibold uppercase tracking-wider">Haushaltsjahr</span>
-                    <span className="ml-2 text-slate-700 tabular-nums">{antrag.haushaltsjahr}</span>
-                  </div>
-                  <div className="text-slate-400 text-[11px] font-mono">
-                    Elektronische Einreichung — keine Unterschrift erforderlich
-                  </div>
-                </div>
-              </div>
             </div>
 
           </article>
