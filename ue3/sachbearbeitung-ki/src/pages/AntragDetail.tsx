@@ -351,14 +351,60 @@ export function AntragDetail() {
           <aside className="space-y-4 lg:sticky lg:top-[6.5rem] lg:self-start">
             <PruefungsCard
               antragId={id!}
-              onApplyEmpfehlung={(aktion) => {
+              onApplyEmpfehlung={async (aktion) => {
+                // Direkt-Pfad ohne Confirm-Dialog: der Button-Klick IST
+                // schon die Bestätigung. Plus Auto-Promotion durch
+                // "in_pruefung" wenn Antrag noch "eingegangen" ist,
+                // sonst greift der Status-Wechsel nicht (Workflow-Regel).
                 const target: Status =
                   aktion === "bewilligen"
                     ? "bewilligt"
                     : aktion === "ablehnen"
                     ? "abgelehnt"
                     : "rueckfrage";
-                setConfirmTo(target);
+                if (busy) return;
+                setBusy(true);
+                try {
+                  if (antrag.status === "eingegangen") {
+                    // target ist bewilligt/abgelehnt/rueckfrage — von
+                    // eingegangen aus nicht direkt erlaubt, also zuerst
+                    // den Zwischenschritt machen.
+                    const r1 = await changeStatus(
+                      "in_pruefung",
+                      "Auto-Promotion durch „Empfehlung umsetzen“",
+                    );
+                    if (r1.error) {
+                      alert("Status-Wechsel fehlgeschlagen: " + r1.error);
+                      return;
+                    }
+                  }
+                  const r2 = await changeStatus(
+                    target,
+                    `KI-Empfehlung umgesetzt: ${aktion}`,
+                  );
+                  if (r2.error) {
+                    alert("Status-Wechsel fehlgeschlagen: " + r2.error);
+                    return;
+                  }
+                  const r3 = await erstelleBescheid({
+                    entscheidung: target,
+                    ausgestellt_von: session?.user?.email ?? null,
+                    bearbeiter_kommentar: null,
+                  });
+                  if (r3.error) {
+                    alert(
+                      "Status gesetzt, aber Bescheid-Erstellung fehlgeschlagen:\n" +
+                        r3.error,
+                    );
+                    return;
+                  }
+                  if (r3.result?.id) {
+                    const url = await downloadBescheidDocx(r3.result.id);
+                    if (url) window.open(url, "_blank", "noopener");
+                  }
+                } finally {
+                  setBusy(false);
+                }
               }}
             />
 
