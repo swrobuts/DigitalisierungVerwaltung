@@ -3,9 +3,17 @@ import { describe, it, expect } from "vitest";
 import { AntragVorschau } from "../src/components/AntragVorschau";
 
 describe("AntragVorschau", () => {
-  it("zeigt Platzhalter wenn kein FB erkannt", () => {
+  it("zeigt Onboarding-Steps im Empty-State (statt leerer Cards)", () => {
     render(<AntragVorschau draft={{}} />);
-    expect(screen.getByText(/Noch nicht erkannt/)).toBeInTheDocument();
+    expect(screen.getByText(/So funktioniert CIVA/)).toBeInTheDocument();
+    expect(screen.getByText(/Vorhaben beschreiben/)).toBeInTheDocument();
+    expect(screen.getByText(/Förderbereich finden/)).toBeInTheDocument();
+    expect(screen.getByText(/Antrag übernehmen/)).toBeInTheDocument();
+    // Im Empty-State KEINE leeren Pflichtfeld-Karten („0 von 11") und
+    // KEINE FB-Karte mit Erkennungs-Platzhalter — die erscheinen erst,
+    // sobald der Dialog tatsächlich was produziert.
+    expect(screen.queryByText(/0 von 11/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Noch nicht erkannt/)).not.toBeInTheDocument();
   });
 
   it("zeigt FB-Label wenn FB gesetzt", () => {

@@ -284,6 +284,9 @@ importers:
 
   ue4/agent-portal:
     dependencies:
+      lucide-react:
+        specifier: ^0.408.0
+        version: 0.408.0(react@19.2.6)
       react:
         specifier: ^19.0.0
         version: 19.2.6

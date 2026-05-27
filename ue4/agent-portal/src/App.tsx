@@ -2,9 +2,30 @@ import { useEffect, useState } from "react";
 import { ChatWindow } from "./components/ChatWindow";
 import { MessageInput } from "./components/MessageInput";
 import { AntragVorschau } from "./components/AntragVorschau";
+import { Footer } from "./components/Footer";
 import { postAgentChat } from "./lib/agent-api";
 import type { AgentSession, ChatMessage } from "./lib/types";
 import { loadSession, saveSession, clearSession, newSession } from "./state/session";
+
+/** Ein-Klick-Starter im Empty-State — kürzt der Bürgerin die Tippzeit. */
+const STARTER_PROMPTS: Array<{ label: string; text: string }> = [
+  {
+    label: "Begegnungszentrum",
+    text: "Wir möchten ein Begegnungszentrum für ältere Menschen aufbauen — was muss ich tun?",
+  },
+  {
+    label: "Ehrenamt fördern",
+    text: "Unser Verein engagiert sich ehrenamtlich für Senioren — gibt es eine Pauschale, die wir beantragen können?",
+  },
+  {
+    label: "Quartiersarbeit",
+    text: "Wir planen ein Quartiersmanagement in unserem Stadtteil — welche Fördermöglichkeiten gibt es?",
+  },
+  {
+    label: "Seniorenkreis",
+    text: "Wir betreiben einen wöchentlichen Seniorenkreis — können wir dafür Förderung beantragen?",
+  },
+];
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -23,7 +44,12 @@ export default function App() {
     saveSession(session);
   }, [session]);
 
-  async function handleSend(text: string) {
+  // `_files` ist Platzhalter für den späteren echten Upload (Multipart
+  // ans Backend, Smart-Upload-Pipeline aus Phase 4B nutzen). Heute
+  // verlassen wir uns darauf, dass MessageInput die Dateinamen als
+  // 📎-Hinweis an die Message-Text gehängt hat — der Agent sieht
+  // dadurch zumindest, dass Belege beigelegt sind.
+  async function handleSend(text: string, _files?: File[]) {
     setError(null);
     const userMsg: ChatMessage = {
       role: "user",
@@ -141,27 +167,30 @@ export default function App() {
             </div>
           )}
           {isEmpty ? (
-            // Empty-State: Google-mäßig prominent. Begrüßung + großes
-            // Eingabefeld vertikal mittig. Sobald der erste Turn da ist,
-            // klappt das Layout in den normalen Chat-Modus (Verlauf oben,
-            // schmale Bar unten) — analog Google Search-Page → Result-Page.
-            <div className="flex-1 flex items-center justify-center overflow-y-auto p-6">
+            // Empty-State: Google-mäßig prominent. Stadtwappen + Begrüßung
+            // + großes Eingabefeld (mit Datei-Upload-Button) vertikal
+            // mittig. Darunter Ein-Klick-Starter. Sobald der erste Turn
+            // da ist, klappt das Layout in den normalen Chat-Modus
+            // (Verlauf oben, schmale Bar unten).
+            <div
+              data-testid="chat-empty-state"
+              className="flex-1 flex items-center justify-center overflow-y-auto p-6"
+            >
               <div className="w-full max-w-2xl">
-                <div className="text-center mb-10">
-                  <div
-                    data-testid="chat-empty-state"
-                    className="text-6xl mb-6 text-wue-rot"
+                <div className="text-center mb-8">
+                  <img
+                    src="/logo-wue-digital.png"
+                    alt=""
                     aria-hidden
-                  >
-                    ◉
-                  </div>
-                  <h2 className="text-3xl font-bold text-wue-grau mb-3">
+                    className="h-20 w-auto mx-auto mb-5 opacity-95"
+                  />
+                  <h2 className="text-3xl font-bold text-wue-grau mb-2 tracking-tight">
                     Hallo, ich bin CIVA.
                   </h2>
-                  <p className="text-lg text-slate-600 leading-relaxed">
+                  <p className="text-base text-slate-600 leading-relaxed max-w-xl mx-auto">
                     Beschreiben Sie kurz, was Sie fördern lassen möchten —
-                    ich helfe Ihnen, den passenden Förderbereich zu finden
-                    und den Antrag auszufüllen.
+                    ich finde den passenden Förderbereich und helfe Ihnen
+                    beim Ausfüllen.
                   </p>
                 </div>
                 <MessageInput
@@ -169,6 +198,20 @@ export default function App() {
                   disabled={isThinking}
                   variant="hero"
                 />
+                <div className="mt-5 flex flex-wrap gap-2 justify-center">
+                  {STARTER_PROMPTS.map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => handleSend(p.text)}
+                      disabled={isThinking}
+                      data-testid={`starter-${p.label}`}
+                      className="text-xs text-slate-600 bg-white border border-slate-200 hover:border-wue-rot/40 hover:text-wue-rot rounded-full px-3.5 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
@@ -182,6 +225,8 @@ export default function App() {
         {/* Sidebar */}
         <AntragVorschau draft={session.draft} />
       </main>
+
+      <Footer />
     </div>
   );
 }
