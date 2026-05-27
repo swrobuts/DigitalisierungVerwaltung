@@ -7,7 +7,7 @@ describe("ChatWindow", () => {
   it("zeigt Empty-State wenn keine Messages", () => {
     render(<ChatWindow messages={[]} isThinking={false} />);
     expect(screen.getByTestId("chat-empty-state")).toBeInTheDocument();
-    expect(screen.getByText(/Hallo! Ich bin Anna/)).toBeInTheDocument();
+    expect(screen.getByText(/Hallo, ich bin CIVA/)).toBeInTheDocument();
   });
 
   it("rendert User-Bubble rechts und Assistant-Bubble links", () => {
@@ -29,7 +29,7 @@ describe("ChatWindow", () => {
   it("zeigt Thinking-Bubble wenn isThinking=true", () => {
     render(<ChatWindow messages={[]} isThinking={true} />);
     expect(screen.getByTestId("thinking-bubble")).toBeInTheDocument();
-    expect(screen.getByText(/Anna denkt nach/)).toBeInTheDocument();
+    expect(screen.getByText(/CIVA denkt nach/)).toBeInTheDocument();
   });
 
   it("respektiert Reihenfolge der Messages", () => {

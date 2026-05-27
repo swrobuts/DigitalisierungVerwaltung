@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ChatMessage } from "../lib/types";
 
 interface Props {
@@ -29,7 +31,7 @@ export function ChatWindow({ messages, isThinking }: Props) {
             ◉
           </div>
           <h2 className="text-xl font-semibold text-wue-grau mb-2">
-            Hallo! Ich bin Anna.
+            Hallo, ich bin CIVA.
           </h2>
           <p className="text-slate-600">
             Beschreiben Sie kurz, was Sie fördern lassen möchten — ich
@@ -71,12 +73,27 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       >
         {!isUser && (
           <div className="text-[11px] font-semibold text-wue-rot mb-0.5">
-            Anna · Sozialamt-Assistent
+            CIVA · Sozialamt-Assistent
           </div>
         )}
-        <div className="whitespace-pre-wrap leading-relaxed text-[15px]">
-          {message.content}
-        </div>
+        {isUser ? (
+          <div className="whitespace-pre-wrap leading-relaxed text-[15px]">
+            {message.content}
+          </div>
+        ) : (
+          // Bot-Antworten enthalten häufig Markdown (Listen, fette Stichworte,
+          // Code-Inline). react-markdown rendert das sauber, GFM für Listen.
+          <div className="prose prose-sm max-w-none text-[15px] leading-relaxed
+                          prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5
+                          prose-li:my-0.5 prose-strong:text-slate-900
+                          prose-code:bg-slate-100 prose-code:px-1 prose-code:py-0.5
+                          prose-code:rounded prose-code:text-[13px] prose-code:font-mono
+                          prose-headings:my-2 prose-headings:font-semibold">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.content}
+            </ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -106,7 +123,7 @@ function ThinkingBubble() {
   let subtext = "";
   if (seconds >= 25) subtext = "Letzter Schliff — bin gleich fertig.";
   else if (seconds >= 12) subtext = "Validiere Ihre Angaben mit den Förderregeln …";
-  else if (seconds >= 4) subtext = "Anna verarbeitet Ihre Eingabe …";
+  else if (seconds >= 4) subtext = "CIVA verarbeitet Ihre Eingabe …";
 
   return (
     <div data-testid="thinking-bubble" className="flex justify-start">
@@ -122,7 +139,7 @@ function ThinkingBubble() {
             style={{ animationDelay: "0.3s" }}
           />
           <span className="ml-2 text-sm text-slate-500">
-            Anna denkt nach …{" "}
+            CIVA denkt nach …{" "}
             <span className="tabular-nums text-slate-400">({seconds}s)</span>
           </span>
         </div>

@@ -84,21 +84,20 @@ export default function App() {
 
   return (
     <div className="h-full flex flex-col bg-wue-bg">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="px-4 py-3 flex items-center justify-between max-w-screen-2xl mx-auto">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-md bg-wue-rot text-white grid place-items-center font-bold">
-              W
+      {/* Header — angeglichen an UE0/UE1/UE2/UE3-Look (roter Stripe + Stadt-Untertitel) */}
+      <header className="bg-white border-b border-slate-200 relative">
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-wue-rot" />
+        <div className="w-full px-4 py-3 flex items-center justify-between gap-6">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-wue-rot font-semibold">
+              Stadt Würzburg · Sozialreferat
             </div>
-            <div>
-              <div className="font-semibold text-wue-grau leading-tight">
-                Stadt Würzburg — Sozialamt
-              </div>
-              <div className="text-xs text-slate-500">
-                Anna · KI-Antrags-Assistent (Reifegrad 4)
-              </div>
-            </div>
+            <h1 className="text-xl font-bold leading-tight">
+              CIVA — KI-Antrags-Assistent
+            </h1>
+            <p className="text-sm text-slate-500">
+              Konversationelle Antragstellung (Reifegrad 4)
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-slate-400 hidden sm:inline">
