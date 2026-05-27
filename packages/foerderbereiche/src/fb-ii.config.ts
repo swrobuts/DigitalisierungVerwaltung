@@ -4,7 +4,7 @@ export const FB_II: FoerderbereichKonfig = {
   id: "II",
   label_kurz: "Engagement",
   label_lang: "Förderung bürgerschaftlichen Engagements",
-  icon: "🤝",
+  icon: "heart-handshake",
   beschreibung: "Pauschale Förderung von Helferkreisen, Besuchsdiensten, Nachbarschaftshilfen",
   pflichtfelder: ["ehrenamt_titel", "anzahl_helfer_vorjahr", "gesamt_helferstunden_vorjahr"],
   optional_felder: ["direkter_kontakt_senioren"],

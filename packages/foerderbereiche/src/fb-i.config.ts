@@ -4,7 +4,7 @@ export const FB_I: FoerderbereichKonfig = {
   id: "I",
   label_kurz: "Aufbau",
   label_lang: "Aufbau niedrigschwelliger Angebote",
-  icon: "🌱",
+  icon: "sprout",
   beschreibung: "Anschubfinanzierung für neue Angebote oder neue bürgerschaftliche Engagement-Strukturen",
   pflichtfelder: ["projekt_titel", "personalkosten_euro", "sachkosten_euro"],
   optional_felder: ["laufzeit", "stadtteil", "drittmittel", "andere_mittel"],

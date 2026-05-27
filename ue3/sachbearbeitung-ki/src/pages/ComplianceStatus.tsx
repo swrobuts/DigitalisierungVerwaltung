@@ -13,6 +13,7 @@ import { ArrowLeft } from "lucide-react";
 import { useAntraege } from "../hooks/useAntraege";
 import { ALL_FOERDERBEREICHE, type FoerderbereichId } from "@dv/foerderbereiche";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
+import { FbIcon } from "../components/FbIcon";
 
 interface FbAggregate {
   fb: FoerderbereichId;
@@ -108,7 +109,7 @@ export function ComplianceStatus() {
                         <tr key={g.fb} className="border-b border-slate-100">
                           <td className="py-2">
                             <span className="inline-flex items-center gap-1.5">
-                              <span aria-hidden="true">{cfg.icon}</span>
+                              <FbIcon name={cfg.icon} className="h-3.5 w-3.5" />
                               FB {g.fb} <span className="text-xs text-slate-500">· {cfg.label_kurz}</span>
                             </span>
                           </td>

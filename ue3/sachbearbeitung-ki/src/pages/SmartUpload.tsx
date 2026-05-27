@@ -17,6 +17,7 @@ import { ALL_FOERDERBEREICHE, type FoerderbereichId } from "@dv/foerderbereiche"
 import { getSupabase } from "@dv/data-layer";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { FbIcon } from "../components/FbIcon";
 
 const ENDPOINT = "https://pruefung.butscher.cloud/api/klassifiziere-pdf";
 const HELFER_ENDPOINT = "https://pruefung.butscher.cloud/api/extrahiere-helferliste";
@@ -259,7 +260,7 @@ function UploadCard({
               <span className="text-xs uppercase text-slate-500">Erkannt:</span>
               {cfg ? (
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-emerald-900 text-sm font-medium">
-                  <span>{cfg.icon}</span>
+                  <FbIcon name={cfg.icon} className="h-3.5 w-3.5" />
                   FB {fb} · {cfg.label_kurz}
                 </span>
               ) : (

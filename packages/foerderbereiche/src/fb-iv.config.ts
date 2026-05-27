@@ -4,7 +4,7 @@ export const FB_IV: FoerderbereichKonfig = {
   id: "IV",
   label_kurz: "Schwerpunkt",
   label_lang: "Struktur- und Schwerpunktförderung",
-  icon: "🎯",
+  icon: "target",
   beschreibung: "Individuelle Vorhaben außerhalb der Standard-Förderbereiche — strukturierter Antrag mit Leitfragen",
   pflichtfelder: ["vorhaben_titel", "kurzbeschreibung", "geplante_massnahmen"],
   optional_felder: ["beantragte_summe_euro", "laufzeit"],

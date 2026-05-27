@@ -63,7 +63,7 @@ export const FB_III: FoerderbereichKonfig = {
   id: "III",
   label_kurz: "Bewährte Strukturen",
   label_lang: "Förderung bewährter Strukturen",
-  icon: "🏛️",
+  icon: "landmark",
   beschreibung: "Laufende Förderung etablierter Strukturen — Mehrgenerationenhaus, Begegnungszentrum, Seniorenkreis oder Quartiersmanagement",
   pflichtfelder: ["variante"],
   optional_felder: [],

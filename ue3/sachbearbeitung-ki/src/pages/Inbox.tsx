@@ -21,6 +21,7 @@ import { useSession } from "../hooks/useSession";
 import { supabase } from "../lib/supabase";
 import { DemoDatenBanner } from "../components/DemoDatenBanner";
 import { InboxTable } from "../components/InboxTable";
+import { FbIcon } from "../components/FbIcon";
 import { ALL_FOERDERBEREICHE, type FoerderbereichId } from "@dv/foerderbereiche";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -109,7 +110,12 @@ export function Inbox() {
               return (
                 <FilterPill
                   key={fb}
-                  label={`${cfg.icon} ${cfg.label_kurz} (${countsByFb[fb] ?? 0})`}
+                  label={
+                    <span className="inline-flex items-center gap-1.5">
+                      <FbIcon name={cfg.icon} className="h-3.5 w-3.5" />
+                      {cfg.label_kurz} ({countsByFb[fb] ?? 0})
+                    </span>
+                  }
                   active={fbFilter === fb}
                   onClick={() => setFbFilter(fb)}
                 />
@@ -150,7 +156,7 @@ function FilterPill({
   active,
   onClick,
 }: {
-  label: string;
+  label: React.ReactNode;
   active: boolean;
   onClick: () => void;
 }) {
