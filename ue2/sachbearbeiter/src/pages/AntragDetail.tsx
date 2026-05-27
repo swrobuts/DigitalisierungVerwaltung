@@ -233,7 +233,7 @@ export function AntragDetail() {
         </header>
 
         {/* Bearbeitungsstand-Stepper — sticky direkt unter dem schmalen Header */}
-        <div className="px-4 lg:px-8 pt-4 pb-3 sticky top-[3.5rem] lg:top-[4rem] z-20 bg-slate-100 shadow-[0_4px_8px_-4px_rgba(15,23,42,0.06)]">
+        <div className="px-4 lg:px-8 pt-4 pb-3 sticky top-[3.5rem] z-20 bg-slate-100 shadow-[0_4px_8px_-4px_rgba(15,23,42,0.06)]">
           <Bearbeitungsstand status={antrag.status} sticky={false} />
         </div>
 
