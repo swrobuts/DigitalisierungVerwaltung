@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Activity, AlertCircle, AlertTriangle, ArrowLeft, CheckCircle2, Cloud, Cpu, Database, Euro, Eye,
-  FileText, HardDrive, Leaf, Shield, Users,
+  FileText, HardDrive, Info, Leaf, Shield, Users,
 } from "lucide-react";
 
 /**
@@ -461,22 +461,22 @@ function KennzahlenStrip({
         icon={<Eye className="h-3.5 w-3.5" />}
         label="LLM-Token (Projekt)"
         wert={nf(gesamtTokens(metriken.llm_token_gesamt))}
-        sub={`seit Stichtag 22.05.2026 · Quelle: Anthropic-Dashboard`}
-        titleAttr="Real abgelesen aus dem Anthropic-Dashboard (console.anthropic.com → Nutzung). Stand: 27.05.2026."
+        sub="seit 22.05.2026"
+        titleAttr="Real abgelesen aus dem Anthropic-Dashboard (console.anthropic.com → Nutzung). Stand: 27.05.2026. Live-Live-Persistenz folgt in Phase 4B."
       />
       <Tile
         icon={<Euro className="h-3.5 w-3.5" />}
         label="Kosten (Pro Max)"
         wert={formatEur(proMaxKostenAnteiligEur())}
-        sub={`${tageSeitProjektStart()} Tage × 6 €/Tag · 180 €/Monat Flatrate`}
-        titleAttr="Anthropic Claude Max-Abo: 180 €/Monat Flatrate. Kosten zeit-anteilig berechnet, NICHT tokenbasiert. Bei API-Bezahlung (Opus 4.7) wären ~12 €/M Token fällig."
+        sub={`${tageSeitProjektStart()} Tage × 6 €/Tag`}
+        titleAttr="Anthropic Claude Max-Abo: 180 €/Monat Flatrate (= 6 €/Tag). Kosten zeit-anteilig berechnet, NICHT tokenbasiert. Bei API-Bezahlung (Opus 4.7) wären ~12 €/M Token fällig — bei 13,5 Mio Tokens ca. 162 €."
       />
       <Tile
         icon={<Leaf className="h-3.5 w-3.5" />}
         label="CO₂-Fußabdruck"
         wert={formatCo2(gesamtTokens(metriken.llm_token_gesamt))}
         sub={`≈ ${formatPkwAequivalent(gesamtTokens(metriken.llm_token_gesamt))}`}
-        titleAttr="CO₂-Faktor 3 g pro 1.000 Tokens (Inferenz). PKW-Vergleich: 119,8 g CO₂/km (KBA, Neuzulassungen 2024, WLTP). Quellen: Luccioni et al. 2024 (arxiv.org/abs/2311.16863), LLMCO2 2024 (arxiv.org/abs/2410.02950), KBA Pressemitteilung 01/2025"
+        titleAttr="CO₂-Faktor 3 g pro 1.000 Tokens (Inferenz). PKW-Vergleich: 119,8 g CO₂/km (KBA, Neuzulassungen 2024, WLTP-Norm). Quellen: Luccioni et al. FAccT 2024 (arXiv:2311.16863), LLMCO2 2024 (arXiv:2410.02950), KBA Pressemitteilung 01/2025."
       />
       <ProviderTile provider={provider} />
     </div>
@@ -491,7 +491,8 @@ function Tile({
   wert: string | number;
   sub?: string;
   tone?: "neutral" | "lokal" | "extern";
-  /** Hover-Tooltip mit Quellenangabe (browser-native title-Attribut). */
+  /** Tooltip-Text — wird bei Hover auf das ⓘ-Icon oben rechts gezeigt
+   *  (echte Hover-Box, nicht browser-natives title-Attribut). */
   titleAttr?: string;
 }) {
   const palette = {
@@ -500,16 +501,32 @@ function Tile({
     extern: "bg-sky-50 border-sky-300",
   }[tone];
   return (
-    <div
-      className={`border rounded-sm px-3 py-2.5 ${palette} ${titleAttr ? "cursor-help" : ""}`}
-      title={titleAttr}
-    >
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 font-medium">
+    <div className={`relative border rounded-sm px-3 py-2.5 ${palette}`}>
+      {titleAttr && <InfoTooltip text={titleAttr} />}
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 font-medium pr-4">
         {icon}
         <span>{label}</span>
       </div>
       <div className="text-xl font-semibold tabular-nums mt-1 text-slate-900">{wert}</div>
       {sub && <div className="text-[10px] text-slate-500 mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+/** Hover-Tooltip rechts oben in einer Tile — zeigt eine sichtbare Box mit
+ *  Quellen/Erläuterung. Sauber-CSS-only, kein Portal nötig. */
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <div className="absolute top-1.5 right-1.5 group">
+      <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-700 cursor-help" />
+      <div
+        className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-150
+                   absolute right-0 top-full mt-1 z-50
+                   w-72 bg-slate-900 text-slate-100 text-[11px] leading-snug
+                   rounded shadow-lg px-3 py-2"
+      >
+        {text}
+      </div>
     </div>
   );
 }
