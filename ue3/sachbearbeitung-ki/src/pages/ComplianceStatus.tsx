@@ -226,7 +226,7 @@ export function ComplianceStatus() {
         <span className="text-xs text-slate-500 ml-2">EU AI Act + DSGVO</span>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-6 space-y-5">
+      <main className="w-full px-4 lg:px-8 py-6 space-y-5">
         {loading && <p className="text-slate-500">Lade …</p>}
         {error && (
           <Card><CardContent className="pt-6 text-rose-700 text-sm">Fehler: {error}</CardContent></Card>
@@ -476,7 +476,6 @@ function KennzahlenStrip({
         label="CO₂-Fußabdruck"
         wert={formatCo2(gesamtTokens(metriken.llm_token_gesamt))}
         sub={`≈ ${formatPkwAequivalent(gesamtTokens(metriken.llm_token_gesamt))}`}
-        tone="lokal"
         titleAttr="CO₂-Faktor 3 g pro 1.000 Tokens (Inferenz). PKW-Vergleich: 119,8 g CO₂/km (KBA, Neuzulassungen 2024, WLTP). Quellen: Luccioni et al. 2024 (arxiv.org/abs/2311.16863), LLMCO2 2024 (arxiv.org/abs/2410.02950), KBA Pressemitteilung 01/2025"
       />
       <ProviderTile provider={provider} />
@@ -517,17 +516,13 @@ function Tile({
 
 function ProviderTile({ provider }: { provider: ComplianceData["aktiver_llm_provider"] }) {
   return (
-    <div className={`border rounded-sm px-3 py-2.5 ${
-      provider.lokal
-        ? "bg-emerald-50 border-emerald-300"
-        : "bg-sky-50 border-sky-300"
-    }`}>
+    <div className="border border-slate-200 bg-white rounded-sm px-3 py-2.5">
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 font-medium">
         {provider.lokal ? <HardDrive className="h-3.5 w-3.5" /> : <Cloud className="h-3.5 w-3.5" />}
         <span>LLM-Provider</span>
       </div>
       <div className="text-sm font-semibold mt-1 text-slate-900 truncate" title={provider.anbieter}>
-        {provider.lokal ? "🟢 Lokal" : "☁️ Cloud"}
+        {provider.lokal ? "Lokal" : "Cloud"}
       </div>
       <div className="text-[10px] text-slate-600 mt-0.5 truncate" title={provider.model}>
         {provider.anbieter}
