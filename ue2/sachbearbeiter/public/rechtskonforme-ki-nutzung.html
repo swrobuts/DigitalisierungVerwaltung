@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Rechtskonforme Nutzung des KI-gestützten Antragsprüfungs-Systems — Stadt Würzburg</title>
+<style>
+  @page { size: A4; margin: 22mm 20mm 24mm 20mm; }
+  body {
+    font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #1e293b; line-height: 1.5; font-size: 11pt;
+    max-width: 760px; margin: 0 auto; padding: 24px;
+  }
+  h1 { font-size: 18pt; margin: 0 0 4px 0; color: #0f172a; }
+  h2 { font-size: 13pt; margin: 24px 0 8px 0; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
+  .subtitle { color: #64748b; font-size: 11pt; margin-bottom: 24px; }
+  .badge {
+    display: inline-block; background: #fef3c7; color: #78350f;
+    border: 1px solid #fcd34d; padding: 3px 10px; border-radius: 4px;
+    font-size: 10pt; font-weight: bold; margin: 8px 0 24px 0;
+  }
+  .massnahme {
+    border-left: 3px solid #f59e0b; padding: 8px 0 8px 14px; margin: 16px 0;
+    page-break-inside: avoid;
+  }
+  .massnahme h3 { font-size: 11pt; margin: 0 0 4px 0; color: #0f172a; }
+  .rg { font-family: "SF Mono", Monaco, Consolas, monospace; color: #b45309; font-size: 9.5pt; margin: 2px 0; }
+  .zitat { font-style: italic; color: #334155; margin: 6px 0; padding-left: 8px; border-left: 2px solid #e2e8f0; }
+  .umsetzung { font-size: 10.5pt; margin-top: 4px; }
+  .umsetzung b { color: #475569; }
+  .footer {
+    margin-top: 32px; padding-top: 12px; border-top: 1px solid #cbd5e1;
+    font-size: 9pt; color: #64748b;
+  }
+  .header-meta { font-size: 9.5pt; color: #64748b; margin-bottom: 16px; }
+  @media screen {
+    body { background: #f8fafc; }
+    .print-hint {
+      background: #dbeafe; border: 1px solid #93c5fd; color: #1e3a8a;
+      padding: 12px 16px; border-radius: 6px; margin: 0 0 24px 0; font-size: 10pt;
+    }
+    .print-hint button {
+      background: #2563eb; color: white; border: 0; padding: 6px 14px;
+      border-radius: 4px; font-weight: bold; cursor: pointer; margin-left: 8px;
+    }
+  }
+  @media print { .print-hint { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="print-hint">
+  Diese Seite ist druckoptimiert. Über den Druck-Dialog (Cmd/Strg + P) als PDF speichern.
+  <button onclick="window.print()">↓ PDF speichern</button>
+</div>
+
+<div class="header-meta">
+  Stadt Würzburg · Sozialreferat · Fachbereich Integration, Inklusion und Senioren
+</div>
+
+<h1>Rechtskonforme Nutzung des KI-gestützten Antragsprüfungs-Systems</h1>
+<div class="subtitle">
+  Konformität mit EU AI Act (VO 2024/1689), DSGVO und Verwaltungsverfahrensgesetz
+  beim Einsatz künstlicher Intelligenz zur Vorprüfung von Förderanträgen
+  nach dem Altenhilfeplan (AHP) der Stadt Würzburg.
+</div>
+
+<div class="badge">Risiko-Klassifikation: HOCHRISIKO (AI Act Anhang III)</div>
+
+<h2>Warum Hochrisiko?</h2>
+<p>
+  Das System unterstützt Entscheidungen über den Zugang zu öffentlichen Leistungen
+  (kommunale Altenhilfe-Förderung). Nach <b>EU AI Act Anhang III Nr. 5(a)</b> sind
+  KI-Systeme, die in Anspruch auf öffentliche Unterstützungsleistungen und
+  -dienste eingreifen, als Hochrisiko klassifiziert. Diese Klassifikation
+  verbietet den Einsatz nicht, sondern verlangt ein dokumentiertes Bündel an
+  technischen und organisatorischen Gegenmaßnahmen.
+</p>
+
+<h2>Acht Gegenmaßnahmen zur Risiko-Beherrschung</h2>
+
+<div class="massnahme">
+  <h3>1. Human-in-the-Loop: Sachbearbeitung entscheidet, KI schlägt nur vor</h3>
+  <div class="rg">Rechtsgrundlage: AI Act Art. 14 Abs. 4 lit. d</div>
+  <div class="zitat">„Aufsichtsperson muss in any particular situation, not to use the high-risk AI system or to otherwise disregard, override or reverse the output können."</div>
+  <div class="umsetzung"><b>Umsetzung im System:</b> Jede KI-Empfehlung ist explizit als Vorschlag gekennzeichnet (Button „Empfehlung umsetzen" vs. „Stattdessen ablehnen / bewilligen"). Die finale Entscheidung trifft der Sozialausschuss der Stadt Würzburg (AHP § 3.4).</div>
+</div>
+
+<div class="massnahme">
+  <h3>2. Verbot der vollautomatisierten Einzelentscheidung</h3>
+  <div class="rg">Rechtsgrundlage: DSGVO Art. 22 Abs. 1 + § 35a VwVfG</div>
+  <div class="zitat">DSGVO Art. 22(1): „Die betroffene Person hat das Recht, nicht einer ausschließlich auf einer automatisierten Verarbeitung beruhenden Entscheidung unterworfen zu werden." — § 35a VwVfG erlaubt vollautomatisierte Verwaltungsakte nur bei gebundenen Entscheidungen ohne Ermessen.</div>
+  <div class="umsetzung"><b>Umsetzung im System:</b> Kein Bescheid wird ohne menschliche Bestätigung erlassen. Der KI-Vorgang ist immer Vorprüfung; die ausstellende Person ist immer eine natürliche Person (Bescheid-Feld „ausgestellt_von").</div>
+</div>
+
+<div class="massnahme">
+  <h3>3. Anti-Automation-Bias: Override-Tracking</h3>
+  <div class="rg">Rechtsgrundlage: AI Act Art. 14 Abs. 4 lit. b</div>
+  <div class="zitat">„remain aware of the possible tendency of automatically relying or over-relying on the output (automation bias)"</div>
+  <div class="umsetzung"><b>Umsetzung im System:</b> Jede Übernahme/Ablehnung einer KI-Empfehlung wird persistiert. Der Tab „Aufsichts-Metriken" zeigt die Übernahme-Quote pro Aktion; zu hohe Quoten lösen einen „Automation-Bias-Verdacht"-Indikator aus.</div>
+</div>
+
+<div class="massnahme">
+  <h3>4. Stop-Funktion + Vier-Augen-Prinzip</h3>
+  <div class="rg">Rechtsgrundlage: AI Act Art. 14 Abs. 4 lit. e</div>
+  <div class="zitat">„to intervene in the operation of the high-risk AI system or interrupt the system through a 'stop' button or a similar procedure"</div>
+  <div class="umsetzung"><b>Umsetzung im System:</b> Die UI bietet jederzeit den Klick auf „Stattdessen ablehnen/bewilligen". Optional: KI-adversarielle Zweitprüfung als methodische Ergänzung zum klassischen Vier-Augen-Prinzip.</div>
+</div>
+
+<div class="massnahme">
+  <h3>5. Halluzinations-Hard-Fail durch Source-Pinning</h3>
+  <div class="rg">Rechtsgrundlage: AI Act Art. 9 (Risk Management) + Art. 13 (Transparency)</div>
+  <div class="zitat">Risiken müssen „reasonably mitigated or eliminated through the development or design" werden; Informationen müssen „in an appropriate and understandable form" bereitgestellt werden.</div>
+  <div class="umsetzung"><b>Umsetzung im System:</b> Ein Quellen-Validator prüft VOR dem PDF-Render, dass jeder im Bescheid zitierte AHP-§ tatsächlich in der gepflegten Norm-Datenbank existiert. Bei erfundenem § wird der Bescheid mit HTTP 422 abgewiesen und NICHT erstellt.</div>
+</div>
+
+<div class="massnahme">
+  <h3>6. Vollständiger Audit-Trail</h3>
+  <div class="rg">Rechtsgrundlage: AI Act Art. 12 (Record-Keeping) + DSGVO Art. 5 Abs. 1 lit. f</div>
+  <div class="zitat">Hochrisiko-KI muss „automatically record events ('logs') over the lifetime of the system" — über die gesamte Lebensdauer.</div>
+  <div class="umsetzung"><b>Umsetzung im System:</b> Status-Wechsel (antrag_history), Sachbearbeiter-Bewertungen (manuelle_pruefung), Bescheid-Audit (geprueft_gegen, doctree_version) sind alle persistiert und retrievbar.</div>
+</div>
+
+<div class="massnahme">
+  <h3>7. Transparenz gegenüber dem Antragsteller</h3>
+  <div class="rg">Rechtsgrundlage: AI Act Art. 50 Abs. 1 + DSGVO Art. 13/14</div>
+  <div class="zitat">„providers shall ensure that AI systems intended to interact directly with natural persons are designed and developed in such a way that the natural persons concerned are informed that they are interacting with an AI system"</div>
+  <div class="umsetzung"><b>Umsetzung im System:</b> Jeder Bescheid trägt einen sichtbaren Hinweis „Dieser Bescheid wurde unter Nutzung eines KI-Systems (Anthropic Claude Sonnet 4.5) vorbereitet — die finale Entscheidung wurde von [Person] getroffen."</div>
+</div>
+
+<div class="massnahme">
+  <h3>8. Risiko-Management-System mit kontinuierlicher Re-Bewertung</h3>
+  <div class="rg">Rechtsgrundlage: AI Act Art. 9 Abs. 2</div>
+  <div class="zitat">„a continuous iterative process … identification, estimation, evaluation, adoption of risk-management measures"</div>
+  <div class="umsetzung"><b>Umsetzung im System:</b> Das Compliance-Cockpit liefert Live-Metriken (Übernahme-Quote, KI-Lauf-Häufigkeit, Token- und CO₂-Verbrauch); der Regelkatalog ist Stufe-A-editierbar (mit aktiv-Flag und Audit-Spalten).</div>
+</div>
+
+<h2>Was diese Dokumentation NICHT ersetzt</h2>
+<p>
+  Dieses Maßnahmenkatalog ist eine technische Übersicht der laufenden System-
+  Konfiguration. Er <b>ersetzt nicht</b>:
+</p>
+<ul>
+  <li>die formelle Konformitätsbewertung nach <b>EU AI Act Art. 43</b></li>
+  <li>die <b>Datenschutz-Folgenabschätzung nach DSGVO Art. 35</b></li>
+  <li>die in der AHP-Förderrichtlinie geregelte <b>Entscheidung durch den Sozialausschuss</b></li>
+</ul>
+<p>
+  Alle drei sind Pflicht der betreibenden Stelle (Stadt Würzburg) vor produktiver
+  Inbetriebnahme und nicht durch das technische System abgedeckt.
+</p>
+
+<div class="footer">
+  Stand: Mai 2026 · Erstellt aus dem Live-Compliance-Cockpit unter sachbearbeitung-ki.butscher.cloud/compliance ·
+  Bei Rückfragen: Sozialreferat Stadt Würzburg, Karmelitenstraße 43, 97070 Würzburg
+</div>
+
+</body>
+</html>

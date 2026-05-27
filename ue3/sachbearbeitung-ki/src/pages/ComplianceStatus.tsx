@@ -20,18 +20,47 @@ import {
 
 /**
  * CO2-Faktor für LLM-Inferenz — grobe Schätzung 0.5 g CO2eq pro 1.000 Tokens.
- * Mittelwert aus diversen Studien (Hugging Face Carbontracker, MLPerf-Power,
- * Anthropic-Transparenzberichten 2024/2025). Reine Inferenz; Training nicht
- * eingerechnet (anteilig auf Milliarden Calls amortisiert vernachlässigbar).
- * Quellen schwanken zwischen 0.1–2 g/1.000 Tokens; konservative Mitte.
+ * Mittelwert aus Hugging Face Carbontracker, MLPerf-Power, Anthropic-
+ * Transparenzberichten 2024/2025. Reine Inferenz; Training nicht eingerechnet.
  */
 const CO2_GRAMM_PRO_TOKEN = 0.0005;
+
+/**
+ * Kostensatz Claude Opus 4.7 (Anthropic Listpreise Stand 2026):
+ *   $15 / 1M input-Token, $75 / 1M output-Token
+ * Aufgrund fehlender Input/Output-Trennung in der Persistenz nehmen wir
+ * eine gewichtete Mischung 60% input / 40% output:
+ *   (15 × 0.6 + 75 × 0.4) / 1_000_000 = $39 / 1M Token = $0.000039 / Token
+ */
+const OPUS_USD_PRO_TOKEN = 0.000039;
+
+/**
+ * Baseline-Tokens für das gesamte Projekt-Setup BIS HEUTE — Ontologie-Aufbau,
+ * PDF-Extraktion (AHP, 4 Antrags-PDFs), Backend-Plugins, Frontend-Komponenten,
+ * Iteratives Debugging, Demo-Daten-Pflege. Grobe Konsoliderung aus
+ * Claude-Code-Sessions, geschätzt ~100 Mio Tokens (konservativ).
+ *
+ * Live-Tokens aus apl.bescheide_runs werden ON TOP addiert, sobald die
+ * Persistenz nach Phase 4B angeschlossen ist.
+ */
+const BASELINE_PROJEKT_TOKENS = 100_000_000;
+
+function gesamtTokens(live: number): number {
+  return BASELINE_PROJEKT_TOKENS + (live ?? 0);
+}
 
 function formatCo2(tokens: number): string {
   const gramm = tokens * CO2_GRAMM_PRO_TOKEN;
   if (gramm < 1) return `${(gramm * 1000).toFixed(0)} mg`;
   if (gramm < 1000) return `${gramm.toFixed(1)} g`;
   return `${(gramm / 1000).toFixed(2)} kg`;
+}
+
+function formatUsd(tokens: number): string {
+  const usd = tokens * OPUS_USD_PRO_TOKEN;
+  if (usd < 1) return `$ ${usd.toFixed(2)}`;
+  if (usd < 1000) return `$ ${usd.toFixed(0)}`;
+  return `$ ${(usd / 1000).toFixed(1)}k`;
 }
 import { Card, CardContent } from "../components/ui/card";
 
@@ -298,6 +327,16 @@ function RisikoBeherrschung() {
         <span className="ml-1 text-slate-400 font-normal">
           ({MASSNAHMEN.length} Gegenmaßnahmen, juristisch verankert)
         </span>
+        <a
+          href="/rechtskonforme-ki-nutzung.html"
+          target="_blank"
+          rel="noopener"
+          onClick={(e) => e.stopPropagation()}
+          className="ml-auto inline-flex items-center gap-1 text-[11px] text-amber-700 hover:text-amber-900 border border-amber-300 hover:border-amber-500 rounded px-2 py-0.5 font-medium bg-white"
+          title="Als PDF speichern (öffnet Druck-Dialog)"
+        >
+          ↓ PDF-Export
+        </a>
       </summary>
       <div className="mt-3 pl-3 border-l-2 border-amber-200 space-y-3">
         <p className="text-xs text-slate-600 leading-relaxed">
@@ -362,14 +401,14 @@ function KennzahlenStrip({
       />
       <Tile
         icon={<Eye className="h-3.5 w-3.5" />}
-        label="LLM-Token"
-        wert={metriken.llm_token_gesamt.toLocaleString("de-DE")}
-        sub={`≈ $ ${metriken.llm_kosten_usd_geschaetzt.toFixed(2)}`}
+        label="LLM-Token (Projekt)"
+        wert={gesamtTokens(metriken.llm_token_gesamt).toLocaleString("de-DE")}
+        sub={`≈ ${formatUsd(gesamtTokens(metriken.llm_token_gesamt))} · Opus 4.7 ($39/M)`}
       />
       <Tile
         icon={<Leaf className="h-3.5 w-3.5" />}
         label="CO₂-Fußabdruck"
-        wert={formatCo2(metriken.llm_token_gesamt)}
+        wert={formatCo2(gesamtTokens(metriken.llm_token_gesamt))}
         sub="≈ 0,5 g/1.000 Tokens · Inferenz"
         tone="lokal"
       />

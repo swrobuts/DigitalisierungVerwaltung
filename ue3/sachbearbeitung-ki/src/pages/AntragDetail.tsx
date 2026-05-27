@@ -31,6 +31,7 @@ import { DemoDatenBanner } from "../components/DemoDatenBanner";
 import { StatusBadge } from "../components/StatusBadge";
 import { FbBadge } from "../components/FbBadge";
 import { VerlaufCard } from "../components/VerlaufCard";
+import { RechtskonformFooter } from "../components/RechtskonformFooter";
 import { AnlageDownload } from "../components/AnlageDownload";
 import { SektionPruefung } from "../components/SektionPruefung";
 import { PruefungsCard } from "../components/PruefungsCard";
@@ -340,6 +341,8 @@ export function AntragDetail() {
                   )}
                 </DocSection>
               </div>
+
+              <RechtskonformFooter />
 
             </div>
 
