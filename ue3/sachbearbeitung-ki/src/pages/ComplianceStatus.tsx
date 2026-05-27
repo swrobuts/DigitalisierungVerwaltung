@@ -196,20 +196,46 @@ export function ComplianceStatus() {
   const [tab, setTab] = useState<Tab>("ki");
 
   useEffect(() => {
+    // 15-s-Timeout pro Request: ohne AbortController hängt fetch je
+    // nach Browser/Proxy bis zu mehreren Minuten — der User starrt
+    // dann auf ein „Lade …" ohne zu wissen, dass der Service tot ist.
+    // Mit Timeout kommt nach 15s eine klare Fehlermeldung mit dem
+    // Service-Namen.
+    const ctrl = new AbortController();
+    const tid = window.setTimeout(() => ctrl.abort(), 15000);
+
     Promise.all([
-      fetch(`${PRUEFUNG_SERVICE}/api/compliance/status`).then((r) =>
+      fetch(`${PRUEFUNG_SERVICE}/api/compliance/status`, {
+        signal: ctrl.signal,
+      }).then((r) =>
         r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`),
       ),
-      fetch(`${PRUEFUNG_SERVICE}/api/dashboard/adoption`).then((r) =>
-        r.ok ? r.json() : null,
-      ),
+      fetch(`${PRUEFUNG_SERVICE}/api/dashboard/adoption`, {
+        signal: ctrl.signal,
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null), // sekundärer Endpoint darf fehlen
     ])
       .then(([compliance, m]) => {
         setData(compliance);
         if (m) setMetriken(m);
       })
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
+      .catch((e: unknown) => {
+        const msg =
+          e instanceof DOMException && e.name === "AbortError"
+            ? `Zeitüberschreitung (>15s) beim Laden von ${PRUEFUNG_SERVICE}/api/compliance/status — der Service antwortet nicht.`
+            : String(e);
+        setError(msg);
+      })
+      .finally(() => {
+        window.clearTimeout(tid);
+        setLoading(false);
+      });
+
+    return () => {
+      window.clearTimeout(tid);
+      ctrl.abort();
+    };
   }, []);
 
   return (
@@ -227,9 +253,34 @@ export function ComplianceStatus() {
       </header>
 
       <main className="w-full px-4 lg:px-8 py-6 space-y-5">
-        {loading && <p className="text-slate-500">Lade …</p>}
+        {loading && (
+          <Card>
+            <CardContent className="pt-6 text-slate-500 text-sm flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-wue-rot/70 animate-pulse" />
+              Lade Compliance-Daten von {PRUEFUNG_SERVICE} …
+              <span className="text-xs text-slate-400 ml-2">
+                (max. 15 s, danach Fehler-Anzeige)
+              </span>
+            </CardContent>
+          </Card>
+        )}
         {error && (
-          <Card><CardContent className="pt-6 text-rose-700 text-sm">Fehler: {error}</CardContent></Card>
+          <Card>
+            <CardContent className="pt-6 space-y-2">
+              <div className="text-rose-700 text-sm font-medium">
+                Compliance-Cockpit konnte nicht laden.
+              </div>
+              <div className="text-rose-700/80 text-xs font-mono break-all">
+                {error}
+              </div>
+              <div className="text-slate-500 text-xs">
+                Prüfe, ob der pruefung-Service erreichbar ist:{" "}
+                <code className="bg-slate-100 px-1 rounded">
+                  curl -m 5 {PRUEFUNG_SERVICE}/api/compliance/status
+                </code>
+              </div>
+            </CardContent>
+          </Card>
         )}
         {data && (
           <>
