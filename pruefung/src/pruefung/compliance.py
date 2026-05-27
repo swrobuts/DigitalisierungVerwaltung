@@ -201,19 +201,24 @@ async def berechne_compliance_metriken(db: SupabaseClient) -> dict[str, Any]:
     """
     bescheide = await db.select("bescheide", "select=id")
 
+    # Bis die KI-Persistenz im neuen apl-Schema steht, liefern wir 0 statt
+    # None — das Frontend toleriert Nullwerte und kann auf Basis von 0 alle
+    # abgeleiteten Anzeigen (CO2, Kosten) rechnen, ohne JS-Crashes durch
+    # null.toLocaleString().
     return {
-        "ki_laeufe_gesamt": None,             # TODO Phase 4B
-        "ki_laeufe_extern": None,             # TODO Phase 4B
-        "ki_laeufe_adversariell": None,       # TODO Phase 4B
+        "ki_laeufe_gesamt": 0,                # TODO Phase 4B (Persistenz)
+        "ki_laeufe_extern": 0,                # TODO Phase 4B
+        "ki_laeufe_adversariell": 0,          # TODO Phase 4B
         "bescheide_gesamt": len(bescheide),
-        "zweitpruefungen_gesamt": None,       # TODO Phase 4B
-        "zweitpruefungen_durch_ki": None,     # TODO Phase 4B
-        "llm_token_gesamt": None,             # TODO Phase 4B
-        "llm_kosten_usd_geschaetzt": None,    # TODO Phase 4B
+        "zweitpruefungen_gesamt": 0,          # TODO Phase 4B
+        "zweitpruefungen_durch_ki": 0,        # TODO Phase 4B
+        "llm_token_gesamt": 0,                # TODO Phase 4B
+        "llm_kosten_usd_geschaetzt": 0.0,     # TODO Phase 4B
+        "ki_persistenz_pending": True,        # UI zeigt damit Hinweis-Banner
         "hinweis": (
-            "Live-Metriken für KI-Läufe sind in Phase 4A vorübergehend "
-            "deaktiviert (Schema-Refactor apl2→apl). Werden in Phase 4B "
-            "auf die neue Persistenz umgestellt."
+            "Live-Metriken für KI-Läufe sind aktuell deaktiviert "
+            "(Schema-Refactor apl2→apl, Phase 4B steht noch aus). "
+            "Werte erscheinen ab Anbindung der neuen KI-Persistenz."
         ),
     }
 
