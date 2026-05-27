@@ -14,7 +14,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Activity, AlertCircle, AlertTriangle, ArrowLeft, CheckCircle2, Cloud, Cpu, Database, Eye,
+  Activity, AlertCircle, AlertTriangle, ArrowLeft, CheckCircle2, Cloud, Cpu, Database, Euro, Eye,
   FileText, HardDrive, Leaf, Shield, Users,
 } from "lucide-react";
 
@@ -33,44 +33,45 @@ import {
 const CO2_GRAMM_PRO_TOKEN = 0.003;
 
 /**
- * Kostensatz Claude Opus 4.7 (Anthropic Listpreise 2026):
- *   $5 / 1M input-Token, $25 / 1M output-Token  (Standard-Tier)
- *   https://platform.claude.com/docs/en/about-claude/pricing
- *   https://www.finout.io/blog/claude-opus-4.7-pricing-the-real-cost-story-behind-the-unchanged-price-tag
- * Aufgrund fehlender Input/Output-Trennung in der Persistenz nehmen wir
- * eine gewichtete Mischung 60% input / 40% output:
- *   (5 × 0.6 + 25 × 0.4) = $13 / 1M Token = $0,000013 / Token
+ * Kosten-Modell: Claude Max-Flatrate (Pro Max Plan, 180 €/Monat).
+ *
+ * Wichtig: dieses Projekt läuft NICHT über API-Tokenabrechnung, sondern
+ * über das Pauschal-Abo. Die wahrheitsgemäße Kosten-Anzeige ist deshalb
+ * "Tage seit Stichtag × 6 €/Tag" — NICHT "Tokens × Opus-Preis".
+ *   https://www.anthropic.com/pricing  (Claude Max)
  */
-const OPUS_USD_PRO_TOKEN = 0.000013;
+const PRO_MAX_EUR_PRO_MONAT = 180;
+const PROJEKT_START_DATUM = "2026-05-22"; // Hard-Cut auf apl-Schema, intensive Phase
+
+function tageSeitProjektStart(): number {
+  const start = new Date(PROJEKT_START_DATUM).getTime();
+  const tage = Math.ceil((Date.now() - start) / (1000 * 60 * 60 * 24));
+  return Math.max(1, tage);
+}
+
+function proMaxKostenAnteiligEur(): number {
+  return tageSeitProjektStart() * (PRO_MAX_EUR_PRO_MONAT / 30);
+}
 
 /**
- * EUR/USD-Wechselkurs (konservativ gerundet 2026):
- *   1 USD = 0,92 EUR (Stand Mai 2026, EZB-Referenzkurs gerundet)
- *   https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/
- */
-const USD_ZU_EUR = 0.92;
-const OPUS_EUR_PRO_TOKEN = OPUS_USD_PRO_TOKEN * USD_ZU_EUR;
-
-/**
- * Baseline-Tokens für das gesamte Projekt-Setup seit Stichtag 22.05.2026
- * (Beginn der intensiven Phase nach Hard-Cut auf apl-Schema):
- * Ontologie-Aufbau, PDF-Extraktion (AHP-Richtlinie + 4 Antrags-PDFs),
- * Backend-Plugins, Frontend-Komponenten, Compliance-Cockpit, iteratives
- * Debugging, Demo-Daten-Pflege.
+ * Baseline-Tokens seit Stichtag 22.05.2026 — abgelesen aus dem
+ * Anthropic-Dashboard (console.anthropic.com → Nutzung):
  *
- * Datenquelle: Anthropic Console (console.anthropic.com → Nutzung).
- * Aus dem Wochen-Screenshot 18.-24.05.2026 abgelesen:
- *   22.05.: ~6,2 Mio (Hard-Cut + Multi-FB-Refactor)
- *   23.05.: ~2,2 Mio
- *   24.05.: ~3,5 Mio
- *   Summe 22.-24.05. = ~12 Mio (Anthropic-Dashboard nachweisbar)
- * Plus konservativ geschätzte 10 Mio für 25.-27.05. (Bugfix-Welle,
- * Compliance-Cockpit, Risikobeherrschung) = ~22 Mio Total.
+ *   Woche 18.-24.05.:  20.262.956 Tokens (gesamt)
+ *     davon 22.05.:    ~6,2 Mio (Hard-Cut + Multi-FB)
+ *     davon 23.05.:    ~2,2 Mio
+ *     davon 24.05.:    ~3,5 Mio
+ *     22.-24.05.:      ~11,9 Mio
+ *   Woche 25.-31.05.:  1.615.663 Tokens (25.-27.05. bisher)
+ *     davon 25.05.:    ~0,3 Mio
+ *     davon 26.05.:    ~1,1 Mio
+ *     davon 27.05.:    ~0,2 Mio (Stand 12:00)
  *
- * Wenn echte Zahl aus Anthropic-Dashboard für 22.05.–heute vorliegt:
- * hier eintragen.
+ *   Gesamt seit 22.05.: ~13.500.000 Tokens (Stand 27.05.2026)
+ *
+ * Bei neuer Woche/neuem Stand bitte Wert aktualisieren.
  */
-const BASELINE_PROJEKT_TOKENS = 22_000_000;
+const BASELINE_PROJEKT_TOKENS = 13_500_000;
 
 function gesamtTokens(live: number): number {
   return BASELINE_PROJEKT_TOKENS + (live ?? 0);
@@ -91,11 +92,8 @@ function formatCo2(tokens: number): string {
   return `${nf(gramm / 1000, 1)} kg`;
 }
 
-function formatEur(tokens: number): string {
-  const eur = tokens * OPUS_EUR_PRO_TOKEN;
+function formatEur(eur: number): string {
   if (eur < 1) return `${nf(eur, 2)} €`;
-  // Ganze Zahlen mit Tausenderpunkt, keine k-Schreibweise — der volle Betrag
-  // ist transparenter als "1,2 k €".
   return `${nf(eur)} €`;
 }
 import { Card, CardContent } from "../components/ui/card";
@@ -417,7 +415,7 @@ function KennzahlenStrip({
   provider: ComplianceData["aktiver_llm_provider"];
 }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
       <Tile
         icon={<Cpu className="h-3.5 w-3.5" />}
         label="KI-Läufe"
@@ -439,8 +437,15 @@ function KennzahlenStrip({
         icon={<Eye className="h-3.5 w-3.5" />}
         label="LLM-Token (Projekt)"
         wert={nf(gesamtTokens(metriken.llm_token_gesamt))}
-        sub={`≈ ${formatEur(gesamtTokens(metriken.llm_token_gesamt))} · Opus 4.7`}
-        titleAttr="Anthropic Opus 4.7: $5/M Input + $25/M Output. Gewichtet (60/40) = $13/M ≈ 12 € /M Tokens. Quelle: platform.claude.com/docs/pricing"
+        sub={`seit Stichtag 22.05.2026 · Quelle: Anthropic-Dashboard`}
+        titleAttr="Real abgelesen aus dem Anthropic-Dashboard (console.anthropic.com → Nutzung). Stand: 27.05.2026."
+      />
+      <Tile
+        icon={<Euro className="h-3.5 w-3.5" />}
+        label="Kosten (Pro Max)"
+        wert={formatEur(proMaxKostenAnteiligEur())}
+        sub={`${tageSeitProjektStart()} Tage × 6 €/Tag · 180 €/Monat Flatrate`}
+        titleAttr="Anthropic Claude Max-Abo: 180 €/Monat Flatrate. Kosten zeit-anteilig berechnet, NICHT tokenbasiert. Bei API-Bezahlung (Opus 4.7) wären ~12 €/M Token fällig."
       />
       <Tile
         icon={<Leaf className="h-3.5 w-3.5" />}
