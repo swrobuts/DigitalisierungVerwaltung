@@ -232,16 +232,21 @@ function summaryFor(
 ): SummaryFields {
   switch (fb) {
     case "I": {
-      const summe = (fbI?.personalkosten_euro ?? 0) + (fbI?.sachkosten_euro ?? 0);
-      if (summe === 0) {
-        return {
-          betrag: "—",
-          subtext: "Personalkosten + Sachkosten (Aufbauphase, AHP 2.1) — Felder noch nicht erfasst",
-        };
-      }
+      // FB I ist eine PAUSCHALFÖRDERUNG: feste 3.000 €/Jahr unabhängig
+      // von den Kosten (AHP § 2.1 Wortlaut). Wir trennen daher die
+      // beantragte Förderung (= Pauschale) von den vom Antragsteller
+      // angegebenen Gesamtkosten (= Personal + Sach − Drittmittel),
+      // damit nicht der falsche Eindruck entsteht, der Antragsteller
+      // fordere die volle Kostensumme von der Stadt.
+      const personal = fbI?.personalkosten_euro ?? 0;
+      const sach = fbI?.sachkosten_euro ?? 0;
+      const gesamt = personal + sach;
+      const kostenHinweis = gesamt > 0
+        ? `Gesamtkosten ${formatEuro(gesamt)} (Personal ${formatEuro(personal)} + Sach ${formatEuro(sach)})`
+        : "Kosten noch nicht erfasst";
       return {
-        betrag: formatEuro(summe),
-        subtext: "Personalkosten + Sachkosten (Aufbauphase, AHP 2.1)",
+        betrag: formatEuro(3000),
+        subtext: `Pauschalzuschuss (AHP 2.1 — fix 3.000 €/Jahr) · ${kostenHinweis}`,
       };
     }
     case "II":
