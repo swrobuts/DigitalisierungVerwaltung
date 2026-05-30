@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UE2 — Selbstlern-Modul: Sachbearbeiter-Cockpit</title>
+  <style>
+    :root { --wue-rot:#AD0E36; --wue-rot-dark:#8A0B2B; --wue-rot-soft:#FBE9EE;
+      --wue-grau:#4A4A4A; --bg:#F7F6F4; --card:#FFFFFF;
+      --border:#E5E5E5; --text:#1F2937; --muted:#6B7280; }
+    *{box-sizing:border-box;}
+    body{font-family:-apple-system,"Inter","Segoe UI",sans-serif;line-height:1.6;
+      color:var(--text);background:var(--bg);margin:0;padding:0;}
+    header.hero{background:linear-gradient(180deg,white 0%,var(--bg) 100%);
+      border-bottom:3px solid var(--wue-rot);padding:48px 0 32px;}
+    .container{max-width:920px;margin:0 auto;padding:0 24px;}
+    .eyebrow{font-size:11px;letter-spacing:0.18em;text-transform:uppercase;
+      color:var(--wue-rot);font-weight:600;}
+    h1{font-size:32px;margin:8px 0 12px;color:var(--wue-grau);line-height:1.2;}
+    h2{font-size:22px;margin:48px 0 16px;color:var(--wue-grau);
+      border-bottom:1px solid var(--border);padding-bottom:8px;}
+    h3{font-size:17px;margin:24px 0 8px;color:var(--text);}
+    .lead{font-size:17px;color:var(--muted);max-width:720px;}
+    .pill{display:inline-block;background:var(--wue-rot);color:white;
+      padding:3px 10px;border-radius:999px;font-size:11px;
+      letter-spacing:0.04em;font-weight:600;}
+    nav.toc{background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:20px 24px;margin:32px 0;}
+    nav.toc h3{margin-top:0;font-size:13px;letter-spacing:0.08em;
+      text-transform:uppercase;color:var(--muted);}
+    nav.toc ol{margin:0;padding-left:20px;}
+    nav.toc a{color:var(--text);text-decoration:none;}
+    nav.toc a:hover{color:var(--wue-rot);text-decoration:underline;}
+    .card{background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:24px;margin:16px 0;}
+    .card.tip{background:var(--wue-rot-soft);border-color:#f1c0ce;}
+    .card.warn{background:#fef9c3;border-color:#facc15;}
+    .small{font-size:13px;color:var(--muted);}
+    table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+    th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;}
+    th{background:#FAFAFA;}
+    code{background:#f3f3f3;padding:1px 6px;border-radius:4px;font-size:13px;}
+    pre{background:#1E293B;color:#E2E8F0;padding:16px;border-radius:8px;
+      overflow-x:auto;font-size:12px;line-height:1.5;}
+    .quiz{background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:20px 24px;margin:16px 0;}
+    .quiz h4{margin:0 0 12px;font-size:15px;color:var(--wue-grau);}
+    .quiz-options{list-style:none;margin:0;padding:0;}
+    .quiz-options li{padding:8px 12px;border:1px solid var(--border);
+      border-radius:6px;margin:6px 0;cursor:pointer;transition:all 0.15s;}
+    .quiz-options li:hover{border-color:var(--wue-rot);background:var(--wue-rot-soft);}
+    .quiz-options li.correct{border-color:#16a34a;background:#dcfce7;}
+    .quiz-options li.wrong{border-color:#dc2626;background:#fee2e2;}
+    .quiz-feedback{margin-top:12px;padding:12px;border-radius:6px;
+      font-size:14px;display:none;}
+    .quiz-feedback.correct{background:#dcfce7;color:#166534;display:block;}
+    .quiz-feedback.wrong{background:#fee2e2;color:#991b1b;display:block;}
+    details{border:1px solid var(--border);border-radius:8px;
+      padding:12px 16px;margin:12px 0;background:white;}
+    details summary{cursor:pointer;font-weight:500;color:var(--wue-grau);}
+    .cta{display:inline-block;background:var(--wue-rot);color:white;
+      padding:12px 24px;border-radius:8px;text-decoration:none;
+      font-weight:600;margin:16px 8px 16px 0;}
+    .cta:hover{background:var(--wue-rot-dark);}
+    .cta.secondary{background:white;color:var(--wue-rot);border:1px solid var(--wue-rot);}
+    footer{margin-top:64px;padding:32px 0;border-top:1px solid var(--border);
+      font-size:13px;color:var(--muted);text-align:center;}
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <span class="eyebrow">UE2 · Reifegradstufe 2 · Selbstlern-Modul</span>
+    <h1>Sachbearbeiter-Cockpit</h1>
+    <p class="lead">
+      Geteilte Realtime-Inbox mit Workflow-Engine und Audit-Trail.
+      Magic-Link-Auth, signed Downloads, 4-sprachige Eingangsbestätigung.
+      <strong>Das erste „echte" Verwaltungs-Tool — noch ohne KI.</strong>
+    </p>
+    <div style="margin-top: 20px;">
+      <a class="cta" href="https://sachbearbeiter.butscher.cloud/login" target="_blank">Live-Demo →</a>
+      <a class="cta secondary" href="./slides.md">Vorlesungs-Slides</a>
+    </div>
+    <p class="small" style="margin-top: 32px;">
+      Bearbeitungszeit: <strong>60–90 Minuten</strong> Basis,
+      plus 2–4 h für die Praxis-Aufgaben.
+    </p>
+  </div>
+</header>
+
+<main class="container">
+
+  <nav class="toc">
+    <h3>Inhalt</h3>
+    <ol>
+      <li><a href="#l1">Lektion 1 — Warum nicht einfach ein Mail-Postfach?</a></li>
+      <li><a href="#l2">Lektion 2 — Magic-Link-Auth + Allowlist</a></li>
+      <li><a href="#l3">Lektion 3 — Workflow-Engine + Audit-Trail</a></li>
+      <li><a href="#l4">Lektion 4 — Realtime-Inbox &amp; signed Downloads</a></li>
+      <li><a href="#quiz">Verständnis-Quiz</a></li>
+      <li><a href="#aufgaben">Praxis-Aufgaben</a></li>
+      <li><a href="#weiter">Wie geht's weiter? (UE3)</a></li>
+    </ol>
+  </nav>
+
+  <section id="l1">
+    <h2>1. Warum nicht einfach ein Mail-Postfach?</h2>
+    <p>
+      Heute landet ein Antrag im Mail-Postfach des Amtes — und damit
+      beginnt die eigentliche Verwaltungs-Schmerzpunkte:
+    </p>
+    <ul>
+      <li>Mehrere Sachbearbeitende greifen drauf zu — niemand weiß
+          wer was bearbeitet hat</li>
+      <li>Statusänderungen in Excel-Listen oder Akten-Deckel-Notizen</li>
+      <li>Bürger:in bekommt keine Eingangsbestätigung → unsicher</li>
+      <li>Bei Rückfragen: „Da müsste ich mal nachschauen…"</li>
+    </ul>
+    <p>
+      UE2 ist die <strong>erste Reifegradstufe mit echter
+      Verwaltungs-IT</strong>: geteilte Realtime-Inbox, Workflow als
+      Datenmodell in der DB, automatische Eingangsbestätigung in 4
+      Sprachen, vollständiger Audit-Trail.
+    </p>
+
+    <div class="card tip">
+      <strong>💡 Kernbotschaft:</strong> Diese Stufe ist <em>nicht</em>
+      KI-getrieben — sie löst nur das, was eine klassische Workflow-
+      Engine kann. Aber sie eliminiert dabei den gesamten „Wer-hat-was-
+      gemacht?"-Schmerz.
+    </div>
+  </section>
+
+  <section id="l2">
+    <h2>2. Magic-Link-Auth + Allowlist</h2>
+    <p>
+      Sachbearbeitende loggen sich per Magic-Link ein: E-Mail eingeben,
+      auf den Link in der Mail klicken, fertig. Keine Passwörter, keine
+      Phishing-Angriffe auf Credentials.
+    </p>
+
+    <pre>1. POST /auth/v1/otp { email }
+2. GoTrue → SMTP → Mail mit Token-Link
+3. Klick → /auth/callback#access_token=...
+4. setSession() → localStorage
+5. allow_email-Lookup (RLS: nur authenticated darf lesen,
+   eigene Zeile via auth.jwt())
+6. Wenn Match → /inbox
+7. Wenn kein Match → zurück zu /login</pre>
+
+    <div class="card tip">
+      <strong>💡 Live-Diagnose-Card auf /login</strong> zeigt alle 5
+      Schritte mit ✓/✗-Status. Lektion gelernt am 2026-05-30 nach 5
+      Stunden Hin-und-Her: <em>sichtbare Diagnose ist Gold wert</em>.
+    </div>
+  </section>
+
+  <section id="l3">
+    <h2>3. Workflow-Engine + Audit-Trail</h2>
+
+    <h3>Erlaubte Status-Übergänge</h3>
+    <pre>eingegangen     → in_pruefung
+in_pruefung     → eingegangen | zurueckgewiesen | bewilligt | abgelehnt
+zurueckgewiesen → in_pruefung
+bewilligt       → (final)
+abgelehnt       → (final)</pre>
+
+    <p>
+      Diese Regeln stehen in <code>apl.workflow_transition</code> und
+      werden zweifach geprüft:
+    </p>
+    <ol>
+      <li><strong>Frontend</strong> (<code>src/lib/workflow.ts</code>):
+          zeigt nur erlaubte Übergänge im Status-Select</li>
+      <li><strong>Postgres-Trigger</strong>: blockiert unerlaubte
+          Übergänge auch bei DevTools-Manipulation</li>
+    </ol>
+
+    <h3>Audit-Trail in apl.antrag_history</h3>
+    <table>
+      <tr><th>event_at</th><td>2026-05-30 14:23:15 UTC</td></tr>
+      <tr><th>user_email</th><td>sachbearbeiter@stadt.wuerzburg.de</td></tr>
+      <tr><th>event_type</th><td>status_change</td></tr>
+      <tr><th>alt_status</th><td>eingegangen</td></tr>
+      <tr><th>neu_status</th><td>in_pruefung</td></tr>
+      <tr><th>kommentar</th><td>„Wartet auf Helferliste"</td></tr>
+    </table>
+    <p>
+      <strong>Trigger-basiert</strong>: jeder UPDATE auf
+      <code>apl.antraege</code> erzeugt automatisch einen Eintrag.
+      Frontend muss nichts tun.
+    </p>
+
+    <div class="card warn">
+      <strong>⚠️ Grenze:</strong> Wer direkt mit
+      <code>service_role</code> arbeitet, bypasst die Trigger. Echte
+      Revisionssicherheit bräuchte WORM-Storage (Write-Once-Read-Many).
+    </div>
+  </section>
+
+  <section id="l4">
+    <h2>4. Realtime-Inbox &amp; signed Downloads</h2>
+
+    <h3>Realtime via Supabase-Channels</h3>
+    <p>
+      Inbox abonniert <code>postgres_changes</code>-Channel auf
+      <code>apl.antraege</code>:
+    </p>
+    <pre>supabase
+  .channel('antraege-changes')
+  .on('postgres_changes',
+    { event: '*', schema: 'apl', table: 'antraege' },
+    (payload) => mergeAntragInState(payload))
+  .subscribe();</pre>
+    <p>
+      Sachbearbeitende A ändert Status → Sachbearbeitende B sieht
+      es sofort in ihrer offenen Inbox, ohne Reload.
+    </p>
+
+    <h3>Signed URLs für Anlagen-Downloads</h3>
+    <p>
+      Storage-Bucket <code>antragsbelege</code> ist <code>private</code>.
+      Wenn jemand eine Anlage runterladen will:
+    </p>
+    <pre>const { data } = await supabase.storage
+  .from('antragsbelege')
+  .createSignedUrl(`${antragId}/${dateiname}`, 600); // 10 min</pre>
+    <p>
+      Die generierte URL ist 10 Minuten gültig. Niemand kann den
+      Storage-Pfad direkt aufrufen ohne Token.
+    </p>
+  </section>
+
+  <section id="quiz">
+    <h2>Verständnis-Quiz</h2>
+
+    <div class="quiz" data-correct="2">
+      <h4>1. Was passiert, wenn jemand mit DevTools eine ungültige Status-Änderung sendet?</h4>
+      <ul class="quiz-options">
+        <li>Geht durch, weil Browser-State nicht prüfbar ist</li>
+        <li>Wird vom Frontend abgelehnt</li>
+        <li>Wird vom Postgres-Trigger abgelehnt (Defense-in-Depth)</li>
+        <li>Wird im Audit-Log markiert, aber gespeichert</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="1">
+      <h4>2. Warum Magic-Link statt Passwort?</h4>
+      <ul class="quiz-options">
+        <li>Weil Supabase nichts anderes unterstützt</li>
+        <li>Keine Phishing-anfälligen Credentials, keine Passwort-Verwaltung</li>
+        <li>Aus UX-Gründen (schöner)</li>
+        <li>Aus Performance-Gründen</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="0">
+      <h4>3. Was ist NICHT im Audit-Trail von apl.antrag_history?</h4>
+      <ul class="quiz-options">
+        <li>Der konkrete Feld-Wert (z.B. „neue IBAN: DE12...")</li>
+        <li>Wer (E-Mail des Sachbearbeitenden)</li>
+        <li>Wann (Timestamp)</li>
+        <li>Was (alt/neu Status)</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="3">
+      <h4>4. Warum brauchen Anlagen-Downloads signed URLs?</h4>
+      <ul class="quiz-options">
+        <li>Aus Performance-Gründen</li>
+        <li>Damit der Bürger sie wiederfinden kann</li>
+        <li>Weil das Frontend keine direkte Storage-Auth hat</li>
+        <li>Damit Storage-Pfade nicht direkt öffentlich abrufbar sind</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+  </section>
+
+  <section id="aufgaben">
+    <h2>Praxis-Aufgaben</h2>
+    <p>Vier Aufgaben mit steigender Schwierigkeit — detailliert in
+       <a href="./04-aufgaben.md"><code>04-aufgaben.md</code></a>.</p>
+
+    <details>
+      <summary><strong>A — Status-Filter in der Inbox</strong> · 30 Min · ⭐</summary>
+      <p>Pill-Buttons „Alle / Eingegangen / in Prüfung / Bewilligt / Abgelehnt"
+         in <code>src/pages/Inbox.tsx</code>.</p>
+    </details>
+
+    <details>
+      <summary><strong>B — Neuer History-Event-Type</strong> · 90 Min · ⭐⭐</summary>
+      <p>„Anlage hinzugefügt" durch alle Schichten (Migration, Trigger,
+         Frontend-Timeline, Tests).</p>
+    </details>
+
+    <details>
+      <summary><strong>C — Fünfte Sprache für Eingangsbestätigung</strong> · 45 Min · ⭐⭐</summary>
+      <p>Polnisch in den n8n-Switch-Node ergänzen + Template formulieren.</p>
+    </details>
+
+    <details>
+      <summary><strong>D — Neue Sachbearbeitende freischalten</strong> · 20 Min · ⭐</summary>
+      <p>INSERT in <code>apl.allow_email</code> + Login-Flow testen.
+         Diskussion: warum gibt es kein UI dafür?</p>
+    </details>
+  </section>
+
+  <section id="weiter">
+    <h2>Wie geht's weiter?</h2>
+    <div class="card">
+      <span class="pill">UE3 — REIFEGRADSTUFE 3</span>
+      <h3 style="margin: 8px 0 4px;">KI-Sachbearbeitung mit Empfehlungs-Cards</h3>
+      <p style="margin: 0;">
+        Gleiche Inbox-Struktur wie UE2, aber: pro Antrag erscheint ein
+        KI-Vorschlag (Bewilligen/Ablehnen/Rückfrage) mit Begründung,
+        Risiko-Score, Vorjahres-Vergleich und Compliance-Cockpit.
+        Sachbearbeitende entscheidet weiter — die KI berät.
+      </p>
+      <p style="margin-top: 12px;">
+        <a class="cta" href="https://ki.butscher.cloud/login" target="_blank">UE3 Live-Demo →</a>
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <p>
+      UE2 — Sachbearbeiter-Cockpit · Reifegradstufe 2<br>
+      Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher · THWS<br>
+      <span class="small">Lehr-Demo, keine offizielle Anwendung der Stadt Würzburg.
+        Quellcode: <a href="https://github.com/swrobuts/DigitalisierungVerwaltung">github.com/swrobuts/DigitalisierungVerwaltung</a>
+      </span>
+    </p>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.quiz').forEach((quiz) => {
+    const correctIdx = parseInt(quiz.dataset.correct, 10);
+    const options = quiz.querySelectorAll('.quiz-options li');
+    const feedback = quiz.querySelector('.quiz-feedback');
+    options.forEach((opt, idx) => {
+      opt.addEventListener('click', () => {
+        if (quiz.dataset.answered === 'true') return;
+        quiz.dataset.answered = 'true';
+        options.forEach((o, i) => {
+          if (i === correctIdx) o.classList.add('correct');
+          else if (i === idx) o.classList.add('wrong');
+        });
+        if (idx === correctIdx) {
+          feedback.textContent = '✓ Richtig! Gut erkannt.';
+          feedback.className = 'quiz-feedback correct';
+        } else {
+          feedback.textContent = '✗ Nicht ganz — die richtige Antwort ist grün markiert.';
+          feedback.className = 'quiz-feedback wrong';
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>
