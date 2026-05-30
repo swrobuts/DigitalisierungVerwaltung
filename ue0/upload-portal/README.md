@@ -17,20 +17,15 @@
 | [`02-vorteile-voraussetzungen.md`](./02-vorteile-voraussetzungen.md) | Markdown | Was sie löst, was nicht, was technisch/rechtlich/organisatorisch nötig ist |
 | [`03-walkthrough.md`](./03-walkthrough.md) | Markdown | Code-Tour für Dozent:in (5 Stellen, je 2-3 Min) |
 | [`04-aufgaben.md`](./04-aufgaben.md) | Markdown | Studi-Aufgaben mit Schritt-für-Schritt + Quiz |
-| [`slides.html`](./slides.html) | reveal.js | Vorlesungs-Slides (im Browser öffnen, F11 = Vollbild) |
-| [`selbstlern.html`](./selbstlern.html) | Interaktive HTML | Selbstlern-Seite mit Klick-Demos und Quizfragen |
+| [`slides.md`](./slides.md) | Marp-Markdown | Vorlesungs-Slides (in Marp / PowerPoint / Google Slides weiterverarbeitbar) |
+| [`selbstlern.html`](./selbstlern.html) | Interaktive HTML | Selbstlern-Seite mit Klick-Demos und Quizfragen (im Browser öffnen) |
 
 Demo-PDFs zum Hochladen (im Repo unter `ue0/demo-pdfs/`):
+
 - `demo-antrag-pfarrei-st-albert.pdf` (maschinell ausgefüllt)
 - `demo-antrag-buergerverein-handschrift.pdf` (handschriftlich gefüllt — testet die Vision-OCR)
 
 Beide enthalten Werte, die exakt zu den Demo-Anträgen `APL-2026-FAKE-001`/-002 passen.
-
-Demo-PDFs zum Hochladen (im Repo unter `ue0/demo-pdfs/`):
-- `demo-antrag-pfarrei-st-albert.pdf` (maschinell ausgefüllt)
-- `demo-antrag-buergerverein-handschrift.pdf` (handschriftlich gefüllt — testet die Vision-OCR)
-
-Beide enthalten Werte, die exakt zu den Demo-Anträgen `APL2-2026-FAKE-001` und `-002` aus `Fake_Belege/seed.sql` passen.
 
 ## Konzept
 
@@ -48,10 +43,11 @@ Beide enthalten Werte, die exakt zu den Demo-Anträgen `APL2-2026-FAKE-001` und 
                           ├── sendet an Anthropic Claude Vision (mit
                           │   Handschrift-Hinweis + JSON-Schema-Prompt)
                           ├── parst Antwort, ergänzt Defaults
-                          ├── INSERT apl2.antraege
                           └── UPDATE antrag_einreichung: status=fertig
                                   ↓
-[Bürger sieht Antragsnummer + Vorschau der extrahierten Felder]
+[Bürger sieht Vorschau der extrahierten Felder]
+                                  ↓
+[Auto-Redirect → UE1-Webformular mit ?prefill=<einreichung_id>]
                                   ↓
 [Sachbearbeitung in UE2/UE3 sieht den neuen Antrag in der Inbox]
 ```
@@ -61,21 +57,23 @@ Beide enthalten Werte, die exakt zu den Demo-Anträgen `APL2-2026-FAKE-001` und 
 | Pfad | Beschreibung |
 |---|---|
 | `ue0/upload-portal/` | Vite/TS-Frontend (dieses Verzeichnis) |
-| `ue0/demo-pdfs/` | Zwei ausgefüllte Demo-Anträge (siehe unten) + Generator-Script |
+| `ue0/demo-pdfs/` | Zwei ausgefüllte Demo-Anträge + Generator-Script |
 | `supabase/migrations/047_ue0_pdf_einreichung.sql` | Storage-Bucket, Tracking-Tabelle, RLS, DB-Trigger |
 | `supabase/functions/upload-antragspdf/` | Edge Function (Validierung + Storage-Upload + Tracking-Insert) |
 | `supabase/webhooks/n8n-ue0-pdf-ocr.json` | n8n-Workflow zum Import |
-| `.github/workflows/deploy-ue0.yml` | Auto-Deploy nach GH Pages |
 
 ## Setup (einmalig)
 
-### 1) GitHub-Secrets
+### 1) Env-Variablen am Container
 
-Im Repo unter Settings → Secrets and variables → Actions:
-- `VITE_SUPABASE_URL` = `https://supabase.butscher.cloud`
-- `VITE_SUPABASE_ANON_KEY` = anon-key der Supabase-Instanz
+In `ue0/upload-portal/docker/.env`:
 
-(Sind bereits gesetzt für UE1 — UE0 nutzt dieselben.)
+```bash
+VITE_SUPABASE_URL=https://supabase.butscher.cloud
+VITE_SUPABASE_ANON_KEY=<anon-key>
+```
+
+(ANON_KEY ist im Frontend sichtbar — Sicherheit kommt über RLS, nicht über key-Geheimhaltung.)
 
 ### 2) n8n-Workflow importieren
 
@@ -92,8 +90,6 @@ alter database postgres
   set app.n8n_ue0_webhook = 'https://n8n.butscher.cloud/webhook/ue0-antragspdf';
 ```
 
-(Setting wird vom Trigger `trg_notify_n8n_on_pdf_einreichung` gelesen — siehe Migration 047.)
-
 ### 4) Edge Function deployen
 
 ```bash
@@ -108,24 +104,19 @@ ssh vps "sudo cp -r /tmp/upload-antragspdf /root/supabase/docker/volumes/functio
 uv run --with reportlab python3 ue0/demo-pdfs/generate.py
 ```
 
-Erzeugt zwei PDFs in `ue0/demo-pdfs/`:
-- `demo-antrag-pfarrei-st-albert.pdf` — maschinell ausgefüllt
-- `demo-antrag-buergerverein-handschrift.pdf` — Handschrift-anmutende Font (Demo für „auch Handschrift lesbar")
-
 ## Lokal entwickeln
 
 ```bash
 cd ue0/upload-portal
-npm install
+pnpm install
 echo "VITE_SUPABASE_URL=https://supabase.butscher.cloud" > .env.local
 echo "VITE_SUPABASE_ANON_KEY=<key>" >> .env.local
-npm run dev
-# http://localhost:5174
+pnpm dev   # http://localhost:5174
 ```
 
 ## Architektur-Entscheidungen
 
-- **GH Pages statt VPS-Container**: konsistent zu UE1. Frontend ist statisch, alle Verarbeitung läuft asynchron über Supabase + n8n.
+- **Vanilla TypeScript** statt React: 5 Views, kein Tooling-Overhead, schnellere Bundle-Größe.
 - **Storage-Bucket private**: nur service_role (Edge Function + n8n) darf read/write. Anon-User können das Original-PDF nach Upload nicht mehr abrufen — DSGVO-konform.
 - **Tracking-UUID statt Session-Cookie**: Bürger bekommt einen unguessable Status-Link, der per Bookmark/Refresh wiederaufrufbar bleibt. Keine Auth nötig.
 - **Anthropic Claude Vision für OCR**: liest auch Handschrift zuverlässig. LM Studio (lokales LLM, siehe UE3 Compliance-Statusseite) wäre eine Alternative, ist aber für Vision-Tasks lokal noch nicht so stark.
@@ -138,5 +129,5 @@ Das GUI orientiert sich optisch lose am Original-Auftritt der Stadt Würzburg
 
 - Eigener Disclaimer im Footer („Demo-Webseite für Lehrzwecke")
 - Kein offizielles Stadt-Würzburg-Logo (eigenes SVG-Wappen, generisch)
-- Eigene Domain (GitHub Pages, nicht wuerzburg.de)
+- Eigene Subdomain (`upload.butscher.cloud`, nicht `wuerzburg.de`)
 - Hochgeladene Dokumente werden nach Vorlesungsende gelöscht
