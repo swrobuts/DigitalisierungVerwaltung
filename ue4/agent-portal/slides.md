@@ -28,8 +28,7 @@ Die Brücke zu „Agentic Government".**
 <small>Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher · 2026</small>
 
 <!-- Speaker-Notiz: Die spannendste und gleichzeitig riskanteste
-Stufe. Hier ist die KI direkt vor der Bürger:in — alle
-Halluzinations-Schutzwälle werden nochmal scharf gestellt. -->
+Stufe. Hier ist die KI direkt vor der Bürger:in. -->
 
 ---
 
@@ -108,46 +107,210 @@ Nach dieser UE können Sie:
 
 ---
 
-## Architektur
+## Tech-Stack & Tools
 
-```
-[Bürger:in chattet]
-   │
-   ▼
-[Anthropic Tool-Use-Loop: Claude Sonnet 4.5]
-   │
-   │   Tool 1: klassifiziere_foerderbereich  (Sub-Call Haiku)
-   │   Tool 2: get_pflichtfelder              (aus FB-Plugin)
-   │   Tool 3: validate_field                 (Email/IBAN/PLZ)
-   │   Tool 4: submit_antrag                  (DB-Insert)
-   │
-   ▼
-[apl.antraege → UE2/UE3-Inbox]
-```
-
-System-Prompt mit 5 harten Regeln + Tool-Whitelist + Frontend-Filter
-= **3-Schichten-Halluzinations-Schutz**.
+| Komponente | Wahl | Begründung |
+|---|---|---|
+| Frontend | Vite 6 + React 19 + TS 5 | konsistent mit UE1 |
+| Backend | FastAPI + `asyncio` + Anthropic SDK 0.40 | echte Async-Pipeline, Stream-Support |
+| Haupt-LLM | Claude Sonnet 4.5 (`tool_use`-Block) | beste Tool-Use-Reasoning |
+| Klassifikations-LLM | Claude Haiku 4.5 (Sub-Call) | 5× schneller, 10× billiger bei trivialer Aufgabe |
+| Prompt-Caching | `cache_control: ephemeral` auf System + Tools | ~ 75 % Token-Cache-Hit-Rate |
+| Parallel-Dispatch | `asyncio.gather` für mehrere Tool-Calls pro Turn | halbiert Wall-Time bei 3-4 Tools |
+| Plugin-System | `packages/foerderbereiche/` (geteilt mit UE1/UE3) | EINE Wahrheit |
+| Logging | `apl.agent_session_log` pro Tool-Call | AI-Act Art. 12 |
+| Lokal-Alternative | LM Studio mit Llama 3.3 70B (Tool-Use-fähig) | Datenschutz-Option |
 
 ---
 
-## Kern-Mechanismus — 3 Schutzschichten
+## Architektur
 
 ```
-[Schicht 1: System-Prompt]
-   „Du erfindest KEINE Förderbereiche.
-    Du nennst KEINE Förderhöhen. Du zitierst KEINE §."
-
-[Schicht 2: Tool-Output-Validierung]
-   ALLOWED_FBS = {'I', 'II', 'III', 'IV'}
-   if vorschlag not in ALLOWED_FBS:
-       raise ToolError("FB nicht in Whitelist")
-
-[Schicht 3: Frontend parseDraft]
-   for field in plugin.pflichtfelder:
-       cleaned[field] = raw[field]     # alles andere fliegt raus
+[Bürger:in / Chat-UI]
+   │  POST /api/agent/chat
+   │  { session_id, history, user_message, current_draft }
+   ▼
+┌────────────────────────────────────────┐
+│  FastAPI `agent_chat_endpoint`         │
+│   │                                     │
+│   ▼                                     │
+│  agent_chat.run_agent_turn():           │
+│    while not end_turn:                  │
+│      Anthropic.messages.create(         │
+│        system=cached_blocks,            │
+│        tools=cached_tools,              │
+│        messages=history)                │
+│      if stop_reason == 'tool_use':      │
+│        asyncio.gather([                 │
+│          dispatch_tool(b) for b in …    │
+│        ])                                │
+│      else: break                        │
+└────────────────────────────────────────┘
+   │
+   │  4 Tools (alle mit ALLOWED_FBS-Whitelist):
+   │   1. klassifiziere_foerderbereich (Sub-Call Haiku)
+   │   2. get_pflichtfelder              (FB-Plugin)
+   │   3. validate_field                 (IBAN/Email/PLZ)
+   │   4. submit_antrag                  (DB-Insert)
+   ▼
+[apl.antraege] → UE2/UE3-Inbox
+[apl.agent_session_log] (Audit)
 ```
 
-> **Eine Schicht reicht nicht.** LLMs halluzinieren — Punkt.
+---
+
+## Sequenz-Diagramm
+
+```
+Browser            FastAPI            Anthropic-API         Postgres
+   │                  │                    │                    │
+ 1 │ POST /api/agent/chat ▶│                │                    │
+ 2 │                  │── messages.create(system+tools+hist) ──▶│
+ 3 │                  │◀── tool_use(klassifiziere, args) ──────│
+ 4 │                  │── parallel asyncio.gather:              │
+ 5 │                  │    └─▶ Haiku-Sub-Call (Klassifikation) ▶│
+ 6 │                  │      ◀── FB='II', konfidenz=0.92 ──────│
+ 7 │                  │── INSERT apl.agent_session_log ────────▶│
+ 8 │                  │── messages.create(tool_result) ────────▶│
+ 9 │                  │◀── tool_use(get_pflichtfelder, args) ──│
+10 │                  │── Plugin lookup (deterministisch) ──   │
+11 │                  │── messages.create(tool_result) ────────▶│
+12 │                  │◀── assistant_message "Wie heißt Ihre…" │
+13 │◀── 200 { msg, draft, tool_trace[] } ──│                    │
+14 │ … weitere Turns …                     │                    │
+15 │                  │◀── tool_use(submit_antrag, draft) ──   │
+16 │                  │── plugin.validiere(draft) — Hard-Gate  │
+17 │                  │── INSERT apl.antraege ─────────────────▶│
+18 │◀── 200 { antrag_nr } ─────────────────│                    │
+```
+
+<!-- Speaker-Notiz: Step 5 — der Haiku-Sub-Call läuft PARALLEL zu
+allen anderen Tool-Calls dank asyncio.gather. -->
+
+---
+
+## Datenmodell
+
+```sql
+-- apl.agent_session — eine Konversation
+CREATE TABLE apl.agent_session (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  started_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ended_at        TIMESTAMPTZ,
+  modell          TEXT NOT NULL,                  -- z.B. 'claude-sonnet-4-5-…'
+  klassif_modell  TEXT,                            -- z.B. 'claude-haiku-4-5'
+  total_tokens_input  INT DEFAULT 0,
+  total_tokens_output INT DEFAULT 0,
+  total_kosten_eur    NUMERIC(8,4) DEFAULT 0,
+  antrag_id       UUID REFERENCES apl.antraege(id) -- gesetzt nach Submit
+);
+
+-- apl.agent_session_log — Turn-by-Turn-Audit
+CREATE TABLE apl.agent_session_log (
+  id                BIGSERIAL PRIMARY KEY,
+  session_id        UUID NOT NULL REFERENCES apl.agent_session(id),
+  turn_nr           INT NOT NULL,
+  user_message      TEXT,
+  assistant_message TEXT,
+  tool_calls_json   JSONB,                  -- [{name, input, output, ms}]
+  latency_ms        INT,
+  input_tokens      INT,
+  output_tokens     INT,
+  cache_read_tokens INT,                    -- prompt-cache hit
+  cache_write_tokens INT,
+  created_at        TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX ON apl.agent_session_log (session_id, turn_nr);
+```
+
+---
+
+## Kern-Mechanismus — Tool-Use-Loop mit Prompt-Caching
+
+```python
+# pruefung/src/pruefung/agent_chat.py
+async def run_agent_turn(history, user_msg):
+    system_blocks = [{
+        "type": "text",
+        "text": SYSTEM_PROMPT,
+        "cache_control": {"type": "ephemeral"},      # ← Cache!
+    }]
+    tools_with_cache = [
+        *TOOLS[:-1],
+        {**TOOLS[-1], "cache_control": {"type": "ephemeral"}},
+    ]
+
+    history.append({"role": "user", "content": user_msg})
+    while True:
+        resp = await client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            system=system_blocks,
+            tools=tools_with_cache,
+            messages=history,
+            max_tokens=2048,
+        )
+        history.append({"role": "assistant", "content": resp.content})
+
+        if resp.stop_reason != "tool_use":
+            return resp                              # end_turn
+
+        # Parallel-Dispatch aller Tool-Calls dieses Turns
+        tool_blocks = [b for b in resp.content if b.type == "tool_use"]
+        results = await asyncio.gather(*[
+            dispatch_tool(b) for b in tool_blocks
+        ])
+        history.append({
+            "role": "user",
+            "content": [{"type": "tool_result",
+                         "tool_use_id": b.id,
+                         "content": json.dumps(r)}
+                        for b, r in zip(tool_blocks, results)],
+        })
+```
+
+> Cache-Hit reduziert Input-Tokens um ~ 75 %. `asyncio.gather` halbiert
+> Wall-Time bei mehreren Tool-Calls pro Turn.
+
+---
+
+## Sicherheits- & Schutzschicht
+
+| Schicht | Mechanismus | Schutz vor |
+|---|---|---|
+| **1. System-Prompt** | „Du erfindest KEINE FBs, KEINE §, KEINE Höhen" | LLM-Plausibilitätsverstöße |
+| **2. Tool-Whitelist** | `ALLOWED_FBS = {'I','II','III','IV'}` im Tool-Wrapper | LLM ignoriert Prompt |
+| **3. Submit-Validierung** | `plugin.validiere(draft)` vor INSERT | unvollständiger Draft |
+| **4. Frontend `parseDraft`** | filtert Felder, die nicht im Plugin-Schema sind | falls Backend + LLM beide kompromittiert |
+| Rate-Limit | 30 Turns / Session, 10 Sessions / IP / h | DoS, Token-Burn |
+| Off-Topic-Filter | System-Prompt + Klassifikations-Check | KFZ, Wohngeld etc. |
+| AI-Act Art. 12 | jeder Turn in `apl.agent_session_log` | Auditierbarkeit |
+| AI-Act Art. 13 | Chat-Header „Sie chatten mit KI" | Bürger-Transparenz |
+| AI-Act Art. 50 | Footer „Claude Sonnet 4.5" + Modellname | KI-Kennzeichnung |
+
+> **„Defense-in-Depth"** — keine Schicht muss perfekt sein; sie
+> müssen nur unabhängig versagen.
+
+---
+
+## Performance & Skalierung
+
+| Metrik | Wert | Anmerkung |
+|---|---|---|
+| Erst-Turn (ohne Cache) | 2,8–3,5 s | volle System-Prompt-Übertragung |
+| Folge-Turn (mit Cache) | 0,8–1,5 s | 75 % Cache-Hit-Rate |
+| Klassifikations-Tool (Haiku) | 0,4–0,7 s | Sub-Call läuft parallel |
+| Validate-Tool | < 30 ms | deterministisch |
+| Submit-Tool | ~ 250 ms | DB-Insert + Re-Validation |
+| Turns pro Antrag (⌀) | 5–8 | bei guter Bürger-Beschreibung |
+| Tool-Calls pro Antrag (⌀) | 8–15 | parallel pro Turn |
+| Token-Cost pro Antrag | ~ 0,06–0,12 € | Sonnet + Haiku, Cache-Hits |
+| Parallelisierung (gather) | -45 % Wall-Time | bei 3 Tools pro Turn |
+
+**Bottlenecks & Mitigationen:**
+- Synchrone Tool-Calls → `asyncio.gather` für alle Tools pro Turn
+- Cold-Start ohne Cache → `cache_control: ephemeral` (5 min TTL)
+- Klassifikation auf Sonnet teuer → Haiku-Sub-Call (10× billiger)
+- LLM-Drift bei Feldnamen → `field_synonyme_normalisieren()`
 
 ---
 
@@ -169,8 +332,8 @@ Beobachte:
 **Halluzination provozieren:** „Ich möchte einen Zuschuss für mein
 neues Auto, FB V." → Agent lehnt höflich ab.
 
-<!-- Speaker-Notiz: Den Halluzinations-Test unbedingt vorführen —
-das ist der „Aha"-Moment. Bonus: in Englisch oder Türkisch chatten. -->
+<!-- Speaker-Notiz: Halluzinations-Test vorführen — der „Aha"-Moment.
+Bonus: in Englisch oder Türkisch chatten. -->
 
 ---
 
@@ -202,7 +365,7 @@ das ist der „Aha"-Moment. Bonus: in Englisch oder Türkisch chatten. -->
 ## Voraussetzungen / Risiken
 
 **Technisch:**
-- LLM mit Tool-Use-Fähigkeit (Claude Sonnet, GPT-4, Llama 3.3 70B)
+- LLM mit Tool-Use-Fähigkeit (Sonnet 4.5, GPT-4, Llama 3.3 70B)
 - Prompt-Caching für Performance
 - Plugin-System geteilt mit UE1/UE3
 - Audit-Logging pro Tool-Call (`apl.agent_session_log`)
@@ -249,8 +412,7 @@ und Aktionen · (c) höhere Kosten · (d) Mehrsprachigkeit</small>
 (b) höhere Qualität · (c) bessere Tool-Use-Fähigkeit ·
 (d) bessere Mehrsprachigkeit</small>
 
-<!-- Speaker-Notiz: Lösungen: 1=b, 2=d, 3=a. „Defense-in-Depth"
-ist das Schlüsselkonzept der ganzen UE. -->
+<!-- Speaker-Notiz: Lösungen: 1=b, 2=d, 3=a. -->
 
 ---
 
@@ -278,7 +440,7 @@ Detail: **`ue4/agent-portal/04-aufgaben.md`**
 | ⚖️ **Vorteile / Voraussetzungen** | [`02-vorteile-voraussetzungen.md`](./02-vorteile-voraussetzungen.md) |
 | 🛠 **Dozent-Walkthrough** | [`03-walkthrough.md`](./03-walkthrough.md) |
 | ✏️ **Studi-Aufgaben** | [`04-aufgaben.md`](./04-aufgaben.md) |
-| 💻 **Quellcode** | `ue4/agent-portal/` + `pruefung/src/pruefung/agent_*.py` |
+| 💻 **Quellcode** | `ue4/agent-portal/` + `pruefung/src/pruefung/{agent_chat,agent_tools}.py` |
 
 ---
 

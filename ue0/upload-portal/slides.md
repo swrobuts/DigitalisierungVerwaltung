@@ -13,7 +13,6 @@ style: |
           letter-spacing: 0.06em; font-weight: 600; }
   blockquote { border-left: 4px solid #AD0E36; background: #FBE9EE;
                padding: 12px 20px; }
-  .twocol { columns: 2; column-gap: 32px; }
 ---
 
 <!-- _class: lead -->
@@ -27,9 +26,9 @@ Bürger:innen etwas Neues lernen müssen.**
 
 <small>Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher · 2026</small>
 
-<!-- Speaker-Notiz: Die Stufe, die fast jede Verwaltung sofort hochziehen
-kann, ohne ein Formular zu bauen. „Weicher Einstieg" in die
-Digitalisierung. -->
+<!-- Speaker-Notiz: „Weicher Einstieg" in die Digitalisierung —
+fast jede Verwaltung kann das sofort hochziehen, ohne ein Formular
+zu bauen. -->
 
 ---
 
@@ -100,55 +99,199 @@ Nach dieser UE können Sie:
 3. Bürger:in korrigiert nur, was nicht stimmt
 4. Antrag wird strukturiert eingereicht — das Amt tippt nichts mehr ab
 
-> **Didaktischer Kniff:** Wir trennen *Eingang* (UE0) vom
-> *strukturierten Antrag* (UE1) — und KI ist die Brücke.
+> **Didaktischer Kniff:** Trennung von *Eingang* (UE0) und
+> *strukturiertem Antrag* (UE1) — die KI ist die Brücke.
+
+---
+
+## Tech-Stack & Tools
+
+| Komponente | Wahl | Begründung |
+|---|---|---|
+| Frontend | Vite 6 + React 19 + TS 5 + Tailwind 4 | schnellster DX, kleines Bundle (~80 kB gzipped) |
+| Upload-Endpoint | Supabase Edge Function (Deno) | nah am Storage, signed-URL-Erzeugung, kein eigener Server |
+| Objektspeicher | Supabase Storage (S3-kompatibel) | RLS-fähig, signed URLs out-of-the-box |
+| Trigger | `pg_notify` + Database Webhook | Push statt Polling — Latenz < 200 ms |
+| Workflow-Engine | n8n (self-hosted, 11 Nodes) | visuelle Pipeline, Fehler-Branches, Retry |
+| Vision-LLM | Claude Sonnet 4.5 (`messages.create` mit `image`) | beste OCR-Qualität für deutsche Formulare + Handschrift |
+| DB | Postgres 15 mit RLS | Single Source of Truth für `apl.antrag_einreichung` |
 
 ---
 
 ## Architektur
 
 ```
-[Bürger:in]
-   │  1. Drag&Drop PDF
+[Bürger:in / Browser]
+   │
+   │  POST /functions/v1/upload-antragspdf  (multipart, JWT-anon)
    ▼
-[Edge Function `upload-antragspdf`]
-   ├─ MIME + Größe validieren
-   ├─ PDF in Storage-Bucket
-   └─ einreichung_id (Tracking)
-   │  2. DB-Trigger → n8n-Webhook
+┌─────────────────────────────────────────┐
+│ Edge Function "upload-antragspdf"       │
+│  - MIME-Check  (application/pdf)        │
+│  - Size-Limit  (≤ 10 MB)                │
+│  - SHA-256 Hash → datei_path            │
+│  - PUT Storage-Bucket "einreichungen"   │
+│  - INSERT apl.antrag_einreichung        │
+└─────────────────────────────────────────┘
+   │ pg_notify "einreichung_neu"
    ▼
-[n8n-Workflow (11 Nodes)]
-   ├─ PDF aus Storage laden
-   ├─ Claude Vision OCR mit JSON-Schema-Prompt
-   ├─ Antwort parsen, Defaults ergänzen
-   └─ UPDATE antrag_einreichung SET extrahiert_jsonb=…
-   │  3. Frontend pollt → "fertig"
+┌─────────────────────────────────────────┐
+│ Supabase Database Webhook → n8n          │
+└─────────────────────────────────────────┘
+   │
    ▼
-[Auto-Redirect → UE1 mit ?prefill=<id>]
+┌─────────────────────────────────────────┐
+│ n8n Workflow "ue0-ocr-pipeline"         │
+│  1. signed-URL holen                    │
+│  2. PDF → Claude Vision (JSON-Schema)   │
+│  3. Output parsen + validieren          │
+│  4. UPDATE apl.antrag_einreichung       │
+│     SET extrahiert_jsonb = …            │
+└─────────────────────────────────────────┘
+   │
+   ▼
+[Frontend pollt GET status alle 2 s]
+   │   wenn status='fertig':
+   ▼
+[Redirect → antrag.butscher.cloud/?prefill=<id>]
 ```
 
-Jede Schicht hat **genau eine Verantwortung**.
+---
+
+## Sequenz-Diagramm
+
+```
+Browser              Edge Fn         Storage    Postgres       n8n            Claude
+   │                    │              │           │             │              │
+ 1 │── POST upload ────▶│              │           │             │              │
+ 2 │                    │── PUT pdf ──▶│           │             │              │
+ 3 │                    │── INSERT einreichung ───▶│             │              │
+ 4 │◀─── 201 + id ──────│              │           │             │              │
+ 5 │                    │              │           │── webhook ─▶│              │
+ 6 │                    │              │           │             │── signed_url▶│ (Storage)
+ 7 │                    │              │           │             │◀─ pdf bytes ─│
+ 8 │                    │              │           │             │── messages.create(image) ─▶│
+ 9 │                    │              │           │             │◀─── JSON-Schema-Response ──│
+10 │                    │              │           │◀─ UPDATE ───│              │
+11 │── GET status (Poll, ≤ 2 s) ──────────────────▶│             │              │
+12 │◀── status='fertig', extrahiert_jsonb ─────────│             │              │
+13 │── Redirect ?prefill=<id> ─────────────────▶ UE1 Webformular                │
+```
+
+<!-- Speaker-Notiz: Schritt 8 ist der eigentliche „KI-Moment".
+Claude bekommt das PDF als base64-encodiertes Bild und einen
+JSON-Schema-Prompt. -->
+
+---
+
+## Datenmodell
+
+```sql
+-- Migration 060: apl.antrag_einreichung (UE0-Eingang)
+CREATE TABLE apl.antrag_einreichung (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  datei_path    TEXT NOT NULL,           -- Storage-Pfad
+  datei_hash    TEXT NOT NULL,           -- SHA-256 (Dedup)
+  status        TEXT NOT NULL            -- 'eingegangen' | 'in_ocr' |
+                  CHECK (status IN ('eingegangen','in_ocr',
+                                    'fertig','fehler')),
+  extrahiert_jsonb JSONB,                -- KI-Output, validiert
+  fehlermeldung TEXT,
+  eingereicht_am TIMESTAMPTZ NOT NULL DEFAULT now(),
+  abgeholt_am   TIMESTAMPTZ
+);
+
+CREATE INDEX ON apl.antrag_einreichung (status, eingereicht_am DESC);
+
+-- RLS: anon kann INSERT, nicht SELECT (DSGVO)
+ALTER TABLE apl.antrag_einreichung ENABLE ROW LEVEL SECURITY;
+CREATE POLICY ins_anon ON apl.antrag_einreichung
+  FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY sel_self ON apl.antrag_einreichung
+  FOR SELECT TO anon USING (id::text = current_setting(
+    'request.jwt.claim.einreichung_id', true));
+
+-- Storage-Bucket "einreichungen"
+INSERT INTO storage.buckets (id,name,public) VALUES
+  ('einreichungen','einreichungen', false);
+```
 
 ---
 
 ## Kern-Mechanismus — Schema-Forcing bei Claude Vision
 
 ```python
-SYSTEM_PROMPT = """Extrahiere aus dem PDF folgende Felder als JSON:
+# n8n-Node "claude-ocr" (Python-Function)
+response = anthropic.messages.create(
+    model="claude-sonnet-4-5-20250929",
+    max_tokens=2048,
+    system="""Extrahiere aus dem PDF folgende Felder als JSON,
+strikt diesem Schema folgend:
 {
-  "fb": "I"|"II"|"III"|"IV",
-  "antragsteller": {"name": str, "ansprechpartner": str, ...},
-  "bank": {"iban": str, "bic": str, "name": str},
+  "fb":             "I"|"II"|"III"|"IV",
+  "antragsteller":  {"name": str, "ansprechpartner": str,
+                     "telefon": str, "email": str},
+  "adresse":        {"strasse": str, "plz": str, "ort": str},
+  "bank":           {"iban": str, "bic": str, "name": str},
   ...
 }
-Wenn ein Feld nicht erkennbar ist: leere String "". Erfinde nichts."""
+
+REGELN:
+1. Wenn ein Feld nicht erkennbar ist: leerer String "" — NICHT raten.
+2. IBAN bitte ohne Leerzeichen, Großbuchstaben.
+3. Erfinde keine Felder, die nicht im Schema stehen.
+4. Antworte AUSSCHLIESSLICH mit dem JSON, kein Fließtext.""",
+    messages=[{
+        "role": "user",
+        "content": [
+            {"type": "image", "source": {"type": "base64",
+              "media_type": "application/pdf", "data": pdf_b64}},
+            {"type": "text", "text": "Hier ist der Antrag."}
+        ]
+    }]
+)
+extrahiert = json.loads(response.content[0].text)
 ```
 
 **Warum funktioniert das:**
-- JSON-Schema zwingt Claude in eine deterministische Struktur
+- JSON-Schema im System-Prompt zwingt deterministische Struktur
 - „Erfinde nichts" + leere Strings vermeiden Halluzinationen
-- Nachgelagerte Validierung (IBAN-Checksumme, FB-Whitelist) fängt
-  Reste-Fehler ab
+- Nachgelagerte Validierung (IBAN-Mod-97, FB-Whitelist) fängt Reste
+
+---
+
+## Sicherheits- & Schutzschicht
+
+| Schicht | Mechanismus | Schutz vor |
+|---|---|---|
+| Upload | MIME-Check `application/pdf`, Magic-Bytes | Malware-Uploads |
+| Upload | Größenlimit 10 MB (Edge Function + Nginx) | DoS, Speicher-Overflow |
+| Upload | SHA-256-Hash als Dedup-Key | doppelte Speicherung, Anti-Replay |
+| Storage | Bucket `public=false` + signed URLs (TTL 10 min) | Direktzugriff, Hot-Linking |
+| RLS | `apl.antrag_einreichung` SELECT nur für eigene `id` | DSGVO §5 Datenminimierung |
+| Vision-Aufruf | „Erfinde nichts" im System-Prompt | OCR-Halluzination |
+| Validierung | IBAN-Mod-97, FB ∈ {I,II,III,IV} nach Parse | KI-Drift |
+| AI-Act Art. 13 | UI-Banner „KI liest Ihr Dokument (Anthropic, USA)" | Transparenz-Pflicht |
+| AI-Act Art. 50 | „Sonnet 4.5" wird in der Bestätigung genannt | KI-Kennzeichnung |
+
+---
+
+## Performance & Skalierung
+
+| Metrik | Wert | Anmerkung |
+|---|---|---|
+| Upload-Roundtrip | ~ 350 ms | Edge Function nah am Storage |
+| OCR-Latenz (1 Seite) | 8–12 s | Claude Sonnet 4.5 Vision |
+| OCR-Latenz (3 Seiten) | 15–25 s | linear mit Seitenzahl |
+| Frontend-Poll-Intervall | 2 s | Trade-off UX ↔ DB-Last |
+| Kosten pro Antrag | ~ 0,02–0,04 € | Vision-Input dominiert |
+| Throughput n8n | 5 OCR / Min (Standard) | bei Bedarf horizontal skalierbar |
+| Storage-Footprint | ~ 200 kB ⌀ pro PDF | nach 30 d → Cold-Tier |
+
+**Bottlenecks & Mitigationen:**
+- Vision ist serial-blockierend → n8n-Queue mit `concurrency=3`
+- PDF > 10 Seiten → Vorabsplitting + chunked OCR
+- Anthropic-Outage → Fallback auf Tesseract-OCR (Qualität schlechter)
 
 ---
 
@@ -163,9 +306,8 @@ Wenn ein Feld nicht erkennbar ist: leere String "". Erfinde nichts."""
 
 <small>Demo-PDFs im Repo: <code>ue0/demo-pdfs/</code></small>
 
-<!-- Speaker-Notiz: Browser vorher öffnen, Demo-PDF lokal kopiert haben.
-Status-Texte während des Uploads laut vorlesen: „lädt", „KI extrahiert",
-„fertig". Wenn vorhanden, auch ein handschriftliches PDF zeigen. -->
+<!-- Speaker-Notiz: Browser vorher öffnen, Demo-PDF lokal kopiert
+haben. Status-Texte während des Uploads laut vorlesen. -->
 
 ---
 
@@ -175,8 +317,8 @@ Status-Texte während des Uploads laut vorlesen: „lädt", „KI extrahiert",
 - **Niedrige Lernkurve** für Bürger:innen (PDF kennen sie)
 - **Schnelle Entlastung** der Sachbearbeitenden (kein Abtippen)
 - **Multi-Tenancy** — gleicher Pipeline-Code für viele Antragsarten
-- **Wiederverwendbar** — Pattern für jede „PDF → Daten"-Aufgabe in der
-  Verwaltung (Rechnungen, Belege, Formulare)
+- **Wiederverwendbar** — Pattern für jede „PDF → Daten"-Aufgabe
+- **Auditierbar** — Original-PDF bleibt revisionssicher im Storage
 
 ---
 
@@ -192,21 +334,22 @@ Status-Texte während des Uploads laut vorlesen: „lädt", „KI extrahiert",
   als UE1 nativ
 
 > **Konsequenz:** UE0 macht nur Sinn als **Brücke zu UE1+**.
-> Stand-alone hilft es wenig.
 
 ---
 
 ## Voraussetzungen / Risiken
 
 **Technisch:**
-- Storage-Bucket mit RLS, signed URLs
+- Storage-Bucket mit RLS + signed URLs (10 min TTL)
 - Vision-fähiges LLM (Claude Sonnet 4.5 oder GPT-4o)
-- Workflow-Engine (n8n) für PDF→OCR→DB-Pipeline
+- n8n oder gleichwertige Workflow-Engine
+- Database-Webhook für Push-Trigger
 
 **Organisatorisch:**
-- Datenschutz-Folgenabschätzung (Antrags-PDFs an US-Cloud!)
-- Klare Aufklärung: „Ihre Daten werden von KI gelesen"
+- DSFA (Antrags-PDFs an US-Cloud!)
+- Klare Aufklärung „Ihre Daten werden von KI gelesen"
 - Fallback-Pfad ohne KI muss erhalten bleiben
+- AV-Vertrag mit Anthropic / Cloud-Anbieter
 
 **Risiken:**
 - OCR-Halluzination → IBAN-Verwechslung → Auszahlung an Falsche
@@ -230,20 +373,18 @@ Status-Texte während des Uploads laut vorlesen: „lädt", „KI extrahiert",
 
 ## Übungsfragen
 
-**Frage 1:** Was passiert, wenn Claude ein Feld nicht sicher erkennen
-kann?
+**Frage 1:** Was passiert, wenn Claude ein Feld nicht sicher erkennen kann?
 <small>(a) Antrag wird abgelehnt · (b) leerer String, Bürger:in
 korrigiert · (c) Claude rät · (d) System hängt</small>
 
-**Frage 2:** Welche Komponente erzeugt die einreichung_id?
+**Frage 2:** Welche Komponente erzeugt die `einreichung_id`?
 <small>(a) n8n · (b) Frontend · (c) Edge Function · (d) Claude Vision</small>
 
 **Frage 3:** Warum ist UE0 ohne UE1 wenig sinnvoll?
 <small>(a) Kosten · (b) ohne Korrekturoberfläche bleiben OCR-Fehler
 unentdeckt · (c) Datenschutz · (d) Performance</small>
 
-<!-- Speaker-Notiz: Lösungen: 1=b, 2=c, 3=b. Nach jeder Frage 15 s
-Bedenkzeit, dann auflösen. -->
+<!-- Speaker-Notiz: Lösungen: 1=b, 2=c, 3=b. -->
 
 ---
 
@@ -270,7 +411,7 @@ Detail: **`ue0/upload-portal/04-aufgaben.md`**
 | ⚖️ **Vorteile / Voraussetzungen** | [`02-vorteile-voraussetzungen.md`](./02-vorteile-voraussetzungen.md) |
 | 🛠 **Dozent-Walkthrough** | [`03-walkthrough.md`](./03-walkthrough.md) |
 | ✏️ **Studi-Aufgaben** | [`04-aufgaben.md`](./04-aufgaben.md) |
-| 💻 **Quellcode** | `ue0/upload-portal/` + `supabase/functions/upload-antragspdf/` |
+| 💻 **Quellcode** | `ue0/upload-portal/` + `supabase/functions/upload-antragspdf/` + n8n-Workflow `ue0-ocr-pipeline` |
 
 ---
 

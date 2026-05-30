@@ -68,13 +68,13 @@ Mit UE2 läuft die Verwaltung digital — aber:
 | Schmerzpunkt | Wirkung |
 |---|---|
 | 35-seitige Richtlinie pro Antrag im Kopf | Fehler, Inkonsistenz zwischen Sachbearbeitenden |
-| 4-Augen-Prinzip nur, wenn 2. Person da | bei Krankheit/Urlaub ausgehebelt |
+| 4-Augen-Prinzip nur wenn 2. Person da | bei Krankheit/Urlaub ausgehebelt |
 | Bescheid frei in Word | sprachliche Drift, unterschiedliche Strenge |
 | Vorjahresvergleich manuell | wird oft weggelassen |
 | Träger-Recherche zeitraubend | unterbleibt bei Routine |
 | Risiko-Priorisierung „Bauchgefühl" | hochriskante Anträge nicht vorgezogen |
 
-> **Kernproblem:** Die Inhaltliche Prüfung skaliert nicht — und ist
+> **Kernproblem:** Die inhaltliche Prüfung skaliert nicht — und ist
 > nicht konsistent.
 
 ---
@@ -111,29 +111,149 @@ Mit UE2 läuft die Verwaltung digital — aber:
 
 ---
 
+## Tech-Stack & Tools
+
+| Komponente | Wahl | Begründung |
+|---|---|---|
+| Backend | FastAPI (Python 3.12) + `uvicorn` + `asyncio` | LLM-SDK-Reife in Python, Stream-Support |
+| Erst-KI | Claude Sonnet 4.5 (`messages.create`, JSON-Schema) | beste Subsumtions-Qualität, deterministisches JSON |
+| Zweit-KI | Claude Opus 4.7 mit adversariellem Prompt | bewusst anderes Modell für Diversität |
+| Embeddings | Voyage AI `voyage-3` (1024-dim) | beste DE-Embeddings für juristische Texte |
+| Vektor-DB | Postgres `pgvector` (HNSW Index) | keine zusätzliche Infra, Transaktions-Konsistenz |
+| Externe Recherche | Perplexity `llama-3.1-sonar-large` (mit Citations) | echte Web-Quellen statt LLM-Wissen |
+| Bescheid-Render | `docxtpl` + Jinja2 → Word | Word ist der Verwaltungs-Standard |
+| Quellen-Validator | Regex + Set-Diff gegen `apl.norm_statement.ref` | hart, deterministisch — keine LLM-Schicht |
+| Lokal-Alternative | LM Studio (OpenAI-API-kompatibel) | Datenschutz-Option |
+| Frontend | UE2-Stack + 5 KI-Cards (React) | konsistente UX |
+
+---
+
 ## Architektur
 
 ```
-[Antrag in Inbox]
-   │
+[Antrag in Inbox (UE2/UE3-Frontend)]
+   │  POST /api/pruefung
    ▼
-[1. Erst-KI] (Claude Sonnet 4.5)
-   │  System-Prompt + Doctree-Auszug der einschlägigen §
-   │  + Antrag als JSON, Output-Schema-Forcing
+┌──────────────────────────────────────────┐
+│  FastAPI `pruefung-service`               │
+│                                            │
+│  ┌─ doctree_navigate ─────────────────┐    │
+│  │  pgvector-Search auf               │    │
+│  │  apl.norm_statement.embedding      │    │
+│  └────────────────────────────────────┘    │
+│                                            │
+│  ┌─ erst_ki  (Sonnet 4.5)  ───────────┐    │
+│  │  System+Doctree+Antrag → JSON      │    │
+│  └────────────────────────────────────┘    │
+│                                            │
+│  ┌─ zweit_ki  (Opus, adversariell) ───┐    │
+│  │  „Finde 3 Gründe …" → JSON         │    │
+│  └────────────────────────────────────┘    │
+│                                            │
+│  ┌─ dissens_berechnung ───────────────┐    │
+│  │  konsens|inhaltlich|gegensätzlich  │    │
+│  └────────────────────────────────────┘    │
+│                                            │
+│  ┌─ extern_validierung (Perplexity) ──┐    │
+│  └────────────────────────────────────┘    │
+│                                            │
+│  ┌─ quellen_validator ────────────────┐    │
+│  │  refs ⊂ norm_statement.ref ?       │    │
+│  └────────────────────────────────────┘    │
+│                                            │
+│  ┌─ bescheid_render (Jinja → docx) ───┐    │
+│  └────────────────────────────────────┘    │
+└──────────────────────────────────────────┘
+   │  201 + Bescheid-URL
    ▼
-[2. Zweit-KI] (Claude Opus, ADVERSARIELL)
-   │  „Finde 3 Gründe, warum die Erstprüfung falsch sein könnte"
-   ▼
-[Dissens-Berechnung]
-   │  cluster: konsens / inhaltlich_unterschiedlich / gegensätzlich
-   ▼
-[3. Externe Validierung] (Perplexity, optional)
-   │  Träger-Recherche mit zitierten Quellen
-   ▼
-[Quellen-Validator]
-   │  Filtert Sätze mit nicht-existierenden § -Referenzen
-   ▼
-[Bescheid-Render mit Word-Template]
+[Frontend → Empfehlungs-Cards]
+```
+
+---
+
+## Sequenz-Diagramm
+
+```
+SB-Browser    FastAPI       Postgres     Anthropic     Perplexity
+   │             │             │             │             │
+ 1 │ POST /api/pruefung (antrag_id) ▶│       │             │
+ 2 │             │── doctree_navigate (vector) ▶│           │
+ 3 │             │◀── top-k §-Statements ───│             │
+ 4 │             │── erst_ki (Sonnet 4.5) ──────▶│         │
+ 5 │             │◀── JSON: pro § Begründung ───│         │
+ 6 │             │── INSERT apl.pruefung (erst_ki_json)    │
+ 7 │◀── 200 { erst_ki } ─────│              │             │
+ 8 │             │             │             │             │
+ 9 │ POST /api/pruefung/ki-zweitpruefung ──▶│             │
+10 │             │── zweit_ki (Opus, adversarial) ▶│       │
+11 │             │◀── JSON: 3 Gegenargumente ──│         │
+12 │             │── compute_dissens (cluster) │             │
+13 │             │── UPDATE apl.pruefung (zweit_ki_json, dissens_cluster)
+14 │◀── 200 { zweit_ki, dissens_cluster } ─│             │
+15 │             │             │             │             │
+16 │ POST /api/antrag/{id}/validiere-extern ▶│            │
+17 │             │── Perplexity-Query mit Träger-Name ───────▶│
+18 │             │◀── Antwort + Citations ─────────────────│
+19 │             │── INSERT apl.extern_validierung          │
+20 │◀── 200 { quellen[] } ──│              │             │
+21 │             │             │             │             │
+22 │ POST /api/bescheid (übernehmen) ──▶│                  │
+23 │             │── render (Jinja+docxtpl)                 │
+24 │             │── quellen_validator: filter halluc. refs │
+25 │             │── INSERT apl.bescheid + signed URL       │
+26 │◀── 201 { docx_url } ───│             │             │
+27 │             │── INSERT apl.ki_override (orig vs final) │
+```
+
+<!-- Speaker-Notiz: Step 11 ist der Show-Moment. Opus widerspricht
+Sonnet bewusst. Cluster „gegensätzlich" zwingt Sachbearbeiter:in
+zur Entscheidung. -->
+
+---
+
+## Datenmodell
+
+```sql
+-- apl.norm_statement — Doctree mit Embeddings
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE TABLE apl.norm_statement (
+  id          BIGSERIAL PRIMARY KEY,
+  ref         TEXT NOT NULL,                -- z.B. „§ 2.3.4"
+  fb          TEXT, variante TEXT,
+  text        TEXT NOT NULL,
+  embedding   vector(1024),                 -- voyage-3
+  aktiv       BOOLEAN NOT NULL DEFAULT true
+);
+CREATE INDEX ON apl.norm_statement
+  USING hnsw (embedding vector_cosine_ops);
+CREATE UNIQUE INDEX ON apl.norm_statement (ref);
+
+-- apl.pruefung — KI-Prüfungen pro Antrag
+CREATE TABLE apl.pruefung (
+  id                BIGSERIAL PRIMARY KEY,
+  antrag_id         UUID NOT NULL REFERENCES apl.antraege(id),
+  erst_ki_json      JSONB,                  -- Pro §: Begründung, Bewertung
+  zweit_ki_json     JSONB,                  -- 3 Gegenargumente
+  dissens_cluster   TEXT                    -- konsens|inhaltlich|gegensätzl.
+                      CHECK (dissens_cluster IN
+                        ('konsens','inhaltlich_unterschiedlich','gegensaetzlich')),
+  llm_provider      TEXT,                   -- anthropic | lmstudio
+  ki_kosten_eur     NUMERIC(8,4),
+  ki_latenz_ms      INT,
+  erstellt_am       TIMESTAMPTZ DEFAULT now()
+);
+
+-- apl.ki_override — Adoption-Tracking
+CREATE TABLE apl.ki_override (
+  id                  BIGSERIAL PRIMARY KEY,
+  antrag_id           UUID NOT NULL,
+  sachbearbeiter      TEXT NOT NULL,
+  original_vorschlag  JSONB NOT NULL,
+  final_entscheidung  JSONB NOT NULL,
+  wurde_geaendert     BOOLEAN NOT NULL,
+  aenderungs_grund    TEXT,
+  entschieden_am      TIMESTAMPTZ DEFAULT now()
+);
 ```
 
 ---
@@ -142,21 +262,81 @@ Mit UE2 läuft die Verwaltung digital — aber:
 
 ```python
 # pruefung/src/pruefung/quellen_validator.py
-def filter_halluzinationen(bescheid_text, refs_db):
-    for satz in extract_saetze_mit_refs(bescheid_text):
-        if satz.ref not in refs_db:
-            log_warning(f"Halluzinierter Ref: {satz.ref}")
-            entferne_satz(satz)
-    return bescheid_text
+import re
+from typing import Iterable
+
+REF_PATTERN = re.compile(r"§\s*\d+(\.\d+)*(\.\d+)*")
+
+def filter_halluzinationen(
+    bescheid_text: str,
+    erlaubte_refs: set[str],
+) -> tuple[str, list[str]]:
+    """Filtert Sätze mit nicht-existierenden § -Refs aus dem Bescheid.
+
+    Returns (bereinigter_text, liste_halluzinierter_refs).
+    """
+    bereinigt: list[str] = []
+    halluc: list[str] = []
+    for satz in bescheid_text.split('. '):
+        refs = REF_PATTERN.findall(satz)
+        if refs and not all(r in erlaubte_refs for r in refs):
+            halluc.append(satz)
+            continue          # Satz wird verworfen
+        bereinigt.append(satz)
+    return '. '.join(bereinigt), halluc
+
+# Aufruf vor Bescheid-Render (Hard-Gate):
+erlaubt = {r['ref'] for r in db.fetch_all(
+    "SELECT ref FROM apl.norm_statement WHERE aktiv = true")}
+text, halluc = filter_halluzinationen(ki_output, erlaubt)
+if halluc:
+    log.warning("Halluzinierte Refs entfernt", extra={'refs': halluc})
 ```
 
 > **Strukturierte Doctrees > naives RAG-on-PDF.**
-> Nur weil die § im Doctree mit Refs gepflegt sind, kann man
+> Nur weil die § im Doctree mit `ref` gepflegt sind, kann man
 > halluzinierte Refs **hart rausfiltern**. Bei PDF-Chunking unmöglich.
 
 **Robert-Regel (verbatim):** „Es darf NIE etwas erfunden oder
 hinzugefügt werden, was weder in der Rechtsgrundlage noch in den PDFs
 enthalten ist."
+
+---
+
+## Sicherheits- & Schutzschicht
+
+| Schicht | Mechanismus | Schutz vor |
+|---|---|---|
+| Eingabe | JSON-Schema-Forcing im Anthropic-Call | inkonsistentes LLM-Output |
+| Modell | Sonnet 4.5 + Opus 4.7 (verschiedene Hersteller-Familien) | korrelierter Bias |
+| Adversarial-Prompt | „Finde 3 Gründe gegen die Erstprüfung" | KI-Selbstbestätigung |
+| Doctree-Whitelist | Nur Refs aus `apl.norm_statement` zugelassen | halluzinierte § |
+| Quellen-Validator | Hard-Gate vor `apl.bescheid`-Insert | rechtswidrige Bescheide |
+| AI-Act Art. 12 | Logging pro Call: Modell, Tokens, Kosten | Auditierbarkeit |
+| AI-Act Art. 13 | Bescheid-Footer: „Vorbereitet von Claude Sonnet 4.5" | Bürger-Transparenz |
+| AI-Act Art. 14 | Sachbearbeiter:in muss `apl.ki_override` ausfüllen | menschliche Aufsicht |
+| AI-Act Art. 50 | Modellname im Compliance-Cockpit + Bescheid | KI-Kennzeichnung |
+| Adoption-Tracking | Aufsichts-Alarm bei Adoption > 90 % | Automation Bias |
+
+---
+
+## Performance & Skalierung
+
+| Metrik | Wert | Anmerkung |
+|---|---|---|
+| Doctree-Search (pgvector) | ~ 80 ms | HNSW Index, top-k=8 |
+| Erst-KI (Sonnet 4.5) | 4–8 s p50 | dominanter Posten |
+| Zweit-KI (Opus 4.7) | 6–12 s p50 | bewusst langsameres Modell |
+| Externe Validierung (Perplexity) | 5–10 s | Web-Crawl-Dauer |
+| Bescheid-Render | ~ 300 ms | Jinja + docxtpl, kein LLM mehr |
+| **Gesamt pro Antrag** | **30–60 s** | sequentiell, parallelisierbar |
+| Kosten pro Antrag | ~ 0,12–0,18 € | Sonnet + Opus + Perplexity |
+| Token-Cache-Hit | ~ 75 % auf System-Prompt | Anthropic Prompt-Caching |
+
+**Bottlenecks & Mitigationen:**
+- Sequentielle KI-Calls → optional `asyncio.gather` (Erst + Zweit parallel)
+- Lange Bescheid-Texte → Streaming-Response, UI zeigt Progress
+- LM Studio-Fallback bei Outage → `LLM_PROVIDER=lmstudio` Env-Switch
 
 ---
 
@@ -174,9 +354,8 @@ enthalten ist."
 
 🌐 **<https://ki.butscher.cloud/compliance>** — Aufsichts-Cockpit
 
-<!-- Speaker-Notiz: Vor der VL einmal selbst durchklicken — die
-Zweit-KI braucht 8-15 s, das ist eine spürbare Pause. Vorher
-sagen: „jetzt findet KI 2 aktiv Gründe gegen KI 1". -->
+<!-- Speaker-Notiz: Zweit-KI braucht 8-15 s, das ist eine spürbare
+Pause — vorher ansagen: „jetzt findet KI 2 aktiv Gründe gegen KI 1". -->
 
 ---
 
@@ -199,7 +378,7 @@ sagen: „jetzt findet KI 2 aktiv Gründe gegen KI 1". -->
 - **Adoption 100 %** = Automation Bias (Mensch klickt nur durch)
 - **Doctree-Pflege** ist Code-Arbeit — Bürger-Service muss begleiten
 - **LLM-Kosten** skalieren mit Antragsvolumen
-- **Latenz** Erst-KI + Zweit-KI + Validierung → 30-60 s pro Antrag
+- **Latenz** 30–60 s pro Antrag (sequenzielle Calls)
 - **Datenschutz** Antragsinhalt geht an US-Cloud (LM Studio als
   Alternative vorgesehen)
 
@@ -210,6 +389,7 @@ sagen: „jetzt findet KI 2 aktiv Gründe gegen KI 1". -->
 **Technisch:**
 - Strukturierter Doctree mit allen § und Refs gepflegt
 - LLM-Backend (Anthropic ODER LM Studio lokal)
+- pgvector + HNSW-Index für Doctree-Search
 - Quellen-Validator als Hard-Gate vor Bescheid-Render
 - Adoption-Tracking-Tabelle (`apl.ki_override`)
 
@@ -247,15 +427,13 @@ sagen: „jetzt findet KI 2 aktiv Gründe gegen KI 1". -->
 Validator gegen <code>norm_statement.ref</code> · (d) Zweit-KI</small>
 
 **Frage 2:** Welche Adoption-Quote ist „gesund"?
-<small>(a) 100 % — KI ist perfekt · (b) 0 % — Mensch entscheidet
-selbst · (c) 60-80 % — KI hilft, Mensch reviewt · (d) egal</small>
+<small>(a) 100 % · (b) 0 % · (c) 60-80 % · (d) egal</small>
 
 **Frage 3:** Was macht die Zweit-KI?
 <small>(a) wiederholt die Erstprüfung · (b) sucht aktiv Gegenargumente ·
 (c) ist Backup, falls 1. abstürzt · (d) übersetzt für Bürger:in</small>
 
-<!-- Speaker-Notiz: Lösungen: 1=c, 2=c, 3=b. „60-80 % ist gesund,
-100 % ist Automation Bias" ist der Leit-Satz dieser UE. -->
+<!-- Speaker-Notiz: Lösungen: 1=c, 2=c, 3=b. -->
 
 ---
 
@@ -283,7 +461,7 @@ Detail: **`ue3/sachbearbeitung-ki/04-aufgaben.md`**
 | ⚖️ **Vorteile / Voraussetzungen** | [`02-vorteile-voraussetzungen.md`](./02-vorteile-voraussetzungen.md) |
 | 🛠 **Dozent-Walkthrough** | [`03-walkthrough.md`](./03-walkthrough.md) |
 | ✏️ **Studi-Aufgaben** | [`04-aufgaben.md`](./04-aufgaben.md) |
-| 💻 **Quellcode** | `ue3/sachbearbeitung-ki/` + `pruefung/src/pruefung/` |
+| 💻 **Quellcode** | `ue3/sachbearbeitung-ki/` + `pruefung/src/pruefung/{bescheid_subsumtion,zweitpruefer_ki,quellen_validator,extern_validierung}.py` |
 
 ---
 

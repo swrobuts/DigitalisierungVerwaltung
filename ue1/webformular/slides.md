@@ -96,37 +96,125 @@ Nach dieser UE können Sie:
 **Idee:** Statt PDF nachbauen, das Antragsverhalten neu denken.
 
 1. **Wizard mit Schritten** statt 12-seitiges Endlos-Formular
-2. **Förderbereich zuerst** — danach nur noch passende Felder
+2. **Förderbereich zuerst** — danach nur passende Felder
 3. **Live-Validierung** bei jedem Tastenanschlag (IBAN, E-Mail, PLZ)
 4. **Sprach-Picker** ganz oben — DE / TR / IT / RU / FR
 5. **Sticky-Progress** — Bürger:in sieht, wie weit sie ist
-6. **Konditionale Anlagen** — z.B. Mietvertrag nur, wenn Räume gemietet
+6. **Konditionale Anlagen** — z.B. Mietvertrag nur bei gemieteten Räumen
 
-> **Plugin-System** unter `packages/foerderbereiche/` hält die
-> Pflichtfelder pro FB als Daten — nicht im UI verdrahtet.
+> **Plugin-System** unter `packages/foerderbereiche/` hält Pflichtfelder
+> pro FB als Daten — nicht im UI verdrahtet.
+
+---
+
+## Tech-Stack & Tools
+
+| Komponente | Wahl | Begründung |
+|---|---|---|
+| Frontend | Vite 6 + React 19 + TS 5 + Tailwind 4 | schnelle DX, kleines Bundle, typsichere FB-Plugins |
+| i18n | `i18next` + `react-i18next` | lazy loading per Sprache, Fallback DE |
+| Plugin-System | pnpm-Workspace-Package `packages/foerderbereiche` | EINE Wahrheit für UE1/UE3/UE4 |
+| Submit-Endpoint | Supabase Edge Function `submit-antrag` (Deno) | server-seitige Re-Validation, ohne eigenen Backend-Server |
+| Anlagen-Upload | Supabase Storage Bucket `antrag-anlagen` | RLS + signed URLs |
+| Validierung | `iban-validator` (Mod-97), `zod` Schemas | clientside + serverside Defense-in-Depth |
+| DB | Postgres 15 mit RLS, JSONB für FB-spezifische Felder | Schema-flexibel, dennoch indizierbar |
+| Build/Deploy | pnpm + GitHub Actions → Docker → Traefik | reproduzierbar, atomic deploy |
 
 ---
 
 ## Architektur
 
 ```
-[Bürger:in]
-   │  optionaler ?prefill=einreichung_id (aus UE0)
+[Bürger:in / Browser]
+   │  optional: ?prefill=<einreichung_id>  (aus UE0)
    ▼
-[Vite/React/TS Webformular]
-   ├─ Sprach-Picker (i18n via i18next)
-   ├─ Stepper (Phase 1: Stamm → 2: FB-spezifisch → 3: Anlagen)
-   ├─ FB-Plugin (Pflichtfeld-Liste je FB-Variante)
-   ├─ Live-Validation (IBAN-Mod-97, E-Mail-RFC, PLZ-Lookup)
-   └─ Sticky-Progress
-   │  Submit
+┌───────────────────────────────────────────┐
+│  Webformular (Vite/React/TS, SPA)         │
+│   ├─ i18n-Provider (5 Sprachen)           │
+│   ├─ Stepper (Phase 1: Stamm              │
+│   │              Phase 2: FB-spezifisch   │
+│   │              Phase 3: Anlagen)        │
+│   ├─ FB-Plugin (Pflichtfelder, Anlagen)   │
+│   ├─ Live-Validation Hook                 │
+│   └─ Sticky-Progress (% completed)        │
+└───────────────────────────────────────────┘
+   │  POST /functions/v1/submit-antrag
    ▼
-[Edge Function `submit-antrag`]
-   ├─ Server-Validierung (Defense-in-Depth)
-   └─ INSERT apl.antraege
+┌───────────────────────────────────────────┐
+│  Edge Function "submit-antrag"            │
+│   - validiert Pflichtfelder erneut         │
+│   - IBAN-Mod-97-Check                      │
+│   - INSERT apl.antraege                    │
+│   - INSERT apl.antrag_anlagen (n)          │
+└───────────────────────────────────────────┘
    │
    ▼
-[apl.antraege → UE2/UE3-Inbox]
+[apl.antraege]  → Realtime → UE2 + UE3-Inbox
+```
+
+---
+
+## Sequenz-Diagramm
+
+```
+Browser            Plugin       Storage     EdgeFn          Postgres
+   │                  │            │           │                 │
+ 1 │ Sprach-Picker    │            │           │                 │
+ 2 │── load FB plugins ▶│           │           │                 │
+ 3 │◀── pflichtfelder[FB,Variante] │           │                 │
+ 4 │ Stepper Phase 1: Stammdaten   │           │                 │
+ 5 │ (Live-Validation: IBAN-Mod-97 lokal)      │                 │
+ 6 │ Stepper Phase 2: FB-spezifisch │           │                 │
+ 7 │ Stepper Phase 3: Anlagen      │           │                 │
+ 8 │── PUT anlage_1.pdf ─────────▶│            │                 │
+ 9 │◀── 201 storage_path ─────────│            │                 │
+10 │── POST submit-antrag (JSON) ─────────────▶│                 │
+11 │                  │            │           │── validate ─────│
+12 │                  │            │           │── INSERT antraege▶│
+13 │                  │            │           │── INSERT anlagen ▶│
+14 │◀── 201 { antrag_id } ────────────────────│                 │
+15 │ Bestätigungs-Seite mit Antragsnummer      │                 │
+```
+
+<!-- Speaker-Notiz: Step 11 ist die kritische Defense-in-Depth.
+Selbst wenn jemand mit curl direkt postet, prüft die Edge Function
+nochmal alle Plugin-Regeln. -->
+
+---
+
+## Datenmodell
+
+```sql
+-- apl.antraege (zentrale Antrags-Tabelle, geteilt mit UE2/UE3/UE4)
+CREATE TABLE apl.antraege (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  antragsnummer   TEXT NOT NULL UNIQUE,        -- z.B. APL-2026-FBIII-…
+  fb              TEXT NOT NULL                 -- I | II | III | IV
+                    CHECK (fb IN ('I','II','III','IV')),
+  variante        TEXT,                         -- nur FB-III: A|B|C|D
+  status          TEXT NOT NULL DEFAULT 'eingegangen',
+  sprache         TEXT NOT NULL DEFAULT 'de',
+  antragsteller   JSONB NOT NULL,               -- Name, Tel, Email, …
+  bemessung       JSONB,                        -- FB-III: Räume, Kosten
+  helferliste     JSONB,                        -- FB-II
+  iban            TEXT NOT NULL,
+  bic             TEXT NOT NULL,
+  eingereicht_am  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  einreichung_id  UUID REFERENCES apl.antrag_einreichung(id)
+);
+CREATE INDEX ON apl.antraege (status, eingereicht_am DESC);
+CREATE INDEX ON apl.antraege (fb, variante);
+
+-- apl.antrag_anlagen (n:1 zu antraege)
+CREATE TABLE apl.antrag_anlagen (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  antrag_id     UUID NOT NULL REFERENCES apl.antraege(id) ON DELETE CASCADE,
+  typ           TEXT NOT NULL                   -- wochenplan | mietvertrag | …
+                  CHECK (typ IN ('wochenplan','mietvertrag','sonstiges')),
+  storage_path  TEXT NOT NULL,
+  dateigroesse  INT,
+  hochgeladen_am TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 ```
 
 ---
@@ -135,23 +223,77 @@ Nach dieser UE können Sie:
 
 ```ts
 // packages/foerderbereiche/src/fb3.ts
+import type { FBConfig, Pflichtfeld } from './types';
+
 export const fb3: FBConfig = {
   id: 'III',
+  label: { de: 'Offene Altenarbeit', tr: 'Açık Yaşlı Hizmeti', … },
   varianten: ['A', 'B', 'C', 'D'],
-  pflichtfelder: (variante) => {
-    const base = ['einrichtung_name', 'adresse', 'iban', 'bic', ...];
-    if (variante === 'C') return [...base, 'c_quartier_person_name'];
+
+  pflichtfelder(variante): Pflichtfeld[] {
+    const base: Pflichtfeld[] = [
+      { key: 'einrichtung_name',  validate: nonEmpty },
+      { key: 'iban',              validate: ibanMod97 },
+      { key: 'bic',               validate: bicFormat },
+      { key: 'raeume_vorhanden',  type: 'boolean' },
+    ];
+    if (variante === 'C') {
+      base.push({ key: 'c_quartier_person_name', validate: nonEmpty });
+    }
     return base;
   },
-  anlagen: (state) => [
-    'wochenplan',
-    ...(state.raeume_gemietet ? ['mietvertrag'] : [])
-  ],
+
+  anlagen(state): Anlage[] {
+    const list: Anlage[] = [{ typ: 'wochenplan', required: true }];
+    if (state.raeume_vorhanden && state.raeume_gemietet) {
+      list.push({ typ: 'mietvertrag', required: true });
+    }
+    return list;
+  },
 };
 ```
 
-**Vorteil:** UE1, UE3 und UE4 lesen aus **derselben Quelle** —
-keine doppelte Wahrheit, keine Drift.
+**Warum so:**
+- Pflichtfelder als **Daten**, nicht als JSX — beliebig serialisierbar
+- Konditionale Anlagen über Zustands-Funktion → UI bleibt deklarativ
+- UE1, UE3 und UE4 importieren dasselbe Modul → keine Drift
+
+---
+
+## Sicherheits- & Schutzschicht
+
+| Schicht | Mechanismus | Schutz vor |
+|---|---|---|
+| Frontend | `zod`-Schema pro FB-Plugin | Tippfehler, falsche Typen |
+| Frontend | IBAN-Mod-97 vor Submit | falsche Auszahlungen |
+| Edge Function | Re-Validation aller Plugin-Regeln | curl-Manipulation, DevTools |
+| Edge Function | Rate-Limit 10 Submits/min/IP | Spam |
+| DB | `CHECK` Constraints auf `fb`, `status` | ungültige Werte |
+| Storage | Bucket `public=false`, signed URLs (TTL 10 min) | Direkt-Download |
+| RLS | INSERT für `anon` erlaubt, SELECT nur eigene `id` (JWT-Claim) | DSGVO §5 |
+| Übersetzung | Original-Sprache als `apl.antraege.sprache` mitgespeichert | Beweissicherung |
+
+> **Defense-in-Depth:** Validierung auf 3 Schichten — Browser, Edge,
+> DB-Constraint. Keine kann allein umgangen werden.
+
+---
+
+## Performance & Skalierung
+
+| Metrik | Wert | Anmerkung |
+|---|---|---|
+| Initial Bundle | ~ 82 kB gzipped | Vite Code-Splitting |
+| FB-Plugin lazy | je ~ 4–8 kB | nur das ausgewählte FB lädt |
+| i18n lazy | je Sprache ~ 12 kB JSON | on-demand |
+| Submit-Latenz | ~ 250 ms p50, ~ 500 ms p95 | Edge Function nah an DB |
+| Anlage-Upload | ~ 1,5 MB/s | direkt zu Storage, nicht durch Backend |
+| Throughput Submit | ~ 200 RPS | Rate-Limit 10/IP greift davor |
+| Mobile Lighthouse | 96 / 100 | TBT < 50 ms, CLS < 0.05 |
+
+**Bottlenecks & Mitigationen:**
+- Große Anlagen → direkter Storage-Upload (Bypass Edge Function)
+- i18n bei vielen Sprachen → on-demand statt all-in-one
+- IBAN-Validierung → clientside zuerst (entlastet Edge Function)
 
 ---
 
@@ -168,9 +310,8 @@ keine doppelte Wahrheit, keine Drift.
 <small>Bonus: Prefill-Demo mit URL <code>?prefill=&lt;einreichung_id&gt;</code>
 aus UE0</small>
 
-<!-- Speaker-Notiz: vor der Demo eine UE0-Einreichung anstoßen, damit
-die Prefill-Demo nahtlos läuft. Türkisch zeigen ist meist der
-„Aha"-Moment. -->
+<!-- Speaker-Notiz: Vorher eine UE0-Einreichung anstoßen, damit
+Prefill-Demo nahtlos läuft. Türkisch zeigen ist der „Aha"-Moment. -->
 
 ---
 
@@ -193,15 +334,14 @@ die Prefill-Demo nahtlos läuft. Türkisch zeigen ist meist der
 - **Lange Formulare** sind und bleiben anstrengend, auch mit Wizard
 - **Bürger:in muss selbst entscheiden**, welcher FB passt (UE4 löst das)
 - **Plugin-Pflege** ist Code-Arbeit — kein Sachbearbeiter:innen-UI
-- **Kein KI-Vorschlag** — der Antrag wird so eingereicht, wie er
-  eingegeben wurde
+- **Kein KI-Vorschlag** — der Antrag wird so eingereicht, wie eingegeben
 
 ---
 
 ## Voraussetzungen / Risiken
 
 **Technisch:**
-- Frontend-Toolchain (Vite/React/TS, i18next)
+- Frontend-Toolchain (Vite/React/TS, i18next, zod)
 - Plugin-System mit guten Typen
 - Storage für Anlagen (mit RLS + signed URLs)
 
@@ -213,7 +353,7 @@ die Prefill-Demo nahtlos läuft. Türkisch zeigen ist meist der
 **Risiken:**
 - Falsche Übersetzung führt zu falschen Anträgen
 - Mitigation: Originalsprache als „Quelle der Wahrheit" beim Submit
-  mitspeichern
+  mitspeichern (`apl.antraege.sprache`)
 
 ---
 
@@ -244,10 +384,9 @@ Amt prüft · (c) wird automatisch korrigiert · (d) UE3-KI prüft später</smal
 
 **Frage 3:** Welche Stufe wird durch UE1 ÜBERSPRINGBAR?
 <small>(a) keine, UE1 ergänzt nur · (b) UE0, wenn Bürger:in direkt
-strukturiert eingibt · (c) UE2, weil Daten sauber ankommen · (d) UE3</small>
+strukturiert eingibt · (c) UE2 · (d) UE3</small>
 
-<!-- Speaker-Notiz: Lösungen: 1=a, 2=c, 3=b. „UE0 wird optional"
-ist der wichtigste Take-Away. -->
+<!-- Speaker-Notiz: Lösungen: 1=a, 2=c, 3=b. -->
 
 ---
 
@@ -274,7 +413,7 @@ Detail: **`ue1/webformular/04-aufgaben.md`**
 | ⚖️ **Vorteile / Voraussetzungen** | [`02-vorteile-voraussetzungen.md`](./02-vorteile-voraussetzungen.md) |
 | 🛠 **Dozent-Walkthrough** | [`03-walkthrough.md`](./03-walkthrough.md) |
 | ✏️ **Studi-Aufgaben** | [`04-aufgaben.md`](./04-aufgaben.md) |
-| 💻 **Quellcode** | `ue1/webformular/` + `packages/foerderbereiche/` |
+| 💻 **Quellcode** | `ue1/webformular/` + `packages/foerderbereiche/` + `supabase/functions/submit-antrag/` |
 
 ---
 
