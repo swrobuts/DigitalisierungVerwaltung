@@ -118,9 +118,11 @@ export function AuthCallback() {
       }
       replaceLast(true, `Berechtigt als „${roleData.rolle}" (${dt2} ms)`);
 
-      add(true, "Alles gut — Weiterleitung zur Inbox …");
+      add(true, "Alles gut — bereit zur Weiterleitung");
       setDone("success");
-      setTimeout(() => navigate("/inbox", { replace: true }), 600);
+      // Bewusst KEIN auto-navigate mehr — der User klickt manuell.
+      // So sieht er garantiert die ✓-Liste und kann bei einem späteren
+      // Bug (Inbox-Lade-Problem etc.) sofort sagen „bis hier ging es".
     })().catch((e) => {
       replaceLast(false, "Unerwarteter Fehler im Callback", String(e));
       setDone("error");
@@ -168,6 +170,21 @@ export function AuthCallback() {
             </li>
           ))}
         </ol>
+        {done === "success" && (
+          <div className="pt-4 mt-2 border-t border-slate-200 space-y-3">
+            <p className="text-sm text-emerald-700">
+              Anmeldung erfolgreich. Klick auf den Button, um zur Inbox zu
+              gehen.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/inbox", { replace: true })}
+              className="w-full rounded-md bg-wue-rot text-white py-2 font-semibold hover:bg-wue-rot-dark"
+            >
+              Zur Inbox →
+            </button>
+          </div>
+        )}
         {done === "error" && (
           <div className="pt-4 mt-2 border-t border-slate-200 space-y-2 text-xs text-slate-500">
             <p>
