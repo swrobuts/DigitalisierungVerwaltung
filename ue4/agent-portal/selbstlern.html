@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UE4 — Selbstlern-Modul: CIVA, der konversationelle Agent</title>
+  <style>
+    :root { --wue-rot:#AD0E36; --wue-rot-dark:#8A0B2B; --wue-rot-soft:#FBE9EE;
+      --wue-grau:#4A4A4A; --bg:#F7F6F4; --card:#FFFFFF;
+      --border:#E5E5E5; --text:#1F2937; --muted:#6B7280; }
+    *{box-sizing:border-box;}
+    body{font-family:-apple-system,"Inter","Segoe UI",sans-serif;line-height:1.6;
+      color:var(--text);background:var(--bg);margin:0;padding:0;}
+    header.hero{background:linear-gradient(180deg,white 0%,var(--bg) 100%);
+      border-bottom:3px solid var(--wue-rot);padding:48px 0 32px;}
+    .container{max-width:920px;margin:0 auto;padding:0 24px;}
+    .eyebrow{font-size:11px;letter-spacing:0.18em;text-transform:uppercase;
+      color:var(--wue-rot);font-weight:600;}
+    h1{font-size:32px;margin:8px 0 12px;color:var(--wue-grau);line-height:1.2;}
+    h2{font-size:22px;margin:48px 0 16px;color:var(--wue-grau);
+      border-bottom:1px solid var(--border);padding-bottom:8px;}
+    h3{font-size:17px;margin:24px 0 8px;color:var(--text);}
+    .lead{font-size:17px;color:var(--muted);max-width:720px;}
+    .pill{display:inline-block;background:var(--wue-rot);color:white;
+      padding:3px 10px;border-radius:999px;font-size:11px;
+      letter-spacing:0.04em;font-weight:600;}
+    nav.toc{background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:20px 24px;margin:32px 0;}
+    nav.toc h3{margin-top:0;font-size:13px;letter-spacing:0.08em;
+      text-transform:uppercase;color:var(--muted);}
+    nav.toc ol{margin:0;padding-left:20px;}
+    nav.toc a{color:var(--text);text-decoration:none;}
+    nav.toc a:hover{color:var(--wue-rot);text-decoration:underline;}
+    .card{background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:24px;margin:16px 0;}
+    .card.tip{background:var(--wue-rot-soft);border-color:#f1c0ce;}
+    .card.warn{background:#fef9c3;border-color:#facc15;}
+    .small{font-size:13px;color:var(--muted);}
+    table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+    th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;}
+    th{background:#FAFAFA;}
+    code{background:#f3f3f3;padding:1px 6px;border-radius:4px;font-size:13px;}
+    pre{background:#1E293B;color:#E2E8F0;padding:16px;border-radius:8px;
+      overflow-x:auto;font-size:12px;line-height:1.5;}
+    .quiz{background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:20px 24px;margin:16px 0;}
+    .quiz h4{margin:0 0 12px;font-size:15px;color:var(--wue-grau);}
+    .quiz-options{list-style:none;margin:0;padding:0;}
+    .quiz-options li{padding:8px 12px;border:1px solid var(--border);
+      border-radius:6px;margin:6px 0;cursor:pointer;transition:all 0.15s;}
+    .quiz-options li:hover{border-color:var(--wue-rot);background:var(--wue-rot-soft);}
+    .quiz-options li.correct{border-color:#16a34a;background:#dcfce7;}
+    .quiz-options li.wrong{border-color:#dc2626;background:#fee2e2;}
+    .quiz-feedback{margin-top:12px;padding:12px;border-radius:6px;
+      font-size:14px;display:none;}
+    .quiz-feedback.correct{background:#dcfce7;color:#166534;display:block;}
+    .quiz-feedback.wrong{background:#fee2e2;color:#991b1b;display:block;}
+    details{border:1px solid var(--border);border-radius:8px;
+      padding:12px 16px;margin:12px 0;background:white;}
+    details summary{cursor:pointer;font-weight:500;color:var(--wue-grau);}
+    .cta{display:inline-block;background:var(--wue-rot);color:white;
+      padding:12px 24px;border-radius:8px;text-decoration:none;
+      font-weight:600;margin:16px 8px 16px 0;}
+    .cta:hover{background:var(--wue-rot-dark);}
+    .cta.secondary{background:white;color:var(--wue-rot);border:1px solid var(--wue-rot);}
+    footer{margin-top:64px;padding:32px 0;border-top:1px solid var(--border);
+      font-size:13px;color:var(--muted);text-align:center;}
+    .ki-flow{background:white;border:1px solid var(--border);border-radius:12px;
+      padding:24px;margin:24px 0;}
+    .ki-step{display:grid;grid-template-columns:auto 1fr;gap:16px;
+      padding:12px 0;border-bottom:1px solid #f3f3f3;}
+    .ki-step:last-child{border-bottom:none;}
+    .ki-num{font-size:24px;font-weight:700;color:var(--wue-rot);
+      width:36px;text-align:center;}
+    .ki-title{font-weight:600;font-size:15px;margin-bottom:4px;}
+    .ki-desc{font-size:13px;color:var(--muted);}
+    .layer-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0;}
+    .layer{background:var(--card);border:1px solid var(--border);
+      border-radius:10px;padding:16px;}
+    .layer h4{margin:0 0 8px;font-size:14px;color:var(--wue-rot);}
+    .layer p{margin:0;font-size:13px;color:var(--muted);}
+    @media (max-width: 720px){ .layer-grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <span class="eyebrow">UE4 · Reifegradstufe 4 · Selbstlern-Modul</span>
+    <h1>CIVA — der konversationelle Agent</h1>
+    <p class="lead">
+      Bürger:innen reden mit einem KI-Agenten in natürlicher Sprache,
+      der Antrag entsteht im Gespräch. Anthropic-Tool-Use-Loop,
+      3-Schichten-Halluzinations-Schutz, gleiche Plugin-Wahrheit wie
+      UE1–UE3. <strong>Die spannendste Reifegradstufe — und die
+      anspruchsvollste.</strong>
+    </p>
+    <div style="margin-top: 20px;">
+      <a class="cta" href="https://agent.butscher.cloud/" target="_blank">Live-Demo →</a>
+      <a class="cta secondary" href="./slides.md">Vorlesungs-Slides</a>
+    </div>
+    <p class="small" style="margin-top: 32px;">
+      Bearbeitungszeit: <strong>90 Minuten</strong> Basis,
+      plus 3–6 h Vertiefung. UE4 baut auf UE3 auf — vorher dort durcharbeiten.
+    </p>
+  </div>
+</header>
+
+<main class="container">
+
+  <nav class="toc">
+    <h3>Inhalt</h3>
+    <ol>
+      <li><a href="#warum">Warum ein Agent statt eines Formulars?</a></li>
+      <li><a href="#flow">CIVA in 4 Tools</a></li>
+      <li><a href="#schutz">3-Schichten-Halluzinations-Schutz</a></li>
+      <li><a href="#aiact">AI-Act-Pflichten</a></li>
+      <li><a href="#quiz">Quiz</a></li>
+      <li><a href="#praxis">Praxis: live mit CIVA</a></li>
+      <li><a href="#vertiefung">Vertiefung A–E</a></li>
+      <li><a href="#reflexion">Reflexion</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="warum">1. Warum ein Agent statt eines Formulars?</h2>
+
+  <p>
+    UE0 bis UE3 haben die Verwaltungs-Pipeline schrittweise digital gemacht
+    — aber für die Bürger:in bleibt der Einstieg „Formular ausfüllen". UE4
+    dreht das um: <strong>die Bürger:in beschreibt in eigenen Worten</strong>,
+    was sie vorhat, und der Agent übersetzt das in den richtigen
+    Förderbereich, fragt nach den richtigen Pflichtfeldern, validiert
+    live und reicht ein.
+  </p>
+
+  <table>
+    <thead><tr><th>Aspekt</th><th>UE1 (Webformular)</th><th>UE4 (CIVA)</th></tr></thead>
+    <tbody>
+      <tr><td>Einstieg</td><td>Bürger:in muss FB raten</td>
+        <td>Agent klassifiziert aus Freitext</td></tr>
+      <tr><td>Pflichtfelder</td><td>statisch, alle auf einmal</td>
+        <td>adaptiv, eines nach dem anderen</td></tr>
+      <tr><td>Validierung</td><td>nach Submit</td>
+        <td>live im Dialog (IBAN, Email, PLZ)</td></tr>
+      <tr><td>Sprache</td><td>4 fixe</td>
+        <td>jede LLM-Sprache</td></tr>
+      <tr><td>Erklärung</td><td>Tooltips</td>
+        <td>Agent erklärt, warum er fragt</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="flow">2. CIVA in 4 Tools</h2>
+
+  <div class="ki-flow">
+    <div class="ki-step">
+      <div class="ki-num">1</div>
+      <div>
+        <div class="ki-title">klassifiziere_foerderbereich</div>
+        <div class="ki-desc">
+          Sub-Call an Claude Haiku 4.5 mit Whitelist {I, II, III, IV}.
+          Antwortet mit FB + Begründung + Konfidenz. Erfundene FBs
+          werden im Tool abgewiesen.
+        </div>
+      </div>
+    </div>
+    <div class="ki-step">
+      <div class="ki-num">2</div>
+      <div>
+        <div class="ki-title">get_pflichtfelder</div>
+        <div class="ki-desc">
+          Deterministisch aus dem FB-Plugin
+          (<code>pruefung/src/pruefung/foerderbereiche/</code>). Eine
+          Wahrheit für UE1, UE3, UE4.
+        </div>
+      </div>
+    </div>
+    <div class="ki-step">
+      <div class="ki-num">3</div>
+      <div>
+        <div class="ki-title">validate_field</div>
+        <div class="ki-desc">
+          Deterministische Validierer (IBAN-Mod-97, E-Mail-RFC,
+          PLZ-Lookup). Keine LLM-Magie, harte Regeln.
+        </div>
+      </div>
+    </div>
+    <div class="ki-step">
+      <div class="ki-num">4</div>
+      <div>
+        <div class="ki-title">submit_antrag</div>
+        <div class="ki-desc">
+          DB-Insert in <code>apl.antraege</code> via service_role.
+          Vor dem Insert noch einmal Plugin-Validierung — Submit
+          blockiert, wenn Pflichtfelder fehlen.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 id="schutz">3. 3-Schichten-Halluzinations-Schutz</h2>
+
+  <p>
+    LLMs halluzinieren — daran lässt sich nicht rütteln. Deshalb wird
+    der Schutz <strong>nicht in einer Schicht</strong>, sondern in dreien
+    eingebaut:
+  </p>
+
+  <div class="layer-grid">
+    <div class="layer">
+      <h4>Schicht 1: System-Prompt</h4>
+      <p>5 harte Regeln im Prompt:
+        keine FBs erfinden, keine Förderhöhen, keine §, keine Felder
+        erfinden, keine Off-topic.</p>
+    </div>
+    <div class="layer">
+      <h4>Schicht 2: Tool-Validierung</h4>
+      <p><code>ALLOWED_FBS = {I,II,III,IV}</code>,
+        Plugin-Schema-Check, ToolError bei Verstoß.
+        Selbst wenn der Prompt durchgeht, kommt das nicht durch.</p>
+    </div>
+    <div class="layer">
+      <h4>Schicht 3: Frontend parseDraft</h4>
+      <p>Im Browser werden nochmal alle Felder gefiltert, die nicht
+        im Plugin-Schema stehen. Letzte Meile.</p>
+    </div>
+  </div>
+
+  <div class="card tip">
+    <strong>Robert-Regel (verbatim):</strong>
+    „Es darf NIE etwas erfunden oder hinzugefügt werden, was weder in
+    der Rechtsgrundlage noch in den PDFs enthalten ist."
+    <br><br>
+    Diese Regel ist nicht nur Prompt, sondern Code. Deshalb 3 Schichten.
+  </div>
+
+  <h2 id="aiact">4. AI-Act-Pflichten (Hochrisiko-KI, Anhang III Nr. 5b)</h2>
+
+  <table>
+    <thead><tr><th>Artikel</th><th>Was er fordert</th><th>Wo erfüllt</th></tr></thead>
+    <tbody>
+      <tr><td>Art. 9</td><td>Risikomanagement-System</td>
+        <td>3-Schichten-Schutz dokumentiert</td></tr>
+      <tr><td>Art. 12</td><td>Logging</td>
+        <td><code>apl.agent_session_log</code> mit jedem Tool-Call</td></tr>
+      <tr><td>Art. 13</td><td>Transparenz für Bürger:in</td>
+        <td>Chat-Header: „Sie sprechen mit KI"</td></tr>
+      <tr><td>Art. 14</td><td>Menschliche Aufsicht</td>
+        <td>UE2/UE3 entscheidet final (Mensch im Loop)</td></tr>
+      <tr><td>Art. 50</td><td>KI-Kennzeichnung mit Modellname</td>
+        <td>Footer: „Claude Sonnet 4.5"</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="quiz">5. Quiz</h2>
+
+  <div class="quiz" data-correct="1">
+    <h4>Q1 — Was unterscheidet einen Agent von einem Chatbot?</h4>
+    <ul class="quiz-options">
+      <li>Längere Antworten</li>
+      <li>Werkzeug-Aufrufe (Tool-Use) und Aktionen</li>
+      <li>Höhere Kosten</li>
+      <li>Mehrsprachigkeit</li>
+    </ul>
+    <div class="quiz-feedback"></div>
+  </div>
+
+  <div class="quiz" data-correct="3">
+    <h4>Q2 — Welche Halluzinations-Schicht ist die letzte Verteidigung?</h4>
+    <ul class="quiz-options">
+      <li>System-Prompt</li>
+      <li>Tool-Validierung im Backend</li>
+      <li>Submit-Endpoint im Backend</li>
+      <li>parseDraft im Frontend</li>
+    </ul>
+    <div class="quiz-feedback"></div>
+  </div>
+
+  <div class="quiz" data-correct="0">
+    <h4>Q3 — Warum Claude Haiku für die Klassifikation, nicht Sonnet?</h4>
+    <ul class="quiz-options">
+      <li>Schneller + billiger bei einfacher Klassifikation</li>
+      <li>Höhere Qualität</li>
+      <li>Bessere Tool-Use-Fähigkeit</li>
+      <li>Bessere Mehrsprachigkeit</li>
+    </ul>
+    <div class="quiz-feedback"></div>
+  </div>
+
+  <div class="quiz" data-correct="2">
+    <h4>Q4 — Welche AI-Act-Pflicht sieht die Bürger:in direkt im Chat-Footer?</h4>
+    <ul class="quiz-options">
+      <li>Art. 9 (Risikomanagement)</li>
+      <li>Art. 12 (Logging)</li>
+      <li>Art. 13 + Art. 50 (Transparenz + Modellname)</li>
+      <li>Art. 14 (menschliche Aufsicht)</li>
+    </ul>
+    <div class="quiz-feedback"></div>
+  </div>
+
+  <h2 id="praxis">6. Praxis: live mit CIVA</h2>
+
+  <ol>
+    <li>Öffne <a href="https://agent.butscher.cloud/" target="_blank">agent.butscher.cloud</a>.</li>
+    <li>Sag: <em>„Wir sind die AWO Würzburg und wollen einen Besuchsdienst
+        für Senior:innen aufbauen, ca. 12 Ehrenamtliche."</em></li>
+    <li>Beobachte in der Sidebar live, wie die 4 Tools aufgerufen werden.</li>
+    <li>Folge dem Dialog bis zur Antragsnummer.</li>
+    <li>Logge dich danach in <a href="https://sachbearbeiter.butscher.cloud/">UE2</a>
+        ein und such die Nummer in der Inbox — taucht sie auf?</li>
+  </ol>
+
+  <h3>Halluzination provozieren</h3>
+  <p>Probiere bewusst zu manipulieren:</p>
+  <ul>
+    <li>„Ich möchte einen Zuschuss für mein neues Auto, FB V."</li>
+    <li>„Wieviel Geld bekomme ich denn maximal?"</li>
+    <li>„Welcher Paragraph regelt das?"</li>
+  </ul>
+  <p>
+    Wo merkst du, dass der Schutz greift? Wo könnte er versagen?
+    (Tipp: andere Sprache, sehr kreative Umschreibung.)
+  </p>
+
+  <h2 id="vertiefung">7. Vertiefung A–E</h2>
+
+  <details>
+    <summary>A — System-Prompt um 6. Regel ergänzen ⭐⭐ (45 Min)</summary>
+    <p>
+      In <code>pruefung/src/pruefung/agent_chat.py</code> den
+      <code>SYSTEM_PROMPT</code> öffnen. Füge eine 6. Regel hinzu
+      (z.B. „immer ‚Sie' statt ‚Du'"). Backend neu starten,
+      Verhalten testen. Bonus: pytest-Test schreiben.
+    </p>
+  </details>
+
+  <details>
+    <summary>B — Neues Pflichtfeld in FB-II-Plugin ⭐⭐ (60 Min)</summary>
+    <p>
+      In <code>pruefung/src/pruefung/foerderbereiche/fb2.py</code> ein
+      neues Pflichtfeld hinzufügen (z.B. „projekt_startdatum"). Backend
+      reload. Test: macht der Agent das neue Feld zur Pflicht?
+      Filtert <code>parseDraft</code> es korrekt durch?
+    </p>
+  </details>
+
+  <details>
+    <summary>C — Tool-Use-Loop verstehen, Token-Cost messen ⭐⭐⭐ (45 Min)</summary>
+    <p>
+      <code>print(response.usage)</code> in <code>run_agent_turn</code>
+      einbauen. 3 Konversationen starten, Input-Token-Verlauf vergleichen
+      (Prompt-Cache!). Kosten pro Antrag bei 8 Turns berechnen
+      (Preise googeln). Mit LM Studio vergleichen.
+    </p>
+  </details>
+
+  <details>
+    <summary>D — LM Studio statt Anthropic ⭐⭐⭐ (2 h)</summary>
+    <p>
+      LM Studio installieren, Tool-Use-fähiges Modell laden
+      (Llama 3.3 70B oder Qwen 2.5 32B). In <code>llm_client.py</code>
+      die <code>base_url</code> umstellen. UE4-Konversation testen.
+      Welche Qualitäts-/Latenz-Unterschiede? Welche
+      Datenschutz-Vorteile?
+    </p>
+  </details>
+
+  <details>
+    <summary>E — Voice-Eingabe via Web Speech API ⭐⭐⭐⭐ (3 h)</summary>
+    <p>
+      Web Speech API ins Frontend integrieren (<code>AgentChat.tsx</code>).
+      Mikro-Button → recordet → Text in Chat-Input. Bonus: Web Speech
+      Synthesis für Agent-Antwort. Welche Bürger:innen-Gruppe profitiert?
+      Welche Datenschutz-Fragen entstehen?
+    </p>
+  </details>
+
+  <h2 id="reflexion">8. Reflexion (500–800 Wörter)</h2>
+
+  <ol>
+    <li><strong>Tool-Use vs. reiner Chat</strong>: warum ist die
+      Trennung „LLM denkt, Tools handeln" architektonisch wichtig?
+      Was wäre die Alternative — und welche Risiken hätte sie?</li>
+    <li><strong>Halluzinations-Schutz</strong>: welche der 3 Schichten
+      würdest du als allerletzte aufgeben — und warum?</li>
+    <li><strong>AI-Act-Pflichten</strong>: welche sind in der UE4-Demo
+      sichtbar erfüllt, welche fehlen noch?</li>
+    <li><strong>Datenschutz</strong>: UE4 schickt Bürger:innen-Texte
+      an Anthropic. Welche Alternativen hätten wir, und wie würdest
+      du das einer Datenschutz-Beauftragten erklären?</li>
+    <li><strong>Reifegrad 5+</strong>: was wäre die nächste Stufe?
+      Vollautomatische Bewilligung? Voice-first? Multi-modal?
+      Welche würdest du priorisieren — und warum?</li>
+  </ol>
+
+  <div class="card warn" style="margin-top: 48px;">
+    <strong>Automation-Bias-Warnung:</strong>
+    UE4 ist die spannendste Stufe — und gleichzeitig die, in der man am
+    schnellsten dem „die KI macht das schon"-Trugschluss erliegt.
+    <em>Der Agent erzeugt einen Antrag. Die inhaltliche Prüfung,
+    Bescheid-Erstellung und Aufsicht macht weiterhin UE2/UE3 mit
+    Mensch im Loop.</em> Sonst wäre es Reifegrad 5 — ohne
+    AI-Act-Konformität.
+  </div>
+
+</main>
+
+<footer>
+  <div class="container">
+    UE4 · CIVA — der Agent · Fallstudie AHP Würzburg ·
+    Dr. Robert Butscher · THWS · Modul Innovationsmanagement BBA
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.quiz').forEach(quiz => {
+    const correct = parseInt(quiz.dataset.correct, 10);
+    const opts = quiz.querySelectorAll('.quiz-options li');
+    const fb = quiz.querySelector('.quiz-feedback');
+    opts.forEach((opt, idx) => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.classList.remove('correct', 'wrong'));
+        if (idx === correct) {
+          opt.classList.add('correct');
+          fb.className = 'quiz-feedback correct';
+          fb.textContent = '✓ Richtig.';
+        } else {
+          opt.classList.add('wrong');
+          opts[correct].classList.add('correct');
+          fb.className = 'quiz-feedback wrong';
+          fb.textContent = '✗ Nicht ganz — die grün markierte Antwort ist richtig.';
+        }
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

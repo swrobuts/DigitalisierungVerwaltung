@@ -22,7 +22,7 @@ Wahrheit.
 
 ```mermaid
 flowchart LR
-    U[Bürger:in] -- Chat --> A[Agent „Anna"]
+    U[Bürger:in] -- Chat --> A[Agent „CIVA"]
     A -- Tool 1 --> K[klassifiziere_foerderbereich<br/>LLM mit Whitelist]
     A -- Tool 2 --> P[get_pflichtfelder<br/>aus Plugin]
     A -- Tool 3 --> V[validate_field<br/>Email/IBAN/PLZ]

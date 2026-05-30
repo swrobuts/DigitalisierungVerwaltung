@@ -1,6 +1,18 @@
 # UE4 — Agent-Portal (`agent.butscher.cloud`)
 
-> **Reifegradstufe 4 (autonomer Agent):** Bürger:innen reden konversational mit einem KI-Assistenten („Anna"). Der Agent klassifiziert selbständig den Förderbereich, fragt nur die wirklich benötigten Pflichtfelder ab, validiert Eingaben (E-Mail, IBAN, PLZ) und reicht den Antrag nach Bestätigung ein. Kein klassisches Formular, kein PDF-Upload — der Agent erledigt den Papierkram.
+> **Reifegradstufe 4 (autonomer Agent):** Bürger:innen reden konversational mit einem KI-Assistenten („CIVA"). Der Agent klassifiziert selbständig den Förderbereich, fragt nur die wirklich benötigten Pflichtfelder ab, validiert Eingaben (E-Mail, IBAN, PLZ) und reicht den Antrag nach Bestätigung ein. Kein klassisches Formular, kein PDF-Upload — der Agent erledigt den Papierkram.
+
+## Lehr-Materialien
+
+| Datei | Zweck |
+|---|---|
+| [`README.md`](./README.md) | diese Datei (Schnellüberblick + Stack) |
+| [`01-konzept.md`](./01-konzept.md) | Konzept: vom Formular zum Agenten |
+| [`02-vorteile-voraussetzungen.md`](./02-vorteile-voraussetzungen.md) | Was UE4 gewinnt, was nicht, Voraussetzungen |
+| [`03-walkthrough.md`](./03-walkthrough.md) | Dozent-Tour durch Backend + Frontend (5 Code-Stellen) |
+| [`04-aufgaben.md`](./04-aufgaben.md) | Studi-Aufgaben mit Quiz + Praxis + Vertiefung A–E |
+| [`slides.md`](./slides.md) | Marp-Markdown-Folien für die Vorlesung |
+| [`selbstlern.html`](./selbstlern.html) | Interaktives Selbstlern-Modul (Single-File HTML mit Quiz) |
 
 ## Was diese Stufe gegenüber UE0–UE3 gewinnt
 
