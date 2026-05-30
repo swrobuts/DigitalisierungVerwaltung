@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UE0 — Selbstlern-Modul: PDF-Upload mit KI-OCR</title>
+
+  <!-- Single-File Selbstlern-Seite — keine Build-Pipeline.
+       Mermaid wird CDN-geladen, Quiz-Logik ist inline.
+       Im Browser öffnen (file:// oder gehostet, egal). -->
+
+  <style>
+    :root {
+      --wue-rot: #AD0E36;
+      --wue-rot-dark: #8A0B2B;
+      --wue-rot-soft: #FBE9EE;
+      --wue-grau: #4A4A4A;
+      --bg: #F7F6F4;
+      --card: #FFFFFF;
+      --border: #E5E5E5;
+      --text: #1F2937;
+      --muted: #6B7280;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0; padding: 0;
+    }
+    header.hero {
+      background: linear-gradient(180deg, white 0%, var(--bg) 100%);
+      border-bottom: 3px solid var(--wue-rot);
+      padding: 48px 0 32px;
+    }
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--wue-rot);
+      font-weight: 600;
+    }
+    h1 {
+      font-size: 32px;
+      margin: 8px 0 12px;
+      color: var(--wue-grau);
+      line-height: 1.2;
+    }
+    h2 {
+      font-size: 22px;
+      margin: 48px 0 16px;
+      color: var(--wue-grau);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    h3 {
+      font-size: 17px;
+      margin: 24px 0 8px;
+      color: var(--text);
+    }
+    .lead {
+      font-size: 17px;
+      color: var(--muted);
+      max-width: 720px;
+    }
+    .pill {
+      display: inline-block;
+      background: var(--wue-rot);
+      color: white;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      font-weight: 600;
+    }
+    nav.toc {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 32px 0;
+    }
+    nav.toc h3 {
+      margin-top: 0;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    nav.toc ol {
+      margin: 0; padding-left: 20px;
+    }
+    nav.toc a {
+      color: var(--text);
+      text-decoration: none;
+    }
+    nav.toc a:hover { color: var(--wue-rot); text-decoration: underline; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 16px 0;
+    }
+    .card.tip {
+      background: var(--wue-rot-soft);
+      border-color: #f1c0ce;
+    }
+    .card.warn {
+      background: #fef9c3;
+      border-color: #facc15;
+    }
+    .small { font-size: 13px; color: var(--muted); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th { background: #FAFAFA; }
+
+    code {
+      background: #f3f3f3;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    pre {
+      background: #1E293B;
+      color: #E2E8F0;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .quiz {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 16px 0;
+    }
+    .quiz h4 {
+      margin: 0 0 12px;
+      font-size: 15px;
+      color: var(--wue-grau);
+    }
+    .quiz-options { list-style: none; margin: 0; padding: 0; }
+    .quiz-options li {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin: 6px 0;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .quiz-options li:hover { border-color: var(--wue-rot); background: var(--wue-rot-soft); }
+    .quiz-options li.selected { border-color: var(--wue-rot); background: var(--wue-rot-soft); }
+    .quiz-options li.correct {
+      border-color: #16a34a;
+      background: #dcfce7;
+    }
+    .quiz-options li.wrong {
+      border-color: #dc2626;
+      background: #fee2e2;
+    }
+    .quiz-feedback {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      display: none;
+    }
+    .quiz-feedback.correct {
+      background: #dcfce7; color: #166534;
+      display: block;
+    }
+    .quiz-feedback.wrong {
+      background: #fee2e2; color: #991b1b;
+      display: block;
+    }
+
+    details {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 12px 0;
+      background: white;
+    }
+    details summary {
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--wue-grau);
+    }
+    details[open] summary { color: var(--wue-rot); }
+
+    .layer-stack {
+      display: grid;
+      gap: 12px;
+      margin: 24px 0;
+    }
+    .layer {
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--wue-rot);
+      border-radius: 8px;
+      padding: 16px 20px;
+      background: white;
+    }
+    .layer-num {
+      font-size: 11px;
+      color: var(--wue-rot);
+      font-weight: 700;
+      letter-spacing: 0.1em;
+    }
+    .layer-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 2px 0 4px;
+    }
+    .layer-desc { font-size: 13px; color: var(--muted); }
+    .layer-file {
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      color: var(--wue-rot-dark);
+      margin-top: 6px;
+    }
+
+    .cta {
+      display: inline-block;
+      background: var(--wue-rot);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      margin: 16px 8px 16px 0;
+    }
+    .cta:hover { background: var(--wue-rot-dark); }
+    .cta.secondary {
+      background: white;
+      color: var(--wue-rot);
+      border: 1px solid var(--wue-rot);
+    }
+
+    footer {
+      margin-top: 64px;
+      padding: 32px 0;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <span class="eyebrow">UE0 · Reifegradstufe 0 · Selbstlern-Modul</span>
+    <h1>PDF-Upload mit KI-OCR</h1>
+    <p class="lead">
+      Bürger:in lädt das gewohnte Antrags-PDF hoch — eine KI-Pipeline
+      extrahiert die Felder (auch handschriftlich) und übergibt sie
+      direkt ans Webformular. <strong>Gleiche Eingabemethode wie heute,
+      80% weniger Erfassungsaufwand im Amt.</strong>
+    </p>
+    <div style="margin-top: 20px;">
+      <a class="cta" href="https://upload.butscher.cloud/" target="_blank">Live-Demo öffnen →</a>
+      <a class="cta secondary" href="./slides.html">Vorlesungs-Slides</a>
+    </div>
+    <p class="small" style="margin-top: 32px;">
+      Geplante Bearbeitungszeit: <strong>60–90 Minuten</strong> für
+      Lektionen 1–4, plus 2–4 h für die Praxis-Aufgaben am Ende.
+    </p>
+  </div>
+</header>
+
+<main class="container">
+
+  <nav class="toc">
+    <h3>Inhalt</h3>
+    <ol>
+      <li><a href="#l1">Lektion 1 — Warum überhaupt? Der PDF-Mail-Status-quo</a></li>
+      <li><a href="#l2">Lektion 2 — Konzept &amp; Architektur</a></li>
+      <li><a href="#l3">Lektion 3 — Demo durchspielen</a></li>
+      <li><a href="#l4">Lektion 4 — Vorteile, Grenzen, DSGVO</a></li>
+      <li><a href="#quiz">Verständnis-Quiz</a></li>
+      <li><a href="#aufgaben">Praxis-Aufgaben</a></li>
+      <li><a href="#weiter">Wie geht's weiter? (UE1)</a></li>
+    </ol>
+  </nav>
+
+  <!-- LEKTION 1 -->
+  <section id="l1">
+    <h2>1. Warum überhaupt?</h2>
+    <p>
+      Selbst wenn ein Amt schon ein modernes Webformular anbietet, füllen viele
+      Bürgerinnen und Bürger Anträge immer noch so aus, wie sie es seit Jahren tun:
+      das offizielle PDF herunterladen, am Computer oder per Hand ausfüllen, scannen,
+      mailen. Im Amt landet dieser Eingang als Mail-Anhang — und dort beginnt der
+      Aufwand.
+    </p>
+
+    <div class="card warn">
+      <strong>Was heute typisch passiert:</strong>
+      <ol style="margin: 8px 0 0; padding-left: 20px;">
+        <li>Eingang als E-Mail-Anhang</li>
+        <li>Mensch im Amt öffnet, druckt aus, heftet in die Akte</li>
+        <li>Mensch tippt alle Felder ins Fachverfahren ab</li>
+        <li>Fehlerquellen: Zahlendreher, übersehene Felder, unleserliche Handschrift</li>
+      </ol>
+    </div>
+
+    <h3>Die Idee von UE0</h3>
+    <p>
+      UE0 ist eine sehr <strong>milde Innovation</strong>: der/die Bürger:in muss
+      nichts Neues lernen, sondern lädt nur statt einer Mail das PDF in ein
+      Web-Portal hoch. Im Hintergrund liest eine KI das PDF und füllt alle Felder
+      direkt ins Webformular vor — Bürger:in bestätigt nur noch.
+    </p>
+
+    <div class="card tip">
+      <strong>💡 Kerngedanke:</strong> „Reifegradstufe 0" heißt nicht „primitiv",
+      sondern: <em>der Eingang bleibt das, was die Bürger:in kennt — die digitale
+      Verbesserung passiert unsichtbar dazwischen.</em>
+    </div>
+  </section>
+
+  <!-- LEKTION 2 -->
+  <section id="l2">
+    <h2>2. Konzept &amp; Architektur</h2>
+    <p>Die Pipeline besteht aus vier klar getrennten Schichten:</p>
+
+    <div class="layer-stack">
+      <div class="layer">
+        <div class="layer-num">SCHICHT 1 · FRONTEND</div>
+        <div class="layer-title">Upload-UI mit Drag &amp; Drop</div>
+        <div class="layer-desc">
+          Zwei Boxen (Pflichtfeld „Hauptantrag" rot, optional „Anlage 1" grau),
+          Drag &amp; Drop, MIME-Check, baut FormData, sendet als Multipart-POST.
+        </div>
+        <div class="layer-file">src/views/fb-upload.ts</div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-num">SCHICHT 2 · EDGE FUNCTION</div>
+        <div class="layer-title">Validierung &amp; Storage-Upload</div>
+        <div class="layer-desc">
+          Validiert MIME (nur PDF) + Größe (≤10 MB), legt das PDF im
+          privaten Supabase-Storage-Bucket ab, erzeugt einen Tracking-Eintrag
+          mit unguessable UUID.
+        </div>
+        <div class="layer-file">supabase/functions/upload-antragspdf/index.ts</div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-num">SCHICHT 3 · DATENBANK</div>
+        <div class="layer-title">Tracking-Tabelle &amp; Trigger</div>
+        <div class="layer-desc">
+          Tabelle <code>apl.antrag_einreichung</code> hält Status + Felder.
+          DB-Trigger feuert per <code>pg_notify</code> einen HTTP-POST an
+          n8n. RLS: anon darf insert + eigenen Status lesen, nichts anderes.
+        </div>
+        <div class="layer-file">supabase/migrations/047_ue0_pdf_einreichung.sql</div>
+      </div>
+
+      <div class="layer">
+        <div class="layer-num">SCHICHT 4 · n8n-PIPELINE</div>
+        <div class="layer-title">KI-OCR mit Claude Vision</div>
+        <div class="layer-desc">
+          11 Nodes: Storage-Download → Base64 → Claude Vision mit
+          JSON-Schema-Prompt → JSON parsen → Defaults → UPDATE
+          Tracking-Tabelle mit <code>status='fertig'</code>. IF-Switch
+          für optionale Anlage 1 (Wochenplan).
+        </div>
+        <div class="layer-file">supabase/webhooks/n8n-ue0-pdf-ocr.json</div>
+      </div>
+    </div>
+
+    <details>
+      <summary>Datenflussdiagramm einblenden (Mermaid)</summary>
+      <div class="mermaid">
+        flowchart LR
+          A[Bürger:in] -->|1. PDF-Upload| B[Edge Function]
+          B -->|2. Storage| C[(Bucket)]
+          B -->|3. Tracking-Insert| D[(Tracking-Tabelle)]
+          D -->|4. pg_notify| E[n8n-Webhook]
+          E -->|5. PDF lesen| C
+          E -->|6. Claude Vision| F[Anthropic API]
+          F -->|7. JSON| E
+          E -->|8. UPDATE status=fertig| D
+          D -->|9. Polling/Realtime| A
+          A -->|10. Auto-Redirect| G[UE1-Webformular<br/>mit Prefill]
+      </div>
+    </details>
+  </section>
+
+  <!-- LEKTION 3 -->
+  <section id="l3">
+    <h2>3. Demo durchspielen</h2>
+    <p>Probier es jetzt selbst aus — dauert keine 2 Minuten:</p>
+
+    <ol>
+      <li>
+        Öffne die <a href="https://upload.butscher.cloud/" target="_blank">Live-Demo</a>
+        in einem neuen Tab.
+      </li>
+      <li>
+        Lade eines der Demo-PDFs aus dem Repo hoch:
+        <ul>
+          <li><code>ue0/demo-pdfs/demo-antrag-pfarrei-st-albert.pdf</code> (maschinell)</li>
+          <li><code>ue0/demo-pdfs/demo-antrag-buergerverein-handschrift.pdf</code> (Handschrift!)</li>
+        </ul>
+      </li>
+      <li>
+        Beobachte die Status-Seite mit dem Spinner — welche Zwischen-Texte
+        siehst du? Wie lange dauert die OCR?
+      </li>
+      <li>
+        Nach <strong>~15 Sekunden</strong> wirst du automatisch zur UE1-Seite
+        weitergeleitet. Welche Felder sind dort vorausgefüllt? Sind sie korrekt?
+      </li>
+    </ol>
+
+    <div class="card tip">
+      <strong>🔍 Bonus-Übung:</strong> Öffne die Browser-Konsole (F12) und
+      schau im Network-Tab nach dem POST-Request — welche Form hat der
+      Body? Was kommt als Response zurück?
+    </div>
+  </section>
+
+  <!-- LEKTION 4 -->
+  <section id="l4">
+    <h2>4. Vorteile, Grenzen, DSGVO</h2>
+
+    <h3>Was UE0 gewinnt</h3>
+    <table>
+      <thead>
+        <tr><th>Aspekt</th><th>PDF-Mail heute</th><th>UE0</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Eingangsweg</td><td>E-Mail/Brief</td><td>strukturierter Upload</td></tr>
+        <tr><td>Erfassungsfehler</td><td>hoch (manuell)</td><td>niedrig (Vision-OCR)</td></tr>
+        <tr><td>Doppelte Erfassung</td><td>ja (Bürger + Amt)</td><td>nein (Bürger bestätigt)</td></tr>
+        <tr><td>Status für Bürger:in</td><td>„warte auf Antwort"</td><td>Tracking + Auto-Redirect</td></tr>
+        <tr><td>Akzeptanzhürde</td><td>niedrig</td><td>gleich niedrig (PDF bleibt)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Was UE0 nicht löst</h3>
+    <ul>
+      <li>Bürger:in <strong>braucht weiterhin das PDF</strong></li>
+      <li>Keine Live-Validierung beim Ausfüllen (das macht UE1)</li>
+      <li>Keine Mehrsprachigkeit beim Ausfüllen (PDF ist deutsch)</li>
+      <li>OCR-Restfehler bleiben möglich — UE1 ist der Kontroll-Schritt</li>
+      <li>Keine semantische Prüfung gegen die Förderrichtlinie (UE3)</li>
+      <li>Keine automatisierte Bescheid-Erstellung (UE3)</li>
+    </ul>
+
+    <h3>⚖️ DSGVO &amp; AI Act</h3>
+    <div class="card warn">
+      <p>
+        <strong>Claude Vision verarbeitet die PDFs in den USA.</strong>
+        Für eine echte Verwaltungs-Anwendung müsste:
+      </p>
+      <ul>
+        <li>DPF/AVV mit Anthropic + TIA durchgeführt sein, ODER</li>
+        <li>EU-gehosteter Vision-LLM verwendet werden (z.B. Mistral
+          Pixtral via Scaleway/Bedrock-EU), ODER</li>
+        <li>self-hosted Vision-Modell (Llama 3.2 Vision via LM Studio)</li>
+      </ul>
+      <p class="small">
+        Die <strong>Demo</strong> nutzt Anthropic für Lehrzwecke — der Disclaimer im Footer macht das offen.
+      </p>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quiz">
+    <h2>Verständnis-Quiz</h2>
+    <p>Vier Fragen, je 1 richtige Antwort. Klicke auf eine Option,
+       du bekommst sofort Feedback.</p>
+
+    <div class="quiz" data-correct="2">
+      <h4>1. UE0 schreibt die extrahierten Felder direkt in welche Tabelle?</h4>
+      <ul class="quiz-options">
+        <li>apl.antraege</li>
+        <li>apl.bescheide</li>
+        <li>apl.antrag_einreichung (Tracking-Tabelle)</li>
+        <li>auth.users</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="3">
+      <h4>2. Welche Schicht kümmert sich um den eigentlichen OCR-Schritt?</h4>
+      <ul class="quiz-options">
+        <li>Das Frontend</li>
+        <li>Die Edge Function</li>
+        <li>Der DB-Trigger</li>
+        <li>Der n8n-Workflow</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="0">
+      <h4>3. Warum nutzt UE0 einen Tracking-Eintrag mit UUID statt eines Auth-Logins?</h4>
+      <ul class="quiz-options">
+        <li>Damit Bürger:in den Status ohne Anmeldung wieder aufrufen kann</li>
+        <li>Weil Supabase keinen Auth-Modus für anon-User unterstützt</li>
+        <li>Weil das PDF sonst dauerhaft öffentlich wäre</li>
+        <li>Aus Performance-Gründen</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="1">
+      <h4>4. Welche Verbesserung bringt UE0 dem Amt am stärksten?</h4>
+      <ul class="quiz-options">
+        <li>Bessere Bescheids-Qualität</li>
+        <li>Wegfall der manuellen Felder-Erfassung beim Posteingang</li>
+        <li>Mehrsprachige Anträge</li>
+        <li>Automatische Bewilligung</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <p class="small" style="margin-top: 12px;">
+      Lösungen werden direkt beim Klick angezeigt — du musst nichts „abschicken".
+    </p>
+  </section>
+
+  <!-- AUFGABEN -->
+  <section id="aufgaben">
+    <h2>Praxis-Aufgaben (Vertiefung)</h2>
+    <p>
+      Wenn du selber Hand anlegen willst — vier Aufgaben mit
+      steigender Schwierigkeit. Detaillierte Anleitung in
+      <a href="./04-aufgaben.md"><code>04-aufgaben.md</code></a>.
+    </p>
+
+    <details>
+      <summary><strong>A — OCR-Prompt verbessern</strong> · 15 Min · Schwierigkeit ⭐</summary>
+      <p>
+        Den Claude-Prompt so anpassen, dass leere Felder als <code>null</code>
+        zurückkommen, nicht als <code>0</code>. Bonus: mit Handschrift-Demo-PDF testen.
+      </p>
+    </details>
+
+    <details>
+      <summary><strong>B — Neues Anlagen-Feld „Programm-Flyer"</strong> · 60 Min · Schwierigkeit ⭐⭐</summary>
+      <p>
+        Eine dritte Upload-Box hinzufügen und durch alle 4 Schichten ziehen
+        (Frontend → Edge Function → DB → n8n).
+      </p>
+    </details>
+
+    <details>
+      <summary><strong>C — Polling durch Supabase Realtime ersetzen</strong> · 45 Min · Schwierigkeit ⭐⭐</summary>
+      <p>
+        Statt alle 3 s pollen → Postgres-Changes-Channel abonnieren.
+        Polling als Fallback behalten.
+      </p>
+    </details>
+
+    <details>
+      <summary><strong>D — Eigene Supabase-Instanz</strong> · 2–3 h · Schwierigkeit ⭐⭐⭐</summary>
+      <p>
+        Komplettes Setup nachvollziehen: eigenes Supabase-Projekt,
+        Migrationen 001–067 ausführen, Edge Function deployen, n8n-Workflow
+        importieren, Demo-PDF hochladen. Lerne dabei die ganze Architektur kennen.
+      </p>
+    </details>
+  </section>
+
+  <!-- NÄCHSTE STUFE -->
+  <section id="weiter">
+    <h2>Wie geht's weiter?</h2>
+    <p>
+      UE0 endet, sobald die Bürger:in im UE1-Webformular landet. Die nächste
+      Reifegradstufe baut darauf auf:
+    </p>
+
+    <div class="card">
+      <span class="pill">UE1 — REIFEGRADSTUFE 1</span>
+      <h3 style="margin: 8px 0 4px;">Strukturiertes Webformular</h3>
+      <p style="margin: 0;">
+        Bürger:in füllt direkt im Browser aus (oder kontrolliert die
+        UE0-Vorbefüllung). Live-Validierung, Mehrsprachigkeit, Sticky-Stepper.
+        Output: derselbe Datensatz, den auch UE0 erzeugt.
+      </p>
+      <p style="margin-top: 12px;">
+        <a class="cta" href="https://antrag.butscher.cloud/" target="_blank">UE1 Live-Demo →</a>
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <p>
+      UE0 — PDF-Upload mit KI-OCR · Reifegradstufe 0
+      <br>
+      Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher · THWS
+      <br>
+      <span class="small">
+        Lehr-Demo, keine offizielle Anwendung der Stadt Würzburg.
+        Quellcode: <a href="https://github.com/swrobuts/DigitalisierungVerwaltung">github.com/swrobuts/DigitalisierungVerwaltung</a>
+      </span>
+    </p>
+  </div>
+</footer>
+
+<!-- Mermaid für Diagramme + Quiz-Logik -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default' });
+
+  // Quiz-Logik
+  document.querySelectorAll('.quiz').forEach((quiz) => {
+    const correctIdx = parseInt(quiz.dataset.correct, 10);
+    const options = quiz.querySelectorAll('.quiz-options li');
+    const feedback = quiz.querySelector('.quiz-feedback');
+    options.forEach((opt, idx) => {
+      opt.addEventListener('click', () => {
+        if (quiz.dataset.answered === 'true') return;
+        quiz.dataset.answered = 'true';
+        options.forEach((o, i) => {
+          if (i === correctIdx) o.classList.add('correct');
+          else if (i === idx) o.classList.add('wrong');
+        });
+        if (idx === correctIdx) {
+          feedback.textContent = '✓ Richtig! Gut erkannt.';
+          feedback.className = 'quiz-feedback correct';
+        } else {
+          feedback.textContent = '✗ Nicht ganz — die richtige Antwort ist grün markiert.';
+          feedback.className = 'quiz-feedback wrong';
+        }
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UE0 — PDF-Upload mit KI-OCR · Vorlesungs-Slides</title>
+
+  <!--
+    Reveal.js 5 von jsdelivr-CDN — keine Build-Pipeline nötig.
+    Im Browser öffnen: file:// reicht, Internet für CDN-Assets.
+    F11 = Vollbild · Pfeiltasten = navigieren · S = Speaker-Notes
+  -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css">
+
+  <style>
+    :root {
+      --wue-rot: #AD0E36;
+      --wue-rot-dark: #8A0B2B;
+      --wue-grau: #4A4A4A;
+    }
+    .reveal { font-family: 'Inter', system-ui, sans-serif; }
+    .reveal h1, .reveal h2, .reveal h3 { color: var(--wue-grau); text-transform: none; }
+    .reveal h1 { font-size: 1.8em; }
+    .reveal h2 { font-size: 1.4em; }
+    .reveal .accent { color: var(--wue-rot); font-weight: 600; }
+    .reveal .small { font-size: 0.7em; color: #666; }
+    .reveal table { font-size: 0.6em; margin: 0 auto; border-collapse: collapse; }
+    .reveal table th { background: #f3f3f3; }
+    .reveal table th, .reveal table td { padding: 6px 12px; border: 1px solid #ddd; text-align: left; }
+    .reveal pre { font-size: 0.45em; line-height: 1.3; box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+    .reveal blockquote {
+      border-left: 4px solid var(--wue-rot);
+      background: #fbe9ee;
+      padding: 12px 20px;
+      font-size: 0.75em;
+      box-shadow: none;
+    }
+    .reveal .footer {
+      position: fixed; bottom: 12px; left: 16px; right: 16px;
+      font-size: 12px; color: #999;
+      display: flex; justify-content: space-between;
+    }
+    .reveal .two-col {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;
+    }
+    .reveal .reifegrad-pill {
+      display: inline-block; padding: 4px 12px; border-radius: 999px;
+      background: var(--wue-rot); color: white; font-size: 0.55em;
+      letter-spacing: 0.06em; font-weight: 600; margin-bottom: 16px;
+    }
+    .reveal .kasten {
+      border: 1px solid #ddd; border-radius: 8px; padding: 16px;
+      background: #fafafa;
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- === TITEL === -->
+      <section>
+        <div class="reifegrad-pill">REIFEGRADSTUFE 0</div>
+        <h1>PDF-Upload-Portal mit KI-OCR</h1>
+        <p style="font-size: 0.75em; margin-top: 24px;">
+          Vom E-Mail-Anhang zur strukturierten Erfassung — ohne dass
+          die Bürger:in etwas Neues lernen muss.
+        </p>
+        <p class="small" style="margin-top: 48px;">
+          Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher
+        </p>
+        <aside class="notes">
+          Begrüßung. Wir steigen ins Beispiel ein: heute lädt man das PDF
+          per Mail. Was wäre wenn man den Mailweg ersetzen könnte, ohne
+          gleich ein neues Webformular zu erzwingen?
+        </aside>
+      </section>
+
+      <!-- === HEUTE: PDF-MAIL-PROZESS === -->
+      <section>
+        <h2>Heute: der PDF-Mail-Prozess</h2>
+        <ol style="font-size: 0.75em;">
+          <li>Bürger:in lädt das offizielle Antrags-PDF herunter</li>
+          <li>Füllt es am Computer oder handschriftlich aus</li>
+          <li>Scannt es ein, hängt es an eine Mail, schickt sie ans Amt</li>
+          <li>Mensch im Amt druckt die Mail aus, heftet sie ab</li>
+          <li>Mensch im Amt tippt die Felder ins Fachverfahren ab</li>
+        </ol>
+        <blockquote>
+          Typische Fehlerquellen: Zahlendreher, übersehene Felder,
+          unleserliche Handschrift, fehlende Anlagen.
+        </blockquote>
+        <aside class="notes">
+          Wichtig: das ist KEIN exotischer Sonderfall — das ist der
+          Mainstream in deutschen Ämtern 2026.
+        </aside>
+      </section>
+
+      <!-- === REIFEGRADTAFEL === -->
+      <section>
+        <h2>Reifegradstufen in dieser Fallstudie</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Stufe</th>
+              <th>Was neu ist</th>
+              <th>Bürger-Aufwand</th>
+              <th>Amt-Aufwand</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background: #fffbe6;">
+              <td><strong>UE0</strong></td>
+              <td>PDF-Upload + KI-OCR</td>
+              <td>=</td>
+              <td>↓↓</td>
+            </tr>
+            <tr>
+              <td>UE1</td>
+              <td>Webformular (strukturierte Eingabe)</td>
+              <td>↑</td>
+              <td>↓↓↓</td>
+            </tr>
+            <tr>
+              <td>UE2</td>
+              <td>Sachbearbeiter-UI (manuelle Prüfung)</td>
+              <td>=</td>
+              <td>↓</td>
+            </tr>
+            <tr>
+              <td>UE3</td>
+              <td>KI-Vorschlag (Empfehlung, Mensch entscheidet)</td>
+              <td>=</td>
+              <td>↓↓↓</td>
+            </tr>
+            <tr>
+              <td>UE4</td>
+              <td>Konversationeller Agent (Chat statt Formular)</td>
+              <td>↓↓</td>
+              <td>↓↓↓</td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="notes">
+          Jede Stufe baut auf die vorige auf. UE0 ist der „weiche Einstieg" —
+          niemand muss seinen Prozess ändern, aber das Amt spart trotzdem
+          Erfassungsarbeit.
+        </aside>
+      </section>
+
+      <!-- === KONZEPT-SKIZZE === -->
+      <section>
+        <h2>UE0 in einem Bild</h2>
+        <div class="kasten" style="font-family: monospace; font-size: 0.55em; text-align: left; line-height: 1.5;">
+[Bürger:in]<br>
+&nbsp;&nbsp;|<br>
+&nbsp;&nbsp;| 1. Lädt ausgefülltes PDF hoch (Drag &amp; Drop)<br>
+&nbsp;&nbsp;v<br>
+[Edge Function `upload-antragspdf`]<br>
+&nbsp;&nbsp;├ validiert MIME + Größe<br>
+&nbsp;&nbsp;├ speichert PDF in Storage-Bucket<br>
+&nbsp;&nbsp;└ erzeugt Tracking-Eintrag (einreichung_id)<br>
+&nbsp;&nbsp;|<br>
+&nbsp;&nbsp;| 2. DB-Trigger → n8n-Webhook<br>
+&nbsp;&nbsp;v<br>
+[n8n-Workflow (11 Nodes)]<br>
+&nbsp;&nbsp;├ lädt PDF aus Storage<br>
+&nbsp;&nbsp;├ ruft <span class="accent">Claude Vision OCR</span> mit JSON-Schema-Prompt<br>
+&nbsp;&nbsp;├ parst Antwort, ergänzt Defaults<br>
+&nbsp;&nbsp;└ UPDATE antrag_einreichung mit extrahiert_jsonb<br>
+&nbsp;&nbsp;|<br>
+&nbsp;&nbsp;| 3. Frontend pollt → sieht "fertig"<br>
+&nbsp;&nbsp;v<br>
+[Auto-Redirect → UE1-Webformular]<br>
+&nbsp;&nbsp;mit ?prefill=&lt;einreichung_id&gt;<br>
+&nbsp;&nbsp;Bürger:in bestätigt oder korrigiert.
+        </div>
+        <aside class="notes">
+          Die wichtige didaktische Botschaft: jede Schicht hat genau eine
+          Verantwortung. Frontend = UI, Edge Function = Validation,
+          DB-Trigger = Event, n8n = LLM-Pipeline.
+        </aside>
+      </section>
+
+      <!-- === LIVE-DEMO === -->
+      <section>
+        <h2>Live-Demo</h2>
+        <p style="font-size: 0.85em;">
+          <a href="https://upload.butscher.cloud/" target="_blank">upload.butscher.cloud</a>
+        </p>
+        <ul style="font-size: 0.75em;">
+          <li>Demo-PDF hochladen (maschinell ausgefüllt)</li>
+          <li>Status-Seite mit Live-Spinner beobachten</li>
+          <li>Nach ~15 s Auto-Redirect zu UE1 mit Prefill</li>
+          <li>UE1 zeigt vorausgefüllte Felder, Bürger:in bestätigt</li>
+        </ul>
+        <p class="small" style="margin-top: 24px;">
+          (Demo-PDFs im Repo unter <code>ue0/demo-pdfs/</code>)
+        </p>
+        <aside class="notes">
+          Vor der Demo: Browser bereithalten, Demo-PDF lokal kopiert.
+          Während des Uploads: Status-Texte vorlesen — „lädt PDF",
+          „KI extrahiert Felder", „fertig".
+        </aside>
+      </section>
+
+      <!-- === VORTEILE === -->
+      <section>
+        <h2>Was UE0 konkret gewinnt</h2>
+        <table>
+          <thead>
+            <tr><th>Aspekt</th><th>PDF-Mail heute</th><th>UE0</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Eingangsweg</td><td>Mail / Brief</td><td>strukturierter Upload</td></tr>
+            <tr><td>Erfassungsfehler</td><td>hoch</td><td>niedrig (Vision-OCR)</td></tr>
+            <tr><td>Doppelte Erfassung</td><td>ja (Bürger + Amt)</td><td>nein (Bürger bestätigt)</td></tr>
+            <tr><td>Status für Bürger:in</td><td>„warte auf Antwort"</td><td>Tracking + Auto-Redirect</td></tr>
+            <tr><td>Akzeptanz</td><td>hoch</td><td>gleich hoch (PDF bleibt)</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- === GRENZEN === -->
+      <section>
+        <h2>Was UE0 nicht löst</h2>
+        <ul style="font-size: 0.75em;">
+          <li>Bürger:in <strong>braucht weiterhin das PDF</strong> — muss es
+              erst beschaffen</li>
+          <li>Keine Live-Validierung beim Ausfüllen (Tippfehler in IBAN
+              merkt der/die Bürger:in erst im UE1-Schritt)</li>
+          <li>Keine Mehrsprachigkeit beim Ausfüllen (PDF ist deutsch;
+              UE1 wäre mehrsprachig)</li>
+          <li>OCR-Restfehler bleiben möglich — UE1 ist deshalb bewusst
+              der „Kontrollieren-und-Korrigieren"-Schritt</li>
+          <li>Keine semantische Prüfung gegen die Förderrichtlinie (UE3)</li>
+          <li>Keine automatisierte Bescheid-Erstellung (UE3)</li>
+        </ul>
+      </section>
+
+      <!-- === DSGVO === -->
+      <section>
+        <h2 class="accent">⚖️ DSGVO &amp; AI Act</h2>
+        <p style="font-size: 0.8em;">
+          Claude Vision (Anthropic) verarbeitet die PDFs in den USA.
+          Für eine echte Verwaltungs-Anwendung wäre nötig:
+        </p>
+        <ul style="font-size: 0.75em;">
+          <li>DPF / AVV mit Anthropic + TIA, ODER</li>
+          <li>EU-gehosteter Vision-LLM (Mistral Pixtral via Scaleway,
+              AWS Bedrock EU), ODER</li>
+          <li>Self-hosted Vision-Modell (Llama 3.2 Vision via LM Studio)</li>
+        </ul>
+        <blockquote>
+          Die <strong>Demo</strong> nutzt Claude für Lehrzwecke; das wird
+          im Footer offen gemacht.
+        </blockquote>
+        <aside class="notes">
+          Diskussionspunkt: was bedeutet das für Total Cost of Ownership?
+          EU-LLM ist teurer und oft langsamer, dafür AVV-bereit.
+        </aside>
+      </section>
+
+      <!-- === CODE-WALKTHROUGH === -->
+      <section>
+        <h2>Code-Walkthrough (5 Stellen)</h2>
+        <ol style="font-size: 0.7em;">
+          <li><strong>Frontend</strong> <code>src/views/fb-upload.ts</code> —
+              UI mit zwei Boxen (Pflicht/Optional), Drag &amp; Drop, FormData</li>
+          <li><strong>Edge Function</strong> <code>upload-antragspdf/index.ts</code> —
+              MIME-Check, Storage-Upload, Tracking-Insert</li>
+          <li><strong>Migration</strong> <code>047_ue0_pdf_einreichung.sql</code> —
+              Tabelle, RLS, DB-Trigger via <code>pg_notify</code></li>
+          <li><strong>n8n-Workflow</strong> <code>n8n-ue0-pdf-ocr.json</code> —
+              11 Nodes, IF-Switch für optionale Anlage 1</li>
+          <li><strong>Status-Polling</strong> <code>src/views/status.ts</code> —
+              3-Sek-Polling, dann Auto-Redirect zu UE1</li>
+        </ol>
+      </section>
+
+      <!-- === BEISPIEL-CODE === -->
+      <section>
+        <h2>Beispiel: Claude-Vision-Prompt (n8n)</h2>
+<pre><code class="language-json" data-trim>
+{
+  "model": "claude-sonnet-4-5",
+  "messages": [{
+    "role": "user",
+    "content": [
+      {"type": "image", "source": {"type": "base64",
+        "media_type": "application/pdf",
+        "data": "{{ $node['Storage'].json.base64 }}"
+      }},
+      {"type": "text", "text":
+        "Extrahiere alle Felder aus diesem Antrags-PDF.\n" +
+        "Schema:\n{\n  einrichtung: string,\n  ansprechpartner: string,\n" +
+        "  iban: string,\n  monatliche_miete: number | null,\n  ...\n}\n" +
+        "WICHTIG: leere Felder als null, nicht 0 oder \"\".\n" +
+        "Nur valides JSON, keinen Erklärtext."
+      }
+    ]
+  }]
+}
+</code></pre>
+        <p class="small">Das <strong>Schema im Prompt</strong> ist der
+          wichtigste Halluzinations-Schutz — Claude weiß genau, was zurückkommen muss.</p>
+      </section>
+
+      <!-- === MITMACH === -->
+      <section>
+        <h2>Mitmach-Aufgaben</h2>
+        <ul style="font-size: 0.8em;">
+          <li><strong>A</strong> — OCR-Prompt verbessern (15 Min):
+              null statt 0 bei leerer Miete</li>
+          <li><strong>B</strong> — Neues Anlagen-Feld „Programm-Flyer"
+              durch alle Schichten ziehen (60 Min)</li>
+          <li><strong>C</strong> — Wartedauer via Supabase Realtime
+              statt Polling optimieren (45 Min)</li>
+          <li><strong>D</strong> — Eigene Supabase-Instanz hochziehen,
+              komplett deployen (2–3 h)</li>
+        </ul>
+        <p class="small" style="margin-top: 24px;">
+          Detail-Anleitung: <code>ue0/upload-portal/04-aufgaben.md</code>
+        </p>
+      </section>
+
+      <!-- === ENDE === -->
+      <section>
+        <h1>Fragen?</h1>
+        <p style="margin-top: 48px;">
+          <strong>Nächste Stunde:</strong> UE1 — das strukturierte
+          Webformular, in das UE0 mündet
+        </p>
+        <p class="small" style="margin-top: 32px;">
+          Materialien: <code>ue0/upload-portal/{README,01-konzept,02-vorteile,03-walkthrough,04-aufgaben,selbstlern}</code>
+        </p>
+      </section>
+
+    </div>
+
+    <div class="footer">
+      <span>UE0 · PDF-Upload mit KI-OCR · Reifegradstufe 0</span>
+      <span>Fallstudie AHP Würzburg · Dr. Robert Butscher · THWS</span>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: 'c/t',
+      transition: 'slide',
+      plugins: [RevealNotes, RevealHighlight]
+    });
+  </script>
+</body>
+</html>

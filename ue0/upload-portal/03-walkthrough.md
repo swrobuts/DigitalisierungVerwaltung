@@ -1,4 +1,9 @@
-# 03 — Code-Walkthrough & Mitmach-Aufgabe
+# 03 — Code-Walkthrough für die Vorlesung
+
+> Dieses Dokument ist die **Dozenten-Tour** durch den Code (ca. 15 Min).
+> Die Studi-Aufgaben sind separat in [`04-aufgaben.md`](./04-aufgaben.md)
+> dokumentiert — dort mit Quiz, Schritt-für-Schritt-Anleitung und
+> Reflexionsfragen für 60-90 Min Selbststudium.
 
 ## Code-Tour (für die Stunde)
 
@@ -14,43 +19,24 @@ Wir gehen fünf Stellen zusammen durch. UE0 ist eine **verteilte Pipeline** — 
 
 5. **`ue0/upload-portal/src/status.ts`** — Die Status-Seite. Pollt alle 3 s die DB, zeigt einen Spinner mit lebendigen Zwischen-Zuständen („PDF wird gelesen", „KI extrahiert Felder", „Anlage 1 wird ausgewertet"), und macht beim Status `fertig` einen **harten Redirect** auf UE1 (`window.location.href`) mit `?prefill=<einreichung_id>` — der Bürger landet ohne weiteren Klick im Webformular.
 
-## Mitmach-Aufgabe (11:45–12:10)
+## Dozenten-Tipps für die Code-Tour
 
-Wählen Sie eine von vier Mini-Aufgaben:
+| Stelle | Was hervorheben | Häufige Studi-Frage |
+|---|---|---|
+| `fb-upload.ts` | Drag-and-Drop ist nativ HTML5 — kein React/keine Library nötig. Zwei Boxen klar getrennt für Pflicht/Optional. | „Warum nicht React?" — Antwort: für 5 Seiten Vanilla TS reicht, weniger Tooling, schneller geladen. |
+| `upload-antragspdf/index.ts` | Edge Function = serverless Deno. CORS-Allowlist, MIME-Check, Größen-Check, **getrennte try/catch für Pflicht/Optional**. | „Was wenn die optionale Anlage fehlschlägt?" — Antwort: Hauptantrag bleibt, Anlage wird im Log markiert. Atomarität bewusst nicht hart. |
+| `047_ue0_pdf_einreichung.sql` | RLS lässt anon nur **insert + eigenes select** (per UUID-Match). `pg_notify` → n8n-Webhook, **nicht** direkter Browser-Aufruf. | „Warum nicht webhook direkt aus Frontend?" — Antwort: dann wäre die n8n-URL public, Defense-in-Depth schützt sie. |
+| `n8n-ue0-pdf-ocr.json` | Live im n8n-UI öffnen, IF-Switch erklären. Den Vision-Prompt zeigen — JSON-Schema im Prompt ist der wichtigste Halluzinations-Schutz. | „Was bei OCR-Fehler?" — Antwort: UE1 ist der Kontroll-Schritt. Bürger:in korrigiert vor finalem Submit. |
+| `status.ts` | Polling mit Backoff, **Auto-Redirect** zu UE1 mit `?prefill=<uuid>`. | „Wäre Realtime besser?" — Antwort: ja, ist Studi-Aufgabe C in 04-aufgaben.md. |
 
-### Aufgabe A — OCR-Prompt verbessern
+## Übergang zu den Studi-Aufgaben
 
-In `supabase/webhooks/n8n-ue0-pdf-ocr.json` (oder live im n8n-UI) den Hauptantrag-Claude-Prompt anpassen:
-> *„Wenn das Feld 'monatliche Mietzahlungen' leer ist, gib `null` zurück — nicht `0`."*
+Nach der Code-Tour: Verweis auf [`04-aufgaben.md`](./04-aufgaben.md) —
+dort die vier Vertiefungs-Aufgaben (A bis D) mit detaillierten
+Schritt-für-Schritt-Anleitungen und Reflexionsfragen.
 
-Hintergrund: `0` heißt „keine Miete", `null` heißt „nicht angegeben". Das macht im Bescheid einen Unterschied (UE3 prüft Cross-Field: „kein eigener Raum + keine Miete = Antragsfehler").
-
-**Bonus**: Verifizieren Sie mit einem handschriftlichen Demo-PDF, dass die Änderung greift — `demo-antrag-buergerverein-handschrift.pdf` als Test.
-
-### Aufgabe B — Neues Anlagen-Feld
-
-Erweitern Sie das Konzept um eine **Anlage 2: Programm-Flyer**.
-
-1. `upload.ts`: dritte Box (auch optional, grau) ergänzen
-2. Edge Function: `anlage_2_storage_path` in Tracking-Insert
-3. Migration: Spalte `anlage_2_storage_path text null`
-4. n8n: zweiten IF-Branch
-5. UE1 würde dann das gelieferte Programm-Flyer-File automatisch als „Programm-Nachweis erbracht" werten (Step 5 auto-complete)
-
-Diskussion: Wie weit treibt man die OCR? Die Demo hat den Wochenplan parsbar gemacht — aber ein freier Flyer-Text ist semantisch zu offen, hier reicht der reine Upload-Nachweis.
-
-### Aufgabe C — Wartedauer optimieren
-
-Aktuell pollt das Frontend alle 3 s den Status. Bei einer Pipeline, die typischerweise 10–20 s läuft, sind das 3–7 Polls. Schöner wäre Realtime.
-
-1. `apl2.antrag_einreichung` ist Realtime-aktiviert (RLS lässt es zu) → in `status.ts` ein Supabase-`channel().on('postgres_changes', …)` abonnieren
-2. Polling-Fallback behalten (falls Realtime mal hängt)
-3. Smoke-Test: Upload + sofort die Latenz messen, wann der „fertig"-Wechsel sichtbar wird
-
-### Aufgabe D — Eigene Supabase
-
-1. `supabase.com` → neues Projekt
-2. Migrationen 001–049 ausführen, Bucket `antragseingang-pdf` anlegen
-3. Edge Function deployen, n8n-Workflow importieren
-4. Eigene `.env.local`, `npm run dev`, Demo-PDF hochladen
-5. Diskussion: Was kostet ein produktives Betreiben? Welche Tiers brauchst du, wenn 1.000 Anträge/Monat reinkommen?
+Empfohlene Stundenverteilung:
+- **15 Min** — Code-Tour (dieses Dokument)
+- **20 Min** — Live-Demo + Diskussion (siehe `slides.html` Slide 5)
+- **45 Min** — Studi wählt eine Aufgabe A/B/C/D und beginnt (Hilfe vom Dozent)
+- **10 Min** — Kurze Ergebnis-Vorstellung 2-3 Studis
