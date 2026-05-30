@@ -74,8 +74,10 @@ echo "  ↻ ALTER ROLE authenticator SET statement_timeout = '5min'"
 
 echo
 echo "▶ Container neu starten, damit ENV-Änderungen greifen"
+echo "  WICHTIG: --no-deps verwenden, sonst reißt das unhealthy supabase-analytics"
+echo "  den halben Stack mit runter (Lektion vom 2026-05-30)."
 cd "$COMPOSE_DIR"
-docker compose up -d rest auth
+docker compose up -d --no-deps rest auth
 
 echo
 echo "▶ Warte 10s, dann verify"

@@ -75,6 +75,37 @@ probe() {
 
 # Probe-Liste — Reihenfolge wichtig (DB vor Apps)
 probe pg "http://localhost:5432" supabase-db -X HEAD  # nur connect-test
+# Kong ist API-Gateway zwischen Traefik und allen Backends. Wenn Kong
+# intern auf Port 8000 nicht antwortet (Lektion 2026-05-30: liefert
+# 500/404 obwohl Container "healthy"), restartet der Watchdog ihn.
+# Test via Container-Exec, weil Kong nicht direkt erreichbar von außen.
+probe_kong() {
+  local state_file="$STATE_DIR/kong"
+  local fails=$(cat "$state_file" 2>/dev/null || echo 0)
+  if docker exec supabase-kong wget -q --spider -T 5 http://localhost:8000/auth/v1/health 2>/dev/null; then
+    [[ "$fails" -gt 0 ]] && log "OK kong (war $fails× failed)"
+    echo 0 > "$state_file"
+    return 0
+  fi
+  # Kong-Health-Endpoint existiert nicht — wir nehmen Settings (HTTP 200/401 sind beide OK)
+  local http=$(docker exec supabase-kong wget -qO- -T 5 -S http://localhost:8000/auth/v1/settings 2>&1 | grep -oE 'HTTP/[0-9.]+ [0-9]+' | head -1 | awk '{print $2}')
+  if [[ "$http" =~ ^(2|4)[0-9][0-9]$ ]]; then
+    [[ "$fails" -gt 0 ]] && log "OK kong HTTP=$http (war $fails× failed)"
+    echo 0 > "$state_file"
+    return 0
+  fi
+  fails=$((fails + 1))
+  echo "$fails" > "$state_file"
+  log "FAIL kong HTTP=${http:-no-response} fail-count=$fails"
+  if [[ "$fails" -ge 2 ]]; then
+    log "RESTART supabase-kong (nach $fails consecutive failures)"
+    docker restart supabase-kong >> "$LOG" 2>&1 || true
+    echo 0 > "$state_file"
+    echo "$(date) — supabase-kong automatisch restartet (Kong-intern unerreichbar)" \
+      >> "$ALERT_DIR/$(date +%Y-%m-%d).log"
+  fi
+}
+probe_kong
 probe auth https://supabase.butscher.cloud/auth/v1/settings supabase-auth \
   -H "apikey: $ANON_KEY"
 probe rest "https://supabase.butscher.cloud/rest/v1/" supabase-rest \
