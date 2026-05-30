@@ -43,13 +43,55 @@ export function Login() {
     setBusy(true);
     setMsg(null);
     setErr(null);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: AUTH_REDIRECT },
-    });
-    setBusy(false);
-    if (error) setErr(error.message);
-    else setMsg("Magic-Link verschickt. Bitte E-Mail-Posteingang prüfen.");
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: AUTH_REDIRECT },
+      });
+      if (error) {
+        // GoTrue antwortet bei manchen Fehlern mit leerem Body — supabase-js
+        // füllt `message` dann mit dem stringifizierten Body, also „{}".
+        // Das ist eine grottige UX („Sachbearbeiter starrt auf rote {}").
+        // Wir loggen das volle Objekt in die Console + zeigen so viel
+        // Diagnose wie möglich an.
+        // eslint-disable-next-line no-console
+        console.error("[Login] signInWithOtp error:", error);
+        const status = (error as { status?: number }).status;
+        const code = (error as { code?: string }).code;
+        const name = (error as { name?: string }).name;
+        const rawMsg = error.message?.trim();
+        const hasUsefulMsg = rawMsg && rawMsg !== "{}" && rawMsg !== "[]";
+
+        let humanMsg: string;
+        if (hasUsefulMsg) {
+          humanMsg = rawMsg;
+        } else if (status === 429) {
+          humanMsg =
+            "Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.";
+        } else if (status === 0 || !status) {
+          humanMsg =
+            "Auth-Server nicht erreichbar (kein HTTP-Status). Netzwerk oder Service down — bitte später erneut versuchen.";
+        } else {
+          humanMsg = `Auth-Fehler (HTTP ${status}) — leerer Body. Bitte später erneut versuchen.`;
+        }
+        const tags = [code, name, status ? `HTTP ${status}` : null]
+          .filter(Boolean)
+          .join(" · ");
+        setErr(tags ? `${humanMsg} [${tags}]` : humanMsg);
+      } else {
+        setMsg("Magic-Link verschickt. Bitte E-Mail-Posteingang prüfen.");
+      }
+    } catch (e: unknown) {
+      // eslint-disable-next-line no-console
+      console.error("[Login] unexpected:", e);
+      setErr(
+        e instanceof Error
+          ? `Unerwarteter Fehler: ${e.message}`
+          : `Unerwarteter Fehler: ${String(e)}`,
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -75,7 +117,14 @@ export function Login() {
               {busy ? "Wird gesendet …" : "Magic-Link anfordern"}
             </Button>
             {msg && <p className="text-sm text-emerald-700">{msg}</p>}
-            {err && <p className="text-sm text-rose-700">{err}</p>}
+            {err && (
+              <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800 space-y-1">
+                <p className="break-words">{err}</p>
+                <p className="text-[11px] text-rose-700/70">
+                  Vollständige Diagnose in der Browser-Konsole (F12).
+                </p>
+              </div>
+            )}
           </form>
           <p className="mt-6 text-xs text-slate-500">
             Nur freigeschaltete E-Mail-Adressen können einloggen. Kontakt:
