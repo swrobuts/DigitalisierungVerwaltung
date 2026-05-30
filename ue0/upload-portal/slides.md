@@ -8,84 +8,147 @@ style: |
   section { font-family: 'Inter', system-ui, sans-serif; }
   h1, h2, h3 { color: #4A4A4A; }
   .accent { color: #AD0E36; font-weight: 600; }
-  .pill {
-    display: inline-block; padding: 4px 12px; border-radius: 999px;
-    background: #AD0E36; color: white; font-size: 14px;
-    letter-spacing: 0.06em; font-weight: 600;
-  }
-  blockquote {
-    border-left: 4px solid #AD0E36;
-    background: #FBE9EE;
-    padding: 12px 20px;
-  }
+  .pill { display: inline-block; padding: 4px 12px; border-radius: 999px;
+          background: #AD0E36; color: white; font-size: 14px;
+          letter-spacing: 0.06em; font-weight: 600; }
+  blockquote { border-left: 4px solid #AD0E36; background: #FBE9EE;
+               padding: 12px 20px; }
+  .twocol { columns: 2; column-gap: 32px; }
 ---
 
 <!-- _class: lead -->
 
 <span class="pill">REIFEGRADSTUFE 0</span>
 
-# PDF-Upload-Portal mit KI-OCR
+# PDF-Upload mit KI-OCR
 
-Vom E-Mail-Anhang zur strukturierten Erfassung — ohne dass die Bürger:in etwas Neues lernen muss.
+**Vom E-Mail-Anhang zur strukturierten Erfassung — ohne dass
+Bürger:innen etwas Neues lernen müssen.**
 
-<small>Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher</small>
+<small>Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher · 2026</small>
+
+<!-- Speaker-Notiz: Die Stufe, die fast jede Verwaltung sofort hochziehen
+kann, ohne ein Formular zu bauen. „Weicher Einstieg" in die
+Digitalisierung. -->
 
 ---
 
-## Heute: der PDF-Mail-Prozess
+## Lernziele
+
+Nach dieser UE können Sie:
+
+1. **Wissen** — den Unterschied zwischen Mail-PDF-Prozess und
+   strukturiertem Upload benennen.
+2. **Verstehen** — wie KI-Vision-OCR ein PDF in strukturierte
+   JSON-Daten überführt (Schema-Forcing).
+3. **Anwenden** — den Datenfluss Upload → Storage → n8n → Vision-OCR →
+   DB im Code lokalisieren.
+4. **Beurteilen** — Chancen und Grenzen der Stufe gegenüber UE1
+   (Webformular) gegeneinander abwägen.
+
+---
+
+## Ausgangslage — der PDF-Mail-Prozess heute
 
 1. Bürger:in lädt das offizielle Antrags-PDF herunter
 2. Füllt es am Computer oder handschriftlich aus
-3. Scannt es ein, hängt es an eine Mail, schickt sie ans Amt
+3. Scannt es, hängt es an eine Mail, schickt sie ans Amt
 4. Mensch im Amt druckt die Mail aus, heftet sie ab
 5. Mensch im Amt tippt die Felder ins Fachverfahren ab
 
-> **Typische Fehlerquellen:** Zahlendreher, übersehene Felder, unleserliche Handschrift, fehlende Anlagen.
-
-**Wichtig:** das ist kein exotischer Sonderfall — das ist der Mainstream in deutschen Ämtern 2026.
+> **Das ist kein exotischer Sonderfall — das ist der Mainstream
+> in deutschen Ämtern 2026.**
 
 ---
 
-## Reifegradstufen in dieser Fallstudie
+## Problemstellung
 
-| Stufe | Was neu ist | Bürger-Aufwand | Amt-Aufwand |
+| Schmerzpunkt | Wirkung |
+|---|---|
+| Doppelte Erfassung (Bürger + Amt) | Zeit, Geld, Fehlerrisiko |
+| Zahlendreher beim Abtippen (IBAN!) | falsche Auszahlungen |
+| Unleserliche Handschrift | Rückfragen, Verzögerung |
+| Fehlende Anlagen unbemerkt | Antrag liegt wochenlang |
+| Kein Status für Bürger:in | „warte ich noch?" |
+| Posteingang nicht durchsuchbar | Vorgang verschollen |
+
+> **Kernproblem:** Das PDF ist tot. Es transportiert Daten als Bild,
+> nicht als Daten.
+
+---
+
+## Reifegradmodell — wo wir stehen
+
+| Stufe | Was neu ist | Bürger | Amt |
 |---|---|---|---|
-| **UE0** (heute) | PDF-Upload + KI-OCR | = | ↓↓ |
-| UE1 | Webformular (strukturierte Eingabe) | ↑ | ↓↓↓ |
-| UE2 | Sachbearbeiter-UI (manuelle Prüfung) | = | ↓ |
-| UE3 | KI-Vorschlag (Empfehlung, Mensch entscheidet) | = | ↓↓↓ |
-| UE4 | Konversationeller Agent (Chat statt Formular) | ↓↓ | ↓↓↓ |
+| **UE0** (jetzt) | **PDF-Upload + KI-OCR** | **=** | **↓↓** |
+| UE1 | Strukturiertes Webformular | ↑ | ↓↓↓ |
+| UE2 | Sachbearbeiter-Inbox (manuell) | = | ↓ |
+| UE3 | KI-Empfehlung (Mensch entscheidet) | = | ↓↓↓ |
+| UE4 | Konversationeller Agent | ↓↓ | ↓↓↓ |
 
-Jede Stufe baut auf die vorige auf. UE0 ist der „weiche Einstieg".
+> UE0 ist der „weiche Einstieg" — keine neue Bürger:innen-Logik nötig.
 
 ---
 
-## UE0 in einem Bild
+## Herangehensweise
+
+**Idee:** Das PDF bleibt, aber wir lesen es maschinell aus.
+
+1. Bürger:in lädt das ausgefüllte PDF hoch (kein neues Formular)
+2. KI-Vision liest jedes Feld und bestätigt im Webformular (UE1)
+3. Bürger:in korrigiert nur, was nicht stimmt
+4. Antrag wird strukturiert eingereicht — das Amt tippt nichts mehr ab
+
+> **Didaktischer Kniff:** Wir trennen *Eingang* (UE0) vom
+> *strukturierten Antrag* (UE1) — und KI ist die Brücke.
+
+---
+
+## Architektur
 
 ```
 [Bürger:in]
-   |
-   | 1. Lädt ausgefülltes PDF hoch (Drag & Drop)
-   v
+   │  1. Drag&Drop PDF
+   ▼
 [Edge Function `upload-antragspdf`]
-   ├ validiert MIME + Größe
-   ├ speichert PDF in Storage-Bucket
-   └ erzeugt Tracking-Eintrag (einreichung_id)
-   |
-   | 2. DB-Trigger → n8n-Webhook
-   v
+   ├─ MIME + Größe validieren
+   ├─ PDF in Storage-Bucket
+   └─ einreichung_id (Tracking)
+   │  2. DB-Trigger → n8n-Webhook
+   ▼
 [n8n-Workflow (11 Nodes)]
-   ├ lädt PDF aus Storage
-   ├ ruft Claude Vision OCR mit JSON-Schema-Prompt
-   ├ parst Antwort, ergänzt Defaults
-   └ UPDATE antrag_einreichung mit extrahiert_jsonb
-   |
-   | 3. Frontend pollt → sieht "fertig"
-   v
-[Auto-Redirect → UE1-Webformular mit ?prefill=<einreichung_id>]
+   ├─ PDF aus Storage laden
+   ├─ Claude Vision OCR mit JSON-Schema-Prompt
+   ├─ Antwort parsen, Defaults ergänzen
+   └─ UPDATE antrag_einreichung SET extrahiert_jsonb=…
+   │  3. Frontend pollt → "fertig"
+   ▼
+[Auto-Redirect → UE1 mit ?prefill=<id>]
 ```
 
-**Didaktische Botschaft:** jede Schicht hat genau eine Verantwortung.
+Jede Schicht hat **genau eine Verantwortung**.
+
+---
+
+## Kern-Mechanismus — Schema-Forcing bei Claude Vision
+
+```python
+SYSTEM_PROMPT = """Extrahiere aus dem PDF folgende Felder als JSON:
+{
+  "fb": "I"|"II"|"III"|"IV",
+  "antragsteller": {"name": str, "ansprechpartner": str, ...},
+  "bank": {"iban": str, "bic": str, "name": str},
+  ...
+}
+Wenn ein Feld nicht erkennbar ist: leere String "". Erfinde nichts."""
+```
+
+**Warum funktioniert das:**
+- JSON-Schema zwingt Claude in eine deterministische Struktur
+- „Erfinde nichts" + leere Strings vermeiden Halluzinationen
+- Nachgelagerte Validierung (IBAN-Checksumme, FB-Whitelist) fängt
+  Reste-Fehler ab
 
 ---
 
@@ -96,123 +159,129 @@ Jede Stufe baut auf die vorige auf. UE0 ist der „weiche Einstieg".
 1. Demo-PDF hochladen (`demo-antrag-pfarrei-st-albert.pdf`)
 2. Status-Seite mit Live-Spinner beobachten
 3. Nach ~15 s Auto-Redirect zu UE1 mit Prefill
-4. UE1 zeigt vorausgefüllte Felder, Bürger:in bestätigt
+4. UE1 zeigt vorausgefüllte Felder → Bürger:in bestätigt
 
-<small>Demo-PDFs im Repo unter `ue0/demo-pdfs/`</small>
+<small>Demo-PDFs im Repo: <code>ue0/demo-pdfs/</code></small>
 
-<!--
-SPEAKER NOTES:
-Vor der Demo: Browser bereithalten, Demo-PDF lokal kopiert.
-Während des Uploads: Status-Texte vorlesen — „lädt PDF", „KI extrahiert Felder", „fertig".
-Bei Handschrift-Demo zusätzlich: explizit auf die Felder-Treffsicherheit hinweisen.
--->
+<!-- Speaker-Notiz: Browser vorher öffnen, Demo-PDF lokal kopiert haben.
+Status-Texte während des Uploads laut vorlesen: „lädt", „KI extrahiert",
+„fertig". Wenn vorhanden, auch ein handschriftliches PDF zeigen. -->
 
 ---
 
-## Was UE0 konkret gewinnt
+## Chancen
 
-| Aspekt | PDF-Mail heute | UE0 |
-|---|---|---|
-| Eingangsweg | Mail / Brief | strukturierter Upload |
-| Erfassungsfehler | hoch | niedrig (Vision-OCR) |
-| Doppelte Erfassung | ja (Bürger + Amt) | nein (Bürger bestätigt) |
-| Status für Bürger:in | „warte auf Antwort" | Tracking + Auto-Redirect |
-| Akzeptanz | hoch | gleich hoch (PDF bleibt) |
-
----
-
-## Was UE0 nicht löst
-
-- Bürger:in **braucht weiterhin das PDF** — muss es erst beschaffen
-- Keine Live-Validierung beim Ausfüllen (Tippfehler in der IBAN merkt
-  der/die Bürger:in erst im UE1-Schritt)
-- Keine Mehrsprachigkeit beim Ausfüllen (PDF ist deutsch; UE1 wäre
-  mehrsprachig)
-- OCR-Restfehler bleiben möglich — UE1 ist deshalb bewusst der
-  „Kontrollieren-und-Korrigieren"-Schritt
-- Keine semantische Prüfung gegen die Förderrichtlinie (kommt in UE3)
-- Keine automatisierte Bescheid-Erstellung (kommt in UE3)
+- **Sofort-Einstieg** für jede Verwaltung — keine Formular-Reise nötig
+- **Niedrige Lernkurve** für Bürger:innen (PDF kennen sie)
+- **Schnelle Entlastung** der Sachbearbeitenden (kein Abtippen)
+- **Multi-Tenancy** — gleicher Pipeline-Code für viele Antragsarten
+- **Wiederverwendbar** — Pattern für jede „PDF → Daten"-Aufgabe in der
+  Verwaltung (Rechnungen, Belege, Formulare)
 
 ---
 
-## ⚖️ DSGVO &amp; AI Act
+## Einschränkungen / Grenzen
 
-**Claude Vision (Anthropic) verarbeitet die PDFs in den USA.**
+- Bürger:innen **brauchen weiterhin das PDF** — also Vorwissen, wo es
+  zu finden ist
+- **Keine Live-Validierung** beim Ausfüllen (Tippfehler erst in UE1
+  sichtbar)
+- **Keine Mehrsprachigkeit** — das amtliche PDF ist deutsch
+- **OCR-Genauigkeit ≠ 100 %** — Handschrift, schlechte Scans schwanken
+- Bei schlecht ausgefüllten PDFs erzeugt UE0 ggf. mehr Korrekturlast
+  als UE1 nativ
 
-Für eine echte Verwaltungs-Anwendung wäre nötig:
-
-- DPF / AVV mit Anthropic + TIA durchgeführt, **ODER**
-- EU-gehosteter Vision-LLM (Mistral Pixtral via Scaleway,
-  AWS Bedrock EU), **ODER**
-- Self-hosted Vision-Modell (Llama 3.2 Vision via LM Studio)
-
-> Die **Demo** nutzt Claude für Lehrzwecke; das wird im Footer offen gemacht.
-
-**Diskussionspunkt:** Was bedeutet das für Total Cost of Ownership?
-EU-LLM ist teurer und oft langsamer, dafür AVV-bereit.
+> **Konsequenz:** UE0 macht nur Sinn als **Brücke zu UE1+**.
+> Stand-alone hilft es wenig.
 
 ---
 
-## Code-Walkthrough (5 Stellen, je 2-3 Min)
+## Voraussetzungen / Risiken
 
-1. **Frontend** `src/views/fb-upload.ts` —
-   UI mit zwei Boxen (Pflicht/Optional), Drag &amp; Drop, FormData
-2. **Edge Function** `upload-antragspdf/index.ts` —
-   MIME-Check, Storage-Upload, Tracking-Insert
-3. **Migration** `047_ue0_pdf_einreichung.sql` —
-   Tabelle, RLS, DB-Trigger via `pg_notify`
-4. **n8n-Workflow** `n8n-ue0-pdf-ocr.json` —
-   11 Nodes, IF-Switch für optionale Anlage 1
-5. **Status-Polling** `src/views/status.ts` —
-   3-Sek-Polling, dann Auto-Redirect zu UE1
+**Technisch:**
+- Storage-Bucket mit RLS, signed URLs
+- Vision-fähiges LLM (Claude Sonnet 4.5 oder GPT-4o)
+- Workflow-Engine (n8n) für PDF→OCR→DB-Pipeline
 
----
+**Organisatorisch:**
+- Datenschutz-Folgenabschätzung (Antrags-PDFs an US-Cloud!)
+- Klare Aufklärung: „Ihre Daten werden von KI gelesen"
+- Fallback-Pfad ohne KI muss erhalten bleiben
 
-## Beispiel: Claude-Vision-Prompt (n8n)
-
-```json
-{
-  "model": "claude-sonnet-4-5",
-  "messages": [{
-    "role": "user",
-    "content": [
-      {"type": "image", "source": {"type": "base64",
-        "media_type": "application/pdf",
-        "data": "{{ $node['Storage'].json.base64 }}"
-      }},
-      {"type": "text", "text":
-        "Extrahiere alle Felder aus diesem Antrags-PDF.\n" +
-        "Schema:\n{\n  einrichtung: string,\n  ansprechpartner: string,\n" +
-        "  iban: string,\n  monatliche_miete: number | null,\n  ...\n}\n" +
-        "WICHTIG: leere Felder als null, nicht 0 oder \"\".\n" +
-        "Nur valides JSON, keinen Erklärtext."
-      }
-    ]
-  }]
-}
-```
-
-Das **Schema im Prompt** ist der wichtigste Halluzinations-Schutz — Claude weiß genau, was zurückkommen muss.
+**Risiken:**
+- OCR-Halluzination → IBAN-Verwechslung → Auszahlung an Falsche
+- Mitigation: Bürger:in muss in UE1 jedes Feld bestätigen
 
 ---
 
-## Mitmach-Aufgaben
+## Selbstreflexion
 
-- **A** — OCR-Prompt verbessern (15 Min): `null` statt `0` bei leerer Miete
-- **B** — Neues Anlagen-Feld „Programm-Flyer" durch alle 4 Schichten ziehen (60 Min)
-- **C** — Wartedauer via Supabase Realtime statt Polling optimieren (45 Min)
-- **D** — Eigene Supabase-Instanz hochziehen, komplett deployen (2-3 h)
+> Beantworten Sie für sich diese 4 Fragen:
 
-Detail-Anleitung: **`ue0/upload-portal/04-aufgaben.md`**
+1. **Macht es für *jedes* Antragsverfahren Sinn, UE0 vor UE1 zu
+   schalten — oder gibt es Anti-Patterns?**
+2. **Wie würden Sie Bürger:innen den KI-Einsatz transparent
+   kommunizieren, ohne Vertrauen zu verlieren?**
+3. **Welcher Schritt im Datenfluss ist am riskantesten — und wieso?**
+4. **Wenn das OCR ein Feld falsch erkennt: wer haftet — Bürger:in, Amt,
+   Cloud-Anbieter, niemand?**
+
+---
+
+## Übungsfragen
+
+**Frage 1:** Was passiert, wenn Claude ein Feld nicht sicher erkennen
+kann?
+<small>(a) Antrag wird abgelehnt · (b) leerer String, Bürger:in
+korrigiert · (c) Claude rät · (d) System hängt</small>
+
+**Frage 2:** Welche Komponente erzeugt die einreichung_id?
+<small>(a) n8n · (b) Frontend · (c) Edge Function · (d) Claude Vision</small>
+
+**Frage 3:** Warum ist UE0 ohne UE1 wenig sinnvoll?
+<small>(a) Kosten · (b) ohne Korrekturoberfläche bleiben OCR-Fehler
+unentdeckt · (c) Datenschutz · (d) Performance</small>
+
+<!-- Speaker-Notiz: Lösungen: 1=b, 2=c, 3=b. Nach jeder Frage 15 s
+Bedenkzeit, dann auflösen. -->
+
+---
+
+## Mitmach-Aufgaben (Vertiefung)
+
+| Code | Titel | Aufwand | ⭐ |
+|---|---|---|---|
+| A | Eigenes Demo-PDF erstellen und durchlaufen lassen | 30 Min | ⭐ |
+| B | OCR-Prompt um neues Feld erweitern (z.B. „Zweck-Kategorie") | 60 Min | ⭐⭐ |
+| C | n8n-Workflow um Anlage-1-Branch erweitern | 90 Min | ⭐⭐⭐ |
+| D | OCR-Genauigkeit gegen 5 Vergleichs-PDFs benchmarken | 2 h | ⭐⭐⭐ |
+
+Detail: **`ue0/upload-portal/04-aufgaben.md`**
+
+---
+
+## Materialien & Ressourcen
+
+| Ressource | Pfad / URL |
+|---|---|
+| 🌐 **Live-Demo** | <https://upload.butscher.cloud/> |
+| 📚 **Selbstlern-Modul (HTML)** | [`selbstlern.html`](./selbstlern.html) |
+| 📝 **Konzept-Markdown** | [`01-konzept.md`](./01-konzept.md) |
+| ⚖️ **Vorteile / Voraussetzungen** | [`02-vorteile-voraussetzungen.md`](./02-vorteile-voraussetzungen.md) |
+| 🛠 **Dozent-Walkthrough** | [`03-walkthrough.md`](./03-walkthrough.md) |
+| ✏️ **Studi-Aufgaben** | [`04-aufgaben.md`](./04-aufgaben.md) |
+| 💻 **Quellcode** | `ue0/upload-portal/` + `supabase/functions/upload-antragspdf/` |
 
 ---
 
 <!-- _class: lead -->
 
-# Fragen?
+# Brücke zu UE1
 
-**Nächste Stunde:** UE1 — das strukturierte Webformular, in das UE0 mündet
+UE0 erzeugt strukturierte Daten — aber nur, wenn das PDF gut ausgefüllt
+ist. **Die nächste Stufe** löst das, indem Bürger:innen direkt
+strukturiert eingeben können: **UE1 — Mehrsprachiges Webformular**
+mit Live-Validierung, Stepper und Multi-FB-Wizard.
 
-<small>
-Materialien: <code>ue0/upload-portal/{README, 01-konzept, 02-vorteile-voraussetzungen, 03-walkthrough, 04-aufgaben, slides, selbstlern}</code>
-</small>
+> **Frage zum Mitnehmen:** Was passiert, wenn UE0 und UE1
+> nebeneinander angeboten werden — wer wählt was, und warum?

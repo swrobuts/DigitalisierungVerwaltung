@@ -21,66 +21,136 @@ style: |
 
 # Sachbearbeiter-Cockpit
 
-Vom geteilten Postfach zur Workflow-Engine mit Audit-Trail. Realtime-Inbox, Magic-Link-Auth, vierfach-sprachige Eingangsbestätigung — alles ohne KI.
+**Vom geteilten Mail-Postfach zur Workflow-Engine mit Audit-Trail.
+Realtime-Inbox, Magic-Link-Auth, automatische Eingangsbestätigung —
+alles ohne KI.**
 
-<small>Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher</small>
+<small>Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher · 2026</small>
+
+<!-- Speaker-Notiz: Die unsichtbare Stufe — Bürger:innen merken
+nichts davon, aber für die Verwaltung ist das die größte
+organisatorische Veränderung der ganzen Fallstudie. -->
 
 ---
 
-## Heute: Mail-Postfach + Excel
+## Lernziele
 
-- Antrag liegt als PDF im Mail-Postfach oder gemeinsamen Account
-- Mehrere Sachbearbeitende greifen drauf zu, niemand weiß wer was bearbeitet
-- Bürger:in bekommt keine Eingangsbestätigung → unsicher
+Nach dieser UE können Sie:
+
+1. **Wissen** — was eine Workflow-Engine ist und warum sie einer
+   Excel-Liste überlegen ist.
+2. **Verstehen** — wie Magic-Link-Auth, RLS und Audit-Trail
+   zusammenspielen.
+3. **Anwenden** — einen neuen Status-Übergang in der Workflow-Engine
+   ergänzen.
+4. **Beurteilen** — wann eine Verwaltung diese Stufe einführen sollte
+   und welche organisatorischen Voraussetzungen nötig sind.
+
+---
+
+## Ausgangslage — das geteilte Mail-Postfach
+
+- Antrag landet als PDF in `antrag@stadt.wuerzburg.de`
+- Mehrere Sachbearbeitende greifen darauf zu, niemand weiß, wer was
+  schon angefasst hat
+- Bürger:in bekommt keine automatische Eingangsbestätigung →
+  ruft nach 2 Wochen an: „ist mein Antrag da?"
 - Statusänderungen in Excel-Listen oder am Papier-Akten-Deckel
-- Bei Anruf des Bürgers: „Da müsste ich mal nachschauen…"
+- Bei Krankheit/Urlaub: Kollegen wissen nicht, wo der Vorgang steht
 
-> Das ist nicht digital. Das ist „Papier mit Bildschirm-Adapter".
+> **Das ist nicht digital. Das ist „Papier mit Bildschirm-Adapter".**
 
 ---
 
-## Reifegradstufen — wo wir sind
+## Problemstellung
+
+| Schmerzpunkt | Wirkung |
+|---|---|
+| Niemand sieht „wer macht was" | Doppelarbeit, vergessene Vorgänge |
+| Status nur in Köpfen / Excel | Auskunft ans Telefon kaum möglich |
+| Praktikant:innen können alles | Datenschutz-Risiko |
+| Statusänderungen ohne Begründung | nicht nachvollziehbar bei Beschwerden |
+| Eingangsbestätigung manuell | inkonsistent, oft vergessen |
+| Anhänge: Mail → Drucker → Akte | Medienbrüche, verlorene Anlagen |
+
+> **Kernproblem:** Es gibt keine **Quelle der Wahrheit** für
+> Vorgangs-Status.
+
+---
+
+## Reifegradmodell — wo wir stehen
 
 | Stufe | Was neu ist | Bürger | Amt |
 |---|---|---|---|
 | UE0 | PDF-Upload + KI-OCR | = | ↓↓ |
-| UE1 | Webformular | ↑ | ↓↓↓ |
-| **UE2** (heute) | **Sachbearbeiter-UI (manuell)** | = | ↓ |
-| UE3 | KI-Vorschlag (Empfehlung) | = | ↓↓↓ |
+| UE1 | Strukturiertes Webformular | ↑ | ↓↓↓ |
+| **UE2** (jetzt) | **Sachbearbeiter-UI (manuell)** | **=** | **↓** |
+| UE3 | KI-Empfehlung (Mensch entscheidet) | = | ↓↓↓ |
 | UE4 | Konversationeller Agent | ↓↓ | ↓↓↓ |
 
-UE2 ist die **erste Stufe mit echter Verwaltungs-IT** — geteilte Inbox,
-Workflow-Engine, Audit-Trail, aber **noch ohne KI-Unterstützung**.
+> UE2 ist die **erste Stufe mit echter Verwaltungs-IT** — geteilte
+> Inbox, Workflow-Engine, Audit-Trail, aber **noch ohne KI**.
 
 ---
 
-## UE2 in einem Bild
+## Herangehensweise
+
+**Idee:** Den Vorgangs-Status zur ersten Klasse machen.
+
+1. **Geteilte Inbox in Echtzeit** für alle Sachbearbeitenden (statt Mail)
+2. **Workflow-Engine in der DB** als alleinige Wahrheit über Status
+3. **Postgres-Trigger** blockt verbotene Übergänge serverseitig
+4. **Jede Änderung erzeugt automatisch History-Eintrag** (Audit-Trail)
+5. **Magic-Link-Login** + Allowlist statt Passwörter
+6. **n8n verschickt** automatische Eingangsbestätigung in 4 Sprachen
+
+> **Datengetriebener Workflow > if-else im Code.**
+
+---
+
+## Architektur
 
 ```
-[Antrag wird via UE0/UE1 eingereicht]
-   |
-   v
-[INSERT apl.antraege] -- pg_notify -->  [n8n: Eingangsbestätigungs-Mail]
-   |                                         (4 Sprachen via Switch-Node)
-   |                                         |
-   |                                         v
-   |                                    [Bürger:in: Mail ✓]
-   v
-[Realtime-Inbox bei UE2-Sachbearbeitenden]
-   |
-   | Magic-Link-Login → Allowlist-Check (apl.allow_email)
-   v
-[Inbox: alle Anträge in Echtzeit]
-   |
-   | Klick auf Antrag
-   v
-[AntragDetail]
-   ├── Stammdaten (read-only)
-   ├── Anlagen-Liste mit signed-URL-Download
-   ├── Status-Select (nur erlaubte Übergänge)
-   ├── History-Timeline (wer/wann/was/warum)
-   └── Bescheid-Word-Erstellung
+[Antrag aus UE0/UE1]
+   │
+   ▼
+[INSERT apl.antraege] — pg_notify → [n8n: Mail in 4 Sprachen]
+   │
+   │  Realtime-Channel
+   ▼
+[Sachbearbeiter:innen sehen neuen Antrag SOFORT in Inbox]
+   │
+   │  Klick → AntragDetail
+   ▼
+[Status-Select prüft erlaubte Übergänge (Client + Server)]
+   │
+   │  UPDATE apl.antraege SET status = …
+   ▼
+[Trigger: INSERT apl.antrag_history (wer/wann/was/Kommentar)]
 ```
+
+Magic-Link-Auth → Allowlist-Check (RLS) → Inbox.
+
+---
+
+## Kern-Mechanismus — Workflow als Daten
+
+```sql
+-- apl.workflow_transition
+('eingegangen',    'in_pruefung'),
+('in_pruefung',    'eingegangen'),
+('in_pruefung',    'zurueckgewiesen'),
+('in_pruefung',    'bewilligt'),
+('in_pruefung',    'abgelehnt'),
+('zurueckgewiesen','in_pruefung');
+
+-- Trigger blockt alles, was NICHT in dieser Tabelle steht
+```
+
+**Defense-in-Depth:**
+- Frontend (TypeScript-Map) zeigt nur erlaubte Übergänge
+- Server (Postgres-Trigger) erzwingt sie nochmal
+- Auch DevTools-Manipulation → Insert wird abgelehnt
 
 ---
 
@@ -89,150 +159,131 @@ Workflow-Engine, Audit-Trail, aber **noch ohne KI-Unterstützung**.
 🌐 **<https://sachbearbeiter.butscher.cloud/login>**
 
 1. Magic-Link mit freigeschalteter E-Mail anfordern
-2. Mail-Link klicken → Callback-Diagnose-Card (4 grüne Häkchen)
-3. Inbox lädt — 6 Demo-Anträge sichtbar
-4. Klick auf Antrag → Detail-Sicht
-5. Status auf „in Prüfung" wechseln → Realtime-Update auch in zweitem Tab
+2. Mail-Link klicken → Diagnose-Card mit 4 grünen Häkchen
+3. Inbox lädt — alle Anträge sichtbar
+4. Antrag öffnen → Status auf „in Prüfung" wechseln
+5. **Zweites Browser-Fenster:** Status-Änderung erscheint in Echtzeit
+6. History-Timeline zeigt: wer/wann/was/Kommentar
 
-<small>Diagnose-Card auf /login zeigt sofort, wenn was klemmt</small>
-
----
-
-## Was UE2 gewinnt
-
-| Aspekt | Mail-Postfach | UE2 |
-|---|---|---|
-| Eingangsbestätigung | manuell oder gar nicht | automatisch in 4 Sprachen |
-| Sichtbarkeit im Amt | „wer öffnet zuerst?" | alle Echtzeit-Inbox |
-| Statusverwaltung | Excel / Akten-Deckel | Workflow-Engine in DB |
-| Wer hat was wann? | Gedächtnis | revisionssicherer Audit-Trail |
-| Verbotene Übergänge | „Praktikant hat ‚abgelehnt' geklickt" | Postgres-Trigger blockiert |
-| Anlagen-Zugriff | Mail-Anhang/Papier | signed Download aus Storage |
-| Zugriffskontrolle | Mailbox-Passwort | Magic-Link + Allowlist + RLS |
+<!-- Speaker-Notiz: Den Realtime-Effekt unbedingt mit 2 Tabs zeigen —
+„Ich klicke hier, schau drüben". Magic-Link in der echten Mail
+checken, sonst sieht es wie ein Spielzeug aus. -->
 
 ---
 
-## Was UE2 nicht löst
+## Chancen
 
-- **Keine inhaltliche Prüfung** des Antrags (UE3 mit KI-Vorschlag)
-- **Kein automatischer Bescheid-Entwurf** (UE3)
-- **Kein Vergleich mit Vorjahresantrag** (UE3)
-- **Keine Risiko-Bewertung** (UE3)
-- **Kein adversarieller Zweitprüfer** (UE3)
-- **Keine externe Validierung** (Perplexity etc. — UE3)
-- **Sachbearbeitende lesen + entscheiden komplett selbst**
-- Allowlist-Pflege nur per SQL (kein UI)
-
----
-
-## Workflow-Engine — das Herzstück
-
-Erlaubte Status-Übergänge in `apl.workflow_transition`:
-
-```sql
-eingegangen     → in_pruefung
-in_pruefung     → eingegangen | zurueckgewiesen | bewilligt | abgelehnt
-zurueckgewiesen → in_pruefung
-bewilligt       → (final)
-abgelehnt       → (final)
-```
-
-**Defense-in-Depth:** Client (TS-Map) UND Server (Postgres-Trigger)
-validieren — Manipulation via DevTools wird abgelehnt.
-
-> Lehrreich: Datengetriebener Workflow ist um Größenordnungen
-> robuster als „if (status === 'foo')" im Code.
+- **Schluss mit Doppelarbeit** — alle sehen denselben Zustand
+- **Compliance-fähig** durch revisionssicheren Audit-Trail
+- **Skaliert** auf neue Verfahren ohne Code-Änderung
+- **Rollenmodell pro Sachbearbeiter:in** über RLS möglich
+- **Bürger:in fühlt sich abgeholt** durch automatische Bestätigung
+- **Krankheit/Urlaub** kein Wissensverlust mehr — Status sichtbar
+- **Vorbereitung für UE3** — die KI baut auf dieser Datenstruktur auf
 
 ---
 
-## Audit-Trail
+## Einschränkungen / Grenzen
 
-`apl.antrag_history`-Zeile:
-
-| Spalte | Beispiel |
-|---|---|
-| `event_at` | 2026-05-30 14:23:15 UTC |
-| `user_email` | sachbearbeiter@stadt.wuerzburg.de |
-| `event_type` | status_change |
-| `alt_status` | eingegangen |
-| `neu_status` | in_pruefung |
-| `kommentar` | „Wartet auf Helferliste" |
-
-**Trigger-basiert**: jeder UPDATE auf `apl.antraege` erzeugt
-automatisch einen Eintrag. Frontend muss nichts dafür tun.
-
-> Grenze: wer mit `service_role` direkt arbeitet, bypasst den Trigger.
-> Echte Revisionssicherheit bräuchte WORM-Storage oder eine Blockchain.
+- **Keine inhaltliche Prüfung** des Antrags (das macht erst UE3)
+- **Sachbearbeitende müssen alles selbst lesen** — keine Empfehlung
+- **Kein automatischer Bescheid** (Word-Datei wird per Hand erstellt)
+- **Allowlist-Pflege nur per SQL** (kein Sachbearbeiter-UI)
+- **Volle Revisionssicherheit** bräuchte WORM-Storage oder Blockchain
+- **service_role** im Backend kann Trigger umgehen — operative Hygiene
+  notwendig
 
 ---
 
-## Magic-Link-Auth Flow
+## Voraussetzungen / Risiken
 
-```
-[Bürger:in / Sachbearbeitende]
-  → POST /auth/v1/otp (email)
-  → GoTrue → SMTP → Mail mit Link
-  → Klick auf Mail-Link
-  → GoTrue verifiziert Token
-  → Browser: /auth/callback#access_token=...
-  → setSession() → localStorage
-  → allow_email-Lookup (RLS-Policy `USING (true)` für authenticated)
-  → wenn Allowlist-Match → /inbox
-  → wenn nicht → /login
-```
+**Technisch:**
+- Postgres mit Realtime + RLS + Triggers
+- Magic-Link-Service (Supabase Auth oder eigenes)
+- n8n oder ähnliche Workflow-Engine für Mails
 
-**Live-Diagnose-Card** auf /login zeigt jeden Schritt — kein
-Raten mehr, wenn was klemmt (Lektion vom 2026-05-30).
+**Organisatorisch:**
+- Klare Status-Definitionen, Workshop mit Sachbearbeitenden
+- Allowlist-Prozess: Wer pflegt sie?
+- AV-Vertrag mit Cloud-Anbieter (Supabase, SMTP)
+- Schulung: alle gehen über die Inbox, nicht mehr über Mail
 
----
-
-## ⚖️ Sicherheit
-
-- **Magic-Link** statt Passwort (keine Phishing-anfälligen Credentials)
-- **Allowlist** (`apl.allow_email`) — nur freigeschaltete E-Mails kommen rein
-- **RLS auf jeder Tabelle** — auch wenn Anon-Key geleakt wird, kann
-  nichts ausgelesen werden
-- **Signed URLs für Storage-Downloads** (10-min-Gültigkeit)
-- **Postgres-Trigger** als Defense-in-Depth für Workflow-Übergänge
-- **CORS-Whitelist** in GoTrue für alle berechtigten Origins
-- **Pool-Tuning** + Watchdog (Lektion 2026-05-30) für Stabilität
+**Risiken:**
+- „Schatten-Excel" überlebt — Schulung + Konsequenz nötig
+- Mail-Postfach bleibt — was wenn doch jemand mailt?
 
 ---
 
-## Code-Walkthrough (5 Stellen)
+## Selbstreflexion
 
-1. **`src/lib/workflow.ts`** — Status-Union, Labels, erlaubte
-   Übergänge als reine Map. Spiegel der DB-Tabelle.
-2. **`src/hooks/useAntraege.ts`** — Realtime-Hook (Initial-Load +
-   `postgres_changes`-Channel), idempotenter Merge.
-3. **`src/pages/Inbox.tsx`** — Listen-Ansicht, FB-Filter,
-   Sortier-Spalten, StatusBadge.
-4. **`src/pages/AntragDetail.tsx`** — 4-Bereich-View: Stammdaten,
-   Anlagen, Status-Select, History.
-5. **`supabase/webhooks/n8n-apl2-eingangsbestaetigung.json`** — Mail-
-   Workflow mit Switch-Node für 4 Sprachen.
+> Beantworten Sie für sich diese 4 Fragen:
+
+1. **Welche organisatorische Veränderung ist schwieriger — Excel raus
+   oder Mail raus? Warum?**
+2. **Wer haftet für einen falschen Status-Übergang, wenn der
+   Audit-Trail sagt: „Praktikant:in hat ‚bewilligt' geklickt"?**
+3. **Wann ist Magic-Link sicherer als Passwort — und wann nicht?**
+4. **UE2 macht keine inhaltliche Prüfung — wann ist das genug
+   und wann ist es zu wenig?**
 
 ---
 
-## Mitmach-Aufgaben
+## Übungsfragen
 
-- **A** — Status-Filter in der Inbox (Pill-Buttons) · 30 Min · ⭐
-- **B** — Neuer History-Event-Type „Anlage hinzugefügt" durch alle
-  Schichten · 90 Min · ⭐⭐
-- **C** — Fünfte Sprache (Polnisch) für Eingangsbestätigung im n8n
-  · 45 Min · ⭐⭐
-- **D** — Neuen Sachbearbeitenden über `apl.allow_email` freischalten
-  + Login-Flow durchspielen · 20 Min · ⭐
+**Frage 1:** Was passiert bei einem verbotenen Status-Übergang?
+<small>(a) wird gespeichert, Warnung im UI · (b) Trigger blockt
+serverseitig, Insert fehlschlägt · (c) Sachbearbeiter:in entscheidet ·
+(d) UE3-KI prüft</small>
+
+**Frage 2:** Wer kann die Inbox sehen?
+<small>(a) jede:r mit Link · (b) nur Sachbearbeitende mit
+Allowlist-Eintrag · (c) auch Bürger:innen · (d) nur der Bürgermeister</small>
+
+**Frage 3:** Was ist die „Quelle der Wahrheit" für Vorgangsstatus?
+<small>(a) Excel · (b) Akten-Deckel · (c) <code>apl.antraege.status</code>
++ <code>apl.antrag_history</code> · (d) Mail-Postfach</small>
+
+<!-- Speaker-Notiz: Lösungen: 1=b, 2=b, 3=c. „Quelle der Wahrheit"
+ist der Schlüsselbegriff der ganzen UE. -->
+
+---
+
+## Mitmach-Aufgaben (Vertiefung)
+
+| Code | Titel | Aufwand | ⭐ |
+|---|---|---|---|
+| A | Status-Filter in der Inbox (Pill-Buttons) | 30 Min | ⭐ |
+| B | Neuer History-Event-Type („Anlage hinzugefügt") End-to-End | 90 Min | ⭐⭐ |
+| C | 5. Sprache (Polnisch) im n8n-Eingangsbestätigungs-Workflow | 45 Min | ⭐⭐ |
+| D | Neuen Sachbearbeitenden per <code>apl.allow_email</code> freischalten | 20 Min | ⭐ |
 
 Detail: **`ue2/sachbearbeiter/04-aufgaben.md`**
 
 ---
 
+## Materialien & Ressourcen
+
+| Ressource | Pfad / URL |
+|---|---|
+| 🌐 **Live-Demo** | <https://sachbearbeiter.butscher.cloud/login> |
+| 📚 **Selbstlern-Modul (HTML)** | [`selbstlern.html`](./selbstlern.html) |
+| 📝 **Konzept-Markdown** | [`01-konzept.md`](./01-konzept.md) |
+| ⚖️ **Vorteile / Voraussetzungen** | [`02-vorteile-voraussetzungen.md`](./02-vorteile-voraussetzungen.md) |
+| 🛠 **Dozent-Walkthrough** | [`03-walkthrough.md`](./03-walkthrough.md) |
+| ✏️ **Studi-Aufgaben** | [`04-aufgaben.md`](./04-aufgaben.md) |
+| 💻 **Quellcode** | `ue2/sachbearbeiter/` + `supabase/migrations/` |
+
+---
+
 <!-- _class: lead -->
 
-# Fragen?
+# Brücke zu UE3
 
-**Nächste Stunde:** UE3 — die KI-Variante derselben Sachbearbeitung,
-mit Empfehlungs-Cards und Compliance-Cockpit
+Die Sachbearbeitenden sehen jetzt alles — aber sie müssen **immer noch
+die ganze 35-seitige Förderrichtlinie pro Antrag im Kopf haben**.
+**UE3** legt eine KI-Empfehlungsschicht darüber: Erst-KI, adversarielle
+Zweit-KI, externe Validierung, Compliance-Cockpit.
 
-<small>Materialien: <code>ue2/sachbearbeiter/{README, 01-konzept, 02-vorteile-voraussetzungen, 03-walkthrough, 04-aufgaben, slides, selbstlern}</code></small>
+> **Frage zum Mitnehmen:** Welche Aufgaben sollten KI übernehmen,
+> welche nicht? Wo verläuft die Grenze, hinter der „Mensch entscheidet"
+> mehr ist als Show?

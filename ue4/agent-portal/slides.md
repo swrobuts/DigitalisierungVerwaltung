@@ -21,60 +21,133 @@ style: |
 
 # CIVA — der Agent
 
-Konversation statt Formular. Anthropic-Tool-Use-Loop, 3-Schichten-Halluzinations-Schutz, Plugin-System teilt sich die Wahrheit mit UE1–UE3.
+**Konversation statt Formular. Anthropic-Tool-Use-Loop,
+3-Schichten-Halluzinations-Schutz, gleiche Plugin-Wahrheit wie UE1–UE3.
+Die Brücke zu „Agentic Government".**
 
-<small>Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher</small>
+<small>Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher · 2026</small>
 
----
-
-## UE3 vs. UE4 — der Sprung
-
-UE3 macht KI **im Amt** (KI-Sachbearbeitung).
-UE4 macht KI **beim Bürger** — der Antrag entsteht im Gespräch.
-
-- UE0–UE3: Bürger:in muss FB raten, Pflichtfelder durchgehen, PDFs hochladen
-- UE4: Bürger:in beschreibt frei, Agent klassifiziert, fragt adaptiv,
-  validiert live, submittet
-
-> **Reifegrad 4** = Bürger:in muss nichts mehr „über die Verwaltung"
-> wissen — der Agent übersetzt.
+<!-- Speaker-Notiz: Die spannendste und gleichzeitig riskanteste
+Stufe. Hier ist die KI direkt vor der Bürger:in — alle
+Halluzinations-Schutzwälle werden nochmal scharf gestellt. -->
 
 ---
 
-## Reifegradstufen — wo wir sind
+## Lernziele
+
+Nach dieser UE können Sie:
+
+1. **Wissen** — was einen Agenten (Tool-Use, Autonomie) von einem
+   Chatbot unterscheidet.
+2. **Verstehen** — wie 3-Schichten-Halluzinations-Schutz im Code
+   konkret aussieht (Prompt, Tool, Frontend).
+3. **Anwenden** — den System-Prompt oder ein Tool um eine neue
+   harte Regel erweitern.
+4. **Beurteilen** — wann ein Agent vor der Bürger:in steht und
+   wann sich das verbietet.
+
+---
+
+## Ausgangslage — UE1 bis UE3 entlasten das Amt, nicht die Bürger:in
+
+- UE1 hat das Formular gebaut — aber Bürger:in muss FB raten
+- UE2 / UE3 entlasten die Sachbearbeitenden — Bürger:in spürt das nicht
+- Wer kein Vorwissen über Verwaltungs-Begriffe hat, scheitert weiterhin
+- „Welche Pflichtfelder gelten für mich?" bleibt eine Studie der Richtlinie
+- Multilingual ja — aber die Begriffe sind und bleiben Verwaltungs-Jargon
+
+> **Bis UE3 ist die Tür zur Verwaltung digitaler — aber sie ist
+> immer noch eine Tür mit einem Formular davor.**
+
+---
+
+## Problemstellung
+
+| Schmerzpunkt | Wirkung |
+|---|---|
+| Bürger:in muss FB selbst wählen | falsche FB-Wahl → Antrag falsch |
+| Pflichtfelder im Voraus lesen | überfordert, Abbruch |
+| Validierung erst nach Submit | Trial & Error |
+| Verwaltungs-Sprache schreckt ab | Migrant:innen, Bildungsferne ausgeschlossen |
+| Kein „Verstehst du mich?"-Dialog | starres Frage-Antwort |
+| Keine Erklärung „warum brauchst du das?" | Misstrauen |
+
+> **Kernproblem:** Das Formular zwingt Bürger:innen in die Sprache
+> der Verwaltung. UE4 dreht das um.
+
+---
+
+## Reifegradmodell — wo wir stehen
 
 | Stufe | Was neu ist | Bürger | Amt |
 |---|---|---|---|
 | UE0 | PDF-Upload + KI-OCR | = | ↓↓ |
-| UE1 | Webformular | ↑ | ↓↓↓ |
-| UE2 | Sachbearbeiter-UI (manuell) | = | ↓ |
-| UE3 | KI-Vorschlag (Mensch entscheidet) | = | ↓↓↓ |
-| **UE4** (heute) | **Konversationeller Agent** | **↓↓** | **↓↓↓** |
+| UE1 | Strukturiertes Webformular | ↑ | ↓↓↓ |
+| UE2 | Sachbearbeiter-Inbox (manuell) | = | ↓ |
+| UE3 | KI-Empfehlung (Mensch entscheidet) | = | ↓↓↓ |
+| **UE4** (jetzt) | **Konversationeller Agent** | **↓↓** | **↓↓↓** |
 
-UE4 ist die **Eingangstür** vor UE2/UE3. Der von CIVA erzeugte Antrag
-durchläuft denselben Workflow wie ein UE1-Antrag.
+> UE4 ist die **Eingangstür vor UE2/UE3**. Der Antrag landet in
+> derselben `apl.antraege` wie ein UE1-Antrag.
 
 ---
 
-## CIVA in einem Bild
+## Herangehensweise
+
+**Idee:** Bürger:in spricht — der Agent übersetzt.
+
+1. **Bürger:in beschreibt frei**, was sie/er vorhat
+2. **Agent klassifiziert** den richtigen FB (Tool 1)
+3. **Agent fragt adaptiv** Pflichtfelder ab (Tool 2)
+4. **Live-Validierung** im Dialog (Tool 3 — IBAN, E-Mail, PLZ)
+5. **Agent submittet** nach Bestätigung (Tool 4)
+6. **Sidebar zeigt live**, was der Agent verstanden hat
+
+> **Defense-in-Depth gegen Halluzinationen:** 3 Schichten
+> (System-Prompt + Tool-Whitelist + Frontend-Filter).
+
+---
+
+## Architektur
 
 ```
-[Bürger:in chattet frei]
-   |
-   v
-[Anthropic Tool-Use-Loop: Sonnet 4.5]
-   |
-   |  Tool 1: klassifiziere_foerderbereich  (Sub-Call Haiku)
-   |  Tool 2: get_pflichtfelder              (aus FB-Plugin)
-   |  Tool 3: validate_field                 (Email/IBAN/PLZ)
-   |  Tool 4: submit_antrag                  (DB-Insert)
-   |
-   v
+[Bürger:in chattet]
+   │
+   ▼
+[Anthropic Tool-Use-Loop: Claude Sonnet 4.5]
+   │
+   │   Tool 1: klassifiziere_foerderbereich  (Sub-Call Haiku)
+   │   Tool 2: get_pflichtfelder              (aus FB-Plugin)
+   │   Tool 3: validate_field                 (Email/IBAN/PLZ)
+   │   Tool 4: submit_antrag                  (DB-Insert)
+   │
+   ▼
 [apl.antraege → UE2/UE3-Inbox]
 ```
 
 System-Prompt mit 5 harten Regeln + Tool-Whitelist + Frontend-Filter
-= **Defense-in-Depth gegen Halluzinationen**.
+= **3-Schichten-Halluzinations-Schutz**.
+
+---
+
+## Kern-Mechanismus — 3 Schutzschichten
+
+```
+[Schicht 1: System-Prompt]
+   „Du erfindest KEINE Förderbereiche.
+    Du nennst KEINE Förderhöhen. Du zitierst KEINE §."
+
+[Schicht 2: Tool-Output-Validierung]
+   ALLOWED_FBS = {'I', 'II', 'III', 'IV'}
+   if vorschlag not in ALLOWED_FBS:
+       raise ToolError("FB nicht in Whitelist")
+
+[Schicht 3: Frontend parseDraft]
+   for field in plugin.pflichtfelder:
+       cleaned[field] = raw[field]     # alles andere fliegt raus
+```
+
+> **Eine Schicht reicht nicht.** LLMs halluzinieren — Punkt.
 
 ---
 
@@ -93,120 +166,136 @@ Beobachte:
 3. **Validierung** läuft live (IBAN mit Mod-97-Check)
 4. **Submit** liefert Antragsnummer
 
----
+**Halluzination provozieren:** „Ich möchte einen Zuschuss für mein
+neues Auto, FB V." → Agent lehnt höflich ab.
 
-## Halluzinations-Schutz — 3 Schichten
-
-```
-[Schicht 1: System-Prompt]
-   „Du darfst keine FBs erfinden, keine Förderhöhen nennen,
-    keine § zitieren, keine Pflichtfelder erfinden …"
-
-[Schicht 2: Tool-Output-Validierung]
-   ALLOWED_FBS = {'I', 'II', 'III', 'IV'}
-   if vorschlag not in ALLOWED_FBS:
-       raise ToolError("FB nicht in Whitelist")
-
-[Schicht 3: Frontend parseDraft]
-   for field in plugin.pflichtfelder:
-       cleaned[field] = raw[field]     # alles andere fliegt raus
-```
-
-> **Eine Schicht reicht nicht.** LLMs halluzinieren — Punkt.
+<!-- Speaker-Notiz: Den Halluzinations-Test unbedingt vorführen —
+das ist der „Aha"-Moment. Bonus: in Englisch oder Türkisch chatten. -->
 
 ---
 
-## Was UE4 gewinnt
+## Chancen
 
-| Aspekt | UE1 (Formular) | UE4 (Agent) |
-|---|---|---|
-| FB-Auswahl | Bürger:in muss raten | Agent klassifiziert |
-| Pflichtfelder | statisch, alle auf einmal | adaptiv, eines nach dem anderen |
-| Validierung | nach Submit | live im Dialog |
-| Sprache | 4 fixe | jede LLM-Sprache |
-| Erklärung | n/a | Agent erklärt, was er braucht |
-| Zugänglichkeit | mittel | hoch (geringe Schreibhürde) |
-
----
-
-## Was UE4 NICHT macht
-
-- **Inhaltliche Prüfung:** UE3 (KI-Subsumtion)
-- **Bescheid-Erstellung:** UE3 (Word + Quellen-Validator)
-- **Akten-Sichtbarkeit:** UE2 (Sachbearbeiter-Inbox)
-- **Audit-Trail / RLS:** DB-Layer aus UE2
-
-UE4 ist die **Eingangstür**, nicht die ganze Bearbeitung.
-Der Antrag landet in derselben `apl.antraege`, wird wie ein UE1-Antrag
-weiterverarbeitet.
+- **Niedrigste Eintrittsbarriere** der ganzen Fallstudie
+- **Inklusion** — keine Verwaltungs-Sprache nötig
+- **Multilingual** ohne Übersetzungsaufwand (LLM kann alles)
+- **Adaptiv** — nur die Felder, die wirklich nötig sind
+- **Live-Erklärung** „warum brauche ich das?" durch den Agent
+- **Wow-Effekt** für Reform-Druck in der Verwaltung
+- **Skalierbar** auf jeden anderen Antragstyp mit FB-Plugin
 
 ---
 
-## Performance-Tricks im Code
+## Einschränkungen / Grenzen
 
-```python
-# pruefung/src/pruefung/agent_chat.py
-system_blocks = [{
-    "type": "text", "text": SYSTEM_PROMPT,
-    "cache_control": {"type": "ephemeral"}     # ← Prompt-Cache
-}]
-
-# Parallel-Dispatch mehrerer Tool-Calls
-results = await asyncio.gather(*[
-    dispatch_tool(b) for b in tool_blocks
-])
-
-# Klassifikation mit Haiku statt Sonnet (5× schneller, 10× billiger)
-model = os.getenv("ANTHROPIC_KLASSIFIKATIONS_MODEL", "claude-haiku-4-5")
-```
-
-> Latenz pro Turn: 3.0s → 0.8s. Kosten pro Antrag: −60 %.
+- **Inhaltliche Prüfung** macht weiterhin UE3 (Mensch im Loop)
+- **Bescheid-Erstellung** macht UE3 — UE4 ist nur Eingang
+- **Chat-Modus nicht für alle** — Senior:innen, Verweigerer
+- **LLM-Kosten** pro Konversation (ca. 5–15 Tool-Calls)
+- **Latenz** 1–3 s pro Turn — keine sofortige Antwort
+- **Datenschutz** Texte gehen an Anthropic (USA) —
+  LM-Studio-Alternative geplant
+- **„Hallucinated empathy"** — Agent klingt verständnisvoll, ist es nicht
 
 ---
 
-## ⚖️ AI Act Art. 9, 12, 13, 14, 50
+## Voraussetzungen / Risiken
 
-- **Art. 9** Risikomanagement: dokumentierter Halluzinations-Schutz
-- **Art. 12** Logging: `apl.agent_session_log` mit jedem Tool-Call
-- **Art. 13** Transparenz Bürger:in: Chat-Header „Sie sprechen mit KI"
-- **Art. 14** menschliche Aufsicht: UE2/UE3 entscheidet final
-- **Art. 50** KI-Kennzeichnung: Footer nennt das Modell
+**Technisch:**
+- LLM mit Tool-Use-Fähigkeit (Claude Sonnet, GPT-4, Llama 3.3 70B)
+- Prompt-Caching für Performance
+- Plugin-System geteilt mit UE1/UE3
+- Audit-Logging pro Tool-Call (`apl.agent_session_log`)
 
-> UE4 = Hochrisiko-KI (Anhang III Nr. 5b „Zugang zu öffentlichen
-> Leistungen"). Alle Pflichten sind in der Demo sichtbar.
+**Organisatorisch:**
+- AI-Act-Hinweis im Chat-Footer (Art. 13 + 50)
+- Datenschutz-Folgenabschätzung (Hochrisiko-KI!)
+- Fallback auf UE1 (klassisches Formular) muss bleiben
+- Service-Telefon für Fälle, wo der Agent nicht weiterkommt
 
----
-
-## Code-Walkthrough (5 Stellen)
-
-1. **`pruefung/agent_chat.py`** — System-Prompt + Tool-Use-Loop
-2. **`pruefung/agent_tools.py`** — 4 Tools mit Whitelist-Validierung
-3. **`pruefung/foerderbereiche/*.py`** — Plugin-System (eine Wahrheit)
-4. **`ue4/agent-portal/src/lib/agent-api.ts`** — `parseDraft` als 3. Schicht
-5. **`ue4/agent-portal/src/components/Sidebar.tsx`** — Tool-Trace live
-
-> Code-Tour-Faden: **wie verhindert der Agent, dass er Quatsch in die
-> DB schreibt — auf jeder einzelnen Code-Schicht?**
+**Risiken:**
+- Hallucinated FB → falscher Antrag in der DB
+- Mitigation: 3-Schichten-Schutz + UE3-Mensch im Loop
 
 ---
 
-## Mitmach-Aufgaben
+## Selbstreflexion
 
-- **A** — System-Prompt um 6. Regel ergänzen + pytest dafür · 45 Min · ⭐⭐
-- **B** — Neues Pflichtfeld in FB-II-Plugin, Agent fragt es ab · 60 Min · ⭐⭐
-- **C** — Tool-Use-Loop verstehen, Token-Cost messen · 45 Min · ⭐⭐⭐
-- **D** — LM Studio lokal einbinden (Datenschutz!) · 2 h · ⭐⭐⭐
-- **E** — Voice-Input via Web Speech API · 3 h · ⭐⭐⭐⭐
+> Beantworten Sie für sich diese 4 Fragen:
+
+1. **Wenn die Bürger:in dem Agent persönliche Probleme schildert —
+   wie würden Sie die Grenze zwischen „Antragsdialog" und
+   „digitaler Sozialarbeiter" definieren?**
+2. **Welche der 3 Schutzschichten würden Sie als allerletzte
+   aufgeben — und warum?**
+3. **Wann lohnt sich ein Agent — und wann ist ein Formular besser?**
+4. **Wenn Bürger:innen anfangen, den Agent zu manipulieren
+   („höhere Förderung als nötig"): was sind die Frühwarnsignale?**
+
+---
+
+## Übungsfragen
+
+**Frage 1:** Was unterscheidet einen Agent von einem Chatbot?
+<small>(a) längere Antworten · (b) Werkzeug-Aufrufe (Tool-Use)
+und Aktionen · (c) höhere Kosten · (d) Mehrsprachigkeit</small>
+
+**Frage 2:** Welche Schicht ist die LETZTE Verteidigungslinie?
+<small>(a) System-Prompt · (b) Tool-Validierung Backend ·
+(c) Submit-Endpoint · (d) <code>parseDraft</code> im Frontend</small>
+
+**Frage 3:** Warum Claude Haiku statt Sonnet für die Klassifikation?
+<small>(a) schneller + billiger bei einfacher Aufgabe ·
+(b) höhere Qualität · (c) bessere Tool-Use-Fähigkeit ·
+(d) bessere Mehrsprachigkeit</small>
+
+<!-- Speaker-Notiz: Lösungen: 1=b, 2=d, 3=a. „Defense-in-Depth"
+ist das Schlüsselkonzept der ganzen UE. -->
+
+---
+
+## Mitmach-Aufgaben (Vertiefung)
+
+| Code | Titel | Aufwand | ⭐ |
+|---|---|---|---|
+| A | System-Prompt um 6. harte Regel ergänzen + pytest | 45 Min | ⭐⭐ |
+| B | Neues Pflichtfeld in FB-II-Plugin (Agent fragt es ab) | 60 Min | ⭐⭐ |
+| C | Tool-Use-Loop verstehen, Token-Cost messen | 45 Min | ⭐⭐⭐ |
+| D | LM Studio lokal einbinden (Datenschutz!) | 2 h | ⭐⭐⭐ |
+| E | Voice-Input via Web Speech API | 3 h | ⭐⭐⭐⭐ |
 
 Detail: **`ue4/agent-portal/04-aufgaben.md`**
 
 ---
 
+## Materialien & Ressourcen
+
+| Ressource | Pfad / URL |
+|---|---|
+| 🌐 **Live-Demo** | <https://agent.butscher.cloud/> |
+| 📚 **Selbstlern-Modul (HTML)** | [`selbstlern.html`](./selbstlern.html) |
+| 📝 **Konzept-Markdown** | [`01-konzept.md`](./01-konzept.md) |
+| ⚖️ **Vorteile / Voraussetzungen** | [`02-vorteile-voraussetzungen.md`](./02-vorteile-voraussetzungen.md) |
+| 🛠 **Dozent-Walkthrough** | [`03-walkthrough.md`](./03-walkthrough.md) |
+| ✏️ **Studi-Aufgaben** | [`04-aufgaben.md`](./04-aufgaben.md) |
+| 💻 **Quellcode** | `ue4/agent-portal/` + `pruefung/src/pruefung/agent_*.py` |
+
+---
+
 <!-- _class: lead -->
 
-# Fragen?
+# Rückblick & Ausblick
 
-**Damit endet die Fallstudie:**
-UE0 → UE1 → UE2 → UE3 → UE4. Reifegrad 0 bis 4 am gleichen Use Case.
+**Damit endet die Fallstudie:** UE0 → UE1 → UE2 → UE3 → UE4.
+Reifegrad 0 bis 4 am gleichen Use Case (AHP Würzburg).
 
-<small>Materialien: <code>ue4/agent-portal/{README, 01-konzept, 02-vorteile-voraussetzungen, 03-walkthrough, 04-aufgaben, slides, selbstlern}</code></small>
+**Wo geht es weiter?**
+- Reifegrad 5: vollautomatische Bewilligung (mit menschlichem
+  Stichproben-Audit) — heute juristisch im Graubereich
+- Voice-First / Multi-Modal — Bürger:in fotografiert,
+  Agent zieht Daten
+- Cross-Verwaltung-Agent — ein Agent für viele Ämter
+
+> **Frage zum Mitnehmen:** Welche der 5 Stufen ist die wichtigste,
+> wenn das Budget nur für eine reicht? Welche ist die
+> politisch heikelste?

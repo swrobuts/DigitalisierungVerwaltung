@@ -8,15 +8,11 @@ style: |
   section { font-family: 'Inter', system-ui, sans-serif; }
   h1, h2, h3 { color: #4A4A4A; }
   .accent { color: #AD0E36; font-weight: 600; }
-  .pill {
-    display: inline-block; padding: 4px 12px; border-radius: 999px;
-    background: #AD0E36; color: white; font-size: 14px;
-    letter-spacing: 0.06em; font-weight: 600;
-  }
-  blockquote {
-    border-left: 4px solid #AD0E36;
-    background: #FBE9EE; padding: 12px 20px;
-  }
+  .pill { display: inline-block; padding: 4px 12px; border-radius: 999px;
+          background: #AD0E36; color: white; font-size: 14px;
+          letter-spacing: 0.06em; font-weight: 600; }
+  blockquote { border-left: 4px solid #AD0E36; background: #FBE9EE;
+               padding: 12px 20px; }
 ---
 
 <!-- _class: lead -->
@@ -25,71 +21,137 @@ style: |
 
 # Strukturiertes mehrsprachiges Webformular
 
-Live-Validierung, Sticky-Progress, Multi-Förderbereich-Wizard, DE/TR/IT/RU/FR
+**Bürger:innen geben Daten direkt strukturiert ein — mit
+Live-Validierung, Stepper und Multi-Förderbereich-Wizard.
+DE / TR / IT / RU / FR.**
 
-<small>Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher</small>
+<small>Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher · 2026</small>
 
----
-
-## Heute: PDF + Mail
-
-Selbst wenn das Amt ein PDF-Formular bereitstellt:
-
-- Pflichtfelder werden übersehen
-- IBAN mit Zahlendreher → Bank lehnt Auszahlung ab
-- Anlagen werden vergessen → Rückfrage per Brief → Wochen Verzögerung
-- Handschrift unleserlich → Erfassungsfehler im Amt
-- **Sprachbarriere**: das deutsche PDF ist für nicht-deutschsprachige
-  Antragsteller schwer zugänglich
-
-> Würzburg hat einen hohen Anteil türkischer, italienischer,
-> spanischer Mitbürger:innen — das PDF ist deutsch.
+<!-- Speaker-Notiz: Die erste „echte" digitale Stufe — der Antrag
+entsteht nicht mehr aus einem PDF, sondern aus der Eingabe selbst. -->
 
 ---
 
-## Reifegradstufen — wo wir sind
+## Lernziele
+
+Nach dieser UE können Sie:
+
+1. **Wissen** — warum ein Webformular dem PDF-Upload überlegen ist
+   (und wo es nicht reicht).
+2. **Verstehen** — wie Multi-FB-Wizards mit konditionalen Feldern
+   funktionieren (Plugin-System).
+3. **Anwenden** — eine neue Sprache (oder ein neues Feld) im
+   Webformular ergänzen.
+4. **Beurteilen** — wann ein Webformular barrierearm ist und wann es
+   neue Hürden schafft.
+
+---
+
+## Ausgangslage — auch mit UE0 bleibt das PDF im Weg
+
+- UE0 macht den Eingang strukturiert — aber das PDF muss existieren.
+- Bürger:innen, die kein Deutsch sprechen, scheitern am PDF.
+- Fehler in der IBAN fallen erst nach OCR + Korrekturdialog auf.
+- Die Antragslogik (welche Felder pro FB?) steckt in einem starren
+  Dokument.
+
+> **Wenn wir nur PDFs digitalisieren, automatisieren wir das alte
+> Verfahren — wir digitalisieren es nicht.**
+
+---
+
+## Problemstellung
+
+| Schmerzpunkt | Wirkung |
+|---|---|
+| Sprache: PDF nur auf Deutsch | Migrant:innen ausgeschlossen |
+| Pflichtfelder pro FB unterschiedlich | Bürger:in füllt Falsches aus |
+| Tippfehler in IBAN erst Wochen später sichtbar | Auszahlung blockiert |
+| Kein Fortschritt sichtbar | Abbruchquote hoch |
+| Anlagen müssen separat geschickt werden | Vergessen, Doppel-Akten |
+| Mobile UX am PDF: katastrophal | jüngere Bürger:innen springen ab |
+
+> **Kernproblem:** Das amtliche PDF kennt nur einen Pfad. Bürger:innen
+> sind divers.
+
+---
+
+## Reifegradmodell — wo wir stehen
 
 | Stufe | Was neu ist | Bürger | Amt |
 |---|---|---|---|
 | UE0 | PDF-Upload + KI-OCR | = | ↓↓ |
-| **UE1** (heute) | **Strukturiertes Webformular** | ↑ | ↓↓↓ |
-| UE2 | Sachbearbeiter-UI (manuell) | = | ↓ |
-| UE3 | KI-Vorschlag (Mensch entscheidet) | = | ↓↓↓ |
+| **UE1** (jetzt) | **Strukturiertes Webformular** | **↑** | **↓↓↓** |
+| UE2 | Sachbearbeiter-Inbox (manuell) | = | ↓ |
+| UE3 | KI-Empfehlung (Mensch entscheidet) | = | ↓↓↓ |
 | UE4 | Konversationeller Agent | ↓↓ | ↓↓↓ |
 
-UE1 ist die **erste Stufe mit aktiver Bürger-Eingabe** statt PDF-Erfassung.
+> UE1 ist die **erste echte digitale Stufe** — der Antrag entsteht
+> strukturiert, nicht als Dokument.
 
 ---
 
-## UE1 in einem Bild
+## Herangehensweise
+
+**Idee:** Statt PDF nachbauen, das Antragsverhalten neu denken.
+
+1. **Wizard mit Schritten** statt 12-seitiges Endlos-Formular
+2. **Förderbereich zuerst** — danach nur noch passende Felder
+3. **Live-Validierung** bei jedem Tastenanschlag (IBAN, E-Mail, PLZ)
+4. **Sprach-Picker** ganz oben — DE / TR / IT / RU / FR
+5. **Sticky-Progress** — Bürger:in sieht, wie weit sie ist
+6. **Konditionale Anlagen** — z.B. Mietvertrag nur, wenn Räume gemietet
+
+> **Plugin-System** unter `packages/foerderbereiche/` hält die
+> Pflichtfelder pro FB als Daten — nicht im UI verdrahtet.
+
+---
+
+## Architektur
 
 ```
 [Bürger:in]
-   |
-   | 1. Förderbereich wählen (I/II/III/IV)
-   |    bei FB III: Variante A/B/C/D
-   v
-[Sticky-Progress-Bar zeigt 4 Schritte]
-   |
-   | 2. Phase 2 — FB-spezifische Felder
-   |    (Live-Validation: IBAN, E-Mail, PLZ)
-   v
-   | 3. Phase 3 — Anlagen (Wochenplan, Helferliste, Mietvertrag)
-   v
-   | 4. Phase 4 — Bemessungs-Daten (nur FB III)
-   v
-   | 5. Phase 5 — Übersicht + Submit
-   v
+   │  optionaler ?prefill=einreichung_id (aus UE0)
+   ▼
+[Vite/React/TS Webformular]
+   ├─ Sprach-Picker (i18n via i18next)
+   ├─ Stepper (Phase 1: Stamm → 2: FB-spezifisch → 3: Anlagen)
+   ├─ FB-Plugin (Pflichtfeld-Liste je FB-Variante)
+   ├─ Live-Validation (IBAN-Mod-97, E-Mail-RFC, PLZ-Lookup)
+   └─ Sticky-Progress
+   │  Submit
+   ▼
 [Edge Function `submit-antrag`]
-   ├ validiert server-side
-   ├ INSERT apl.antraege (mit IP, User-Agent)
-   ├ Storage-Upload aller Belege
-   └ Antragsnummer aus DB-Trigger
-   |
-   v
-[Bürger:in sieht Bestätigung + Antragsnummer]
-[UE2/UE3 sehen den Antrag in der Inbox]
+   ├─ Server-Validierung (Defense-in-Depth)
+   └─ INSERT apl.antraege
+   │
+   ▼
+[apl.antraege → UE2/UE3-Inbox]
 ```
+
+---
+
+## Kern-Mechanismus — Plugin-System für Förderbereiche
+
+```ts
+// packages/foerderbereiche/src/fb3.ts
+export const fb3: FBConfig = {
+  id: 'III',
+  varianten: ['A', 'B', 'C', 'D'],
+  pflichtfelder: (variante) => {
+    const base = ['einrichtung_name', 'adresse', 'iban', 'bic', ...];
+    if (variante === 'C') return [...base, 'c_quartier_person_name'];
+    return base;
+  },
+  anlagen: (state) => [
+    'wochenplan',
+    ...(state.raeume_gemietet ? ['mietvertrag'] : [])
+  ],
+};
+```
+
+**Vorteil:** UE1, UE3 und UE4 lesen aus **derselben Quelle** —
+keine doppelte Wahrheit, keine Drift.
 
 ---
 
@@ -97,135 +159,133 @@ UE1 ist die **erste Stufe mit aktiver Bürger-Eingabe** statt PDF-Erfassung.
 
 🌐 **<https://antrag.butscher.cloud/>**
 
-1. „Direkt loslegen" klicken (statt UE0-Pfad)
-2. FB III · Variante C (Seniorenkreis) auswählen
-3. Beobachten: nur relevante Felder werden angezeigt
-4. Live-Validierung: IBAN-Eingabe mit Tippfehler testen
-5. Sprache wechseln (DE → TR)
-6. Submit + Antragsnummer kommt
+1. Sprach-Picker: TR auswählen → komplettes UI türkisch
+2. FB-III auswählen, Variante C („Quartier")
+3. IBAN-Feld: bewusst falsch tippen → Live-Validierung rot
+4. Pflichtfelder durchgehen, Wochenplan-PDF hochladen
+5. Submit → Antragsnummer
 
-<small>Alternative: aus UE0 kommend, mit Prefill testen</small>
+<small>Bonus: Prefill-Demo mit URL <code>?prefill=&lt;einreichung_id&gt;</code>
+aus UE0</small>
 
----
-
-## Was UE1 gewinnt
-
-| Aspekt | PDF heute | UE1 |
-|---|---|---|
-| Erfassungsfehler | hoch | niedrig (live) |
-| Pflichtfeld-Vergessen | häufig | sofort markiert |
-| IBAN-Fehler | erst bei Bank sichtbar | Mod-97-Check sofort |
-| Anlagen vergessen | typisch | Webform meckert vor Submit |
-| Sprachbarriere | nur deutsch | DE/TR + IT/RU/FR (β) |
-| Barrierearmut | schwer (PDF) | umsetzbar (ARIA) |
+<!-- Speaker-Notiz: vor der Demo eine UE0-Einreichung anstoßen, damit
+die Prefill-Demo nahtlos läuft. Türkisch zeigen ist meist der
+„Aha"-Moment. -->
 
 ---
 
-## Was UE1 nicht löst
+## Chancen
 
-- Keine Eingangsbestätigung per Mail (kommt in UE2)
-- Kein Status-Tracking („Wo ist mein Antrag?") (UE2)
-- Keine Sachbearbeiter-Sicht (UE2)
-- **Kein medienbruchfreier Eingang** — irgendjemand muss noch lesen
-- Keine semantische Prüfung gegen die Richtlinie (UE3)
-- Keine automatisierte Bescheid-Erstellung (UE3)
-- Übersetzungen sind Demo-Qualität — in Produktion Fachübersetzer
-- Bürger:in muss Felder selbst tippen (kein OCR-Prefill ohne UE0)
+- **Barriere-Senkung** für Migrant:innen (5 Sprachen, weitere skalierbar)
+- **Sofort-Fehler-Erkennung** durch Live-Validierung
+- **Höhere Abschlussquote** durch Stepper + Sticky-Progress
+- **Konsistente Daten** im Amt (keine OCR-Drift mehr)
+- **Mobile-tauglich** — Anträge auch vom Smartphone
+- **Wiederverwendbarkeit** — Plugin-System für jeden weiteren Antragstyp
 
 ---
 
-## Multi-FB-Architektur
+## Einschränkungen / Grenzen
 
-Vier Förderbereiche, einer davon mit 4 Varianten:
-
-| FB | Was | Pflichtfelder |
-|---|---|---|
-| I | Aufbau niedrigschwelliger Angebote | projekt_titel, laufzeit, ... |
-| II | Pauschale Ehrenamt | helferliste (Excel-Import!) |
-| III A | Mehrgenerationenhaus | bundesprogramm_bestaetigung |
-| III B | Begegnungszentrum | b_anzahl_veranstaltungen, b_teilnehmer_* |
-| III C | Seniorenkreis | c_treffen_schwelle (GT_10/20/40), c_teilnehmer_durchschnitt |
-| III D | Quartiersmanagement | d_hauptamt_name, d_hauptamt_stunden_* |
-| IV | Schwerpunkt | formlos (PDF-Upload reicht) |
-
-**Datengetrieben:** `packages/foerderbereiche/` als TS-Module, kein
-Hardcoding pro UE.
+- **Verwaltungs-Sprache bleibt:** Fachbegriffe („Pauschale Förderung
+  Ehrenamt") überfordern auch übersetzt
+- **Senior:innen ohne Internet** brauchen weiterhin Papier-Pfad
+- **Lange Formulare** sind und bleiben anstrengend, auch mit Wizard
+- **Bürger:in muss selbst entscheiden**, welcher FB passt (UE4 löst das)
+- **Plugin-Pflege** ist Code-Arbeit — kein Sachbearbeiter:innen-UI
+- **Kein KI-Vorschlag** — der Antrag wird so eingereicht, wie er
+  eingegeben wurde
 
 ---
 
-## i18n-Stack
+## Voraussetzungen / Risiken
 
-- **DE + TR vollständig** (Helferkreise sind oft türkisch geprägt)
-- **IT + RU + FR im Picker** mit β-Marker, Fallback auf DE
-- **Banner unter Header**: „Übersetzung in Vorbereitung — Anzeige auf Deutsch"
-- `data-i18n`-Attribute im HTML, JSON-Tabelle in `src/lib/i18n.ts`
-- Sprache persistiert in `localStorage`
-- **Sprach-Wechsel** triggert kompletten Re-Mount via `key`-Trick
+**Technisch:**
+- Frontend-Toolchain (Vite/React/TS, i18next)
+- Plugin-System mit guten Typen
+- Storage für Anlagen (mit RLS + signed URLs)
 
-> Vorteil: nicht „all or nothing" — eine β-Sprache hilft schon, wenn
-> der Picker zeigt, dass das Amt sie *anstrebt*.
+**Organisatorisch:**
+- Übersetzungen rechtssicher prüfen (Amt haftet für Inhalte!)
+- Datenschutz: alle Eingaben vor Submit nur im Browser
+- Klar definiert: was passiert mit Halb-fertigen Anträgen?
 
----
-
-## Code-Walkthrough (4 Stellen, je 2-3 Min)
-
-1. **`src/types.ts`** — Domain-Model: 1:1-Spiegelung der PDF-Felder
-   pro FB + Variante. Grundlage für alle weiteren Stufen.
-2. **`src/lib/validation.ts`** — pure Funktionen (IBAN-Mod-97,
-   E-Mail-RFC, PLZ-Format, Euro-Parsing). Vitest-getestet.
-3. **`src/lib/i18n.ts` + Sprach-Picker** — Drei Funktionen
-   (`setSprache`, `t`, `tx`), JSON-Tabelle, Re-Mount via Event.
-4. **Edge Function `submit-antrag`** — validiert server-side, INSERT
-   atomar mit Storage-Upload, **full rollback** bei Upload-Fehler.
+**Risiken:**
+- Falsche Übersetzung führt zu falschen Anträgen
+- Mitigation: Originalsprache als „Quelle der Wahrheit" beim Submit
+  mitspeichern
 
 ---
 
-## Sticky-Progress-Bar — warum?
+## Selbstreflexion
 
-Klassisches UX-Pattern für Multi-Step-Forms:
+> Beantworten Sie für sich diese 4 Fragen:
 
-- Immer sichtbar, was schon erledigt ist, was noch kommt
-- Klick zurück zu früherem Step erlaubt (nicht vorwärts)
-- Bei Validierungs-Fehler wird der betroffene Step rot markiert
-- Sprach-Wechsel mittendrin: kein Datenverlust
-
-Alternative wäre ein einziges langes Formular. Pro/Contra-Diskussion!
-
----
-
-## ⚖️ DSGVO &amp; Schrems II
-
-- **Personenbezogene Daten** werden gespeichert (Name, Anschrift,
-  E-Mail, IP, User-Agent) → volle DSGVO ab UE1
-- **AVV mit Hosting-Provider** zwingend
-- **Löschkonzept** (z.B. 5 Jahre nach Bescheid)
-- **Datenschutzhinweis** im Formular
-- **Verarbeitungsverzeichnis** anlegen
-- **Google Fonts**: Demo nutzt fonts.googleapis.com → Schrems II
-  → für Produktion self-hosted!
-
-> Anon-Key im Frontend-Bundle sichtbar — Sicherheit kommt aus
-> RLS + Edge-Function-Validation, nicht aus Key-Geheimhaltung.
+1. **Welche Bürger:innen-Gruppen schließt UE1 trotzdem noch aus —
+   und wie würden Sie das adressieren?**
+2. **Wer trägt die Verantwortung, wenn eine Übersetzung im
+   Webformular juristisch von der amtlichen Vorlage abweicht?**
+3. **Wann ist ein Wizard die richtige UI — und wann ein 1-Seiten-Formular?**
+4. **Wenn UE0 und UE1 gleichzeitig angeboten werden: wer wählt was,
+   und sollte das Amt steuern?**
 
 ---
 
-## Mitmach-Aufgaben
+## Übungsfragen
 
-- **A** — Neue Validierungs-Regel: Personalkosten > Betriebskosten
-  als Hinweis (15 Min)
-- **B** — Fünfte Sprache (z.B. Polnisch) komplett übersetzen (60 Min)
-- **C** — Neues FB-II-Pflichtfeld durch alle Schichten ziehen (90 Min)
-- **D** — Antrag in der DB anschauen (Supabase Studio, 20 Min)
+**Frage 1:** Was passiert bei IBAN-Tippfehler in UE1?
+<small>(a) Submit blockiert, Live-Feedback · (b) Submit geht durch,
+Amt prüft · (c) wird automatisch korrigiert · (d) UE3-KI prüft später</small>
 
-Detail-Anleitung: **`ue1/webformular/04-aufgaben.md`**
+**Frage 2:** Wo stehen die Pflichtfelder pro FB?
+<small>(a) im UI hart codiert · (b) in der Richtlinie als PDF ·
+(c) im Plugin-System unter <code>packages/foerderbereiche</code> ·
+(d) in der DB</small>
+
+**Frage 3:** Welche Stufe wird durch UE1 ÜBERSPRINGBAR?
+<small>(a) keine, UE1 ergänzt nur · (b) UE0, wenn Bürger:in direkt
+strukturiert eingibt · (c) UE2, weil Daten sauber ankommen · (d) UE3</small>
+
+<!-- Speaker-Notiz: Lösungen: 1=a, 2=c, 3=b. „UE0 wird optional"
+ist der wichtigste Take-Away. -->
+
+---
+
+## Mitmach-Aufgaben (Vertiefung)
+
+| Code | Titel | Aufwand | ⭐ |
+|---|---|---|---|
+| A | Eigenes Validierungs-Feld einbauen (Telefon-Format) | 45 Min | ⭐⭐ |
+| B | 5. Sprache (z.B. Polnisch) für UE1 + UE0-Sprach-Dropdown | 90 Min | ⭐⭐ |
+| C | FB-II um neues Pflichtfeld erweitern (Plugin + UI + DB) | 90 Min | ⭐⭐⭐ |
+| D | Antrags-Daten direkt in Supabase Studio inspizieren | 30 Min | ⭐ |
+
+Detail: **`ue1/webformular/04-aufgaben.md`**
+
+---
+
+## Materialien & Ressourcen
+
+| Ressource | Pfad / URL |
+|---|---|
+| 🌐 **Live-Demo** | <https://antrag.butscher.cloud/> |
+| 📚 **Selbstlern-Modul (HTML)** | [`selbstlern.html`](./selbstlern.html) |
+| 📝 **Konzept-Markdown** | [`01-konzept.md`](./01-konzept.md) |
+| ⚖️ **Vorteile / Voraussetzungen** | [`02-vorteile-voraussetzungen.md`](./02-vorteile-voraussetzungen.md) |
+| 🛠 **Dozent-Walkthrough** | [`03-walkthrough.md`](./03-walkthrough.md) |
+| ✏️ **Studi-Aufgaben** | [`04-aufgaben.md`](./04-aufgaben.md) |
+| 💻 **Quellcode** | `ue1/webformular/` + `packages/foerderbereiche/` |
 
 ---
 
 <!-- _class: lead -->
 
-# Fragen?
+# Brücke zu UE2
 
-**Nächste Stunde:** UE2 — die manuelle Sachbearbeiter-Sicht, die den
-Antrag in der Inbox empfängt
+Saubere Daten kommen jetzt im Amt an — aber die Sachbearbeitenden
+verwalten sie immer noch in **Excel-Listen und Mail-Postfächern**.
+**UE2** baut die richtige Verwaltungs-IT dahinter: geteilte Inbox,
+Workflow-Engine, Audit-Trail.
 
-<small>Materialien: <code>ue1/webformular/{README, 01-konzept, 02-vorteile-voraussetzungen, 03-walkthrough, 04-aufgaben, slides, selbstlern}</code></small>
+> **Frage zum Mitnehmen:** Wie viel Effizienz gewinnt UE1 für die
+> Sachbearbeitenden — wenn dahinter noch immer ein Mail-Prozess steckt?
