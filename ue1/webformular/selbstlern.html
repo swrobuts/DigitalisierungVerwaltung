@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UE1 — Selbstlern-Modul: Mehrsprachiges Webformular</title>
+  <style>
+    :root {
+      --wue-rot: #AD0E36; --wue-rot-dark: #8A0B2B; --wue-rot-soft: #FBE9EE;
+      --wue-grau: #4A4A4A; --bg: #F7F6F4; --card: #FFFFFF;
+      --border: #E5E5E5; --text: #1F2937; --muted: #6B7280;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, "Inter", "Segoe UI", sans-serif;
+           line-height: 1.6; color: var(--text); background: var(--bg);
+           margin: 0; padding: 0; }
+    header.hero { background: linear-gradient(180deg, white 0%, var(--bg) 100%);
+                  border-bottom: 3px solid var(--wue-rot); padding: 48px 0 32px; }
+    .container { max-width: 920px; margin: 0 auto; padding: 0 24px; }
+    .eyebrow { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+               color: var(--wue-rot); font-weight: 600; }
+    h1 { font-size: 32px; margin: 8px 0 12px; color: var(--wue-grau); line-height: 1.2; }
+    h2 { font-size: 22px; margin: 48px 0 16px; color: var(--wue-grau);
+         border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    h3 { font-size: 17px; margin: 24px 0 8px; color: var(--text); }
+    .lead { font-size: 17px; color: var(--muted); max-width: 720px; }
+    .pill { display: inline-block; background: var(--wue-rot); color: white;
+            padding: 3px 10px; border-radius: 999px; font-size: 11px;
+            letter-spacing: 0.04em; font-weight: 600; }
+    nav.toc { background: var(--card); border: 1px solid var(--border);
+              border-radius: 12px; padding: 20px 24px; margin: 32px 0; }
+    nav.toc h3 { margin-top: 0; font-size: 13px; letter-spacing: 0.08em;
+                 text-transform: uppercase; color: var(--muted); }
+    nav.toc ol { margin: 0; padding-left: 20px; }
+    nav.toc a { color: var(--text); text-decoration: none; }
+    nav.toc a:hover { color: var(--wue-rot); text-decoration: underline; }
+    .card { background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 24px; margin: 16px 0; }
+    .card.tip { background: var(--wue-rot-soft); border-color: #f1c0ce; }
+    .card.warn { background: #fef9c3; border-color: #facc15; }
+    .small { font-size: 13px; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+    th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+    th { background: #FAFAFA; }
+    code { background: #f3f3f3; padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+    pre { background: #1E293B; color: #E2E8F0; padding: 16px; border-radius: 8px;
+          overflow-x: auto; font-size: 12px; line-height: 1.5; }
+    .quiz { background: var(--card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 20px 24px; margin: 16px 0; }
+    .quiz h4 { margin: 0 0 12px; font-size: 15px; color: var(--wue-grau); }
+    .quiz-options { list-style: none; margin: 0; padding: 0; }
+    .quiz-options li { padding: 8px 12px; border: 1px solid var(--border);
+                       border-radius: 6px; margin: 6px 0; cursor: pointer;
+                       transition: all 0.15s; }
+    .quiz-options li:hover { border-color: var(--wue-rot); background: var(--wue-rot-soft); }
+    .quiz-options li.correct { border-color: #16a34a; background: #dcfce7; }
+    .quiz-options li.wrong { border-color: #dc2626; background: #fee2e2; }
+    .quiz-feedback { margin-top: 12px; padding: 12px; border-radius: 6px;
+                     font-size: 14px; display: none; }
+    .quiz-feedback.correct { background: #dcfce7; color: #166534; display: block; }
+    .quiz-feedback.wrong { background: #fee2e2; color: #991b1b; display: block; }
+    details { border: 1px solid var(--border); border-radius: 8px;
+              padding: 12px 16px; margin: 12px 0; background: white; }
+    details summary { cursor: pointer; font-weight: 500; color: var(--wue-grau); }
+    .cta { display: inline-block; background: var(--wue-rot); color: white;
+           padding: 12px 24px; border-radius: 8px; text-decoration: none;
+           font-weight: 600; margin: 16px 8px 16px 0; }
+    .cta:hover { background: var(--wue-rot-dark); }
+    .cta.secondary { background: white; color: var(--wue-rot);
+                     border: 1px solid var(--wue-rot); }
+    footer { margin-top: 64px; padding: 32px 0; border-top: 1px solid var(--border);
+             font-size: 13px; color: var(--muted); text-align: center; }
+    .fb-grid { display: grid; grid-template-columns: repeat(2, 1fr);
+               gap: 12px; margin: 16px 0; }
+    .fb-card { background: white; border: 1px solid var(--border);
+               border-radius: 8px; padding: 12px 16px; font-size: 14px; }
+    .fb-card .fb-num { font-weight: 700; color: var(--wue-rot); }
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <span class="eyebrow">UE1 · Reifegradstufe 1 · Selbstlern-Modul</span>
+    <h1>Mehrsprachiges Webformular</h1>
+    <p class="lead">
+      Strukturierte Browser-Eingabe statt PDF-Mail. Live-Validierung,
+      Sticky-Progress-Bar, FB-spezifischer Wizard, vier Sprachen — plus
+      Anschluss an UE0 als Prefill-Quelle. <strong>Die erste Reifegradstufe
+      mit aktiver Bürger-Eingabe.</strong>
+    </p>
+    <div style="margin-top: 20px;">
+      <a class="cta" href="https://antrag.butscher.cloud/" target="_blank">Live-Demo öffnen →</a>
+      <a class="cta secondary" href="./slides.md">Vorlesungs-Slides (Markdown)</a>
+    </div>
+    <p class="small" style="margin-top: 32px;">
+      Geplante Bearbeitungszeit: <strong>60–90 Minuten</strong> für
+      Lektionen 1–4, plus 2–4 h für die Praxis-Aufgaben.
+    </p>
+  </div>
+</header>
+
+<main class="container">
+
+  <nav class="toc">
+    <h3>Inhalt</h3>
+    <ol>
+      <li><a href="#l1">Lektion 1 — Warum trotz UE0 noch ein Webformular?</a></li>
+      <li><a href="#l2">Lektion 2 — Multi-Förderbereich-Wizard</a></li>
+      <li><a href="#l3">Lektion 3 — Live-Validation, Sticky-Progress, i18n</a></li>
+      <li><a href="#l4">Lektion 4 — Submit, Storage, Datenfluss</a></li>
+      <li><a href="#quiz">Verständnis-Quiz</a></li>
+      <li><a href="#aufgaben">Praxis-Aufgaben</a></li>
+      <li><a href="#weiter">Wie geht's weiter? (UE2)</a></li>
+    </ol>
+  </nav>
+
+  <section id="l1">
+    <h2>1. Warum trotz UE0 noch ein Webformular?</h2>
+    <p>
+      UE0 (PDF-Upload mit KI-OCR) hat einen klaren Vorteil: die Bürger:in
+      muss nichts Neues lernen. Aber er hat auch zwei harte Grenzen:
+    </p>
+    <ul>
+      <li>Die Bürger:in <strong>braucht weiterhin das PDF</strong> — wer keinen
+          Drucker oder Scanner hat, ist raus.</li>
+      <li><strong>Keine Live-Validierung</strong> beim Ausfüllen — Tippfehler
+          fallen erst in der Sachbearbeitung auf.</li>
+      <li>Das PDF ist <strong>deutsch</strong> — Migrant:innen ohne Deutsch-Kenntnisse
+          haben kaum Zugang.</li>
+    </ul>
+    <p>
+      UE1 löst genau diese drei Punkte und bietet zusätzlich:
+    </p>
+    <ul>
+      <li>FB-spezifischen Wizard (nur relevante Felder werden angezeigt)</li>
+      <li>Sticky-Progress-Bar mit klarem Fortschritts-Feedback</li>
+      <li>Anlagen-Upload (Wochenplan, Helferliste, Mietvertrag) direkt im Formular</li>
+      <li>Mehrsprachigkeit — DE/TR vollständig, IT/RU/FR als β-Marker</li>
+    </ul>
+
+    <div class="card tip">
+      <strong>💡 Strategische Sicht:</strong> UE0 und UE1 sind <em>parallele
+      Eingangskanäle</em>. Die Bürger:in entscheidet selbst, was zu ihrer
+      Situation passt. UE0 = „ich kenne das PDF schon, lass mich kurz hochladen".
+      UE1 = „ich starte direkt am Computer / Handy".
+    </div>
+  </section>
+
+  <section id="l2">
+    <h2>2. Der Multi-Förderbereich-Wizard</h2>
+    <p>
+      Die Würzburger Altenhilfe-Förderrichtlinie kennt vier Förderbereiche,
+      davon einer mit vier Varianten:
+    </p>
+
+    <div class="fb-grid">
+      <div class="fb-card"><span class="fb-num">FB I</span> — Aufbau niedrigschwelliger Angebote (Neu-Projekte)</div>
+      <div class="fb-card"><span class="fb-num">FB II</span> — Pauschale Förderung Ehrenamt (Helferlisten)</div>
+      <div class="fb-card"><span class="fb-num">FB III A</span> — Mehrgenerationenhaus</div>
+      <div class="fb-card"><span class="fb-num">FB III B</span> — Begegnungszentrum</div>
+      <div class="fb-card"><span class="fb-num">FB III C</span> — Seniorenkreis (≥10/20/40 Treffen)</div>
+      <div class="fb-card"><span class="fb-num">FB III D</span> — Quartiersmanagement</div>
+      <div class="fb-card"><span class="fb-num">FB IV</span> — Schwerpunkt (formlos, PDF reicht)</div>
+    </div>
+
+    <p>
+      Der Wizard <strong>blendet ein, was nötig ist</strong>: wer FB III · Variante C
+      wählt, sieht nur die Seniorenkreis-Felder (Treffen-Anzahl, Teilnehmer-Schnitt).
+      Wer FB I wählt, sieht Projekt-Titel, Personal- und Sachkosten.
+    </p>
+
+    <div class="card">
+      <strong>Architektur-Trick:</strong> Die FB-Konfiguration lebt als
+      Daten-Modul in <code>packages/foerderbereiche/</code> — pro FB
+      eine TypeScript-Datei mit Feld-Definitionen. Kein Hardcoding in
+      UE1/UE2/UE3. Wer eine neue Variante hinzufügt, ändert nur eine Datei.
+    </div>
+  </section>
+
+  <section id="l3">
+    <h2>3. Live-Validation, Sticky-Progress, i18n</h2>
+
+    <h3>Live-Validation</h3>
+    <p>
+      Drei Sorten Prüfung im Frontend:
+    </p>
+    <ul>
+      <li><strong>Field-Level</strong>: IBAN (Mod-97), E-Mail (RFC), PLZ (5 stellig),
+          Datum (ISO 8601). Pure Functions, getestet mit Vitest.</li>
+      <li><strong>Cross-Field</strong>: z.B. „Wenn keine eigenen Räume → Miete muss
+          > 0 sein". Regelmäßig erweitert bei neuen FBs.</li>
+      <li><strong>Server-Re-Validation</strong> in der Edge Function als
+          Defense-in-Depth — Frontend könnte manipuliert werden.</li>
+    </ul>
+
+    <h3>Sticky-Progress-Bar</h3>
+    <p>
+      Vier sichtbare Phasen oben:
+    </p>
+    <pre>1. FB-Wahl  →  2. FB-Details  →  3. Anlagen  →  4. Bestätigung
+[✓ erledigt] [● aktiv] [○ offen] [○ offen]</pre>
+    <p>
+      Klick auf einen erledigten Step springt zurück. Vorwärts-Sprung
+      ist gesperrt — Bürger:in muss linear arbeiten.
+    </p>
+
+    <h3>i18n-Stack</h3>
+    <p>
+      Sprach-Picker oben rechts mit fünf Sprachen. DE+TR komplett übersetzt
+      (Stadt Würzburg hat hohen Anteil türkisch-stämmiger Bevölkerung).
+      IT/RU/FR sichtbar als <strong>β</strong>, fallen aber bei fehlenden
+      Keys auf Deutsch zurück — und ein gelbes Banner sagt das offen.
+    </p>
+
+    <div class="card warn">
+      <strong>⚠️ Ehrlichkeit beim i18n:</strong> Eine β-Sprache, die
+      transparent gekennzeichnet ist, hilft schon — sie signalisiert,
+      dass das Amt die Sprache <em>anstrebt</em>. Lügt sie aber „vollständig"
+      und ist es nicht, frustriert das mehr als wenn der Picker sie
+      gar nicht erst zeigt.
+    </div>
+  </section>
+
+  <section id="l4">
+    <h2>4. Submit, Storage, Datenfluss</h2>
+    <p>
+      Der Submit geht <strong>nicht</strong> direkt vom Browser in die DB
+      (auch wenn RLS das technisch erlauben würde), sondern über eine
+      Edge Function:
+    </p>
+
+    <pre>POST /functions/v1/submit-antrag
+  ├── server-side Validation (Defense-in-Depth)
+  ├── IP + User-Agent capturen (DSGVO-relevante Audit-Trail)
+  ├── INSERT apl.antraege (Antragsnummer kommt aus DB-Trigger)
+  ├── Storage-Upload aller Belege parallel
+  └── bei Upload-Fehler: full rollback (DELETE antrag + Storage cleanup)</pre>
+
+    <p>
+      Output: <code>APL-2026-FBIII-A1B2C3</code> Antragsnummer + URL zur
+      Bestätigungs-Seite.
+    </p>
+
+    <div class="card tip">
+      <strong>💡 Architektur-Pattern:</strong> Edge Function als
+      „API-Gateway in den eigenen Daten". Kein direct browser-to-DB,
+      auch wenn RLS das schützen würde. So bleibt der Anon-Key
+      „lese-only-fähig" und alle schreibenden Operationen sind
+      auditierbar.
+    </div>
+  </section>
+
+  <section id="quiz">
+    <h2>Verständnis-Quiz</h2>
+    <p>Vier Fragen, je 1 richtige Antwort. Klicke eine Option für Feedback.</p>
+
+    <div class="quiz" data-correct="1">
+      <h4>1. Wo lebt der Form-State von UE1?</h4>
+      <ul class="quiz-options">
+        <li>Im React-Redux-Store</li>
+        <li>In einem zentralen <code>state.ts</code>-Modul mit subscribe-Pattern</li>
+        <li>Nur im DOM</li>
+        <li>Wird bei jeder Eingabe sofort in Supabase persistiert</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="2">
+      <h4>2. Was passiert bei <code>t("nicht.existierender.key")</code>?</h4>
+      <ul class="quiz-options">
+        <li>Exception</li>
+        <li>Leerer String</li>
+        <li>Fallback auf DE, sonst Key selbst</li>
+        <li>Sofort ein gelbes Warn-Banner</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="3">
+      <h4>3. Warum geht der Submit über eine Edge Function statt direkt browser→DB?</h4>
+      <ul class="quiz-options">
+        <li>Weil RLS nicht ausreicht</li>
+        <li>Weil sonst der ANON-Key gestohlen werden könnte</li>
+        <li>Weil Supabase keine direkten Inserts erlaubt</li>
+        <li>Für server-side Validation + IP/UA-Capture + atomarität mit Storage</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="0">
+      <h4>4. Wie sieht der Wizard sich verändernde FB-Felder?</h4>
+      <ul class="quiz-options">
+        <li>Über Daten-Module in <code>packages/foerderbereiche/</code></li>
+        <li>Hardcoded in jedem View pro FB</li>
+        <li>Vom Server geladen per AJAX</li>
+        <li>Aus einer JSON-API generiert</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+  </section>
+
+  <section id="aufgaben">
+    <h2>Praxis-Aufgaben (Vertiefung)</h2>
+    <p>Vier Aufgaben mit steigender Schwierigkeit — detailliert in
+    <a href="./04-aufgaben.md"><code>04-aufgaben.md</code></a>.</p>
+
+    <details>
+      <summary><strong>A — Neue Validierungs-Regel</strong> · 15 Min · ⭐</summary>
+      <p>Hinweis-Regel „Personalkosten > Betriebskosten?" in
+         <code>src/cross-field.ts</code> ergänzen. Diskussion:
+         Defense-in-Depth-Frage für Server-Re-Validation.</p>
+    </details>
+
+    <details>
+      <summary><strong>B — Fünfte Sprache</strong> · 60 Min · ⭐⭐</summary>
+      <p>Polnisch oder Ukrainisch vollständig in <code>src/lib/i18n.ts</code>
+         ergänzen. Vitest-Tests müssen grün bleiben.</p>
+    </details>
+
+    <details>
+      <summary><strong>C — Neues FB-II-Pflichtfeld</strong> · 90 Min · ⭐⭐</summary>
+      <p>„Hauptansprechpartner für Helferkreis" durch alle Schichten:
+         FB-Konfig, UI, Übersetzungen, Edge Function, UE2/UE3-Anzeige.</p>
+    </details>
+
+    <details>
+      <summary><strong>D — Antrag in Supabase Studio</strong> · 20 Min · ⭐</summary>
+      <p>Eigenen Antrag in <code>apl.antraege</code> finden, IP/UA-Capture
+         verifizieren, Storage-Belege als Original-Datei wiederfinden.</p>
+    </details>
+  </section>
+
+  <section id="weiter">
+    <h2>Wie geht's weiter?</h2>
+    <div class="card">
+      <span class="pill">UE2 — REIFEGRADSTUFE 2</span>
+      <h3 style="margin: 8px 0 4px;">Manuelle Sachbearbeitung</h3>
+      <p style="margin: 0;">
+        Der Antrag landet in einer Inbox. Sachbearbeiter:in öffnet ihn,
+        prüft Section-by-Section mit Häkchen + Notizen, erstellt
+        Bescheid-Word-File. Keine KI — nur strukturierte manuelle Prüfung
+        statt PDF-zu-Akte.
+      </p>
+      <p style="margin-top: 12px;">
+        <a class="cta" href="https://sachbearbeiter.butscher.cloud/" target="_blank">UE2 Live-Demo →</a>
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <p>
+      UE1 — Mehrsprachiges Webformular · Reifegradstufe 1<br>
+      Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher · THWS<br>
+      <span class="small">
+        Lehr-Demo, keine offizielle Anwendung der Stadt Würzburg.
+        Quellcode: <a href="https://github.com/swrobuts/DigitalisierungVerwaltung">github.com/swrobuts/DigitalisierungVerwaltung</a>
+      </span>
+    </p>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.quiz').forEach((quiz) => {
+    const correctIdx = parseInt(quiz.dataset.correct, 10);
+    const options = quiz.querySelectorAll('.quiz-options li');
+    const feedback = quiz.querySelector('.quiz-feedback');
+    options.forEach((opt, idx) => {
+      opt.addEventListener('click', () => {
+        if (quiz.dataset.answered === 'true') return;
+        quiz.dataset.answered = 'true';
+        options.forEach((o, i) => {
+          if (i === correctIdx) o.classList.add('correct');
+          else if (i === idx) o.classList.add('wrong');
+        });
+        if (idx === correctIdx) {
+          feedback.textContent = '✓ Richtig! Gut erkannt.';
+          feedback.className = 'quiz-feedback correct';
+        } else {
+          feedback.textContent = '✗ Nicht ganz — die richtige Antwort ist grün markiert.';
+          feedback.className = 'quiz-feedback wrong';
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>
