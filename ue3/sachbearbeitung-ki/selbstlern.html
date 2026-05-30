@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UE3 — Selbstlern-Modul: KI-Sachbearbeitung</title>
+  <style>
+    :root { --wue-rot:#AD0E36; --wue-rot-dark:#8A0B2B; --wue-rot-soft:#FBE9EE;
+      --wue-grau:#4A4A4A; --bg:#F7F6F4; --card:#FFFFFF;
+      --border:#E5E5E5; --text:#1F2937; --muted:#6B7280; }
+    *{box-sizing:border-box;}
+    body{font-family:-apple-system,"Inter","Segoe UI",sans-serif;line-height:1.6;
+      color:var(--text);background:var(--bg);margin:0;padding:0;}
+    header.hero{background:linear-gradient(180deg,white 0%,var(--bg) 100%);
+      border-bottom:3px solid var(--wue-rot);padding:48px 0 32px;}
+    .container{max-width:920px;margin:0 auto;padding:0 24px;}
+    .eyebrow{font-size:11px;letter-spacing:0.18em;text-transform:uppercase;
+      color:var(--wue-rot);font-weight:600;}
+    h1{font-size:32px;margin:8px 0 12px;color:var(--wue-grau);line-height:1.2;}
+    h2{font-size:22px;margin:48px 0 16px;color:var(--wue-grau);
+      border-bottom:1px solid var(--border);padding-bottom:8px;}
+    h3{font-size:17px;margin:24px 0 8px;color:var(--text);}
+    .lead{font-size:17px;color:var(--muted);max-width:720px;}
+    .pill{display:inline-block;background:var(--wue-rot);color:white;
+      padding:3px 10px;border-radius:999px;font-size:11px;
+      letter-spacing:0.04em;font-weight:600;}
+    nav.toc{background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:20px 24px;margin:32px 0;}
+    nav.toc h3{margin-top:0;font-size:13px;letter-spacing:0.08em;
+      text-transform:uppercase;color:var(--muted);}
+    nav.toc ol{margin:0;padding-left:20px;}
+    nav.toc a{color:var(--text);text-decoration:none;}
+    nav.toc a:hover{color:var(--wue-rot);text-decoration:underline;}
+    .card{background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:24px;margin:16px 0;}
+    .card.tip{background:var(--wue-rot-soft);border-color:#f1c0ce;}
+    .card.warn{background:#fef9c3;border-color:#facc15;}
+    .small{font-size:13px;color:var(--muted);}
+    table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;}
+    th,td{border:1px solid var(--border);padding:8px 12px;text-align:left;}
+    th{background:#FAFAFA;}
+    code{background:#f3f3f3;padding:1px 6px;border-radius:4px;font-size:13px;}
+    pre{background:#1E293B;color:#E2E8F0;padding:16px;border-radius:8px;
+      overflow-x:auto;font-size:12px;line-height:1.5;}
+    .quiz{background:var(--card);border:1px solid var(--border);
+      border-radius:12px;padding:20px 24px;margin:16px 0;}
+    .quiz h4{margin:0 0 12px;font-size:15px;color:var(--wue-grau);}
+    .quiz-options{list-style:none;margin:0;padding:0;}
+    .quiz-options li{padding:8px 12px;border:1px solid var(--border);
+      border-radius:6px;margin:6px 0;cursor:pointer;transition:all 0.15s;}
+    .quiz-options li:hover{border-color:var(--wue-rot);background:var(--wue-rot-soft);}
+    .quiz-options li.correct{border-color:#16a34a;background:#dcfce7;}
+    .quiz-options li.wrong{border-color:#dc2626;background:#fee2e2;}
+    .quiz-feedback{margin-top:12px;padding:12px;border-radius:6px;
+      font-size:14px;display:none;}
+    .quiz-feedback.correct{background:#dcfce7;color:#166534;display:block;}
+    .quiz-feedback.wrong{background:#fee2e2;color:#991b1b;display:block;}
+    details{border:1px solid var(--border);border-radius:8px;
+      padding:12px 16px;margin:12px 0;background:white;}
+    details summary{cursor:pointer;font-weight:500;color:var(--wue-grau);}
+    .cta{display:inline-block;background:var(--wue-rot);color:white;
+      padding:12px 24px;border-radius:8px;text-decoration:none;
+      font-weight:600;margin:16px 8px 16px 0;}
+    .cta:hover{background:var(--wue-rot-dark);}
+    .cta.secondary{background:white;color:var(--wue-rot);border:1px solid var(--wue-rot);}
+    footer{margin-top:64px;padding:32px 0;border-top:1px solid var(--border);
+      font-size:13px;color:var(--muted);text-align:center;}
+    .ki-flow{background:white;border:1px solid var(--border);border-radius:12px;
+      padding:24px;margin:24px 0;}
+    .ki-step{display:grid;grid-template-columns:auto 1fr;gap:16px;
+      padding:12px 0;border-bottom:1px solid #f3f3f3;}
+    .ki-step:last-child{border-bottom:none;}
+    .ki-num{font-size:24px;font-weight:700;color:var(--wue-rot);
+      width:36px;text-align:center;}
+    .ki-title{font-weight:600;font-size:15px;margin-bottom:4px;}
+    .ki-desc{font-size:13px;color:var(--muted);}
+  </style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <span class="eyebrow">UE3 · Reifegradstufe 3 · Selbstlern-Modul</span>
+    <h1>KI-Sachbearbeitung</h1>
+    <p class="lead">
+      Drei KI-Komponenten (Erst-KI, adversarielle Zweit-KI, externe
+      Validierung) bereiten Empfehlungen vor, Sachbearbeitende
+      entscheiden. Halluzinations-Schutz, Compliance-Cockpit,
+      Adoption-Tracking, AI-Act-konform.
+      <strong>Die komplexeste und folgenreichste Reifegradstufe.</strong>
+    </p>
+    <div style="margin-top: 20px;">
+      <a class="cta" href="https://ki.butscher.cloud/login" target="_blank">Live-Demo →</a>
+      <a class="cta secondary" href="./slides.md">Vorlesungs-Slides</a>
+    </div>
+    <p class="small" style="margin-top: 32px;">
+      Bearbeitungszeit: <strong>90 Minuten</strong> Basis,
+      plus 3–5 h Vertiefung. UE3 ist Hands-on, kein Kurz-Demo.
+    </p>
+  </div>
+</header>
+
+<main class="container">
+
+  <nav class="toc">
+    <h3>Inhalt</h3>
+    <ol>
+      <li><a href="#l1">Lektion 1 — Warum KI in der Sachbearbeitung?</a></li>
+      <li><a href="#l2">Lektion 2 — Die drei KI-Komponenten</a></li>
+      <li><a href="#l3">Lektion 3 — Halluzinations-Schutz</a></li>
+      <li><a href="#l4">Lektion 4 — Adoption-Tracking + AI Act</a></li>
+      <li><a href="#quiz">Verständnis-Quiz</a></li>
+      <li><a href="#aufgaben">Praxis-Aufgaben</a></li>
+      <li><a href="#weiter">Wie geht's weiter? (UE4)</a></li>
+    </ol>
+  </nav>
+
+  <section id="l1">
+    <h2>1. Warum KI in der Sachbearbeitung?</h2>
+    <p>
+      UE2 hat die Verwaltungs-IT geliefert: Realtime-Inbox, Workflow-
+      Engine, Audit-Trail. Aber die <strong>fachliche Prüfung</strong>
+      macht weiterhin der Mensch komplett:
+    </p>
+    <ul>
+      <li>35-seitige Förderrichtlinie pro Antrag durchgehen</li>
+      <li>Vorjahresantrag aus dem Aktenkeller holen, vergleichen</li>
+      <li>Träger googeln (existiert? gemeinnützig?)</li>
+      <li>Bewilligung: Bescheid in Word freitexten, juristisch
+          konsistent argumentieren</li>
+      <li>Ablehnung: Begründung formulieren, die rechtssicher gegen
+          Klage hält</li>
+    </ul>
+    <p>
+      Das ist die Stelle, an der die Reifegrade richtig spannend werden:
+      <strong>KI als kompetente Mitarbeiterin, nicht als Spielzeug</strong>.
+    </p>
+    <div class="card tip">
+      <strong>💡 Kernbotschaft:</strong> UE3 ist konsequent
+      Human-in-the-Loop. Die KI <em>entscheidet nicht</em> — sie
+      schlägt vor, dokumentiert ihre Argumentation, und der Mensch
+      reviewt. Das ist die einzige verantwortbare Architektur für
+      Hochrisiko-Verwaltungsentscheidungen.
+    </div>
+  </section>
+
+  <section id="l2">
+    <h2>2. Die drei KI-Komponenten</h2>
+
+    <div class="ki-flow">
+      <div class="ki-step">
+        <div class="ki-num">1</div>
+        <div>
+          <div class="ki-title">Erst-KI (Claude Sonnet 4.5)</div>
+          <div class="ki-desc">
+            Bekommt den Antrag + doctree-Auszug der einschlägigen § +
+            Output-Schema. Liefert pro Paragraph: Bewertung, Begründung,
+            zitierte Referenzen.
+          </div>
+        </div>
+      </div>
+      <div class="ki-step">
+        <div class="ki-num">2</div>
+        <div>
+          <div class="ki-title">Zweit-KI <em>adversariell</em> (Claude Opus)</div>
+          <div class="ki-desc">
+            Bekommt denselben Antrag + das Erst-Ergebnis +
+            Gegen-Prompt: „Finde 3 Gründe, warum die Erstprüfung falsch
+            sein könnte." Dissens-Berechnung clustert in
+            <code>konsens / inhaltlich_unterschiedlich / gegensätzlich</code>.
+          </div>
+        </div>
+      </div>
+      <div class="ki-step">
+        <div class="ki-num">3</div>
+        <div>
+          <div class="ki-title">Externe Validierung (Perplexity, optional)</div>
+          <div class="ki-desc">
+            Träger-Recherche: Existiert der Verein? Ist er gemeinnützig
+            anerkannt? Steht im Vereinsregister? — mit zitierten Quellen,
+            programmatisch validiert.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      Die Sachbearbeitende sieht <strong>alle drei Outputs nebeneinander</strong>
+      und entscheidet — jede Korrektur landet in <code>apl.ki_override</code>
+      für das Adoption-Tracking.
+    </p>
+  </section>
+
+  <section id="l3">
+    <h2>3. Halluzinations-Schutz</h2>
+    <p>
+      Das wichtigste Problem bei juristischer KI: <strong>erfundene
+      Paragraphen</strong>. Wenn die KI „§ 4.7" zitiert, der gar nicht
+      existiert, gefährdet das die Bescheid-Rechtssicherheit.
+    </p>
+
+    <h3>UE3's Mechanismen</h3>
+    <ul>
+      <li><strong>Strukturierter Doctree</strong> statt naivem
+          PDF-Chunking — jeder Paragraph ist mit einer Ref-ID
+          gespeichert.</li>
+      <li><strong>Quellen-Validator</strong>
+          (<code>pruefung/src/pruefung/quellen_validator.py</code>):
+          filtert Sätze mit nicht-existierenden Refs vor dem Render.
+          Loggt jeden gefilterten Satz als Warning.</li>
+      <li><strong>Schema-Forcing</strong> im LLM-Aufruf: Claude muss
+          valides JSON liefern, das gegen Pydantic geparst wird.</li>
+      <li><strong>Output-Whitelist</strong>: Förderbereiche dürfen nur
+          I/II/III/IV sein. Anderer Output wird verworfen.</li>
+    </ul>
+
+    <div class="card tip">
+      <strong>💡 Architektur-Insight:</strong> Strukturierte Doctrees
+      sind besser als naives RAG-on-PDF. Wenn die Refs im Doctree
+      gepflegt sind, kann man halluzinierte Refs hart rausfiltern.
+      Bei rohem PDF-Chunking ist das nicht möglich.
+    </div>
+  </section>
+
+  <section id="l4">
+    <h2>4. Adoption-Tracking + AI Act</h2>
+
+    <h3>apl.ki_override</h3>
+    <p>
+      Jede Sachbearbeiter:in-Entscheidung wird protokolliert:
+    </p>
+    <table>
+      <tr><th>original_vorschlag</th><td>„bewilligen, 4000 €"</td></tr>
+      <tr><th>final_entscheidung</th><td>„bewilligen, 3500 €"</td></tr>
+      <tr><th>wurde_geaendert</th><td>true</td></tr>
+      <tr><th>aenderungs_grund</th><td>„Wochenplan fehlt → reduziert"</td></tr>
+    </table>
+
+    <h3>Compliance-Cockpit</h3>
+    <p>
+      Drei Tabs zeigen Live-Telemetrie:
+    </p>
+    <ul>
+      <li><strong>Aufsichts-Metriken</strong>: Adoption-Quote,
+          Dissens-Häufigkeit, Bescheid-Renderzeit, CO₂ + Cost</li>
+      <li><strong>Regelkatalog Stufe A</strong>: Toggle-Liste aktiver
+          Norm-Statements</li>
+      <li><strong>KI-Provider</strong>: Anthropic vs. LM Studio,
+          Cost-Tracking, AI-Act-Transparenz-Dokumente</li>
+    </ul>
+
+    <h3>AI Act Pflichten (dokumentiert)</h3>
+    <table>
+      <tr><th>Art. 9</th><td>Risikomanagement-System (Risiko-Score pro Antrag)</td></tr>
+      <tr><th>Art. 12</th><td>Logging (Adoption-Tracking, Audit-Trail)</td></tr>
+      <tr><th>Art. 13</th><td>Transparenz gegenüber Bürger (KI-Hinweis im Bescheid)</td></tr>
+      <tr><th>Art. 14</th><td>Menschliche Aufsicht (Sachbearbeiter entscheidet)</td></tr>
+      <tr><th>Art. 43</th><td>Konformitätsbewertung (Compliance-Cockpit als Beleg)</td></tr>
+      <tr><th>Art. 50</th><td>KI-Transparenz im UI („Anthropic Claude Sonnet 4.5")</td></tr>
+    </table>
+
+    <div class="card warn">
+      <strong>⚠️ Automation Bias warnen:</strong> wenn die
+      Adoption-Quote eines Sachbearbeitenden auf 95%+ steigt,
+      übernimmt sie/er blind. Das ist ein gefährlicher Zustand.
+      Gesund: 60–80%.
+    </div>
+  </section>
+
+  <section id="quiz">
+    <h2>Verständnis-Quiz</h2>
+
+    <div class="quiz" data-correct="2">
+      <h4>1. Was ist der wichtigste Halluzinations-Schutz in UE3?</h4>
+      <ul class="quiz-options">
+        <li>System-Prompt sagt „erfinde nichts"</li>
+        <li>Output-Schema-Forcing (JSON)</li>
+        <li>Doctree-basierte Quellen-Validierung gegen apl.norm_statement.ref</li>
+        <li>Zweit-KI prüft die Erstprüfung</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="2">
+      <h4>2. Welche Adoption-Quote ist gesund?</h4>
+      <ul class="quiz-options">
+        <li>100% — KI ist perfekt</li>
+        <li>0% — Mensch arbeitet eigenständig</li>
+        <li>60–80% — KI hilft, Mensch reviewt aktiv</li>
+        <li>egal, Hauptsache schnell</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="1">
+      <h4>3. Welcher AI-Act-Artikel verlangt menschliche Aufsicht über Hochrisiko-KI?</h4>
+      <ul class="quiz-options">
+        <li>Art. 9</li>
+        <li>Art. 14</li>
+        <li>Art. 43</li>
+        <li>Art. 50</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <div class="quiz" data-correct="3">
+      <h4>4. Was ist der adversarielle Zweit-Prüfer?</h4>
+      <ul class="quiz-options">
+        <li>Eine zweite Person im Amt, die reviewt</li>
+        <li>Ein Spell-Checker für den Bescheid</li>
+        <li>Ein Mensch der KI-Outputs randomisiert prüft</li>
+        <li>Ein zweites LLM mit Gegen-Prompt, das nach Schwächen sucht</li>
+      </ul>
+      <div class="quiz-feedback"></div>
+    </div>
+  </section>
+
+  <section id="aufgaben">
+    <h2>Praxis-Aufgaben</h2>
+    <p>Vier Aufgaben — Detail in
+       <a href="./04-aufgaben.md"><code>04-aufgaben.md</code></a>.</p>
+
+    <details>
+      <summary><strong>A — Neue Norm-Regel</strong> · 45 Min · ⭐⭐</summary>
+      <p>Neue Zeile in <code>apl.norm_statement</code> + Doctree neu
+         indexieren + beobachten ob KI sie aufgreift.</p>
+    </details>
+
+    <details>
+      <summary><strong>B — Bescheid-Template</strong> · 90 Min · ⭐⭐⭐</summary>
+      <p>„Rechtsbehelf-Hinweise"-Abschnitt im Jinja-Template + KI-Prompt
+         + Quellen-Validator-Anpassung.</p>
+    </details>
+
+    <details>
+      <summary><strong>C — Adoption-Dashboard interpretieren</strong> · 30 Min · ⭐</summary>
+      <p>Aktuelle Werte lesen, „gesund"/„kritisch" einschätzen,
+         Reflexion zu Automation Bias.</p>
+    </details>
+
+    <details>
+      <summary><strong>D — LM Studio lokal</strong> · 2 h · ⭐⭐⭐</summary>
+      <p>Anthropic auf LM Studio umstellen (Datenschutz-Variante)
+         + Qualitäts-Vergleich.</p>
+    </details>
+  </section>
+
+  <section id="weiter">
+    <h2>Wie geht's weiter?</h2>
+    <div class="card">
+      <span class="pill">UE4 — REIFEGRADSTUFE 4</span>
+      <h3 style="margin: 8px 0 4px;">Konversationeller Agent (CIVA)</h3>
+      <p style="margin: 0;">
+        Die Bürger:in chattet — „Wir wollen ein Begegnungszentrum
+        aufbauen, wie geht das?" — und der Agent klassifiziert den
+        Förderbereich, fragt Pflichtfelder ab, übernimmt am Ende ans
+        Webformular. Anthropic Tool-Use mit 4 Tools.
+      </p>
+      <p style="margin-top: 12px;">
+        <a class="cta" href="https://agent.butscher.cloud/" target="_blank">UE4 Live-Demo →</a>
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <p>
+      UE3 — KI-Sachbearbeitung · Reifegradstufe 3<br>
+      Fallstudie AHP Würzburg · Modul Innovationsmanagement BBA · Dr. Robert Butscher · THWS<br>
+      <span class="small">Lehr-Demo, keine offizielle Anwendung der Stadt Würzburg.
+        Quellcode: <a href="https://github.com/swrobuts/DigitalisierungVerwaltung">github.com/swrobuts/DigitalisierungVerwaltung</a>
+      </span>
+    </p>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.quiz').forEach((quiz) => {
+    const correctIdx = parseInt(quiz.dataset.correct, 10);
+    const options = quiz.querySelectorAll('.quiz-options li');
+    const feedback = quiz.querySelector('.quiz-feedback');
+    options.forEach((opt, idx) => {
+      opt.addEventListener('click', () => {
+        if (quiz.dataset.answered === 'true') return;
+        quiz.dataset.answered = 'true';
+        options.forEach((o, i) => {
+          if (i === correctIdx) o.classList.add('correct');
+          else if (i === idx) o.classList.add('wrong');
+        });
+        if (idx === correctIdx) {
+          feedback.textContent = '✓ Richtig! Gut erkannt.';
+          feedback.className = 'quiz-feedback correct';
+        } else {
+          feedback.textContent = '✗ Nicht ganz — die richtige Antwort ist grün markiert.';
+          feedback.className = 'quiz-feedback wrong';
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>
