@@ -39,6 +39,11 @@ services:
       - traefik.http.routers.pruefung.tls.certresolver=mytlschallenge
       - traefik.http.routers.pruefung.service=pruefung
       - traefik.http.services.pruefung.loadbalancer.server.port=8000
+      # Rate-Limit (Kosten-Schutz Anthropic-API): max ~6 Chat-Turns/min/IP, Burst 12
+      - traefik.http.routers.pruefung.middlewares=pruefung-ratelimit
+      - traefik.http.middlewares.pruefung-ratelimit.ratelimit.average=6
+      - traefik.http.middlewares.pruefung-ratelimit.ratelimit.burst=12
+      - traefik.http.middlewares.pruefung-ratelimit.ratelimit.period=1m
 
 networks:
   root_default:

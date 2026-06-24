@@ -31,11 +31,14 @@ services:
 
       - traefik.http.services.ue4-agent.loadbalancer.server.port=8080
 
-      # Security-Header
-      - traefik.http.routers.ue4-agent.middlewares=ue4-agent-secheaders
+      # Security-Header + Rate-Limit (Frontend großzügiger, Backend härter)
+      - traefik.http.routers.ue4-agent.middlewares=ue4-agent-secheaders,ue4-agent-ratelimit
       - traefik.http.middlewares.ue4-agent-secheaders.headers.stsSeconds=31536000
       - traefik.http.middlewares.ue4-agent-secheaders.headers.stsIncludeSubdomains=true
       - traefik.http.middlewares.ue4-agent-secheaders.headers.framedeny=true
+      - traefik.http.middlewares.ue4-agent-ratelimit.ratelimit.average=30
+      - traefik.http.middlewares.ue4-agent-ratelimit.ratelimit.burst=60
+      - traefik.http.middlewares.ue4-agent-ratelimit.ratelimit.period=1m
 
 networks:
   root_default:
